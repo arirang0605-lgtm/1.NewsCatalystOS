@@ -77,8 +77,9 @@ def test_genuine_synthetic_witness_promotes_only_at_verified_decision(tmp_path, 
     assert event.source_sha256 == claim.source_sha256
     assert event.source_receipt_sha256 == claim.source_receipt_sha256
     assert event.published_at == claim.claimed_published_at
-    assert event.first_seen_at == claim.first_seen_at
-    assert proof.witness_verified_at > event.first_seen_at
+    assert event.first_seen_at == proof.usable_from
+    assert proof.source_capture_first_seen_at == claim.first_seen_at
+    assert proof.witness_verified_at == event.first_seen_at
     assert proof.revision_id == claim.revision_id
     assert proof.revision_kind == claim.revision_kind
     assert proof.supersedes_document_id == claim.supersedes_document_id

@@ -103,3 +103,10 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify_era_captures.py 
 - 합성 Ed25519 키로만 정상/실패 경로를 테스트한다. 실제 독립 검증자 키 또는 법적 공식 게시시각 증거를 생성하거나 추정하지 않으며 `1_1` 완료율은 기존 조건에 따라 계속 미완료 처리한다.
 
 - **원본 issuer 교차 검증 추가:** `OfficialCapture.source_request_value`로 기존 검증된 수신 영수증의 SEC 요청 CIK를 보존하고, 서명된 claim issuer/EDGAR 경로 CIK와 일치하는지 확인한다. URL 자기 일치만으로 다른 기업의 공시를 승인하지 않는다. 기존 EraLeader 수신 파일을 수정하거나 API를 재호출하지 않는다. v1 서명은 합성 구형 시험에만 해당하며 인증 대상에서 명시적으로 거절한다.
+
+## 2026-10-13 | 서명 증빙 이후 PIT 소급 노출 차단 (NC-1_1-RAW-EVENT-ASOF-FIX)
+
+- **수정 이유:** 과거 수신본에 대한 서명 증빙을 며칠 뒤 취득해도 `RawEvent.first_seen_at`이 원본 수신시각만 표시되면, 이벤트만 소비하는 외부 컴포넌트가 그 증빙을 과거 판단에 잘못 사용하게 될 위험이 있었다.
+- `SignedPublication.as_of()`에서 발행 이벤트의 `first_seen_at`을 `max(원본 수신, 서명 검증자 확인시각)`으로 보수적으로 정규화한다. `AnchoredOfficialPublication.as_of()`는 여기에 **별도 로컬 독립 핀의 최초 관측시각**까지 합쳐 `max(원본 수신, 검증자 확인, 독립 pin 관측)` 이후로만 `RawEvent`를 반환한다. 호출 시점이 사용 가능 시각보다 이르면 실패한다.
+- 원본 수신시각은 바꾸지 않고 `SignedPublication.source_capture_first_seen_at`에 보존하여 최초 관측과 독립 확인을 구분한다. 따라서 반환된 정식 `RawEvent.first_seen_at`은 **증빙까지 사용 가능한 시각**, 원본 수신 영수증의 실제 최초 관측은 별도 필드다. 연구용 `ObservedOfficialBatch`의 원본 `first_seen_at` 계약은 변경하지 않는다.
+- 합성 서명/독립 핀의 지연 상황에서 역사 의사결정 소급 차단, JSON/데이터클래스 직렬화 시각, 원본 receipt SHA 결합 회귀 테스트를 수행했다. 실제 제3자 서명·공시 공개시각을 확보한 것은 아니므로 실제 공시 인증 완료를 주장하지 않는다.

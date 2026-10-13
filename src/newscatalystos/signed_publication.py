@@ -7,7 +7,7 @@ must establish authority and keep the public-key SHA pin outside input data.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
@@ -54,7 +54,10 @@ class SignedPublication:
         )
         if decision < self.usable_from or decision > datetime.now(timezone.utc):
             raise SourceShareError("attested event not available at decision")
-        return self._sealed_event
+        # Never export a certified RawEvent with a first_seen_at that predates
+        # the signed witness evidence. The original capture time remains
+        # separately available via source_capture_first_seen_at.
+        return replace(self._sealed_event, first_seen_at=self.usable_from)
 
 
 def _verify_ed25519(statement: bytes, signature: bytes, key: bytes) -> None:

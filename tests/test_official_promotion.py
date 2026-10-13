@@ -74,7 +74,8 @@ def test_pinned_capture_signed_claim_anchor_join_as_of(tmp_path, witness, provid
     assert event.source_sha256 == values["verified"].captures[0].raw_sha256
     assert event.source_receipt_sha256 == values["verified"].captures[0].first_receipt_sha256
     assert event.source_document_id == values["provider_document_id"]
-    assert event.first_seen_at < bound.usable_from
+    assert event.first_seen_at == bound.usable_from
+    assert bound.attestation.source_capture_first_seen_at < bound.usable_from
     assert bound.usable_from == ANCHOR_AT
     with pytest.raises(SourceShareError, match="unavailable"):
         bound.as_of(BEFORE_ANCHOR, now=NOW)
@@ -149,3 +150,18 @@ def test_sec_issuer_must_match_signed_and_pinned_original_request_cik(tmp_path, 
     values["verified"] = replace(values["verified"], captures=(bad,))
     with pytest.raises(SourceShareError, match="issuer mismatches original pinned request CIK"):
         authenticate_anchored_official_record(**values)
+
+
+def test_downstream_event_first_seen_never_predates_late_anchor(tmp_path, witness):
+    """The public RawEvent cannot masquerade as certified at source receipt."""
+    from dataclasses import asdict
+    values, _, _ = scenario(tmp_path, witness)
+    proof = authenticate_anchored_official_record(**values)
+    event = proof.as_of(NOW, now=NOW)
+    assert proof.attestation.usable_from < proof.usable_from
+    assert proof.attestation.source_capture_first_seen_at < proof.usable_from
+    assert event.first_seen_at == proof.usable_from
+    assert asdict(event)["first_seen_at"] == proof.usable_from
+    assert event.published_at < event.first_seen_at
+    with pytest.raises(SourceShareError, match="unavailable"):
+        proof.as_of(proof.usable_from - timedelta(microseconds=1), now=NOW)

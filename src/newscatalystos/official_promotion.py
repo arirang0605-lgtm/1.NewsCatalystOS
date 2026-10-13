@@ -5,7 +5,7 @@ Never uses the collector, HTTP, EraLeader writes, or a made-up publication time.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -37,7 +37,10 @@ class AnchoredOfficialPublication:
         present = _when((now or datetime.now(timezone.utc)).isoformat(), "now")
         if not self.usable_from <= decision <= present:
             raise SourceShareError("anchored official proof unavailable at decision")
-        return self.attestation.as_of(decision)
+        event = self.attestation.as_of(decision)
+        # The independent anchor may have been recorded after the witness:
+        # the downstream event must not become usable before *both* exist.
+        return replace(event, first_seen_at=self.usable_from)
 
 
 def authenticate_anchored_official_record(
@@ -115,7 +118,7 @@ def authenticate_anchored_official_record(
     if (sealed_event.source_sha256 != capture.raw_sha256 or
             sealed_event.source_receipt_sha256 != capture.first_receipt_sha256 or
             sealed_event.source_document_id != provider_document_id or
-            sealed_event.first_seen_at != capture.first_seen_at):
+            attestation.source_capture_first_seen_at != capture.first_seen_at):
         raise SourceShareError("signed event differs from original pinned capture")
     usable_from = max(anchored_at, attestation.usable_from)
     if decision < usable_from:

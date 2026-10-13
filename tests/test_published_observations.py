@@ -135,7 +135,7 @@ def test_duplicate_evidence_records_rejected(tmp_path):
     tamper_json(folder, "publication.json",
                 lambda m: m.update(payload_sha256=pin,
                                    payload_size_bytes=len(raw)))
-    with pytest.raises(SourceShareError, match="duplicate research observation"):
+    with pytest.raises(SourceShareError, match="source coverage metadata sum|duplicate research observation"):
         read_published_observations(folder, root, pin, decision, now=decision)
 
 
@@ -165,3 +165,86 @@ def test_outside_root_access_rejected(tmp_path):
     with pytest.raises(SourceShareError, match="outside approved"):
         read_published_observations(folder, root / "other",
                                     pin, decision, now=decision)
+
+
+def test_v2_source_coverage_and_v1_legacy_readonly_compatibility(tmp_path):
+    from newscatalystos.observed_batch import LEGACY_SCHEMA
+    info = published(tmp_path, "sec-companyfacts")
+    result = read(info)
+    assert result.coverage_verified is True
+    assert len(result.source_coverage) == 1
+    assert result.source_coverage[0].source_id == "sec-companyfacts"
+    assert result.source_coverage[0].observed_count == 2
+    assert result.source_coverage[0].metadata_count == 0
+    assert len(result.rows) == 0
+    folder, root, _, decision, _, _ = info
+    def make_legacy(obj):
+        obj.pop("source_coverage")
+        obj["schema"] = LEGACY_SCHEMA
+    tamper_json(folder, "observations.json", make_legacy)
+    body = (folder / "observations.json").read_bytes()
+    legacy_pin = sha256(body).hexdigest()
+    tamper_json(folder, "publication.json",
+                lambda marker: marker.update(
+                    payload_sha256=legacy_pin, payload_size_bytes=len(body)))
+    legacy = read_published_observations(folder, root, legacy_pin,
+                                         decision, now=decision)
+    assert legacy.coverage_verified is False
+    assert legacy.source_coverage == ()
+    assert legacy.research_only is True
+
+
+@pytest.mark.parametrize("source_field,value", [
+    ("metadata_count", 0),
+    ("observed_count", 0),
+    ("source_id", "forged-source"),
+    ("provider_id", "DART"),
+    ("source_quality", "CERTIFIED"),
+    ("receipt_sha256", "0" * 64),
+    ("original_sha256", "0" * 64),
+    ("first_seen_at", "2030-01-01T00:00:00Z"),
+])
+def test_v2_source_summary_forgery_detected(tmp_path, source_field, value):
+    info = published(tmp_path, "sec-submissions")
+    folder, root, _, decision, _, _ = info
+    tamper_json(folder, "observations.json",
+                lambda obj: obj["source_coverage"][0].__setitem__(source_field, value))
+    data = (folder / "observations.json").read_bytes()
+    pin = sha256(data).hexdigest()
+    tamper_json(folder, "publication.json",
+                lambda obj: obj.update(payload_sha256=pin,
+                                       payload_size_bytes=len(data)))
+    with pytest.raises(SourceShareError):
+        read_published_observations(folder, root, pin, decision, now=decision)
+
+
+def test_v2_source_coverage_missing_even_with_matching_payload_pin_rejected(tmp_path):
+    info = published(tmp_path)
+    folder, root, _, decision, _, _ = info
+    tamper_json(folder, "observations.json",
+                lambda obj: obj.pop("source_coverage"))
+    data = (folder / "observations.json").read_bytes()
+    pin = sha256(data).hexdigest()
+    tamper_json(folder, "publication.json",
+                lambda obj: obj.update(payload_sha256=pin,
+                                       payload_size_bytes=len(data)))
+    with pytest.raises(SourceShareError, match="source coverage contract"):
+        read_published_observations(folder, root, pin, decision, now=decision)
+
+
+def test_v2_source_summary_count_reconciliation(tmp_path):
+    info = published(tmp_path)
+    folder, root, _, decision, _, _ = info
+    def forge(obj):
+        obj["source_coverage"][0]["metadata_count"] = 2
+        obj["source_coverage"][0]["observed_count"] = 2
+        obj["rows"].append(dict(obj["rows"][0]))
+        obj["row_count"] = 2
+    tamper_json(folder, "observations.json", forge)
+    data = (folder / "observations.json").read_bytes()
+    pin = sha256(data).hexdigest()
+    tamper_json(folder, "publication.json",
+                lambda obj: obj.update(payload_sha256=pin,
+                                       payload_size_bytes=len(data)))
+    with pytest.raises(SourceShareError, match="duplicate research observation"):
+        read_published_observations(folder, root, pin, decision, now=decision)

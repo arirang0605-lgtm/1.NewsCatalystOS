@@ -87,3 +87,10 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify_era_captures.py 
 - 파일/디렉터리 owner-only, 심볼릭 링크·상대경로/탈출 거부, MAX 16MiB/20,000행/공급자 5개, 원본 SHA와 독립 핀/게시 마커 무결성, JSON 중복 필드, 출처별 품질·SEC acceptance·DART 날짜·`first_seen_at`/독립 pin·사용가능 시각·문서 중복 검사. `published_at`은 **항상 null**, `issuer_verified`는 **false**, `certified_raw_event_count=0`만 허용. 변경·미게시/부분게시·미래자료는 실패 처리한다.
 - 실데이터 오프라인 end-to-end 재검증: 기존 EraLeader **공식 캡처 5종**, NewsCatalystOS 비공개 연구 메타 **3,866행**, 인증된 `RawEvent` **0건**. 새 원자 게시·소비자 재개방 SHA/시간/품질 PASS. 기존 EraLeader 코드/원본/Git/API 인증정보 변경 및 신규 공식 API 호출 **0건**. private `output/` 디렉터리는 공개 GitHub에서 제외.
 - **신뢰수준 경고:** 이번 실증에서 게시된 파일의 SHA를 같은 Mac에서 직접 계산해 넣은 것은 **로컬 데이터 무결성 연동 테스트**다. 제3자 원천 공개시각 인증/독립 신뢰 핀이 아니다. 운영용 독립 PIN은 사전에 별도 신뢰 보관소·최초 관측시각으로 관리해야 한다. 1_1 공식 발표시각 게이트는 계속 `DATA_UNAVAILABLE`이며 완료 단계/36 수를 올리지 않는다.
+
+## 2026-10-13 | 1_1 연구 공유 계약 v2: 이벤트 0행 출처까지 명시
+
+- 신규 게시물은 `newscatalyst.observed_official_batch.v2`를 발행한다. `source_coverage` 배열로 **각 공식 캡처**의 `source_id`, `provider_id`, 원본/영수증 SHA256, `first_seen_at`, 품질, `observed_count`(공식 API 원천 관측수), `metadata_count`(뉴스 정규화 후보수)를 보존한다. 정규화된 개별 `rows` 수와 이 배열의 합계를 일치시키며, 각 행의 SHA·품질·최초 관측시각·안정적 문서 ID를 원천별 요약에 다시 결합한다.
+- 이 변경으로 **SEC companyfacts taxonomy 2건·뉴스 이벤트 0행**처럼 행이 없는 공식 출처도 출처 장부에 남는다. `source_count`로 행 개수만 추정하는 문제를 제거한다. 품질상 `NO_DAILY_ROWS` 등 0건은 0건으로 기록하고, 개별 공식 출처의 포맷별 건수 무결성을 검사한다.
+- 기존 `v1` 연구용 게시 파일은 **삭제·덮어쓰기 없이** `read_published_observations()`에서 하위호환으로 읽되 `coverage_verified=False`를 명시한다. v2는 원천 요약이 완결·정합할 때만 `coverage_verified=True`; v1 결과를 v2 출처 완결로 자동 승격하지 않는다. 이 필드는 원본 스냅샷의 전체 역사·정식 공개시각 공증을 의미하지 않는다.
+- 기존 DART·SEC·KRX EraLeader 공식 5개 캡처로 v2 배치 실제 비공개 게시·재읽기 PASS: 원천 관측 **3,868**, 메타행 **3,866**, SEC companyfacts 원천 관측 **2/뉴스 0**, `RawEvent` **0**. 결과는 여전히 `RESEARCH_ONLY_RELEASE_UNVERIFIED`이며 공개시각 `null`/발행기관 독립 신원 미확정. 공식 신규 API 중복 수집·EraLeader 원본/DB/Git 변경 **0**.

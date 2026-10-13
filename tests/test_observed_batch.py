@@ -153,3 +153,37 @@ def test_private_publication_blocks_symlink_and_world_access(tmp_path):
     open_directory.chmod(0o755)
     with pytest.raises(SourceShareError, match="owner-only"):
         _private_output("safe.json", b"{}", root=open_directory)
+
+
+def test_source_coverage_tracks_zero_event_taxonomy_without_promotion(tmp_path):
+    verified, _, _ = sources(tmp_path, "sec-companyfacts")
+    batch = build_observed_official_batch(verified, ANCHOR, NOW, now=NOW)
+    payload = json.loads(batch.to_json_bytes())
+    assert payload["schema"] == SCHEMA
+    assert payload["row_count"] == 0
+    assert payload["source_count"] == 1
+    assert len(payload["source_coverage"]) == 1
+    item = payload["source_coverage"][0]
+    assert item["source_id"] == "sec-companyfacts"
+    assert item["observed_count"] == 2
+    assert item["metadata_count"] == 0
+    assert item["original_sha256"] == verified.captures[0].raw_sha256
+    assert item["receipt_sha256"] == verified.captures[0].first_receipt_sha256
+
+
+def test_multiple_source_summaries_cross_reference_rows(tmp_path):
+    from newscatalystos.verified_reference import VerifiedOfficialSources
+    captures = []
+    for source in ("sec-companyfacts", "sec-submissions", "dart-disclosures"):
+        verified, _, _ = sources(tmp_path / source, source)
+        captures.extend(verified.captures)
+    combined = VerifiedOfficialSources(
+        report_sha256="a" * 64, captures=tuple(captures),
+    )
+    batch = build_observed_official_batch(combined, ANCHOR, NOW, now=NOW)
+    p = json.loads(batch.to_json_bytes())
+    assert p["source_count"] == 3
+    assert p["row_count"] == 2
+    assert sum(x["metadata_count"] for x in p["source_coverage"]) == 2
+    assert p["source_coverage"][0]["source_id"] == "sec-companyfacts"
+    assert p["source_coverage"][0]["metadata_count"] == 0

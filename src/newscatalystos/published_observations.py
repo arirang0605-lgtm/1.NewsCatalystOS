@@ -15,7 +15,8 @@ import os
 import stat
 
 from .era_capture_share import SOURCES
-from .observed_batch import STATUS, SCHEMA as BATCH_SCHEMA, ObservedOfficialRow
+from .observed_batch import (STATUS, SCHEMA as BATCH_SCHEMA, LEGACY_SCHEMA,
+                             ObservedOfficialRow, ObservedOfficialSource)
 from .source_share import SourceShareError, _json, _must_sha, _read_regular, _when
 
 MARKER_SCHEMA = "newscatalyst.observed_publication.v1"
@@ -42,6 +43,10 @@ BATCH_KEYS = frozenset({
     "decision_at", "source_count", "row_count", "research_only",
     "certified_raw_event_count", "rows",
 })
+SOURCE_KEYS = frozenset({
+    "source_id", "provider_id", "first_seen_at", "original_sha256",
+    "receipt_sha256", "source_quality", "observed_count", "metadata_count",
+})
 MARKER_KEYS = frozenset({
     "schema", "status", "payload_sha256", "payload_size_bytes",
     "payload_file", "certified_raw_event_count", "first_local_published_at",
@@ -57,6 +62,8 @@ class PublishedResearchObservations:
     batch_decision_at: datetime
     source_count: int
     rows: tuple[ObservedOfficialRow, ...]
+    source_coverage: tuple[ObservedOfficialSource, ...]
+    coverage_verified: bool
     research_only: bool = True
 
     def as_of(self, decision_at: datetime, *, now: datetime | None = None
@@ -124,8 +131,16 @@ def read_published_observations(
     if len(data_bytes) != size or sha256(data_bytes).hexdigest() != expected:
         raise SourceShareError("research payload SHA or length mismatch")
     batch = _json(data_bytes, "observations")
-    if (set(batch) != BATCH_KEYS or batch["schema"] != BATCH_SCHEMA or
-            batch["status"] != STATUS or
+    schema = batch.get("schema")
+    if schema == BATCH_SCHEMA:
+        if set(batch) != (BATCH_KEYS | {"source_coverage"}):
+            raise SourceShareError("v2 source coverage contract invalid")
+    elif schema == LEGACY_SCHEMA:
+        if set(batch) != BATCH_KEYS:
+            raise SourceShareError("legacy observation schema invalid")
+    else:
+        raise SourceShareError("unknown research observation schema")
+    if (batch["status"] != STATUS or
             batch["research_only"] is not True or
             type(batch["certified_raw_event_count"]) is not int or
             batch["certified_raw_event_count"] != 0):
@@ -142,6 +157,48 @@ def read_published_observations(
             type(sources) is not int or not 1 <= sources <= len(SOURCES) or
             not isinstance(records, list) or len(records) != count):
         raise SourceShareError("observation count/coverage mismatch")
+    coverage: list[ObservedOfficialSource] = []
+    by_source: dict[str, ObservedOfficialSource] = {}
+    if schema == BATCH_SCHEMA:
+        summaries = batch["source_coverage"]
+        if not isinstance(summaries, list) or len(summaries) != sources:
+            raise SourceShareError("source coverage count mismatch")
+        for info in summaries:
+            if not isinstance(info, dict) or set(info) != SOURCE_KEYS:
+                raise SourceShareError("invalid source coverage metadata")
+            source_id = info["source_id"]
+            if source_id not in SOURCES or source_id in by_source:
+                raise SourceShareError("duplicated or unknown source in coverage")
+            if info["provider_id"] != SOURCES[source_id]:
+                raise SourceShareError("source coverage provider mismatch")
+            quality = info["source_quality"]
+            if not isinstance(quality, str) or quality not in QUALITIES[source_id]:
+                raise SourceShareError("source coverage quality invalid")
+            first = _when(info["first_seen_at"], "coverage first_seen_at")
+            if first > anchored:
+                raise SourceShareError("coverage first receipt after anchor")
+            observed_n, metadata_n = info["observed_count"], info["metadata_count"]
+            if (type(observed_n) is not int or type(metadata_n) is not int or
+                    not 0 <= metadata_n <= observed_n <= MAX_ROWS):
+                raise SourceShareError("invalid source capture counts")
+            if source_id == "sec-companyfacts":
+                if metadata_n != 0:
+                    raise SourceShareError("companyfacts taxonomy cannot become news events")
+            elif metadata_n != observed_n:
+                raise SourceShareError("source observations/metadata counts differ")
+            if quality in ("NO_DAILY_ROWS", "NO_DISCLOSURES_FOR_DAY") and observed_n:
+                raise SourceShareError("no-data quality contradicted by records")
+            summary = ObservedOfficialSource(
+                source_id=source_id, provider_id=SOURCES[source_id],
+                first_seen_at=first,
+                original_sha256=_must_sha(info["original_sha256"], "coverage original_sha256"),
+                receipt_sha256=_must_sha(info["receipt_sha256"], "coverage receipt_sha256"),
+                source_quality=quality, observed_count=observed_n, metadata_count=metadata_n,
+            )
+            by_source[source_id] = summary
+            coverage.append(summary)
+        if sum(x.metadata_count for x in coverage) != count:
+            raise SourceShareError("source coverage metadata sum mismatch")
     observed = []
     seen = set()
     seen_sources = set()
@@ -160,6 +217,9 @@ def read_published_observations(
         doc = raw["provider_record_id"]
         if not isinstance(doc, str) or not 0 < len(doc) <= 128:
             raise SourceShareError("invalid source document id")
+        stable_id = sha256((source + "\x00" + doc).encode("utf8")).hexdigest()
+        if evidence != stable_id:
+            raise SourceShareError("evidence identifier differs from official source document")
         original = _must_sha(raw["original_sha256"], "original_sha256")
         receipt = _must_sha(raw["receipt_sha256"], "receipt_sha256")
         provider_day = raw["provider_day"]
@@ -191,6 +251,13 @@ def read_published_observations(
                  and provider_day is None) or
                 (source == "sec-submissions" and acceptance is None)):
             raise SourceShareError("invalid source-specific research quality")
+        if schema == BATCH_SCHEMA:
+            parent = by_source.get(source)
+            if (parent is None or parent.first_seen_at != seen_at or
+                    parent.original_sha256 != original or
+                    parent.receipt_sha256 != receipt or
+                    parent.source_quality != quality):
+                raise SourceShareError("row differs from signed source coverage")
         observed.append(ObservedOfficialRow(
             source_id=source, provider_id=SOURCES[source],
             evidence_id=evidence, provider_record_id=doc,
@@ -199,8 +266,14 @@ def read_published_observations(
             original_sha256=original, receipt_sha256=receipt,
             source_quality=quality,
         ))
-    if len(seen_sources) > sources:
-        raise SourceShareError("source coverage smaller than observations")
+    if schema == BATCH_SCHEMA:
+        totals = {source_id: 0 for source_id in by_source}
+        for row in observed:
+            totals[row.source_id] += 1
+        if any(totals[x.source_id] != x.metadata_count for x in coverage):
+            raise SourceShareError("source coverage row count mismatch")
+    elif len(seen_sources) > sources:
+        raise SourceShareError("legacy source coverage smaller than observations")
     # Re-read the marker after consuming payload to detect a publication race.
     if _read_regular(publication / "publication.json", MAX_MARKER_BYTES) != marker_bytes:
         raise SourceShareError("publication marker changed while reading")
@@ -208,4 +281,5 @@ def read_published_observations(
         payload_sha256=expected, local_published_at=published,
         anchor_observed_at=anchored, batch_decision_at=captured_at,
         source_count=sources, rows=tuple(observed),
+        source_coverage=tuple(coverage), coverage_verified=(schema == BATCH_SCHEMA),
     )

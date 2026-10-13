@@ -14,8 +14,21 @@ from .official_normalization import normalize_official_capture
 from .source_share import SourceShareError, _must_sha, _when
 from .verified_reference import VerifiedOfficialSources
 
-SCHEMA = "newscatalyst.observed_official_batch.v1"
+SCHEMA = "newscatalyst.observed_official_batch.v2"
+LEGACY_SCHEMA = "newscatalyst.observed_official_batch.v1"
 STATUS = "RESEARCH_ONLY_RELEASE_UNVERIFIED"
+
+
+@dataclass(frozen=True)
+class ObservedOfficialSource:
+    source_id: str
+    provider_id: str
+    first_seen_at: datetime
+    original_sha256: str
+    receipt_sha256: str
+    source_quality: str
+    observed_count: int
+    metadata_count: int
 
 
 @dataclass(frozen=True)
@@ -44,6 +57,7 @@ class ObservedOfficialBatch:
     decision_at: datetime
     rows: tuple[ObservedOfficialRow, ...]
     source_count: int
+    source_coverage: tuple[ObservedOfficialSource, ...]
     research_only: bool = True
 
     def as_of(self, decision_at: datetime, *, now: datetime | None = None) -> tuple[ObservedOfficialRow, ...]:
@@ -66,6 +80,16 @@ class ObservedOfficialBatch:
             "anchor_first_observed_at": self.independent_anchor_observed_at.isoformat(),
             "decision_at": self.decision_at.isoformat(),
             "source_count": self.source_count,
+            "source_coverage": [{
+                "source_id": source.source_id,
+                "provider_id": source.provider_id,
+                "first_seen_at": source.first_seen_at.isoformat(),
+                "original_sha256": source.original_sha256,
+                "receipt_sha256": source.receipt_sha256,
+                "source_quality": source.source_quality,
+                "observed_count": source.observed_count,
+                "metadata_count": source.metadata_count,
+            } for source in self.source_coverage],
             "row_count": len(self.rows),
             "research_only": True,
             "certified_raw_event_count": 0,
@@ -121,6 +145,7 @@ def build_observed_official_batch(
     rows = []
     seen_sources = set()
     seen_evidence = set()
+    coverage = []
     for capture in sources.captures:
         if capture.source_id in seen_sources:
             raise SourceShareError("duplicate research source")
@@ -129,7 +154,18 @@ def build_observed_official_batch(
             raise SourceShareError("research source falsely certified")
         if capture.first_seen_at > anchored:
             raise SourceShareError("source first receipt after independent reference anchor")
-        for candidate in normalize_official_capture(capture, moment):
+        candidates = normalize_official_capture(capture, moment)
+        coverage.append(ObservedOfficialSource(
+            source_id=capture.source_id,
+            provider_id=capture.provider_id,
+            first_seen_at=capture.first_seen_at,
+            original_sha256=capture.raw_sha256,
+            receipt_sha256=capture.first_receipt_sha256,
+            source_quality=capture.quality,
+            observed_count=capture.observed_count,
+            metadata_count=len(candidates),
+        ))
+        for candidate in candidates:
             identity = (capture.source_id, candidate.evidence_id)
             if identity in seen_evidence:
                 raise SourceShareError("duplicate official evidence")
@@ -151,4 +187,5 @@ def build_observed_official_batch(
         schema_version=SCHEMA, reference_sha256=report_sha,
         independent_anchor_observed_at=anchored, decision_at=moment,
         rows=tuple(rows), source_count=len(seen_sources),
+        source_coverage=tuple(coverage),
     )

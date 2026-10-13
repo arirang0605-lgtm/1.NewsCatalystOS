@@ -43,3 +43,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-13 | 1_1 최신 기능 인계 (NC-1_1-READ-PUBLISHED)
 - 기능 `801db132bbb0ea0b429f5916da174966d0db34f2` `origin/main` push/원격 SHA 대조 성공: 연구 배치 read-only SHA/PIT/품질 소비 경계 추가, 최초 로컬 게시시각 기록, legacy 미인증 게시 차단, 관련 **170 PASS / 0 FAIL**.
 - EraLeader 기존 API 수집결과 5종/연구메타 3,866건 새 원자 게시→복원 읽기 로컬 PASS, 공식 RawEvent 0, 외부 공개시각 인증 부재. 다음 `NEXT_TASK.md` 맨 아래 1_1 외부 독립 증빙 게이트부터 재개. **엄격 완료 0/36**, EraLeader 공유/독립 실행/원본보호 원칙 불변.
+
+## 2026-10-13 | 최신 1_1 출처 완결성 v2 인계 (NC-1_1-COVERAGE-V2)
+- `e46b2619b337cd09fb8eec9131a5b121c9fd51ac` `origin/main` push 검증: 연구용 공유 배치 v2가 0행 소스 포함 출처별 SHA/관측수/품질 계보 보존, 기존 v1 read-only 하위호환. **183 PASS / 0 FAIL**, 실제 EraLeader 공식 5개 관측 3,868/메타 3,866 검증. 독립 공식 공개시각 증빙 부재로 `NEXT_TASK=1_1`, **0/36**, 공식 RawEvent=0 유지.
+- 새 채팅 이동 판단은 정확한 컨텍스트 사용 퍼센트를 직접 측정할 수 없으므로 대화 길이·응답/도구 품질 저하 등을 보고 선제적으로 안내(사용자 선호 80~85% 전후, 90% 도달 전). 이동 시 본 파일 및 NEXT_TASK 최신 기록을 사용하며 반복 점검 금지.

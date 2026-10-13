@@ -86,3 +86,10 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **실데이터 검증:** 이미 별도 로컬 SHA로 고정된 EraLeader 공식 캡처 **5개**를 읽어 연구용 메타 **3,866행**을 NewsCatalystOS private `output/`에 새 원자 게시 → 소비자 재개방 PASS. 재게시된 배치 로컬 SHA256 `5573ce9abe6a7bc63d50a85a96fcbdb809b00f42e54015e9b13142b94f491a2e`. 이것은 **동일 컴퓨터 로컬 무결성 테스트**이며 독립 외부 공개시각 공증이 아님. 실제 RawEvent 0건.
 - **테스트:** 1_1 관련 9파일 **170 PASS / 0 FAIL**, compileall PASS. staged 파일 5개 명시 허용목록·비밀/바이너리/크기·diff 검증 PASS. 기능 커밋 `801db132bbb0ea0b429f5916da174966d0db34f2` `origin/main` push 및 원격 SHA 일치.
 - **여전히 미완료:** 신뢰할 만한 외부 발행기관의 실제 공개시각·issuer·정정 연결 시점 인증 증거 부재; SEC acceptance와 DART 날짜는 발표 시각 인증 아님. 실제 인증 이벤트 0, AI API 0회, 운영 0거래일. 현 `NEXT_TASK=1_1`, 엄격 완료 **0/36(0.0%)**, `DATA_UNAVAILABLE` 유지. 기존 36개 개발계획/공식 API 공유 정책 불변.
+
+## 2026-10-13 | 1_1 공식 공유 연구 배치 v2 출처완결 검증 (NC-1_1-COVERAGE-V2)
+- **실제 구현:** `observed_batch.py`의 `newscatalyst.observed_official_batch.v2`는 `source_coverage`에 모든 캡처의 원본/영수증 SHA, 제공자, 최초 수신, 품질, 원천 관측수, 정규화 메타수 기록. `published_observations.py` 소비자는 요약/행/문서ID/수신시각/품질/건수 교차검증 및 없는 출처·0행 소스 확인. 이전 v1 연구 배치는 삭제·변경 없이 하위호환으로 읽되 `coverage_verified=False` 명시.
+- **실데이터:** 기존 EraLeader DART/SEC/KRX 완료 스냅샷 5개 읽기 전용→NewsCatalystOS 비공개 v2 원자 게시→재읽기 **PASS**. 원천 관측 총 **3,868건**, 연구용 메타 **3,866행**, SEC companyfacts 원천 **2건/뉴스 메타 0행**, 인증된 RawEvent **0건**. 이 실증은 로컬 PIT/무결성 검사이며 외부 독립 공시 공개시각 인증 아님.
+- **검증:** 변경범위 9파일 **183 PASS / 0 FAIL**, Python compileall PASS. Public 명시 6파일 stage+비밀/텍스트/크기/공백 검사 PASS, `output/` ignore 확인. 기존 EraLeader 코드/원본/DB/Git 쓰기 및 중복 API 수집 0.
+- **GitHub:** 기능 commit `e46b2619b337cd09fb8eec9131a5b121c9fd51ac` `origin/main` push 및 원격 SHA 일치.
+- **아직 미완료:** 기존 정식 1_1 게이트인 공식 대외 공개시각·issuer·정정의 신뢰 가능한 독립 과거시점 증빙 부재, 실제 공시 RawEvent 검증 0. API 직접 수집·AI API 0회, 5거래일 운영 0일. `NEXT_TASK=1_1`, 엄격 완료 **0/36(0.0%)**, `DATA_UNAVAILABLE` 유지. 기존 36개 개발계획과 EraLeader 데이터 공유 정책 불변.

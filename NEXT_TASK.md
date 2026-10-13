@@ -61,3 +61,8 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - 직전 기능 `801db132bbb0ea0b429f5916da174966d0db34f2`: NewsCatalystOS 내 비공개 원자 게시 결과의 read-only 소비/PIT·SHA 품질 게이트 구현, **170 PASS / 0 FAIL**, 실제 EraLeader 5개 공식 캡처 기반 연구 메타 3,866건 end-to-end 로컬 재검증 PASS. 신규 API 재호출/중복 수집/다른 프로젝트 변경 없음. 기존 메타 연구 배치 및 로컬 검증 반복은 불필요.
 - **남은 단일 핵심:** 기존 DART/SEC 수신본 최소 1건의 실제 대외 공개시각·발행자 신원·정정 계보를 **외부 독립 증거**로 확인하고 그 증거의 최초 가용시각·신뢰 인증 자료를 확보하여 `inspect_release_claim → authenticate_publication → proof.as_of` 실물 검증 수행. 검증된 시각 자료를 소급 생성하거나 SEC 수리시각/DART 접수일로 대신하지 않는다.
 - 외부 증명이 확보되지 않는 동안 실제 인증 `RawEvent=0`·`DATA_UNAVAILABLE`, `1_1` 완료 판정 유예, `NEXT_TASK=1_1`, **0/36(0.0%)** 유지. EraLeader 공식 수집 공유 경계를 유지하며 다른 35개 단계의 순서·V1.0 완료 조건 변경 금지.
+
+## 2026-10-13 | 최신 인계 — 1_1 실제 공개시각 증빙 미확보
+- 기능 `e46b2619b337cd09fb8eec9131a5b121c9fd51ac`: 공식 공유 연구 배치 v2에 출처별 관측수·메타수·품질·원본/영수증 SHA 장부 추가. **183 PASS/0 FAIL**, 기존 공식 캡처 5종 원천 관측 3,868/메타 3,866, SEC facts 2/0 실데이터 오프라인 게시·재읽기 PASS. 이전 v1 하위호환 구현. 이미 정상인 이 경계를 중복 작성/점검하지 말 것.
+- **다음 단일 핵심:** EraLeader 기존 DART 또는 SEC 수신본의 **실제 발행기관 공개시각·정정 연결·발행자 진위**를 독립적으로 검증할 증거와 실제 최초 입수시각/사전 신뢰키를 확보해 기존 `inspect_release_claim → authenticate_publication → proof.as_of`에 연결. SEC acceptance나 DART 날짜, 로컬 자체 SHA/TOFU는 외부 공개시각 인증을 대신하지 않는다.
+- 외부 증거 없으면 `DATA_UNAVAILABLE`과 인증 `RawEvent=0` 유지, 단계 1_1의 엄격 완료 전환 및 1_2로 이동 금지. 현재 **0/36 = 0.0%**, EraLeader 공식 수집기 재개발·중복 수집·원본/DB/Git 변경 금지.

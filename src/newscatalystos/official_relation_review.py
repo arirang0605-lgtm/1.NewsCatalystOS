@@ -22,8 +22,8 @@ from .supply_chain_graph import SupplyChainEdge, observed_supply_edge
 
 RELATION_STATUS = "OFFICIAL_DOCUMENT_REVIEWED_RELATION_NOT_TRANSACTION_VERIFIED"
 _RELATION_TERMS = (
-    "supply", "supplies", "supplier", "purchase", "sold", "contract",
-    "manufactur", "foundry", "공급", "계약", "납품", "판매", "제조",
+    "supply", "supplies", "supplied", "purchase", "purchased", "sold", "contract",
+    "manufactures for", "manufactured for", "공급", "계약", "납품", "판매", "위탁생산",
 )
 MAX_DOCUMENT_BYTES = 1024 * 1024
 
@@ -120,12 +120,22 @@ def review_official_supply_relation(
         raise SourceShareError("official source and both company ID namespaces mismatch")
     names = (review.supplier_name, review.customer_name)
     statement = review.evidence_statement
+    # A company named 'Supplier Alpha' or a negated contract mention must
+    # never turn mere co-occurrence into a direct commercial relationship.
+    normalized = statement.casefold()
+    relation_context = normalized
+    for name in names:
+        if isinstance(name, str):
+            relation_context = relation_context.replace(name.casefold(), " ")
+    negations = ("no business deal", "no contract", "not a supplier",
+                 "unrelated", "계약 없음", "공급 계약 없음", "거래 관계 없음")
     if (any(not isinstance(n, str) or not 2 <= len(n) <= 140 for n in names)
             or names[0].casefold() == names[1].casefold()
             or not isinstance(statement, str) or not 20 <= len(statement) <= 1400
             or statement not in full_text
             or any(n.casefold() not in statement.casefold() for n in names)
-            or not any(term in statement.casefold() for term in _RELATION_TERMS)):
+            or any(term in normalized for term in negations)
+            or not any(term in relation_context for term in _RELATION_TERMS)):
         raise SourceShareError("explicit supplier/customer transaction statement required")
     edge = observed_supply_edge(
         source, supplier, customer, product_stage=review.product_stage,

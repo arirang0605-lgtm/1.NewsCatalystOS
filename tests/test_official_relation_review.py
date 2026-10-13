@@ -206,3 +206,17 @@ def test_mixed_or_wrong_official_company_namespace_is_rejected():
     with pytest.raises(SourceShareError, match="namespaces mismatch"):
         run(supplier=replace(supplier, id_namespace="SEC_CIK", company_id="123456"),
             customer=replace(customer, id_namespace="SEC_CIK", company_id="654321"))
+
+
+def test_supplier_name_alone_or_negated_contract_does_not_prove_direct_trade():
+    base = setup()[3]
+    for statement in (
+        "Supplier Alpha and Customer Beta discussed packaging trends yesterday.",
+        "Supplier Alpha and Customer Beta have no contract for advanced packaging.",
+        "Supplier Alpha and Customer Beta are unrelated businesses in this report.",
+    ):
+        text = ("Official disclosed agreement: " + statement).encode()
+        digest = sha256(text).hexdigest()
+        with pytest.raises(SourceShareError, match="explicit supplier/customer"):
+            run(review=replace(base, evidence_statement=statement, document_sha256=digest),
+                body=text, pin=digest)

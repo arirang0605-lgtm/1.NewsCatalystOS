@@ -220,3 +220,8 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - 5_2 공식 메타 관측→별도 SHA 고정 공시 본문/사람 검토 관계 후보 경계 추가. 기능 `f10e167c7dc6246afbf3533489f25473936ed70a` origin/main 푸시. 관련 29 PASS/0 FAIL, Python compile 및 staged 공개 보안 검사 PASS. 실제 공급망 독립 검증 관계 0건으로 5_2 실증은 미완료.
 - 기존 GitHub 독립 브랜치 `feature/gold-review-intake-20261013`의 2_6/3_6 이중 라벨·PIT 정답셋 입력 모듈을 SSD main에 안전 통합, `bdd50c119b45bbd7bcf73f0be05fc9f542d8e6fe` origin/main 푸시. 관련 기존 테스트 29 PASS/0 FAIL. 새 모듈 전용 실라벨 테스트 및 500건 독립 평가 미실시, 2_6·3_6 완료 아님.
 - **현재 완료 23/36(63.9%), NEXT_TASK=5_2 실자료 독립 검증**. 실 AI 공급자/500건 gold/반도체 계약 관계/5거래일 운영·독립 물리 복원/릴리스 태그 미완료. 사용자 기존 미추적 도면·문서 보존, EraLeader 코드·DB·Git/공식 API 중복 수집 없음.
+
+## 2026-10-13 | 2_6·3_6 골드 검토 입력 자동 테스트 보완
+- `tests/test_gold_review_intake.py` 9개 신규 시나리오 추가: 2인 합의/불일치·누락, source SHA/예측 SHA, 검토/PIT 미래 차단, 중요 사건 제외, 500건 합성 라벨과 인증 구분. 최초 테스트 2건의 fixture 기대 조건 수정 후 관련 26 PASS/0 FAIL, Git diff --check PASS.
+- 기능 커밋 `5bf22318efcf9a5d22a45a5fd9826596a5ba82c8` origin/main 푸시 성공. 실제 독립 검수 gold 500건은 0건, 반도체 공식 공급망 실거래 검증 0건. 2_6/3_6/5_2 완료 승격 없음.
+- **엄격 완료 23/36(63.9%), NEXT_TASK=5_2** 실제 허가 공식 공시 본문·회사 역할 증빙 확보 후 읽기전용 검증. EraLeader 원본/수집기·DB·Git 무변경. 실제 AI/5거래일 운영·별도 물리 복원은 미완료.

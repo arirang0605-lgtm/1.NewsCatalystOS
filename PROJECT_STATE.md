@@ -141,3 +141,9 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 ## 2026-10-13 | External evidence check (NC-1_1-EXTERNAL-BLOCKER-CHECK)
 - Current verified Git HEAD before this checkpoint: 6c9a54c3ea53b3f29489ba15d4febc2f72986573. Separate-disk local PIT SHA anchor exists, but owner-approved independent witness trust registry and private proof inbox were NOT_FOUND. No new official external publication-time, issuer, correction-chain or trusted signed evidence was received.
 - This session added no application code and ran no new tests. The previously recorded 236 PASS is a prior checkpoint, not a new test outcome. No EraLeader code/data/DB/Git changes or duplicate API calls. Official RawEvent 0; DATA_UNAVAILABLE, NEXT_TASK=1_1, strict 0/36.
+
+## 2026-10-13 | 1_1 운영 인증 진입점 신뢰 등록부 우회 차단 (NC-1_1-ENTRY-TRUST)
+- **발견/수정:** 이전에는 `scripts/check_official_proof.py`가 외부 검증자 신뢰 등록부를 먼저 확인했지만, 운영 파일 기반 `authenticate_from_era_readonly()`를 직접 호출하면 self-supplied 검증자 공개키 SHA/등록시각으로 진입하는 우회 가능성이 있었다. 이제 이 함수가 owner-only 별도 디스크 `load_operator_witness()`를 **직접 재확인**하고 사전 등록된 SHA와 사용자가 전달한 SHA·enrolled_at이 일치하지 않으면 EraLeader 원본을 열기 전에 실패. 내부 검증에는 등록부에서 직접 얻은 등록시각만 전달.
+- **검증:** 직접 진입점의 등록부 누락/허위 SHA/등록시각 회귀 시험 2개 추가. 1_1 전체 관련 **238 PASS / 0 FAIL**, compileall PASS, git diff --check PASS. Public 3파일 explicit stage·비밀키/토큰/바이너리/크기·.gitignore 검사 PASS. EraLeader 코드/운영DB/원본/Git 변경 및 직접 API 중복 수집 0.
+- **기능 GitHub:** `6f2ae882c2f0f5c8e1db033c49fd7da75e15a3af` `origin/main` 비강제 push, 원격 SHA 일치 확인. 기존 미추적 사용자 자료·도면 무변경/스테이지 제외.
+- **완료 제약:** Mac 외부 검증자 owner-approved 등록부·실물 독립 검증자 증거/원천 최초 웹 공개시각·issuer·정정 계보가 아직 존재하지 않음. 코드 안전 경계 보완 ≠ 실증 인증. 공식 `RawEvent=0`, `DATA_UNAVAILABLE`, `NEXT_TASK=1_1`, **엄격 완료 0/36(0.0%)** 유지. AI API 0회, 5거래일 운영 0일.

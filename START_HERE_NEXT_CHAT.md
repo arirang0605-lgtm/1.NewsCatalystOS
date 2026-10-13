@@ -75,3 +75,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-13 | 1_1 최신 개발 인계 (NC-1_1-PROOF-ARRIVAL)
 - `8f24d48cf8abd0af782962cfd5ef0dd10a306e46` origin/main push 검증: 외부 증빙 파일 로컬 도착시각 이전의 인증 PIT 소급 누출 차단, 1_1 영향범위 **236 PASS/0 FAIL**, Public 보안 검사 PASS. EraLeader 쓰기/직접 수집 없음.
 - 외부 독립 공식 공개시각 및 검증자 실물 서명이 여전히 없어 **`NEXT_TASK=1_1`, 엄격 완료 0/36**, 인증 RawEvent 0. 가장 최신 `NEXT_TASK.md` 외부 증거 확보 게이트만 확인해 중복 개발/반복 수집 금지.
+
+## 2026-10-13 | 최신 1_1 운영 함수 신뢰 게이트 인계 (NC-1_1-ENTRY-TRUST)
+- 기능 `6f2ae882c2f0f5c8e1db033c49fd7da75e15a3af` origin/main 푸시 검증: 실사용 파일 기반 인증을 CLI 밖에서 직접 호출해도 외부 검증자 owner-only 등록부 조회를 우회하지 못하도록 보완. 1_1 관련 **238 PASS / 0 FAIL**, Public 파일 3개 보안 검사 PASS. EraLeader 코딩·DB·Git 쓰기/공식 API 재수집 0.
+- 실제 외부 증빙/공식 공개시각 검증자 자료 없음 → 실물 RawEvent 0, 엄격 완료 `0/36`, `NEXT_TASK=1_1`, `DATA_UNAVAILABLE`. 다음은 `NEXT_TASK.md` 마지막 실물 독립 증거 확보/검증 게이트만. 반복 synthetic 개발로 완료 부풀리지 말 것.

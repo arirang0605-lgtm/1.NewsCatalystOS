@@ -107,3 +107,8 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 ## 2026-10-13 | External proof still unavailable (NC-1_1-EXTERNAL-BLOCKER-CHECK)
 - The Mac has no enrolled independent external witness registry and no dedicated proof inbox. Existing request_official_proof.py and check_official_proof.py are implemented; do not recreate or repeat synthetic tests without changed inputs.
 - One required external action: obtain authentic issuer/publication time/correction evidence for one DART or SEC document previously captured by EraLeader, plus time-of-acquisition and independently approved witness key/signature. Then run the existing proof gate and PIT/nonmutation tests. If absent: DATA_UNAVAILABLE, NEXT_TASK=1_1, 0/36.
+
+## 2026-10-13 | 최신 1_1 외부 독립 공시 증빙 차단 상태
+- 기능 SHA `6f2ae882c2f0f5c8e1db033c49fd7da75e15a3af` origin/main 반영 검증: 직접 호출 가능한 파일 기반 인증 함수가 별도 디스크 신뢰 등록부 자체를 검사하도록 수정. 등록 누락/자가 PIN/임의 등록시각 경계 차단, **238 PASS / 0 FAIL**. 기존 서명·PIT·원본 read-only·요청서 구현 재작성 금지.
+- **다음 한 작업:** 실제 사전 승인된 별도 검증기관/발행기관이 기존 EraLeader DART 또는 SEC 공시 1건의 외부 공개시각·issuer·정정 연쇄를 독립 증명하고, 최초 증빙 확보시각·신뢰 검증자 사전 등록/서명 자료를 제공해야 한다. 그때 비공개 owner-only 신뢰 등록부를 적법하게 등록하고 기존 `scripts/check_official_proof.py`로 실물 시험/PIT/원본불변·정정·장애 검사 후 1_1 완료 판정.
+- 현재 신뢰 등록부·외부 증거 미확보이므로 `DATA_UNAVAILABLE`, 실제 인증 `RawEvent=0`, `NEXT_TASK=1_1`, **0/36** 유지. 자료 없는데 과거 공식 발표시각/서명/외부 신뢰키 자가 생성하지 말 것. 다른 V1.0 35단계 순서 및 반도체 검증 범위는 변경 없음.

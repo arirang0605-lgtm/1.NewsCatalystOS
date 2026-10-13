@@ -173,3 +173,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 6_5 실운영·교차 디스크 복원 표시 인계
 - 기능 `31a1ba7d3702f2efbed32beccd3886a376b76a3a`의 Mac 내부↔T5DATA SQLite 2개 실제 백업/복원, Mac 별도 SHA PIN 2개 저장/재복원 PASS. 후속 기능 `dd8f9facf6f10466f8882e7deb215d2816c5a332` 원격 main SHA 일치: `check_feed_operations.py`에서 실제 PIN+외부 SSD SHA 재대조 후 `independent_physical_recovery_verified=true` 표시, 오프사이트 및 5거래일 여전히 false. 변경 영향 **55 PASS / 0 FAIL**, compile/Public 검사 PASS.
 - 실제 RSS 승인 소스 2곳 2026-10-14 완료 ACK 2건/미처리0; 정식 5거래일·반도체 거래 증빙 없어 **23/36(63.9%)**, `NEXT_TASK.md` 최신 6_5 실운영 날짜 누적 및 5_2 공식문서 확보부터 이어간다. EraLeader 원본·DB·Git 변경/중복 DART·SEC·KRX 호출 금지.
+
+## 2026-10-14 | 최신 개발 인계 — 6_5 정기 RSS 작업 실사용 launchd 활성
+- 기능 Git SHA `d154a280065a531cc54017663ac8f51af24be644` 원격 main 확인. 승인된 Mac RSS 2종만 1시간마다 1회 기존 1_3~3_5 복구가능 triage를 수행하는 `~/Library/LaunchAgents/com.newscatalystos.triage.plist` 설치/launchctl bootstrap·kickstart 성공: `runs=1`, `last exit code=0`, stdout 제공자2 성공/AI0·공식 API 중복0. **75 PASS/0 FAIL**, 컴파일/공개 검사 PASS. 안전중지 및 상태 점검은 `docs/6_5_SCHEDULED_TRIAGE_OPERATIONS.md`.
+- 6_5 실제 5거래일 목표는 첫 운영 날짜 2026-10-14 **1/5일만 확보**, local Mac↔T5DATA 물리 DR 2 DB는 PASS. 전체 **23/36(63.9%)** 유지. 다음은 `NEXT_TASK.md` 맨 아래 6_5 실제 ACK 누적/실증·5_2 허가된 공식 반도체 거래 본문 확보. 기존 코드 REWRITE·EraLeader 원본/API 중복수집·미추적 사용자자료 변경 금지.

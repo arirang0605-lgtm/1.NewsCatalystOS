@@ -224,3 +224,8 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - 기능 Git SHA `dd8f9facf6f10466f8882e7deb215d2816c5a332` origin/main 확인. 맥북/T5DATA 서로 다른 저장장치의 SQLite 2개 독립 백업 SHA PIN을 기존 `check_feed_operations.py` 운영 상태에 연결, `independent_physical_recovery_verified=true` 실제 관측. 오프사이트 백업/연속 5거래일·출시 조건은 별도 미검증.
 - 2026-10-14 승인 RSS 2종 각각 실관측 완료 ACK 1건씩, 모든 승인소스 성공 날짜 **1일**; 과거 데이터 소급 완료 처리 금지. 변경 영향 테스트 55 PASS/0 FAIL. **전체 23/36 (63.9%)**.
 - 다음: 승인 RSS의 기존 호출/권한·백오프를 그대로 쓰는 가벼운 **실사용 정기 실행 경로** 연결, 5거래일 실제 ACK 누적/오류 기록·중단·복구 및 원본 보존 검증. 단발 기능 완성 반복보다 실운영 우선. 동시에 실제 반도체 공식 공급관계 원본 확보 때만 기존 5_2 검토 함수로 연결, 확인 못한 사실은 UNKNOWN 유지.
+
+## 2026-10-14 | 최신 NEXT_TASK=6_5 실제 정기 운영 누적; 5_2 실물 공식 공시 증거
+- **실사용 기능 Git SHA `d154a280065a531cc54017663ac8f51af24be644` origin/main 반영:** Mac 사용자 launchd `com.newscatalystos.triage`로 명시 기승인 RSS 2종만 매 3,600초 `run_scheduled_triage.py --once` 실행. 실물 `plutil lint OK` + `bootstrap` + `kickstart` 1회 `last exit code=0`, 로그 양쪽 정상 처리/실패0. 코드 변경영향 **75 PASS/0 FAIL**, Python 컴파일/Public 검사 PASS. 기존 `com.newscatalystos.incremental` 중복 스케줄러 활성화 금지.
+- **다음 운영:** 5개 실제 거래일 중 **2026-10-14 단일 날짜만 증거 확보**. 이후 `PYTHONPATH=src python3 scripts/check_feed_operations.py` 로 ACK/양 소스/미처리/상태/실제 PIN 확인하고 stderr 및 Mac·T5DATA 마운트 상태 관찰; 필요하면 기존 `--replay-only`로 무네트워크 장애 복구. Mac sleep/SSD 분리·제공자 권한 오류는 자동 완성으로 보고하지 않음. 다른 프로젝트 API 중복 수집 및 자동매매/홈페이지 없음.
+- 다른 미완료 5_2 실공식 반도체 계약 본문/양사 공식 ID는 실제 증거가 확보될 때 기존 offline `review_supply_relation.py`로 검토. AI 실제 모델/독립 검수 gold 및 6_6 최종 인수 조건 대기. **완료 23/36(63.9%)**, 6_5/36 릴리스 완료 판정 금지. 현황/안전 중단 문서 `docs/6_5_SCHEDULED_TRIAGE_OPERATIONS.md`.

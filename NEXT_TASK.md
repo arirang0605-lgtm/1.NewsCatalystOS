@@ -175,3 +175,7 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 ## 2026-10-13 | 5_2 공식 공급망 관계 기업 식별자 안전성 보완
 - `official_relation_review.py`에서 DART→DART_CORP, SEC→SEC_CIK로 공급자·고객자 모두 동일 공식 네임스페이스를 요구. 교차/잘못된 네임스페이스 합성 음성 테스트 추가, 영향범위 **24 PASS/0 FAIL**, git diff --check PASS.
 - 기능 Git SHA `d920008651089483662e6e61f605353a477274d5` origin/main push 검증. 실제 문서 본문 독립 SHA/공급망 계약 실증은 여전히 0건. **완료 23/36(63.9%), NEXT_TASK=5_2 실물 공식 반도체 관계 검증**. EraLeader 쓰기/중복 공식 수집 0.
+
+## 2026-10-13 | 5_2 공식 관계 문장 오탐 억제
+- `official_relation_review.py`에서 기업명 안의 supplier 단어를 관계 동사로 오인하지 않게 분리, 계약 부정·무관계 문구 거절, 광범위 제조/테마 단어 축소. 관련 합성 음성 검증 포함 **25 PASS/0 FAIL**, Git diff --check PASS.
+- 기능 `22fa470fce0024d49b8702dd97210391e7be8546` origin/main push. 관계 증빙 본문·외부 pin/독립 검토 실사례는 미확보. **완료 23/36(63.9%), NEXT_TASK=5_2 실제 공식 공급망 문서 관계 검증**. EraLeader 원본·DB·Git/공식 API 중복 수집 0.

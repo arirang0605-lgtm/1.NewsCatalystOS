@@ -5,10 +5,12 @@ from .era_capture_share import (OfficialCapture, OfficialRecord,
                                 read_official_capture)
 from .verified_reference import (VerifiedOfficialSources,
                                  verify_official_research_reference)
+from .release_claim import ReleaseClaim, inspect_release_claim
 
 __all__ = [
     "ReadBatch", "RawEvent", "SourceManifest", "SourceShareError",
     "read_verified_bundle", "OfficialCapture", "OfficialRecord",
     "read_official_capture", "VerifiedOfficialSources",
-    "verify_official_research_reference",
+    "verify_official_research_reference", "ReleaseClaim",
+    "inspect_release_claim",
 ]

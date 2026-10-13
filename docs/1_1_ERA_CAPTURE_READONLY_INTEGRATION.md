@@ -53,3 +53,12 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify_era_captures.py 
 - 실제 EraLeader 기존 연구용 보고서 SHA pin 별도 저장 및 재검증 PASS; KRX 2개·DART 1개·SEC 2개 **5/5**와 연구용 메타후보 **3,866개**, 자동 승격 0개. 핀 저장소 디바이스 ID와 EraLeader SSD 디바이스 ID 구분 확인. EraLeader 기존 캡처·보고서 SHA 사전/사후 동일.
 - 합성/영향범위 단위시험 **78 PASS / 0 FAIL**, 실제 기존 공식 캡처 오프라인 검증 PASS. 신규 외부 API 호출 0회, 실운영 0거래일, 공식 정확 발표시각 증명 0건.
 - **1_1 미완료:** 외부 검증 가능한 발표/공개시각 자료, 정식 출처별 전체 범위·정정 버전·기업 매핑 등 검증된 `RawEvent` 생산이 미완료. 완료 기준 **0/36** 유지. 다음 개발은 신뢰할 수 있는 공개시각 증빙을 가진 공식 이벤트 정상화 경계 보강.
+
+## 2026-10-13 | 공개시각·정정본 증빙 후보 계약 (RawEvent 승격 아님)
+
+- `src/newscatalystos/release_claim.py`: 이미 수신·SHA 검증된 DART/SEC 메타후보에 대해, **외부에서 별도로 고정한 SHA256**을 입력받아 공개시각 주장 JSON의 출처 문서ID·발행자 ID 문자열·정정 버전·정정 전 문서ID·관측시각을 대조한다. 원본/기사본문을 복사하지 않고 새 HTTP/API 수집기를 호출하지 않는다.
+- 출처 URL은 HTTPS 공식 도메인과 개별 접수번호/SEC accession 경로 모양을 검증한다. URL 문자열 및 로컬 SHA만으로 실제 발행자 신원·공개시각을 증명할 수 없으므로 결과는 **PINNED_CLAIM_UNAUTHENTICATED**이고 `to_raw_event()`는 항상 거절한다.
+- DART `rcept_dt` 당일(한국시간) 경계, SEC 접수시각 이후 공개주장, 최초 원본 수신·증빙 관측·판단시각 순서를 검사한다. 정정 공시는 기존 문서를 덮어쓰지 않고 참조 ID를 요구한다. 영수증 SHA/원본 SHA 바인딩을 유지한다.
+- 검증 입력은 필수 필드만 허용하고 8KiB 초과·중복 JSON 키·미래시각·허위 URL/출처·자기참조 정정은 실패 처리한다. `tests/test_release_claim.py`는 **합성 입력 전용**이다.
+- **남은 외부 게이트**: 실제 공식 출처 페이지를 독립 조회/진위 확인하고, 공신력 있는 최초 대외 공개시각·정정 연쇄·기업 ID를 인증한 증빙을 별도 시점에 확보해야 한다. 단순 링크/SHA pin·SEC acceptance·DART 접수일만으로는 `RawEvent` 실물 1건을 인증하지 않는다.
+- 기존 EraLeader 수집/DB/Git·별도 Mac 내부디스크 local-TOFU pin 수정 없음. 전체 1_1 완료 및 실운영 성공을 선언하지 않는다.

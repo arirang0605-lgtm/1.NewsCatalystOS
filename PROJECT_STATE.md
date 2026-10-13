@@ -233,3 +233,7 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 ## 2026-10-13 | 5_2 공식 관계 문장 오탐 억제
 - `official_relation_review.py`에서 기업명 안의 supplier 단어를 관계 동사로 오인하지 않게 분리, 계약 부정·무관계 문구 거절, 광범위 제조/테마 단어 축소. 관련 합성 음성 검증 포함 **25 PASS/0 FAIL**, Git diff --check PASS.
 - 기능 `22fa470fce0024d49b8702dd97210391e7be8546` origin/main push. 관계 증빙 본문·외부 pin/독립 검토 실사례는 미확보. **완료 23/36(63.9%), NEXT_TASK=5_2 실제 공식 공급망 문서 관계 검증**. EraLeader 원본·DB·Git/공식 API 중복 수집 0.
+
+## 2026-10-13 | 5_2 추가 부정형 관계 오탐 차단
+- 공급하지 않음/계약 없음 등 한·영 부정 문구가 직접 공급관계 후보로 승격되지 않도록 5_2 검토 경계 보완. 신규 음성 테스트 포함 관련 **26 PASS/0 FAIL**, Git diff --check PASS.
+- 기능 Git SHA `99fe9e97aed7ed191e59d2cd96922e22e834d654` origin/main 확인. 실제 반도체 공식 공급계약 본문 독립 검수 0건, **완료 23/36(63.9%), NEXT_TASK=5_2 실제 증빙 수집·검증**. EraLeader 코드·DB·Git 및 중복 API 호출 없음.

@@ -241,3 +241,7 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 ## 2026-10-13 | 5_5 수혜 그래프 관계 검토/PIT 무결성 강화
 - `beneficiary_graph_contract.py`에서 미래 관계 검토시각, available_at > last_reviewed_at, 잘못된 관계 종류, 공식 문서 검토 상태의 문서 SHA/검토 SHA 누락을 거부. 관련 테스트 **29 PASS/0 FAIL**, git diff --check PASS.
 - 기능 Git SHA `be2f2806a40870ad8e5d27a3b80bf8b830d2d067` origin/main 반영 확인. 5_5 실제 EraLeader 소비 연동/5_2 실거래 관계 증빙은 미완료. **23/36(63.9%), NEXT_TASK=5_2 실제 공식 반도체 공급망 관계 실증**. EraLeader 소스·DB·Git·공식 API 중복 수집 0.
+
+## 2026-10-14 | 5_5 테마 관계의 공식 거래 증거 가장 차단
+- 공식 문서 검토 상태(`RELATION_STATUS`)가 단순 테마 관계(`THEMATIC_ASSOCIATION`)에 결합되면 BeneficiaryGraph 생성을 거부. 관련 테스트 **30 PASS/0 FAIL**, git diff --check PASS.
+- 기능 Git SHA `4d658973948fa793c02f8cf63f0fc9b9d5cbcd71` origin/main 확인. 실제 공급망 관계 본문·독립 검토 및 EraLeader 실소비 미완료. **23/36(63.9%), NEXT_TASK=5_2 실제 공식 반도체 공급망 관계 실증**. EraLeader 원본·Git/공식 API 중복 수집 변경 0.

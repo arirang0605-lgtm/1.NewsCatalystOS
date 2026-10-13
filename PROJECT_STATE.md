@@ -117,3 +117,10 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **검증:** 기존 1_1 관련 **222 passed / 0 failed / exit 0**, Python compileall PASS. 기존 EraLeader 공식 완료 캡처 5종 실제 읽기 전용 검사 PASS, 신뢰 증빙 미제공 상태 `DATA_UNAVAILABLE` / CLI 종료코드 **4** / 실제 인증 `RawEvent=0` 재현. Public 공개 대상 5파일 명시 stage/키·바이너리·크기/공백 검사 PASS.
 - **GitHub 기능 SHA:** `dac46e90bd96ff15563040f54161fa56e5c31d4f`, `origin/main` 비강제 push 및 원격 SHA 일치. 기존 원본 수신본 5개/연구 관측 3,868·메타 3,866 수치는 이전 검증에 따른 기록이며 새 수집/성공 이벤트 발생 아님.
 - **실제 잔여 조건:** 사전에 승인된 **진짜 독립 기관 검증자**와 DART/SEC 공시 공개시각·issuer·정정 이력·최초 증거 확보 시각의 외부 증거는 미확보. 등록부의 로컬 파일만으로 법적 공증을 주장하지 않음. `NEXT_TASK=1_1`, `DATA_UNAVAILABLE`, 엄격 완료 **0/36(0.0%)**. 실제 AI API 0회, 자동운영 0거래일. 기존 36개 계획/반도체 범위/EraLeader 데이터 공유 규칙 불변.
+
+
+## 2026-10-13 | 1_1 독립 검증자 지연 등록 PIT 보완 (NC-1_1-WITNESS-ENROLLMENT-ASOF)
+- **기능 수정:** 검증자 서명 검증시각보다 `witness_registry.enrolled_at`이 늦은 경우 `SignedPublication.usable_from` 및 외부 `RawEvent.first_seen_at`을 `max(원본 수신, 외부 서명 확인, 신뢰 등록, 별도 핀 관측)` 이전으로 소급하지 않음. 미래/시간대 미지정 등록시각 거절. `signed_publication.py → official_promotion.py → check_official_proof.py` 단계별 바인딩, 합성 음성 테스트 2건 추가.
+- **검증:** 1_1 관련 전체 12개 테스트 파일 **224 passed / 0 failed (exit 0)**, compileall PASS, git diff --check PASS. Public 명시 7파일 allowlist/개인키·토큰·비텍스트/용량 검사 PASS. 원래 사용자 미추적 파일·비공개 운영데이터 공개/스테이징 안 함.
+- **GitHub 기능 커밋:** `ba7f9583b056cd0c1c18e639c66e0e68b2ee9399` -> `origin/main` 비강제 push, 원격 SHA 동일 확인. 기존 EraLeader 코드/수집/운영 DB/Git 변경·공식 API 중복 호출 0.
+- **증빙 한계:** SEC 공식 FAQ는 EDGAR 접수와 최초 웹 공개 사이 1~3분 이상 차이가 날 수 있으며 해당 최초 웹 공개시각을 나타내는 시각 필드가 없다고 밝힘(https://www.sec.gov/files/about/webmaster-faq.htm). 이 사실을 토대로 SEC 접수시각을 실제 공개시각으로 가장하지 않음. 외부 기관의 승인된 검증자/발행기관·정정/실제 독립 공개시각 서명 증빙 미확보: **실제 인증 RawEvent=0, DATA_UNAVAILABLE**. `NEXT_TASK=1_1`, 엄격 완료 **0/36(0.0%)**. AI API 0회/운영 0거래일 유지.

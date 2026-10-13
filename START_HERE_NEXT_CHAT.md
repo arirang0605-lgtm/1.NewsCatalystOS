@@ -62,3 +62,8 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-13 | 최신 1_1 외부 검증자 등록부 인계 (NC-1_1-WITNESS-TRUST)
 - `dac46e90bd96ff15563040f54161fa56e5c31d4f` `origin/main` push·SHA 확인. `witness_registry.py` 추가 및 `check_official_proof.py` 임의 공개키+SHA 동시 제출 경로 제거. **222 PASS/0 FAIL**, 실제 공식 캡처 5개 read-only 게이트는 외부 증빙 미입력으로 exit 4 `DATA_UNAVAILABLE`. 실제 공식 인증 RawEvent=0, `NEXT_TASK=1_1`, **0/36** 유지.
 - 다음은 `NEXT_TASK.md` 마지막 외부 증거 조달/검증 게이트. 다른 프로젝트 변경·수집 중복·기구현 계약 재작성 금지. 새 채팅 재개 시 가장 마지막 코드/MD SHA를 사용해 반복 분석 없이 시작.
+
+
+## 2026-10-13 | 최신 1_1 PIT 검증자 등록시각 인계 (NC-1_1-WITNESS-ENROLLMENT-ASOF)
+- 기능 `ba7f9583b056cd0c1c18e639c66e0e68b2ee9399` origin/main push 검증: 신뢰키 등록시각 지연에 따른 인증 이벤트 PIT 소급 누출 차단, **224 PASS / 0 FAIL**, 보안검수 PASS. EraLeader 원본/DB/Git 미변경.
+- `NEXT_TASK=1_1`, 엄격 완료 **0/36**, 인증 실물 RawEvent 0; 여전히 독립 공식 공개시각/발행자/정정 증빙 및 승인 검증자 서명이 없음. `NEXT_TASK.md` 마지막 게이트 외 정상 기능 반복 개발 금지.

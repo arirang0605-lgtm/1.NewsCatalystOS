@@ -51,3 +51,8 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - **현 유일 핵심 장애:** EraLeader 기존 DART/SEC 공시 중 적어도 1건에 대해 외부 진위 검증된 공개시각·issuer·정정 연결의 **실제 독립 서명/원천 증명** 및 별도 신뢰키 지문이 없다. SEC acceptance 시각, DART 날짜, 공개 웹페이지의 사후 조회시각 또는 로컬 TOFU는 그 증거를 대체하지 않는다.
 - 실제 신뢰 검증자/공식 증명 자료가 생기면 EraLeader 5개 공식 캡처의 이전 SHA anchor와 원본 불변을 다시 확인하고 `inspect_release_claim → authenticate_publication → proof.as_of(decision_at)` 실물 1건 이상 실행, PIT 과거 결정 누출/정정/중복/장애 격리 및 연동 시험을 거쳐 **1/36 완료**로 전환. 없으면 `DATA_UNAVAILABLE`, 1_1 미완료 유지. EraLeader 코드·원본·Git 및 중복 API 수집 금지.
 - 다음 작업 번호를 성급히 1_2로 넘기거나 V1.0 완료율을 올리지 않는다. 이번에 완료한 것은 **서명 검증 코드/합성 테스트**이며 실제 공시 인증은 아니다.
+
+## 2026-10-13 | 최신 1_1 진행 및 남은 최종 인증 게이트
+- 신규 기능 `e5150be753323d610b1f265a93781eb662b226ab` GitHub push 검증; 합성/실데이터 연구용 경계 관련 **145 PASS / 0 FAIL**. `observed_batch.py`+ `scripts/inspect_official_observations.py`가 기존 완료 캡처 5개를 읽어 비공개 메타 3,866건을 원자 게시하고 SHA 대조 성공. 신규 재수집 0, 공식 `RawEvent` 0.
+- **여전히 미완료인 1_1 게이트:** 실제 공시의 대외 공개시각·정정/발행자 진위를 외부 독립적으로 인증할 만한 신뢰된 출처 증거/서명 및 당시 가용시각 확보. `SEC acceptance` 또는 DART 접수일을 공개시각으로 변조하지 말 것. 신뢰 가능한 실물 증빙 1건 이상 획득 시 기존 `inspect_release_claim → authenticate_publication → proof.as_of` 경계에 연결하고 원본불변·PIT·정정 음성시험 통과 후에만 1_1 완료/1_2 전환.
+- 외부 인증증거가 없다면 **DATA_UNAVAILABLE, 미완료 1_1, 0/36**. 반복 API 수집·EraLeader 코드/DB/Git 변경·이미 통과한 전체 테스트 중복 실행 금지. 이후 동일 SHA/상태는 `PROJECT_STATE.md` 최신 아래 기록에서 이어간다.

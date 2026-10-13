@@ -35,3 +35,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-13 | 최신 1_1 서명 검증 기능 인계 (NC-1_1-SIGNED-PROOF)
 - 기능 커밋 `c744909bf4f3ead33babc9788f77e9de480ae69b` 원격 push 대조 성공. 독립 Ed25519 서명 검증+issuer/정정 증거 바인딩+PIT as-of 게이트 구현, **127 PASS / 0 FAIL**. EraLeader 공식 5개/연구 후보 3,866개 재검증 읽기 전용 PASS.
 - 외부 증명 키/정식 원천 공개시각 서명 부재로 실물 `RawEvent=0`, `1_1` **미완료, 0/36**. 다음은 `NEXT_TASK.md` 마지막 증빙 게이트부터; 테스트/수집 반복 및 무근거 완료 판정 금지.
+
+## 2026-10-13 | 최신 1_1 구현 인계 (NC-1_1-OBSERVED-BATCH)
+- `e5150be753323d610b1f265a93781eb662b226ab` 원격 main 반영 검증. 로컬 read-only 5개 캡처 → PIT-safe 연구 관측 3,866건 → 민감정보 제외 `output/` 원자 게시/검증 PASS. **145 PASS, 0 FAIL**, 원본 불변/중복 API 수집 없음.
+- 공개시각 검증은 불가능한 자료를 추정으로 만들지 않고 `published_at=null` 고정, 실제 인증 `RawEvent=0`. **NEXT_TASK=1_1, 완료 0/36**, 남은 외부 발행 증명 및 PIT 인증 게이트는 `NEXT_TASK.md` 맨 아래 참조. 기구현 어댑터/전체 코드 반복 분석 금지.

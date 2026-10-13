@@ -68,3 +68,10 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **공식/독립 근거 조사:** SEC EDGAR 공시 `0001140361-26-039158`의 issuer·accepted 시각을 확인했으나 EDGAR 수리시각과 최초 외부 공개시각은 동일하지 않을 수 있음. 웹사이트의 제3자 사후 조회/수집시각 주장은 서명 또는 독립 역사 시점공증이 아니므로 자동 승격 차단.
 - **기능 commit/push:** `c744909bf4f3ead33babc9788f77e9de480ae69b` `origin/main` 원격 SHA 일치. Public에는 허용 코드/합성 테스트/문서 6개 파일만 stage.
 - **명확한 차단 조건:** 실제 독립 검증자의 사전 승인된 신뢰키 및 출처 공개시각·발행기관·정정 연쇄에 대한 독립 서명/시점 감사 증거가 없음. 직접 AI API 0회, 운영 0거래일. `1_1=미완료, DATA_UNAVAILABLE`; 엄격 완료 **0/36 = 0.0%**, 다음 작업 **1_1**. 신뢰 증거 없이는 가짜 완료/가짜 공시 시각 생성 금지.
+
+## 2026-10-13 | 1_1 연구용 공식 관측 배치 실제 게시 (NC-1_1-OBSERVED-BATCH)
+- **구현:** `src/newscatalystos/observed_batch.py`는 독립 로컬 핀으로 검증된 EraLeader 공식 완료 수신본을 구조화된 `ObservedOfficialBatch`로 정규화. `first_seen_at` / `usable_from=max(first_seen,pin 첫관측)` / 공급자 접수시각 / 품질 / 원본·영수증 SHA만 사용하고 `published_at=null`, `issuer_verified=false`, `research_only=true` 고정. 정식 `RawEvent` 승격 없음.
+- **실행 가능 진입점:** `scripts/inspect_official_observations.py` 원격 실제 실행 PASS. 프로젝트 `output/`(Public GitHub ignore)에서 private staging → 원자 디렉터리 rename 게시, 동일 이름 기존 결과 비파괴. SSD 하드링크 미지원 오류를 실제 발견·수정.
+- **실제 결과:** EraLeader의 게시 완료된 캡처 **5종**, 관측 메타행 **3,866개**, `RawEvent=0`; private JSON `2,513,011 bytes`, SHA256 `a7b572e395ce7ec8c8825fbe87c9aea49f19c1a165882523756ffc6ed1ae9328`; 게시 marker SHA/크기·모든 항목 release_at null 검사 PASS. 신규 공식 API 호출, 운영 DB/원본 데이터 쓰기 및 비밀 Git 업로드 0.
+- **검증:** 1_1 관련 자동 테스트 **145 passed / 0 failed / exit 0**, compileall PASS, Git staged 허용목록 5개·키 패턴·바이너리/대용량·diff 검사 PASS. 기능 SHA `e5150be753323d610b1f265a93781eb662b226ab` `origin/main` 비강제 push/remote SHA 일치.
+- **미완료:** SEC 접수와 공식 공개시각 인증은 다름. DART 기존 첫 페이지 자료는 하루 전체가 아님. 외부 신뢰 검증자/공식 공개시각·issuer/정정 실물 증빙 없음, 인증된 `RawEvent` 0, AI API·실운영 0. 따라서 `NEXT_TASK=1_1`, 엄격 완료수 **0/36=0.0%**, 상태 `DATA_UNAVAILABLE` 유지. 1_2로 진행한 것으로 보고하지 않음.

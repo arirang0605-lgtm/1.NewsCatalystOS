@@ -47,3 +47,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-13 | 최신 1_1 출처 완결성 v2 인계 (NC-1_1-COVERAGE-V2)
 - `e46b2619b337cd09fb8eec9131a5b121c9fd51ac` `origin/main` push 검증: 연구용 공유 배치 v2가 0행 소스 포함 출처별 SHA/관측수/품질 계보 보존, 기존 v1 read-only 하위호환. **183 PASS / 0 FAIL**, 실제 EraLeader 공식 5개 관측 3,868/메타 3,866 검증. 독립 공식 공개시각 증빙 부재로 `NEXT_TASK=1_1`, **0/36**, 공식 RawEvent=0 유지.
 - 새 채팅 이동 판단은 정확한 컨텍스트 사용 퍼센트를 직접 측정할 수 없으므로 대화 길이·응답/도구 품질 저하 등을 보고 선제적으로 안내(사용자 선호 80~85% 전후, 90% 도달 전). 이동 시 본 파일 및 NEXT_TASK 최신 기록을 사용하며 반복 점검 금지.
+
+## 2026-10-13 | 1_1 최신 인계 — 공시 원본/독립 서명 연결 게이트
+- `ca804cd4aeafe717c909e90c0b56dbd7d2122a93` GitHub 기능 푸시 성공. `official_promotion.py` 실수신 원본/CIK/독립 SHA pin ↔ attestation.v2 서명·공개시각 증빙 경계 구현. 합성 테스트 포함 **199 PASS / 0 FAIL**, 실제 기존 EraLeader read-only 5개 검증 PASS.
+- 외부 독립 검증자 서명/공식 공개시각·발행기관 검증 증거 부재로 인증 RawEvent 0, `NEXT_TASK=1_1`, **엄격 0/36**. 다음은 `NEXT_TASK.md` 마지막 게이트 참고; 기존 어댑터·전체 코드 중복 분석 금지. 채팅방 컨텍스트 사용률 정확한 %는 확인 불가, 길이/품질 저하 시 새 채팅을 선제 안내.

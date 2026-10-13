@@ -93,3 +93,9 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **검증:** 변경범위 9파일 **183 PASS / 0 FAIL**, Python compileall PASS. Public 명시 6파일 stage+비밀/텍스트/크기/공백 검사 PASS, `output/` ignore 확인. 기존 EraLeader 코드/원본/DB/Git 쓰기 및 중복 API 수집 0.
 - **GitHub:** 기능 commit `e46b2619b337cd09fb8eec9131a5b121c9fd51ac` `origin/main` push 및 원격 SHA 일치.
 - **아직 미완료:** 기존 정식 1_1 게이트인 공식 대외 공개시각·issuer·정정의 신뢰 가능한 독립 과거시점 증빙 부재, 실제 공시 RawEvent 검증 0. API 직접 수집·AI API 0회, 5거래일 운영 0일. `NEXT_TASK=1_1`, 엄격 완료 **0/36(0.0%)**, `DATA_UNAVAILABLE` 유지. 기존 36개 개발계획과 EraLeader 데이터 공유 정책 불변.
+
+## 2026-10-13 | 1_1 EraLeader 원본–공개시각 독립서명 결합 구현 (NC-1_1-PROOF-JOIN)
+- **실제 구현:** `official_promotion.py`에서 로컬 별도 디스크 독립 pin → 검증된 기존 EraLeader 공식 수신본 → 원문 ID/원본·영수증 SHA/최초 수신시각 → 신뢰 검증자 서명·PIT as-of를 하나의 읽기 전용 계약으로 연결. `OfficialCapture.source_request_value`에 기존 SEC 공식 수신 영수증 CIK를 보존하고 서명된 issuer/EDGAR URL CIK와 교차검사. `signed_publication.py` 필수 서명 스키마를 `publication_attestation.v2`로 올려 source/raw SHA·영수증 SHA·first_seen을 **서명 본문에 필수 결합**하며 구 v1 서명은 거절. 출처/원본 혼선·서명 재사용·미래정보 소급 방지. 기존 정상 코드 전체 재작성·API 중복 호출 없음.
+- **검증:** 변경영향 10파일 `199 passed, 0 failed`, Python compileall PASS, Public 허용목록 7파일·키/원문/바이너리·diff check PASS. 합성 Ed25519 증빙의 유효·무효·틀린 issuer·다른 문서·anchor 이후 가용시각·변조 검증 통과. **실제 EraLeader** 기존 연구 인덱스/별도 로컬 pin 기반 공식 캡처 5종 재검증 PASS, SEC source_request_value CIK 수신 메타 확인. 실제 독립 검증자 서명은 여전히 **0건**.
+- **GitHub 기능 커밋:** `ca804cd4aeafe717c909e90c0b56dbd7d2122a93` 원격 origin/main 푸시·SHA 확인. EraLeader 코드·원본·DB·Git 변경 0, 새 공식 API 호출/중복 수집 0, 민감정보 Public 미업로드.
+- **1_1 완료 게이트:** 외부 독립 검증자의 신뢰키, 실제 DART/SEC 발표시각·발행기관/정정 증거와 그 최초 확인시각이 아직 없어 실물 인증 RawEvent **0건**. LOCAL_TOFU는 외부 공증이 아니며 합성 서명 테스트로 완료를 속이지 않음. `NEXT_TASK=1_1`, `DATA_UNAVAILABLE`, 엄격 V1.0 완료율 **0/36(0.0%)**. 직접 AI API 0회, 5거래일 운영 0일.

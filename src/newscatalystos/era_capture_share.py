@@ -40,6 +40,9 @@ class OfficialRecord:
     available_at: datetime
     release_at: None = None
     issuer_attested: bool = False
+    # SEC provider's acceptance timestamp: evidence of acceptance, NOT
+    # independent proof of public release or local availability.
+    provider_acceptance_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -72,13 +75,15 @@ def _date(value: object) -> str:
 def _source_rows(source: str, data: dict, request_value: str,
                  first_seen: datetime) -> tuple[tuple[OfficialRecord, ...], str, int]:
     records: list[OfficialRecord] = []
-    def add(identifier: str, day: str | None = None) -> None:
+    def add(identifier: str, day: str | None = None,
+            acceptance_at: datetime | None = None) -> None:
         if not isinstance(identifier, str) or not identifier or len(identifier) > 128:
             raise SourceShareError("invalid provider record identifier")
         stable = sha256((source + "\x00" + identifier).encode("utf8")).hexdigest()
         records.append(OfficialRecord(
             record_id=stable, provider_record_id=identifier,
-            provider_day=day, available_at=first_seen))
+            provider_day=day, available_at=first_seen,
+            provider_acceptance_at=acceptance_at))
     if source.startswith("krx-"):
         day = _date(request_value)
         rows = data.get("OutBlock_1")
@@ -146,8 +151,11 @@ def _source_rows(source: str, data: dict, request_value: str,
                 not isinstance(stamp, str) or not stamp):
                 raise SourceShareError("SEC submission identifiers invalid/duplicated")
             used.add(ref)
-            # Submission acceptance timestamp is not the time we first possessed it.
-            add(ref)
+            acceptance_at = _when(stamp, "SEC acceptanceDateTime")
+            if acceptance_at > first_seen:
+                raise SourceShareError("SEC acceptance after first local receipt")
+            # Provider acceptance != verified publication != first local receipt.
+            add(ref, acceptance_at=acceptance_at)
         return tuple(records), "RECENT_SUBMISSIONS_NOT_FULL_HISTORY", len(accessions)
     facts = data.get("facts")
     if not isinstance(facts, dict) or not facts or len(facts) > MAX_RECORDS:

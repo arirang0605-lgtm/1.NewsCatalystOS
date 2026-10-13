@@ -43,3 +43,13 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify_era_captures.py 
 ## 완료까지 남은 1_1 게이트
 
 실제 첫 수신본을 메타데이터 연구용으로 공유하는 경계는 동작한다. 그러나 출처별 자료의 **정확한 provider release time**이 불명확하고 완전 공시 본문/정정 관계가 미연결이므로 이를 완전한 `RawEvent` 확정으로 판정해서는 안 된다. 별도 신뢰 저장소에 리포트 SHA를 지속 보존하는 운영 절차를 인수하고, 공식 timestamp가 입증된 공시만 원본 PIT를 보존해 downstream 정규화해야 한다. 그 전에는 V1.0 `1_1`의 전체 합격 선언 및 `1_2`로 NEXT_TASK 이동을 보류한다.
+
+## 2026-10-13 | SEC 시각 정규화·로컬 별도 디스크 SHA pin 실증
+
+- `src/newscatalystos/era_capture_share.py`: SEC submissions 각 기록의 `acceptanceDateTime`을 UTC 유효 시각으로 파싱하고 `provider_acceptance_at`에 별도로 보존. 최초 수신 시각보다 미래·형식 오류/타임존 없음은 차단. SEC 접수시각은 **독립적으로 입증된 대외 공개시각이 아님**. DART의 `rcept_dt`은 날짜만 유지.
+- `official_normalization.py`: 공식 수신본의 각 기록을 연구용 `OfficialEvidenceCandidate`로 정규화. `first_seen_at`, `provider_day`, `provider_acceptance_at`, 원본/영수증 SHA를 각각 유지하고 `verified_published_at=None` 및 `RELEASE_UNVERIFIED_RESEARCH_ONLY`를 강제. `RawEvent` 자동 승격은 예외로 차단.
+- `pin_anchor.py` / `scripts/anchor_era_reference.py`: Mac 내부 디스크의 **NewsCatalystOS 전용 비공개 디렉터리** (`~/Library/Application Support/NewsCatalystOS/pins/`)에 별도-device SHA 핀을 최초 관측 시점 기준으로 한 번만 기록. `O_EXCL`로 재작성 금지, 소유자 전용 디렉터리/파일·다른 디바이스 ID 검증, 과거 결정 시점 이전으로 pin 소급 금지. 공개 GitHub에 앵커 기록/원본 파일 미업로드.
+- **핀의 증거력 제한:** 로컬 SHA 앵커는 `LOCAL_TOFU_NOT_EXTERNAL_ATTESTATION`이며 생성 당시 현재 파일의 **최초 로컬 관측**에 불과하다. 이전 시각에 그 문서가 존재했다는 제3자 공증이나 법적 공시 발표시각 확인은 아니다. 동일 Mac 디스크 변경 위험을 제거하지 않는다.
+- 실제 EraLeader 기존 연구용 보고서 SHA pin 별도 저장 및 재검증 PASS; KRX 2개·DART 1개·SEC 2개 **5/5**와 연구용 메타후보 **3,866개**, 자동 승격 0개. 핀 저장소 디바이스 ID와 EraLeader SSD 디바이스 ID 구분 확인. EraLeader 기존 캡처·보고서 SHA 사전/사후 동일.
+- 합성/영향범위 단위시험 **78 PASS / 0 FAIL**, 실제 기존 공식 캡처 오프라인 검증 PASS. 신규 외부 API 호출 0회, 실운영 0거래일, 공식 정확 발표시각 증명 0건.
+- **1_1 미완료:** 외부 검증 가능한 발표/공개시각 자료, 정식 출처별 전체 범위·정정 버전·기업 매핑 등 검증된 `RawEvent` 생산이 미완료. 완료 기준 **0/36** 유지. 다음 개발은 신뢰할 수 있는 공개시각 증빙을 가진 공식 이벤트 정상화 경계 보강.

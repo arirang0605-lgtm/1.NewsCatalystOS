@@ -220,3 +220,17 @@ def test_supplier_name_alone_or_negated_contract_does_not_prove_direct_trade():
         with pytest.raises(SourceShareError, match="explicit supplier/customer"):
             run(review=replace(base, evidence_statement=statement, document_sha256=digest),
                 body=text, pin=digest)
+
+
+def test_more_negated_supplier_claims_are_rejected():
+    original = setup()[3]
+    for statement in (
+        "Supplier Alpha did not supply packaging to Customer Beta under this plan.",
+        "Supplier Alpha will not supply materials to Customer Beta next year.",
+        "Supplier Alpha and Customer Beta have no supply agreement for chips.",
+    ):
+        text = statement.encode()
+        digest = sha256(text).hexdigest()
+        with pytest.raises(SourceShareError, match="explicit supplier/customer"):
+            run(review=replace(original, document_sha256=digest,
+                               evidence_statement=statement), body=text, pin=digest)

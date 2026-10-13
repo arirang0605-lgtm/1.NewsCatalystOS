@@ -128,7 +128,9 @@ def review_official_supply_relation(
         if isinstance(name, str):
             relation_context = relation_context.replace(name.casefold(), " ")
     negations = ("no business deal", "no contract", "not a supplier",
-                 "unrelated", "계약 없음", "공급 계약 없음", "거래 관계 없음")
+                 "unrelated", "계약 없음", "공급 계약 없음", "거래 관계 없음",
+                 "no supply agreement", "did not supply", "will not supply",
+                 "no purchase agreement", "공급하지 않", "계약하지 않", "납품하지 않")
     if (any(not isinstance(n, str) or not 2 <= len(n) <= 140 for n in names)
             or names[0].casefold() == names[1].casefold()
             or not isinstance(statement, str) or not 20 <= len(statement) <= 1400

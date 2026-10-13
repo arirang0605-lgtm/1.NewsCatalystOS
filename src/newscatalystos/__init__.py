@@ -7,6 +7,7 @@ from .verified_reference import (VerifiedOfficialSources,
                                  verify_official_research_reference)
 from .release_claim import ReleaseClaim, inspect_release_claim
 from .signed_publication import SignedPublication, authenticate_publication
+from .observed_batch import ObservedOfficialBatch, build_observed_official_batch
 
 __all__ = [
     "ReadBatch", "RawEvent", "SourceManifest", "SourceShareError",
@@ -14,4 +15,5 @@ __all__ = [
     "read_official_capture", "VerifiedOfficialSources",
     "verify_official_research_reference", "ReleaseClaim",
     "inspect_release_claim", "SignedPublication", "authenticate_publication",
+    "ObservedOfficialBatch", "build_observed_official_batch",
 ]

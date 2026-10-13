@@ -190,3 +190,10 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **2_2:** `exact_dedup.py` 개인용 SQLite SHA index에 제공자별 ID·정규화 URL·원문으로 허가된 제목의 SHA를 저장하여 NEW/DUPLICATE/REVISED 구분, 똑같은 재수집은 AI 호출대상 제외, 변경된 제목/수치/정정은 새 버전으로 추적, 독립 출처는 강제 하나로 병합하지 않음. 공개 아카이브/뉴스 본문 또는 사용자 개인정보 기록 없음.
 - **변경 영향 검증:** 기존 + 신규 pytest **396 PASS / 0 FAIL**, Python compileall PASS, 명시 stage 허용목록 13파일·Public 비밀/바이너리·크기/.env·운영 DB·output 제외 검사 PASS. Code SHA `e88351664aabc7e49ec18469ca757b06f87f06c7` origin/main push·SHA 동일 확인.
 - **보통 수준 기본 개발 완료:** 1_1~1_6, 2_1~2_2 **8/36 (22.2%)**. 2_3~6_6 **28단계 미완료**, 실제 5거래일 운영 및 반도체 공급망·중요 뉴스 정답셋 95% 검증·AI API 정식 검증·릴리스 태그 미완료. 다음 `NEXT_TASK=2_3`. 작업환경은 장기 자율 백그라운드 코딩 서비스를 시작하지 않음.
+
+## 2026-10-13 | 2_3~3_6 연속 코딩 체크포인트
+- **기본 구현 완료:** 2_3 `event_cluster.py`(수치·금액·정정 정보 보존, 검토된 동일 원천만 묶기), 2_4 `claim_filter.py`(광고/SNS·익명 루머 차단), 2_5 `origin_provenance.py`(다중 재배포 독립 증거 과대계산 방지, 공식 반박 HOLD), 3_1 `prior_fact_state.py`(SQLite owner-only PIT 과거조회), 3_2 `novelty_detection.py`(제목 변경과 신규 경제주장 구분), 3_3 `barrier_changes.py`(이전 장애 이력 없는 자동 해소 금지), 3_4 `change_followup.py`(기존 사건의 실현/지연/취소·정정 버전 유지), 3_5 `impact_triage.py`(검토 우선순위/UNKNOWN, 매출 추론 금지).
+- **부분 구현·실증 미완료:** 2_6 `filter_evaluation.py`는 confusion matrix/정밀도/recall·중요 누락 목록·제외 표본, 3_6 `detection_history.py`는 최초 관측시각·변경버전 SHA 불변 이력과 recall 평가 함수를 구현. 각각 실제 검수 gold set **중복 precision 95% / 중요 신규 탐지 recall 90%** 미확보로 완료 판정 보류.
+- **검증/보안:** 이전 396 PASS에서 신규 2_3~2_6 테스트 41, 3_1 8, 3_2~3_6 테스트 36 추가해 **481 PASS / 0 FAIL**, compileall PASS. Public 허용목록/민감 패턴/바이너리/크기/.gitignore 검사 PASS. 비공개 키·유료 뉴스원문·운영 DB 공개 0; EraLeader 코드/DB/Git 수정·공식 API 중복 수집 0.
+- **기능 Git SHA:** `3bcdbc7990bca606ba1bad93bb965d3b03c4246c`, `f3d8230bf1a32256ae8b6509deef81af04bb53b5` origin/main 푸시 성공·원격 SHA 동일 검증.
+- **정확한 완료 현황:** 기존 8 + 2_3~2_5의 3 + 3_1~3_5의 5 = **16/36 (44.4%) 기본 구현 완료**. 2_6·3_6 인수 미완료, 4_1~6_6 18작업 미완료 = 20단계 잔여. 반도체 실제 공급망/AI 공급자 실호출/라벨셋/5거래일 운영·V1.0 출시 태그 미완료.

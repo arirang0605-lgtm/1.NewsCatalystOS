@@ -110,3 +110,10 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify_era_captures.py 
 - `SignedPublication.as_of()`에서 발행 이벤트의 `first_seen_at`을 `max(원본 수신, 서명 검증자 확인시각)`으로 보수적으로 정규화한다. `AnchoredOfficialPublication.as_of()`는 여기에 **별도 로컬 독립 핀의 최초 관측시각**까지 합쳐 `max(원본 수신, 검증자 확인, 독립 pin 관측)` 이후로만 `RawEvent`를 반환한다. 호출 시점이 사용 가능 시각보다 이르면 실패한다.
 - 원본 수신시각은 바꾸지 않고 `SignedPublication.source_capture_first_seen_at`에 보존하여 최초 관측과 독립 확인을 구분한다. 따라서 반환된 정식 `RawEvent.first_seen_at`은 **증빙까지 사용 가능한 시각**, 원본 수신 영수증의 실제 최초 관측은 별도 필드다. 연구용 `ObservedOfficialBatch`의 원본 `first_seen_at` 계약은 변경하지 않는다.
 - 합성 서명/독립 핀의 지연 상황에서 역사 의사결정 소급 차단, JSON/데이터클래스 직렬화 시각, 원본 receipt SHA 결합 회귀 테스트를 수행했다. 실제 제3자 서명·공시 공개시각을 확보한 것은 아니므로 실제 공시 인증 완료를 주장하지 않는다.
+
+## 2026-10-13 | 1_1 실제 증빙 최종 검증 CLI — 외부 증거 누락 시 중단
+
+- `scripts/check_official_proof.py`를 추가했습니다. 기존 `pin_anchor → verified_reference → official_promotion` 코드를 **재사용**하며, EraLeader 공식 API 직접 호출·EraLeader 원본/코드/DB/Git 쓰기는 하지 않습니다. 기본 명령은 기존 SHA 핀·공식 수신본 5종을 검증하고, 외부 독립 서명 증빙 미제공 시 JSON 상태 `DATA_UNAVAILABLE`, `certified_raw_event_count=0`, **exit code 4**를 출력합니다. 상태가 불명확해도 성공(exit 0)으로 처리하지 않습니다.
+- 사용 예: `PYTHONPATH=src python3 scripts/check_official_proof.py --era-root /Volumes/T5DATA/eraleader --reference /Volumes/T5DATA/eraleader/output/official_api_integrated_20261012/official_api_pit_research.json --anchor "$HOME/Library/Application Support/NewsCatalystOS/pins/official_api_pit_research.pin.json"`.
+- 실제 증거 확보 이후에는 `--source-id`, `--document-id`, `--claim`, `--claim-sha256`, `--attestation`, `--signature`, `--witness-key`, `--witness-key-sha256`, `--witness-id`를 **한꺼번에** 별도로 승인된 신뢰 채널에서 제공해야 합니다. 일부만 제공하면 실패(exit 4). 필드는 크기 제한 및 심볼릭 링크 차단 읽기로 처리되며 내용을 stdout에 노출하지 않습니다. 검증 성공 메시지는 실제 발행기관·독립 검증자 권한/정확도에 대한 추가 인간 감사 없이 과거 최초 공개시각의 완전한 공증을 의미하지 않습니다.
+- **주의:** 서명키 파일과 그 SHA를 동일 입력 자료에서 스스로 추출해 공급하면 독립 신뢰 검증이 아닙니다. 이전 외부 신뢰 등록/출처·입수시각의 감사 증거가 없는 경우 운영 이벤트로 확정하지 않습니다. 현재 실데이터에는 해당 신뢰 자료가 없으므로 1_1 전체 완료를 선언하지 않습니다.

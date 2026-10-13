@@ -213,3 +213,9 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - 실제 Mac에서 중기부 추가 요청은 **`NOT_DUE`** (1_3 제한 정상 적용), 무네트워크 복구 조회 `NO_PENDING_REPLAY` (기존 미처리 없음), 승인 소스 2/신규 성공 ACK 0/미처리 0; 이번 호출로 5일 기록을 발급하지 않았다. 도입 이전 35 RSS 메타를 과거 성공 ACK로 소급 변조하지 말 것.
 - **다음 실제 동작:** 기존 허가된 제공자의 정상 호출 가능 시각 이후 1회 실행하여 신규 6_5 checkpoint→수집 watermark→triage SHA→ACK 완성, 실패 시 `--replay-only`를 우선 사용하고 제어된 장애주입/실복구 기록 점검. 장기 예약 자동 활성화·5거래일 완료 주장은 실제 관측 전 불가. 내부 Mac와 별도 물리 장치 간 백업·실복원/휴장 구분/일간 보류율도 최종 6_5 인수에서 시험. 5_2는 실제 공식 반도체 공급관계 문서·검토 기업 ID가 확보되기 전 UNKNOWN.
 - **완료 23/36 (63.9%) 유지**, 13 미완료 단계 기존 판정 불변. 다음 독립 작업은 6_5 실운영/DR 또는 실 AI 공급자 승인/4단계, 골드 평가 자료 확보. EraLeader 코드/DB/Git·공식 API 중복 수집·자동매매/홈페이지 금지.
+
+## 2026-10-14 | 최신 NEXT_TASK=6_5 남은 실제 운영일 누적; 5_2 실공시 계약증거 별도 대기
+- 기능 `31a1ba7d3702f2efbed32beccd3886a376b76a3a` origin/main 반영 확인: Mac 내부 `disk3` ↔ T5DATA `disk6` 실제 물리적으로 다른 저장장치 간 RSS 원장/중복 인덱스 SQLite **2개 온라인 백업→SHA/SQLite 새 폴더 복원 PASS**, 별도 Mac owner-only PIN 저장 **2개→나중 PIN cold restore 2개 PASS**. 영향범위 **52 PASS/0 FAIL**, 컴파일/Public 보안검사 PASS, 비공개 `.local_backups/`의 DB·백업 Git 게시 0.
+- **현실 운영 증빙 2026-10-14:** 승인된 중기부 RSS 20건+뉴스와이어 IT RSS 15건 단발 처리 후 원장 ACK 2, 모든 승인 소스가 동일 날짜 완료 1일치. **신규 경제사건/AI/확정 수혜 0**, 남은 미처리 0. 자동 launchd 실행은 아직 시작하지 않음. `check_feed_operations.py`은 실제 거래소 세션 검증 전 `verified_exchange_trading_days=0` 및 `five_trading_day_operation_certified=false` 고정. 이 결과를 5일 성공으로 소급하지 말 것.
+- **다음 실질 작업:** 기존 허가 RSS의 정상 호출 시각 이후 중복 요청하지 않고 6_5 분석/완료 영수증을 추가 실제 일자에 누적하고 출처 신선도·오류·재생/중복·복원 상태를 점검한다. 5개 실제 거래일의 결측 없는 검증 완료 시에만 최종 인수를 평가. 별도 Mac+SSD 동시 장애 대비 오프사이트 보관은 미검증. 범위 확장·인증 없는 사실 승격·EraLeader 코드/DB/Git 수정 금지. 5_2 허가 공식 공급계약 본문/양사 기업 ID가 준비되면 기존 5_2 review CLI로 검토; 실자료 없으면 UNKNOWN. 2_6/3_6/4_1~4_6/5_6·6_6 인수 증거도 미완료.
+- 사용법 `docs/6_5_FEED_RECOVERY_RUNBOOK.md`. 복구 확인 `scripts/check_physical_recovery.py` 기본 2개 DB; `--verify-pin`은 신규 API·수집 없이 저장된 Mac 개인 SHA PIN에서 복원. **완료 23/36(63.9%)**, v1.0 출시 tag 보류.

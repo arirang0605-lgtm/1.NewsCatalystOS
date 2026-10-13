@@ -165,3 +165,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 개발 인계 — 6_5 분석 실패 복구·운영 확인 도구
 - 기능 `6b2255d3e0207e93afc93ba819ba498576e61cdb` origin/main push 확인. 1_3 성공 DB commit **이전** 소스 승인 RSS 메타를 private SHA checkpoint로 보존→분석 실패 시 사후 재수집 없이 검증된 DB 연계 재처리→출력 확인 ACK까지 연결. `check_feed_operations.py`은 완료 ACK/개별 소스·날짜·미처리 건수만 보고하며 5거래일/독립 물리 복원 자동인증 금지.
 - 영향범위 **76 PASS/0 FAIL**, 컴파일/Public 검사 PASS. 실제 Mac 승인 중기부 RSS `NOT_DUE`, `--replay-only` `NO_PENDING_REPLAY`, 새 ACK 0, 승인 RSS 2; 배치 수집 반복·백그라운드 시작 없음. 전체 **23/36 (63.9%)**, 남은 6_5 실제 반복·독립 DR 및 5_2 실제 공식 공급문서 관계 검수. 다음은 `NEXT_TASK.md` 최신 하단과 `docs/6_5_FEED_RECOVERY_RUNBOOK.md` 참고; 기존 정상 코드/원본/미추적 자료 보존, 재작성 금지.
+
+## 2026-10-14 | 최신 인계 — 6_5 실제 1일 운영·2개 SQLite 외장 SSD 재해복구
+- Feature `31a1ba7d3702f2efbed32beccd3886a376b76a3a` origin/main 확인. 승인 RSS 중기부20·뉴스와이어15 실접속→원자 분석/ACK 2, `2026-10-14` 검토 날짜 1개, pending0. Mac 내부 disk3 RSS 수집 원장(45,056B)/중복 인덱스(40,960B)를 **물리 별도 T5DATA disk6 `.local_backups/` 백업→새 폴더 SHA·SQLite 복원 PASS**, Mac 내부 별도 SHA pin 두 건 영구 기록·cold re-restore 각각 PASS.
+- 영향 테스트 **52 PASS/0 FAIL**, compile/Public 검사 PASS. 운영 5거래일/오프사이트 DR 미완료로 총 **23/36(63.9%)** 유지. 다음은 `NEXT_TASK.md` 최신 6_5 실제 나머지 운용일 기록·장애회복 점검 및 5_2 공식 계약문서 실증. 단기 재검증/중복 공식 API 수집·EraLeader 쓰기/사용자 미추적 문서 변형 금지. 문서 `docs/6_5_FEED_RECOVERY_RUNBOOK.md`.

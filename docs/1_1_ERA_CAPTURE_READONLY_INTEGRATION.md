@@ -131,3 +131,11 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify_era_captures.py 
 - `signed_publication.authenticate_publication(..., witness_enrolled_at=...)`는 별도 독립 신뢰 등록시각을 전달받았을 때 `usable_from=max(원본 first_seen, 서명 검증시각, 신뢰 등록시각)`로 제한하고, 등록시각이 의사결정 시점보다 미래거나 시각에 시간대가 없으면 거부.
 - `official_promotion` 연결 계층 및 `check_official_proof.py` 운영 CLI에서 owner-only 검증자 등록부의 `enrolled_at`을 누락 없이 전달. 나중에 등록한 키로 이전 시점의 인증 `RawEvent.first_seen_at`을 생성하지 않음.
 - 변경사항은 **합성 서명/가짜 fixture에 대한 PIT 음성 회귀**이며 실제 공식 대외 공개시각이나 공신력 있는 검증자 서명을 확보한 것이 아님. 실물 `RawEvent=0`, 외부 증빙 부족 시 `DATA_UNAVAILABLE` 및 `NEXT_TASK=1_1` 유지.
+
+## 2026-10-13 | 외부 공시 증빙 요청서 생성 (NC-1_1-PROOF-REQUEST)
+- `proof_request.py`와 `scripts/request_official_proof.py`를 추가했다. 기존 독립 Mac 디스크 SHA 앵커 → EraLeader 완료된 공식 수신본 5종의 읽기 전용 검증 → **지정 공시 1건**의 공급자 ID/접수번호/원본 SHA/영수증 SHA/최초 관측시각만 추려 신뢰 검증자 확인용 JSON 요청으로 출력한다.
+- `publisher_released_at`, `issuer_id`, `revision_id`, `supersedes_document_id`는 **항상 null**이고 필수 외부 증거 5종을 열거한다. 상태는 `EXTERNAL_EVIDENCE_REQUIRED_NOT_CERTIFIED`, `certified_raw_event_count=0`. 요청서는 서명/시각 공증/공식 발표 증명이 아니라 요청을 위한 메타데이터이다. 외부 발송은 자동으로 하지 않는다. 출력 JSON에도 SHA/ID 등 내부 메타데이터가 있으므로 공유 전 권한 확인.
+- 실제 읽기 전용 실행 예:
+  `PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 python3 scripts/request_official_proof.py --era-root /Volumes/T5DATA/eraleader --reference /Volumes/T5DATA/eraleader/output/official_api_integrated_20261012/official_api_pit_research.json --anchor "$HOME/Library/Application Support/NewsCatalystOS/pins/official_api_pit_research.pin.json" --source-id sec-submissions --document-id 0001140361-26-039158`
+- SEC 실제 첫 수신본의 해당 공시와 SHA/anchor를 대조해 요청서 생성 PASS. `provider_acceptance_at=2026-10-09T02:30:32+00:00`은 **접수시각**이며 공개시각 증명이 아님. SEC 공식 설명: https://www.sec.gov/about/webmaster-frequently-asked-questions (SEC 접수 후 공개까지 지연, 정확한 최초 웹 공개시각 표시 없음).
+- 이후 외부 기관/검증자가 사전 승인·서명한 진짜 증빙이 제공된 경우에만 **기존** `check_official_proof.py`에 입력하여 인증·정정/PIT 시험을 수행한다. EraLeader 수집기/키/DB/원본 및 Git 변경 금지. V1.0 1_1 승인 게이트 자체는 불변.

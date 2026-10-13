@@ -229,3 +229,8 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - **실사용 기능 Git SHA `d154a280065a531cc54017663ac8f51af24be644` origin/main 반영:** Mac 사용자 launchd `com.newscatalystos.triage`로 명시 기승인 RSS 2종만 매 3,600초 `run_scheduled_triage.py --once` 실행. 실물 `plutil lint OK` + `bootstrap` + `kickstart` 1회 `last exit code=0`, 로그 양쪽 정상 처리/실패0. 코드 변경영향 **75 PASS/0 FAIL**, Python 컴파일/Public 검사 PASS. 기존 `com.newscatalystos.incremental` 중복 스케줄러 활성화 금지.
 - **다음 운영:** 5개 실제 거래일 중 **2026-10-14 단일 날짜만 증거 확보**. 이후 `PYTHONPATH=src python3 scripts/check_feed_operations.py` 로 ACK/양 소스/미처리/상태/실제 PIN 확인하고 stderr 및 Mac·T5DATA 마운트 상태 관찰; 필요하면 기존 `--replay-only`로 무네트워크 장애 복구. Mac sleep/SSD 분리·제공자 권한 오류는 자동 완성으로 보고하지 않음. 다른 프로젝트 API 중복 수집 및 자동매매/홈페이지 없음.
 - 다른 미완료 5_2 실공식 반도체 계약 본문/양사 공식 ID는 실제 증거가 확보될 때 기존 offline `review_supply_relation.py`로 검토. AI 실제 모델/독립 검수 gold 및 6_6 최종 인수 조건 대기. **완료 23/36(63.9%)**, 6_5/36 릴리스 완료 판정 금지. 현황/안전 중단 문서 `docs/6_5_SCHEDULED_TRIAGE_OPERATIONS.md`.
+
+## 2026-10-14 | 최신 NEXT_TASK=5_2 실제 공급사·고객사 증거; 6_5 실운용 날짜 누적
+- 기능 Git SHA `692850de780e0e0af2032371854f7bd307f280f3` origin/main 검증. 기존 승인 RSS 1_3→3_5 완료 ACK 메타를 SHA/원장/PIT 재검증해 **FTS5 제목 검색** 가능. 실제 승인 RSS **35개 고유 제목/완료 ACK 4건** 색인, `기업` 조회 상위 5건, `반도체` 검토 후보0; 네트워크/AI/공식 API 중복 호출0. 영향 pytest **66 PASS/0 FAIL**, 컴파일·Public 검사 PASS. `docs/2_1-6_4_NEWS_TITLE_SEARCH.md` 참조.
+- **다음 구현 우선순위:** 이미 가동된 1시간 launchd는 유지하되 실 실제 **5개의 거래소 세션**에 대한 ACK/오류/복구 실증을 누적한다. 병행하여 **반도체 한 산업의 실제 공급사–고객사 공식 관계 문장·두 기업 ID·독립 SHA/최초 입수 시각**을 승인 경로로 확보한 뒤 기존 `review_supply_relation.py`로 5_2 실증하고 5_3~5_5 소비 계약에 연결한다. 데이터 없으면 UNKNOWN이며 동형 가드/합성 점검만 반복하지 말고 공급망 분석 기능 구현에 집중한다.
+- 실제 공식 문서 검토 관계 0, 제공자 AI 실제 비용·500 독립 gold/수혜 정확도·오프사이트 및 6_6 릴리스 미완료. `23/36(63.9%)` 유지, 사용자 미추적 도면·EraLeader 원본 코드/DB/Git·DART/SEC/KRX 재수집 금지.

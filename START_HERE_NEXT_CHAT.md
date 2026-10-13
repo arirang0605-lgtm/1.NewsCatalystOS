@@ -177,3 +177,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 개발 인계 — 6_5 정기 RSS 작업 실사용 launchd 활성
 - 기능 Git SHA `d154a280065a531cc54017663ac8f51af24be644` 원격 main 확인. 승인된 Mac RSS 2종만 1시간마다 1회 기존 1_3~3_5 복구가능 triage를 수행하는 `~/Library/LaunchAgents/com.newscatalystos.triage.plist` 설치/launchctl bootstrap·kickstart 성공: `runs=1`, `last exit code=0`, stdout 제공자2 성공/AI0·공식 API 중복0. **75 PASS/0 FAIL**, 컴파일/공개 검사 PASS. 안전중지 및 상태 점검은 `docs/6_5_SCHEDULED_TRIAGE_OPERATIONS.md`.
 - 6_5 실제 5거래일 목표는 첫 운영 날짜 2026-10-14 **1/5일만 확보**, local Mac↔T5DATA 물리 DR 2 DB는 PASS. 전체 **23/36(63.9%)** 유지. 다음은 `NEXT_TASK.md` 맨 아래 6_5 실제 ACK 누적/실증·5_2 허가된 공식 반도체 거래 본문 확보. 기존 코드 REWRITE·EraLeader 원본/API 중복수집·미추적 사용자자료 변경 금지.
+
+## 2026-10-14 | 최신 인계 — 실 뉴스 제목 로컬 검색
+- 기능 `692850de780e0e0af2032371854f7bd307f280f3` origin/main SHA 일치 확인. 승인된 RSS 1_3 완료 ACK/SQLite/PIT/원문 메타 SHA를 검증해 `output/search_cache/news_search.sqlite3` FTS5 인덱스 구축·`scripts/search_news.py --query 기업` 실제 Mac 고유 제목 35건 중 결과 5건. `--query 반도체 --semiconductor-only` 현재 대상 제목 0건, 본문 저장/API·AI 추가 호출 0. `66 PASS/0 FAIL`, 컴파일·Public 검사 PASS.
+- 6_5 Mac 1시간 launchd 정상 가동, 실제 영수증 4건/2026-10-14 한 날짜, 로컬 물리 DR PASS. **완료 23/36(63.9%) 유지**. 최신 NEXT_TASK에서 5_2 공식 반도체 고객·공급자 문서 증거 확보/후속 파급 기능 연결과 6_5 실제 운영일 누적. REWRITE·EraLeader Git/원본/공식 API 중복 수집 금지. 자세한 검색 명령은 `docs/2_1-6_4_NEWS_TITLE_SEARCH.md`.

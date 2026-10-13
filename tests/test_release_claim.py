@@ -89,6 +89,7 @@ def test_correction_provenance_is_recorded_not_certified(tmp_path):
     {"official_url": "https://www.sec.gov.evil.test/Archives/edgar/data/320193/000032019326000001/sample.htm"},
     {"official_url": "https://www.sec.gov@evil.test/Archives/edgar/data/320193/000032019326000001/sample.htm"},
     {"official_url": "https://www.sec.gov/Archives/edgar/data/320193/999999999999999999/sample.htm"},
+    {"official_url": "https://www.sec.gov/Archives/edgar/data/999999/000032019326000001/sample.htm"},
     {"official_url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000001/sample.htm?key=x"},
 ])
 def test_inconsistent_claim_rejected(tmp_path, changes):

@@ -62,3 +62,12 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify_era_captures.py 
 - 검증 입력은 필수 필드만 허용하고 8KiB 초과·중복 JSON 키·미래시각·허위 URL/출처·자기참조 정정은 실패 처리한다. `tests/test_release_claim.py`는 **합성 입력 전용**이다.
 - **남은 외부 게이트**: 실제 공식 출처 페이지를 독립 조회/진위 확인하고, 공신력 있는 최초 대외 공개시각·정정 연쇄·기업 ID를 인증한 증빙을 별도 시점에 확보해야 한다. 단순 링크/SHA pin·SEC acceptance·DART 접수일만으로는 `RawEvent` 실물 1건을 인증하지 않는다.
 - 기존 EraLeader 수집/DB/Git·별도 Mac 내부디스크 local-TOFU pin 수정 없음. 전체 1_1 완료 및 실운영 성공을 선언하지 않는다.
+
+## 2026-10-13 | 1_1 외부 검증자 서명 게이트 (실물 증빙 대기)
+
+- `signed_publication.py`는 **이미 `inspect_release_claim`을 통과한 DART/SEC 공시 후보만** 추가 인증한다. 독립적으로 등록·신뢰한 검증자의 **Ed25519 공개키 PEM + 미리 별도 기록한 SHA256**이 필요하며, 동일 증빙 묶음의 키/핀을 자체 신뢰하지 않는다. 검증은 Mac OpenSSL 3 로컬 명령으로 수행하며 키·서명·증빙 파일은 EraLeader에 기록하지 않는다.
+- 증빙 JSON `newscatalyst.publication_attestation.v1` 필수 필드: `schema`, `claim_sha256`, `provider_id`, `source_id`, `source_document_id`, `issuer_id`, `revision_id`, `revision_kind`, `supersedes_document_id`, `official_url`, `publisher_released_at`, `witness_id`, `witness_verified_at`. 이 JSON **원본 바이트에 서명한 64바이트 Ed25519 서명**을 별도 전달한다. 검증자 확인·출처 확인 절차는 신뢰 등록 전에 별도로 감사해야 한다.
+- 서명자의 신뢰 계정·공개키를 독립적으로 승인하지 않으면, 키를 임의 생성하여 '공증'으로 속이거나 `trusted_public_key_sha256`을 동일 입력에서 자동 계산해 실데이터 완료를 주장하는 것을 금지한다. 서명은 **누가 주장했는지**를 인증할 뿐 실제 발행자의 사실 여부/서명자 시계 정확도까지 독립 증명하지 않으므로 신뢰 정책·증거 감사가 별도로 필요하다.
+- 서명된 발표시각·issuer·정정 메타·원본 영수증을 묶어 `SignedPublication`으로 반환한다. 실제 `RawEvent`는 `proof.as_of(decision_at)` 호출 시점이 `max(first_seen_at, witness_verified_at)` **이후**일 때만 제공된다. 과거 최초 수신 시각에 늦게 획득한 서명 증거를 소급 적용하지 않는다. DART 날짜/SEC acceptance는 공개시각이 아니며, 근거 없는 정확한 시간 생성은 여전히 금지한다.
+- OpenSSL로 생성한 **합성 서명** 및 오류/변조/PIT 차단 테스트만 현재 성공했다. **외부 승인 서명자/공식 공개시각 증빙/독립 timestamp**는 확보되지 않았다. 검증 신뢰수준 불충분이므로 실제 EraLeader 기존 캡처를 `RawEvent`로 승격하지 않으며, `1_1 = DATA_UNAVAILABLE`/0/36을 유지한다.
+- 실제 참조 가능한 SEC 예시: [EDGAR 공식 Form 4 접수·발행자](https://www.sec.gov/Archives/edgar/data/320193/000114036126039158/0001140361-26-039158-index.htm). 해당 접근번호는 기존 EraLeader 읽기 전용 캡처에 존재한다. 공식 SEC `Accepted` 2026-10-08 18:30:32 EDT는 **접수시각**, 공개 시각의 독립 증명은 아님. 제3자 웹사이트가 표기한 수집시각도 과거로 소급 가능한 공증으로 취급하지 않는다.

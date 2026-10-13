@@ -30,6 +30,7 @@ CLAIM_KEYS = frozenset({
 class ReleaseClaim:
     schema_version: str
     evidence_id: str
+    source_id: str
     provider_id: str
     source_document_id: str
     issuer_id: str
@@ -52,7 +53,7 @@ class ReleaseClaim:
         )
 
 
-def _official_url(provider: str, document_id: str, url: object) -> str:
+def _official_url(provider: str, document_id: str, issuer: str, url: object) -> str:
     if not isinstance(url, str) or len(url) > 2048 or any(
         ord(c) <= 32 or ord(c) == 127 for c in url
     ):
@@ -73,9 +74,10 @@ def _official_url(provider: str, document_id: str, url: object) -> str:
             raise SourceShareError("DART URL/document mismatch")
     elif provider == "SEC":
         accession = document_id.replace("-", "")
-        if (host != "www.sec.gov" or not
-            uri.path.startswith("/Archives/edgar/data/") or
-            accession not in uri.path.split("/") or uri.query):
+        parts = uri.path.split("/")
+        if (host != "www.sec.gov" or not issuer.isdecimal() or
+            len(parts) != 7 or parts[:5] != ["", "Archives", "edgar", "data", str(int(issuer))] or
+            parts[5] != accession or not parts[6] or uri.query):
             raise SourceShareError("SEC URL/accession mismatch")
     else:
         raise SourceShareError("source has no disclosure release contract")
@@ -149,10 +151,10 @@ def inspect_release_claim(
           published < candidate.provider_acceptance_at):
         raise SourceShareError("SEC release predates acceptance")
     url = _official_url(candidate.provider_id, candidate.provider_record_id,
-                        data["official_url"])
+                        issuer, data["official_url"])
     return ReleaseClaim(
         schema_version=SCHEMA, evidence_id=candidate.evidence_id,
-        provider_id=candidate.provider_id,
+        source_id=candidate.source_id, provider_id=candidate.provider_id,
         source_document_id=candidate.provider_record_id,
         issuer_id=issuer, revision_id=revision, revision_kind=kind,
         supersedes_document_id=supersedes, claimed_published_at=published,

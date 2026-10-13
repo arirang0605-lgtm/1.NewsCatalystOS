@@ -36,6 +36,10 @@ class SupplyChainEdge:
     available_at: datetime
     last_reviewed_at: datetime
     verified_real_transaction: bool = False
+    # Populated only for explicit official-document + independent-pin reviews.
+    # Optional to preserve existing observed/unverified feed-edge compatibility.
+    document_sha256: str | None = None
+    review_proof_sha256: str | None = None
 
     def as_of(self, decision_at: datetime, *, now: datetime | None = None
               ) -> "SupplyChainEdge":

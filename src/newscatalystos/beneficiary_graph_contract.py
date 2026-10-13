@@ -13,8 +13,9 @@ import json
 from .beneficiary_classification import BeneficiaryCandidate
 from .semiconductor_impact import SemiconductorTransmission
 from .semiconductor_profile import SemiconductorProfile, validate_profile
+from .official_relation_review import RELATION_STATUS
 from .supply_chain_graph import SupplyChainEdge
-from .source_share import SourceShareError, _when
+from .source_share import SourceShareError, _must_sha, _when
 
 SCHEMA="newscatalyst.beneficiary_graph.v1"
 
@@ -85,6 +86,17 @@ def build_beneficiary_graph(
             "verified_real_benefit":False,
             "revenue_contribution_krw":None,
         })
+        if edge.document_sha256 is not None or edge.review_proof_sha256 is not None:
+            if (edge.document_sha256 is None or edge.review_proof_sha256 is None
+                    or edge.evidence_status != RELATION_STATUS
+                    or edge.evidence_sha256 != edge.document_sha256
+                    or candidate.available_at < edge.available_at):
+                raise SourceShareError("inconsistent official relation document proof")
+            rendered[-1].update({
+                "document_sha256": _must_sha(edge.document_sha256, "document proof"),
+                "review_proof_sha256": _must_sha(edge.review_proof_sha256, "review proof"),
+                "relation_evidence_status": RELATION_STATUS,
+            })
     rendered.sort(key=lambda x:x["relation_sha256"])
     if len({x["relation_sha256"] for x in rendered})!=len(rendered):
         raise SourceShareError("same relation cannot be counted twice")

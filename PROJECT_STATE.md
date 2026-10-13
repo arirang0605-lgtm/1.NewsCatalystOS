@@ -131,3 +131,9 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **검증:** 합성 positive/negative/변조/미래·PIT·개별문서·공급자·실패시 비밀 경로 숨김 시험 포함 1_1 연계 13개 파일 **234 PASS / 0 FAIL (exit 0)**, compileall PASS. Public 4개 파일 명시 스테이징/개인키·키패턴·바이너리·용량·diff 검사 PASS. 사용자 미추적 파일/비공개 운영 자료 업로드 안 함.
 - **GitHub 기능 커밋:** `afb9bf61d84d26782ed2f8823a6b5b3241fdf383` 원격 origin/main 푸시, 원격 SHA 동일 확인. EraLeader 원본·DB·수집기·키·Git 변경/중복 공식 API 호출 0건.
 - **엄격 완료 조건:** 실제 승인된 독립 서명 검증자 및 발행기관의 공개시각/발행자/정정 연쇄와 독립 최초 증거 입수시점 미확보. 요청서는 실제 증빙이 아니므로 정식 RawEvent=0, `DATA_UNAVAILABLE`, `NEXT_TASK=1_1`, **0/36 (0.0%)** 유지. AI API 0회, 5거래일 운영 0일.
+
+## 2026-10-13 | 1_1 외부 증빙 실제 도착시각 PIT 차단 (NC-1_1-PROOF-ARRIVAL)
+- **수정:** 신뢰된 검증자 서명에 표시된 `witness_verified_at`만으로 과거 자료 사용 가능 시점을 소급할 수 없으므로, 실제 `check_official_proof.py`가 **증빙 파일 4개를 읽은 뒤** 확보한 UTC `proof_observed_at`을 필수로 `authenticate_from_era_readonly`에 전달. 결과 `usable_from=max(원본 첫 수신, 별도 pin 관측, 외부 검증자 등록·서명 확인, 실제 증빙 로컬 입수)`를 반영. `--decision-at` 이전에 도착하지 않은 증거는 파일 기반 원본 조회 전에 거절. 정식 이벤트 `RawEvent.first_seen_at`도 실제 증빙 사용 가능 시각 이상만 허용.
+- **검증:** 새 합성 음성 시험 2개 추가; 1_1 관련 전체 **236 PASS / 0 FAIL (exit 0)**, Python compileall / git diff --check / Public 5파일 명시 allowlist·비밀 패턴·비텍스트·용량·gitignore 검사 PASS. 증빙·서명키·운영 DB 공개/중복 수집 없음. EraLeader 파일/코드/Git 쓰기 수행하지 않음.
+- **GitHub 기능 SHA:** `8f24d48cf8abd0af782962cfd5ef0dd10a306e46` `origin/main` 정상 push, remote SHA 일치 확인. 사용자 미추적 문서·도면 미스테이징.
+- **외부 조건 미충족:** 실제 승인 검증자 서명과 공식 외부 공개시각·issuer/정정 증거는 계속 없음. CLI에 실제 인증 증빙이 제공되지 않았으므로 `RawEvent=0`, `DATA_UNAVAILABLE`, `NEXT_TASK=1_1`, **0/36(0.0%)** 유지. 이 수정은 로컬 관측 PIT 가드이지 공시 공개시각 인증이 아님.

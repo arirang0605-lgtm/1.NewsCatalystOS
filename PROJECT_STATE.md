@@ -167,3 +167,10 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **안전 비활성:** 삼성물산 건설 공식 RSS GET HTTP 403, 우회 금지·미활성화. 삼성전자 뉴스룸 콘텐츠 이용약관은 비상업적 개인 이용 중심이라 별도 허가 전 미활성. 행안부 RSS는 기존 설정한 128KiB 한도 초과 시 거절. 뉴스와이어는 보도자료 유통 플랫폼이므로 독립 언론 보도/사실 인증으로 간주하지 않음. 기타 IR 허가 미확인 소스는 `ProviderRegistry`에서 disabled.
 - **검증:** 기존 282개 + 신규 15개 = **297 passed / 0 failed**, compileall PASS, 403/redirect/5xx/과대/만료/미승인/본문 금지·속임수 음성 시험 PASS. Public 6개 파일 allowlist·비밀/원문/바이너리/용량·.gitignore 검사 PASS.
 - **기능 Git SHA:** `e3a28b4c0eb3669d2972daef14dc6be897b9cfe1` origin/main push SHA 일치. D-019 승인된 운영 기본 게이트에 따라 **1_2 완료, 전체 2/36 (5.6%)**. 비활성 회사 IR은 권한 확인 후 설정 추가 가능; V1.0 타 단계/반도체 한 산업 계획 변경 없음. 다음 `NEXT_TASK=1_3`.
+
+## 2026-10-13 | 1_3 증분 RSS 수집/워터마크·백오프 구현 및 실제 검증 (NC-1_3-INCREMENTAL)
+- **기능:** `src/newscatalystos/incremental_ingest.py`에서 Mac 내부 독립 NewsCatalystOS owner-only `state/incremental_feeds.sqlite3` SQLite 원장에 제공자별 요청시각·마지막 성공 watermark·SHA 이벤트ID/처음 검증 시점만 보관. 기사 제목/URL/본문/원본/키 저장 안 함. `BEGIN IMMEDIATE` 요청 예약/중복방지·원자 커밋, 실패 시 기존 성공 watermark·이력 보호. 429/5xx 실패지수 백오프(최대 1시간), 401/403 자동 요청 중단·추가 운영자 권한 재검토 후 수동 복구. 기존 `feed_transport.py`에 오류 유형만 추가, 정상 기존 코드 보존.
+- **실행 도구:** `scripts/run_incremental_feed.py`의 `--all-approved` 또는 개별 승인 provider, 실패 소스 장애 격리/NOT_DUE 노출. `scripts/launchd_incremental.py`는 **15분 템플릿**을 Mac 내부 owner-only `launchd/`에 생성하고 `plutil -lint` PASS, 파일 권한 0600, **launchctl bootstrap 호출/백그라운드 자동 실행 시작 없음**.
+- **실데이터 1_3 통합:** 사용자 승인된 중기부 공식 RSS **최초 신규 메타 20**, 뉴스와이어 IT RSS **최초 신규 15** `SUCCESS_NEW`, 소스별 원장 저장/확인 PASS. 직후 같은 명령 재실행 두 소스 모두 `NOT_DUE`; 다음 가능시각은 약 30분 이후, 추가 네트워크 GET **0**. 로컬 상태 `seen_count=20/15`, 실패 수 0, SQLite 퍼미션 0600, 본문 저장·공개시각 독립 인증/실물 `RawEvent=0`.
+- **검증:** 기존 포함 변경 영향 관련 전체 **323 PASSED / 0 FAILED**(exit 0), Python compileall PASS, `plutil -lint` PASS. 신규 커버리지: 멱등/신규 증분/워터마크/시간 예산·동시 예약/실패 보존/429·403/권한 재검토/DB 경로 모의 공격/PIT 미래/launchd 설정. Public 9파일 허용목록·민감 키/바이너리·크기·diff 및 .gitignore 검사 PASS. EraLeader 코드/수집기·DB·Git/키 쓰기·중복 공식 API 호출 없음.
+- **GitHub 기능 커밋:** `664b30c3da9563bc07cf16cb94cb8991baf5d802` `origin/main` 비강제 push 및 SHA 일치. `1_3` 기본 기능 완료, **3/36 (8.3%)**, 다음 `1_4` 공통 시각/기업 ID 정규화. 아직 활성화되지 않은 자동운영/5거래일/릴리스 완료를 주장하지 않음.

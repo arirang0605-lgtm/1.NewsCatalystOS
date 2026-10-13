@@ -1,12 +1,12 @@
 # NEXT_TASK — 다음에 수행할 단 하나의 작업
-작업 ID: 1_3
-제목: 허용된 신규 수집원의 증분 스케줄·watermark·멱등·재시도
-상태: 1_1 관측형/1_2 기본 제공자 권한·RSS/API 단발 수집 경계 통과, 전체 2/36(5.6%). 외부 최초 공개시각 공증은 선택적 고정밀 검증.
-선행 조건: EraLeader DART·SEC·KRX 중복 호출 금지. 신규 수집원은 1_2 ProviderRegistry의 승인을 받은 정책 RSS/허용 보도자료 RSS로 제한.
-목표: 제공자별 마지막 성공 watermark를 안전하게 저장하고 변경분만 후속 수집. 실패/403/429/과다 응답에서 재시도·백오프·요청량 제한·실패 격리. 같은 문서의 새 이벤트 중복 0건.
-시작 시: 기존 feed_transport.py / new_source_adapter.py / provider_registry.py 직접 재사용, idempotency 및 복구 계약 구현. 과거 문서 소급 생성/PIT 누출 방지. EraLeader 코드·DB 변경 금지.
-완료 조건: 증분·watermark·중복방지·429/5xx 실패 격리·재처리 테스트, 허용된 실소스 최소 1개에 대해 단발/후속 검증. 실제 자동운영은 별도 장기 게이트.
-그다음 작업: 1_4 공통 시각·기업 ID 정규화.
+작업 ID: 1_4
+제목: 공통 시각·기업 ID 정규화와 정정/시점 버전 구분
+상태: 1_1~1_3 세 단계 기능 기본 완료, 3/36 (8.3%), 1_3 전체 323 PASS/0 FAIL. 원장·launchd 예약 템플릿은 준비했으나 자동 실행은 아직 미활성화.
+선행 조건: 기존 source_share.py, operational_observations.py, new_source_adapter.py, incremental_ingest.py의 계약 재사용; EraLeader 정식 수신본 읽기 전용.
+목표: published_at(인증/미확인), first_seen_at, verified_at, decision_at을 PIT로 구분; 기업 법인ID/CIK/DART/종목코드의 매핑 신뢰수준·불명/정정 관계를 표준 이벤트에 보존.
+시작 시: 1_4 규격의 실제 필요 필드만 확인 후 기존 합성/실물 관측 이벤트를 변환하는 작고 독립적인 정규화 모듈/회귀 테스트 개발.
+완료 조건: 잘못된 UTC/시점 역행·잘못된 issuer·거짓 정정/미확인 기업 매핑은 거절/UNKNOWN, 공식 데이터 원본 불변·컴파일·변경 영향 테스트 PASS.
+그다음 작업: 1_5 원본 증빙·해시 저장.
 V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하면 DECISIONS 갱신 후 변경한다.
 
 
@@ -128,3 +128,8 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - 사용자 요청 '너무 엄격하지 않게' + D-018/D-019 적용: 1_1 SHA/PIT 관측형 + 1_2 제공자 권한·단발 RSS 메타 연계 **2/36(5.6%)**. 신규 중기부 20건·뉴스와이어 RSS 15건 실연동, 본문 저장/공시 최초 공개 인증 0. 관련 **297 PASS/0 FAIL**. 기능 `e3a28b4c0eb3669d2972daef14dc6be897b9cfe1` 원격 푸시 확인.
 - 삼성물산 공식 RSS HTTP 403 및 삼성전자 뉴스룸 비상업적 이용약관은 우회 금지, **기업 IR 자동수집 비활성** 유지. 미확인 소스가 일부 있어도 허가받은 두 종류만 활성화할 수 있다는 점이 1_2의 정책 목적. RSS 보도자료와 독립 언론 확인 사실을 혼동하지 말 것.
 - **다음 실제 작업 1_3:** 기존 `feed_transport.py`, `provider_registry.py`, `new_source_adapter.py` 유지하면서 소스별 별도 상태 원장/워터마크, 호출량 제한/재시도 백오프, 중복 증분 처리, 실패 시 구버전 원장 보존, PIT 음성 테스트. EraLeader 수정·중복 DART/SEC/KRX 호출 금지. 실제 운영 자동매매·홈페이지 구현 제외.
+
+## 2026-10-13 | 1_3 기능 완료, 다음 1_4 개발 인계
+- `664b30c3da9563bc07cf16cb94cb8991baf5d802`: 추가 1_3 증분 엔진 원자 상태·watermark·SHA ID 중복방지/HTTP429·5xx 백오프/403 차단·권한 재검토 복원 구현. **323 PASS / 0 FAIL**, Mac 내부 private DB 및 예약 launchd plist owner-only 검증 PASS. 중기부 20/뉴스와이어 15건 신규 메타 첫 실행 SUCCESS, 직후 두 소스 `NOT_DUE` 추가 GET 0. 백그라운드 스케줄 미활성.
+- **현재 완료 3/36 (8.3%), NEXT_TASK=1_4.** 1_4에서 `published_at` 미확인/수신·검증 완료시각·판단시각의 분리, 기업 ID/심볼/공시 정정 매핑의 신뢰 수준, 기존 SourceManifest/OperationalObservation/FeedObservation 공통 스키마와 PIT를 구현. 가짜 issuer 확정·공시 공식 발표시각 추정/소급 사용·EraLeader 수집기 중복개발 금지.
+- 1_2 제공자/1_3 원장 재작성·증명 없던 공시 외부 서명 강제화·추가산업 도입 금지. V1.0 최종 5거래일 운영/복원은 별도 추후 인수 게이트이며, 실제 수집 launchd는 아직 활성화되지 않았음.

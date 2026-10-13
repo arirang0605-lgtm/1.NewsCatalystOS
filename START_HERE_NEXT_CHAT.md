@@ -93,3 +93,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-13 | 최신 1_2 기능 완료 인계 (NC-1_2-LIVE-GATE)
 - `e3a28b4c0eb3669d2972daef14dc6be897b9cfe1` `origin/main` 원격 SHA 일치: 권한 통제된 HTTPS 단발 RSS/API 메타 수집 경계, 기사 원문 비저장·403/리다이렉트/과대·미허가 자동 거절. **297 PASS/0 FAIL**; 중기부 공개 RSS 20건·뉴스와이어 배포 RSS 15건 실물 파싱 성공. 비밀 설정은 Mac 내부 owner-only 경로, Public 미업로드.
 - 사용자 승인 D-018/D-019에 따라 1_1/1_2 **2/36 (5.6%) 완료**, 회사 IR 이용권한 미확인/403은 비활성화해 보존. **NEXT_TASK=1_3**, 변경 영향 테스트부터 증분·워터마크·백오프 구현. 원본 EraLeader 자료/Git/수집기 변경 금지, 36단계·반도체 1산업 계획 불변.
+
+## 2026-10-13 | 최신 1_3 증분 워터마크/예약 개발 인계 (NC-1_3-INCREMENTAL)
+- 기능 SHA `664b30c3da9563bc07cf16cb94cb8991baf5d802` origin/main push 검증. 소스별 SQLite SHA 이벤트 중복방지·원자 watermark/요청 예약·호출량·429/5xx 백오프·403 안전 중단/권한 재검토 복구 완성. 관련 **323 PASS / 0 FAIL**. 실제 허가 소스 2종 신규 20+15건·직후 재실행 2소스 NOT_DUE/추가 요청 0. SQLite/launchd private owner-only; 15분 예약 plist는 문법검증만 수행했고 자동 운영은 **아직 시작하지 않음**.
+- **1_1~1_3 완료 3/36(8.3%), NEXT_TASK=1_4**, 위 문서 및 NEXT_TASK 최신 하단 기준 CONTINUE. EraLeader 원본·DB·Git 변경/공식 API 중복 수집 0, PIT 절대 미래정보 누출 금지. 전체 36/반도체 1산업 원칙 유지.

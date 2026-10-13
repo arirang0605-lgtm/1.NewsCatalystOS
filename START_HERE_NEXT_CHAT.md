@@ -185,3 +185,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 인계 — 공식 공급관계 리뷰 5_2~5_5 read-only handoff
 - 기능 Git SHA `0e95762c4a12fdfdfa804292df775a86e6fa5abe` 원격 main 일치. 기존 5_2 공식문서 SHA/PIT + 운영자 리뷰 → 반도체 5_3/5_4 가설 파급·수혜 후보 → 5_5 SHA·원자 outbox → 후속 프로젝트용 독립 읽기 CLI의 `candidate_edges` 연결 구현. **115 PASS/0 FAIL**, Python 컴파일/Public 검사 PASS, 합성 검토 입력의 별도 Python 소비 CLI `exit0`/미확정 관계 후보1/실수혜0. 합성 증거는 실공식 관계가 아님.
 - 실제 고객사·공급사 공식 본문/회사ID 검수 0, 원천 없다면 운영용 outbox **생성 금지**. 총 완료 **23/36(63.9%)** 유지. 다음 `NEXT_TASK.md` 맨 아래: 5_2 실제 승인 공식 거래관계 증거 1건 실증 + 기존 6_5 1시간 Mac RSS 5거래일 누적. EraLeader 원본·DB·Git/공식 API 재수집 금지. `docs/5_2-5_5_REVIEWED_BENEFICIARY_DELIVERY.md`.
+
+## 2026-10-14 | 최신 인계 — 5_2 공식 원본 기업명/공시 제목/Form 선별
+- 기능 SHA `18144a5fa77fcfd6e1b5824956f1a7e0ca134e90` GitHub main 동일: `official_filing_context.py`로 기존 DART/SEC SHA-PIT 확인된 첫 캡처 raw 메타를 v2 관측목록과 문서별 이중 SHA join. `build_official_review_queue.py --with-pinned-issuer-context`에 기업명/제출 유형/공시 제목 필터 추가. **실제 DART100+SEC1001건** 연결, SEC Apple 10-Q 33개, DART `계약` 1개(실제로 주식 양수도, 반도체 공급계약 아님). `109 PASS/0 FAIL`, 컴파일/Public PASS. 이전 v1 IDs-only 구조 그대로 유지.
+- **현재 23/36(63.9%)**, 실반도체 공급 관계 공식문서 본문+사람 검토 **0건**. 다음은 `NEXT_TASK.md` 맨 아래 원문 실관계 증거 확보 이후 기존 5_2→5_5 read-only 계약 연결과 6_5 자동 운영 실거래일 누적. EraLeader 코드/DB/Git·DART/SEC/KRX API 새 수집 금지, 사용자 기존 미추적 도면/개인 자료 보존. 사용 예 `docs/5_2_PINNED_FILING_SCREENING.md`.

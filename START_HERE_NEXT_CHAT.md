@@ -51,3 +51,6 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-13 | 1_1 최신 인계 — 공시 원본/독립 서명 연결 게이트
 - `ca804cd4aeafe717c909e90c0b56dbd7d2122a93` GitHub 기능 푸시 성공. `official_promotion.py` 실수신 원본/CIK/독립 SHA pin ↔ attestation.v2 서명·공개시각 증빙 경계 구현. 합성 테스트 포함 **199 PASS / 0 FAIL**, 실제 기존 EraLeader read-only 5개 검증 PASS.
 - 외부 독립 검증자 서명/공식 공개시각·발행기관 검증 증거 부재로 인증 RawEvent 0, `NEXT_TASK=1_1`, **엄격 0/36**. 다음은 `NEXT_TASK.md` 마지막 게이트 참고; 기존 어댑터·전체 코드 중복 분석 금지. 채팅방 컨텍스트 사용률 정확한 %는 확인 불가, 길이/품질 저하 시 새 채팅을 선제 안내.
+
+## 2026-10-13 | 1_1 최근 PIT 누출 수정 인계 (NC-1_1-RAW-EVENT-ASOF-FIX)
+- `78a53132ed87bb37ca6e5677348954dc002b7f53` 기능 main push 검증. 지연 서명 및 독립 pin 관측 이후로만 `RawEvent.first_seen_at`이 노출되게 수정; 원본 수신시각 별도 보존. 관련 **200 PASS/0 FAIL**. 외부 공시 독립 증거 없음 → 인증 RawEvent 0, `1_1` 미완료, **0/36**. `NEXT_TASK.md` 최신 게이트 확인 후 이어가고 정상 코드 재분석·중복 API 수집 금지.

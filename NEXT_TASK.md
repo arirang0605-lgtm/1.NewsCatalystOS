@@ -71,3 +71,8 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - 직전 기능 `ca804cd4aeafe717c909e90c0b56dbd7d2122a93`: EraLeader 별도 SHA anchor·실제 공식 수신본·원천 CIK→독립 Ed25519 `attestation.v2`의 raw SHA/영수증 SHA/first_seen을 결합하는 읽기 전용 계약 구현. 관련 **199 PASS / 0 FAIL**, 실제 EraLeader 캡처 5종 read-only 확인. 기존 정상 코드 재구현/중복 점검 금지.
 - **실제 다음 한 작업:** 검증 가능한 외부 독립 기관/공식 발행기관의 DART·SEC 공시 최소 1건에 대한 공개시각·issuer·정정/버전 증빙, 서명 검증자 독립 신뢰키 및 증거의 최초 실제 가용시각 확보. 확보 시 `authenticate_from_era_readonly`를 통해 실제 공식 원본 SHA/CIK/PIT와 신뢰 증빙을 결합, 원본 무변경·음성/장애 시험 통과 후 1_1 최종 완료 여부 판단.
 - 증거 없으면 `DATA_UNAVAILABLE`과 인증 `RawEvent=0` 유지, `NEXT_TASK=1_1`, 엄격 0/36. SEC 접수시각/DART 접수일 및 로컬 SHA/TOFU를 역사적 외부 공개 인증으로 대신하지 말 것. EraLeader의 공식 API 수집기는 그대로 두고 검증된 게시 결과만 읽기 전용 공유, 전체 36개 개발계획 불변.
+
+## 2026-10-13 | 최신 1_1 미완료 — 외부 공식 공개 증명 확보
+- 직전 보완 `78a53132ed87bb37ca6e5677348954dc002b7f53`: 서명 증빙/독립 pin의 지연 취득을 `RawEvent.first_seen_at` 사용 가용시각에 반영하도록 PIT 누출 경계 수정. 원본 receipt first_seen은 `source_capture_first_seen_at`로 별도 보존. **200 PASS/0 FAIL**, origin/main push 검증. 이미 작동하는 계약/합성 서명 검증 재구현 금지.
+- **남은 단일 핵심:** 기존 EraLeader 공식 수신 캡처에 대응하는 DART 또는 SEC 공시 최소 1건의 대외 공개시각·issuer·정정 버전의 **독립 검증 가능한 신뢰 증거**와 실제 당시 가용시각 및 승인된 검증자 신뢰키 확보. 확보 이후 `authenticate_from_era_readonly`로 진짜 증거만 연결해 원본불변/음성·PIT 검증 후 1_1 완료 게이트 평가.
+- 외부 증빙이 없으면 `DATA_UNAVAILABLE`, 실 인증 RawEvent 0, `NEXT_TASK=1_1`, **0/36** 유지. SEC 접수시각·DART 날짜·동일 Mac 로컬 SHA/TOFU를 공식 발표시각으로 가장하지 않는다. EraLeader 코드·DB·Git 변경 및 DART/SEC/KRX 중복 수집 금지.

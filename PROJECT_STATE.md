@@ -99,3 +99,9 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **검증:** 변경영향 10파일 `199 passed, 0 failed`, Python compileall PASS, Public 허용목록 7파일·키/원문/바이너리·diff check PASS. 합성 Ed25519 증빙의 유효·무효·틀린 issuer·다른 문서·anchor 이후 가용시각·변조 검증 통과. **실제 EraLeader** 기존 연구 인덱스/별도 로컬 pin 기반 공식 캡처 5종 재검증 PASS, SEC source_request_value CIK 수신 메타 확인. 실제 독립 검증자 서명은 여전히 **0건**.
 - **GitHub 기능 커밋:** `ca804cd4aeafe717c909e90c0b56dbd7d2122a93` 원격 origin/main 푸시·SHA 확인. EraLeader 코드·원본·DB·Git 변경 0, 새 공식 API 호출/중복 수집 0, 민감정보 Public 미업로드.
 - **1_1 완료 게이트:** 외부 독립 검증자의 신뢰키, 실제 DART/SEC 발표시각·발행기관/정정 증거와 그 최초 확인시각이 아직 없어 실물 인증 RawEvent **0건**. LOCAL_TOFU는 외부 공증이 아니며 합성 서명 테스트로 완료를 속이지 않음. `NEXT_TASK=1_1`, `DATA_UNAVAILABLE`, 엄격 V1.0 완료율 **0/36(0.0%)**. 직접 AI API 0회, 5거래일 운영 0일.
+
+## 2026-10-13 | 1_1 지연 인증 증빙 PIT 누출 차단 수정 (NC-1_1-RAW-EVENT-ASOF-FIX)
+- **실제 수정:** `SignedPublication.as_of`가 반환하는 `RawEvent.first_seen_at`에 `max(원본 첫 수신, 서명 검증 시각)`을 적용, `AnchoredOfficialPublication.as_of`는 별도 로컬 SHA pin 최초 관측 시각까지 적용. 이로써 서명/앵커를 뒤늦게 확보한 과거 수신본을 외부 소비자가 원래 수신 시각부터 인증됐다고 오인하지 못하도록 제한. 원본 최초 수신시각은 `source_capture_first_seen_at`에 별도 보존하며 `ObservedOfficialBatch` 연구 계약은 불변.
+- **변경 영향 검증:** 1_1 관련 10파일 **200 passed, 0 failed**, Python compileall PASS. 새 지연-앵커 직렬화/PIT 회귀 시험 포함; 관련 코드와 doc 총 5개 파일만 명시 stage, 키/바이너리·diff 검사 PASS. EraLeader API/수집기·원본/운영DB/Git 변경 없음.
+- **기능 GitHub SHA:** `78a53132ed87bb37ca6e5677348954dc002b7f53`, origin/main push 및 ls-remote 일치.
+- **남은 완료 게이트:** 실제 DART/SEC 공시 발표시각·issuer·정정의 외부 독립 증명/승인된 서명 키가 없음. 합성 증빙 외 **실제 인증 RawEvent 0건**, 정식 1_1 단계 **미완료**, `NEXT_TASK=1_1`, 전체 완료율 **0/36(0.0%)**. 실제 AI API 0회·자동운영 0거래일, `DATA_UNAVAILABLE` 유지. 36개 계획 및 EraLeader 공식 API 데이터 읽기 전용 공유 범위 변경 없음.

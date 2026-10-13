@@ -70,3 +70,22 @@ def test_future_mapping_does_not_backdate_external_export():
     with pytest.raises(SourceShareError,match="source evidence"):
         build_beneficiary_graph(profile,impact_path,[linked],
             [replace(candidate,available_at=late)],NOW,now=late)
+
+
+def test_reviewed_official_edge_must_retain_document_proof():
+    _,profile,path,linked,candidate=graph()
+    from newscatalystos.official_relation_review import RELATION_STATUS
+    forged=replace(linked,evidence_status=RELATION_STATUS)
+    with pytest.raises(SourceShareError,match="missing document proof"):
+        build_beneficiary_graph(profile,path,[forged],[candidate],NOW,now=NOW)
+
+
+def test_relation_future_review_and_inconsistent_timing_rejected():
+    _,profile,path,linked,candidate=graph()
+    late=NOW+timedelta(seconds=1)
+    with pytest.raises(SourceShareError,match="timing invalid"):
+        build_beneficiary_graph(profile,path,[replace(linked,last_reviewed_at=late)],
+                                [candidate],NOW,now=late)
+    with pytest.raises(SourceShareError,match="timing invalid"):
+        build_beneficiary_graph(profile,path,[replace(linked,available_at=NOW,
+            last_reviewed_at=NOW-timedelta(seconds=1))],[candidate],NOW,now=NOW)

@@ -53,6 +53,13 @@ def build_beneficiary_graph(
     for edge in relations:
         if not isinstance(edge,SupplyChainEdge) or edge.available_at>at:
             raise SourceShareError("future or invalid graph relation")
+        if edge.last_reviewed_at > at or edge.available_at > edge.last_reviewed_at:
+            raise SourceShareError("relation review/PIT timing invalid")
+        if edge.relation_kind not in ("REPORTED_DIRECT_TRANSACTION", "THEMATIC_ASSOCIATION"):
+            raise SourceShareError("invalid relation kind")
+        if edge.evidence_status == RELATION_STATUS and (
+                edge.document_sha256 is None or edge.review_proof_sha256 is None):
+            raise SourceShareError("reviewed official relation missing document proof")
         if edge.verified_real_transaction:
             raise SourceShareError("unsigned relationship cannot become verified commercial fact")
         if edge.edge_sha256 in edge_by_id:

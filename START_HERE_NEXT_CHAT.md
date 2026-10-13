@@ -157,3 +157,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 인계 — 실제 DART/SEC 검토 작업목록
 - 기능 `070a8688020e4d1876b3b28f4ed8de0110ca540a` origin/main 푸시 SHA 확인. Mac 기존 `coverage_v2_smoke` 완료 공시 메타 read-only **DART 100/SEC 1,001 = 1,101건** 검토 큐를 개인 `output/`에 SHA/원자 게시. 임의 단일 DART ID도 조회 PASS. 해당 큐는 기사/공시 본문 및 반도체 관계 증명이 아니라 **UNSCREENED** 메타 목록.
 - 영향범위 **93 PASS/0 FAIL**, Public 검사 PASS. 실제 공급망 검토/수혜 확정 0, 완료 **23/36(63.9%)**. `NEXT_TASK.md` 최신 5_2 실문서·운영자 승인 관계 검증부터 계속; 준비된 CLI/합성 가드 재개발 금지. 문서 `docs/5_2_OFFICIAL_REVIEW_QUEUE.md`. EraLeader 원본·Git/중복 API 수집 금지, 기존 사용자 미추적 파일 보존.
+
+## 2026-10-14 | 최신 인계 — 실 RSS 메타 재료 검토 연결
+- 기능 `871c34721e6f4ec85b262ec8f4a5f8d8e87297b8` GitHub main 반영 확인. `src/newscatalystos/feed_triage.py`·`scripts/run_feed_triage.py`로 1_3 승인 RSS 1회 조회→2_1/2_2/2_3/2_4→3_5 UNKNOWN 검토 및 개인 SHA JSON 출력을 통합. 변경 영향 **65 PASS/0 FAIL**·compile/Public 검사 PASS. 실제 중기부 20 + 뉴스와이어 15 = 35건, 신규 ID0, 반도체 후보0, AI0; 본문 보관0.
+- 공식 DART 완료 표본 100건의 명시 공급계약 제목 0, 새 공식 API 호출·EraLeader 쓰기 0. **23/36(63.9%)**, 여전히 NEXT_TASK=5_2 실공식 반도체 거래관계 확보(증거 없으면 UNKNOWN). 다음 독립 구현 가능 작업 6_5 지속 운영/분석 중간 실패 복구; 세부는 `NEXT_TASK.md` 마지막 블록과 `docs/1_3-3_5_LIVE_FEED_TRIAGE.md`. 기존 미추적 사용자 도면·기존 프로젝트 Git 변경 금지.

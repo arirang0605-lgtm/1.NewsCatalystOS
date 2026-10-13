@@ -258,3 +258,10 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - 로컬 게시본에서 **즉시 계산한 SHA는 같은 파일의 무결성 일관성 확인에만 사용**했고 독립 외부 공시 공개시각 증명/과거 PIT 공증으로 주장하지 않음. 해당 메타는 공식 공시 본문을 포함하지 않으므로 **반도체 관련성 확정 0, 실제 계약관계 독립 검수 0, 매출/수혜 확정 0**. 정렬은 회사 추천순위가 아니라 문서ID 순.
 - **변경 영향 검증 93 PASS/0 FAIL**, Python compileall·git diff --check·Public staged 4파일 비밀패턴 검사 PASS. 사용자 기존 미추적 문서/도면 보존, EraLeader 코드/DB/Git·DART/SEC/KRX 재수집 0.
 - **완료 23/36(63.9%) 유지**, 다음 5_2 실제 반도체 관계 문서·공식 양사 ID·사람검수 후 `review_supply_relation.py` 실증; 5_3~5_5 외부 소비 및 5_6 gold, 4단계 실제 API, 6_5 5거래일 운영/물리 DR도 미완료.
+
+## 2026-10-14 | 허가 RSS 실자료 1_3→2_1/2_2/2_3/2_4→3_5 통합 실행 (NC-LIVE-FEED-TRIAGE)
+- **기능 SHA `871c34721e6f4ec85b262ec8f4a5f8d8e87297b8`** `origin/main` 푸시·SHA 일치 확인. `incremental_ingest.IncrementalResult`에 메모리 한정 수신 `observations`/`newly_observed_event_ids` 추가(기존 SQLite에는 제목/본문/URL 없음). 신규 `feed_triage.py` + `scripts/run_feed_triage.py`: 1_3 기존 승인된 1회 GET 결과를 HTTP 중복 수집 없이 재활용, 2_1 제목/URL 정규화→2_2 SHA 중복·수정→2_4 루머/광고 차단→2_3 검토 없는 독립출처 강제 병합 금지→3_5 중요도 UNKNOWN 검토로 연결. 반도체 키워드는 `KEYWORD_CANDIDATE`에만 사용하고 AI/거래확정/수혜 확정 0.
+- **실제 Mac 2 승인 RSS 단발 실행 PASS:** `mss-official-press` 20건, `newswire-public-rss-it` 15건; 두 소스 모두 `SUCCESS_UNCHANGED`, 신규 provider ID 0, 반도체 키워드 검토 0, 기사본문 보관/AI 호출 0. 기존 Private `output/feed_triage_<SHA>/triage.json` 원자 게시·SHA 일치/owner-only 점검 성공. 2_2 인덱스 최초 생성 시 기존 1_3 수신과 혼동하지 않도록 `INDEX_BOOTSTRAP_PRIOR_SEEN_ID` 후속 표기 수정. 해당 실물 데이터·운영 SQLite는 공개 Git 대상 제외.
+- **실제 EraLeader 이미 완료된 DART 원본 SHA/PIT 읽기전용 확인:** 표본 100건의 공시 제목에 공급계약/수주/설비증설 명시 사례가 없어 해당 범위의 5_2 관계 실증 자료 없음. SEC 1,001건의 공식 본문도 미포함. 새 DART/SEC/KRX API 수집 0, EraLeader 원본/코드/DB/Git 변경 0.
+- **영향범위 pytest 65 PASS/0 FAIL**, compileall exit0, staged 5개 허용 파일 Public 비밀 패턴 검사 PASS, `git diff --check` PASS. 참고 문서 `docs/1_3-3_5_LIVE_FEED_TRIAGE.md`; 처음 새 data source를 등록하거나 자동 launchd를 활성화하지 않음.
+- **기본 완료 23/36(63.9%) 유지.** 실물 반도체 공식 공급관계 검수 0, 2_6/3_6/5_6 사람 라벨 500건/정량 성능, AI 실모델·요금, 5거래일 운영·별도 물리 복구 및 6_6 릴리스 인수 미완료. 다음 실무는 기존 큐의 허용 공식 반도체 본문을 확보해 5_2 연결 또는 기다리는 동안 6_5 지속 운영 기록/뉴스 중간결과 누락 시 복구 기능.

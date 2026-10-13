@@ -101,3 +101,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-13 | 최신 1_4 공통 이벤트/PIT 정규화 인계 (NC-1_4-EVENT-IDENTITY)
 - 기능 `c6406375654928e7fc380bccb9f729cc6d9f79cc` origin/main SHA 대조 성공: 공시 관측·RSS 메타·기존 서명된 공식 발표 객체의 공통 시각/기업 네임스페이스/정정 근거를 PIT-safe 구분. 공식 실제 5개 캡처 기반 기존 private 배치 3,866 메타 정규화 PASS, 원본/Issuer/release 인증 임의 생성 0. **345 PASS/0 FAIL**, Public 보안 스캔 PASS.
 - **작업 완료 4/36(11.1%), NEXT_TASK=1_5**. 1_5 승인된 보관권한에 따른 원본/영수증 SHA 안전 저장과 정정 버전부터 CONTINUE, 기존 공식 수집기 및 EraLeader 코드/DB/Git 무변경. 1_4 완료는 실사용 관측형 계약 기준이며 최종 5거래일 운영·공시 외부 공개시각 공증 완료가 아님.
+
+## 2026-10-13 | 연속개발 1_5~2_2 완료 체크포인트 (NC-1_5-2_2-BATCH)
+- 사용자가 4/36 이후 36/36 연속 완료 요청. 기존 코드·Git/원본 보존, 실제 1_5 append-only SHA 원장, 1_6 장애 감시/복구 pending, 2_1 텍스트/URL 정규화, 2_2 정확 중복·버전 보존 개발. **전체 396 PASS/0 FAIL**, private Mac 실제 제공자 상태 HEALTHY 2·합성 메타 archive SHA 검증 PASS, 정상 EraLeader 쓰기/중복 API 호출 0. 기능 `e88351664aabc7e49ec18469ca757b06f87f06c7` GitHub origin/main 확인.
+- **완료 8/36 (22.2%), NEXT_TASK=2_3**. 28단계 및 실제 라벨·반도체 공급망/AI API·5거래일 운영 여전히 미완료이므로 허위 36/36 종료 금지. 다음 작업은 `NEXT_TASK.md` 최신 하단과 개발 상세명세 2_3 준수. User 기존 파일/도면 미추적 상태 보존.

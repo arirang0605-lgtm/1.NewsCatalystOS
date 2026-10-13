@@ -181,3 +181,12 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **실제 기존 데이터:** EraLeader의 기존 공식 5개 게시 완료 스냅샷에서 구축된 NewsCatalystOS private v2 연구 배치 **3,866개**를 새 모듈로 오프라인 읽기 정규화 PASS. 공시 관측 1,101/KRX 시장자료 2,765. 원천 발표 공개시각 임의 확정 0, 임의 issuer 및 정정 0, `available_at < 검증 시각` 0. 같은 Mac 로컬 SHA 검증은 독립 역사 시각공증이 아님. 신규 DART/SEC/KRX 네트워크 재수집·EraLeader 코드/DB/Git 쓰기 없음.
 - **검증:** 신·구 연결 전체 1_1~1_4 관련 `345 passed/0 failed`(exit 0), Python compileall PASS. 합성 UTC/소급/매핑 문서·증거SHA/정정 자기참조/서명 경계/원본 불변 테스트 및 실제 3,866건 정규화. Public 명시 stage 4파일 허용목록·비밀키 패턴/바이너리·크기·diff·.gitignore 검사 PASS. 기존 사용자 미추적 파일/도면/비공개 데이터 stage하지 않음.
 - **기능 SHA:** `c6406375654928e7fc380bccb9f729cc6d9f79cc` → `origin/main` 푸시, 원격 SHA 동일 확인. **기본 작업 1_4 완료, 4/36 (11.1%)**, 다음 `NEXT_TASK=1_5` 원본/영수증 SHA 안전 보관·정정 버전. 실제 외부 발표시각 서명 증거·AI API·5거래일 자동운영은 아직 미검증.
+
+## 2026-10-13 | 요청된 36단계 연속 개발 — 1_5,1_6,2_1,2_2 기본 구현 (NC-1_5-2_2-BATCH)
+- **사용자 지시:** 기존 4/36에서 36/36까지 완료 희망. 현재 Chat/원격 연결 안에서 실제 코드를 계속 구현했으나 5거래일 운영 등 실제 시간·검증이 필수인 조건은 완료로 가장하지 않는다.
+- **1_5:** `evidence_archive.py` owner-only private 원자 게이트에서 허가된 RSS 메타데이터·명시 글자수/보관권한을 통제, 원본 SHA/영수증 SHA·버전/정정 불변 보존. 원본 최초 확인과 실제 아카이브 완성시각을 분리하고 역사 소급 불가. 기존 private source registry 기반 **실제 Mac 개인 디스크 합성 메타 225B 원자 보관/재검증 PASS**, 기사 유료 원문 0, EraLeader 변경 0.
+- **1_6:** `quality_watch.py` 및 `scripts/check_feed_quality.py`: 첫 수집 누락, 빈 응답, 403·429, 품질 저하/신선도 및 미수집 범위를 PENDING으로 기록, 성공 복구 시 해결 완료시각 남김. **실제 private 상태** 중기부/뉴스와이어 2소스 HEALTHY·CLEAR, pending=0, raw source 보관 0. 기존 1_3에 빈 피드가 성공 watermark를 기록하던 결함 수정.
+- **2_1:** `text_normalization.py` 허가된 헤드라인 UTF-8/NFKC/HTML 안전 정규화, source URL 파라미터 추적키 제거·문서 식별 키 보존, 입력 SHA와 검증·결정시각 분리 및 원본 무변경. 합성 RSS HTML/URL/PIT 테스트 PASS.
+- **2_2:** `exact_dedup.py` 개인용 SQLite SHA index에 제공자별 ID·정규화 URL·원문으로 허가된 제목의 SHA를 저장하여 NEW/DUPLICATE/REVISED 구분, 똑같은 재수집은 AI 호출대상 제외, 변경된 제목/수치/정정은 새 버전으로 추적, 독립 출처는 강제 하나로 병합하지 않음. 공개 아카이브/뉴스 본문 또는 사용자 개인정보 기록 없음.
+- **변경 영향 검증:** 기존 + 신규 pytest **396 PASS / 0 FAIL**, Python compileall PASS, 명시 stage 허용목록 13파일·Public 비밀/바이너리·크기/.env·운영 DB·output 제외 검사 PASS. Code SHA `e88351664aabc7e49ec18469ca757b06f87f06c7` origin/main push·SHA 동일 확인.
+- **보통 수준 기본 개발 완료:** 1_1~1_6, 2_1~2_2 **8/36 (22.2%)**. 2_3~6_6 **28단계 미완료**, 실제 5거래일 운영 및 반도체 공급망·중요 뉴스 정답셋 95% 검증·AI API 정식 검증·릴리스 태그 미완료. 다음 `NEXT_TASK=2_3`. 작업환경은 장기 자율 백그라운드 코딩 서비스를 시작하지 않음.

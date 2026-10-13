@@ -141,3 +141,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-13 | 5_2 추가 부정형 관계 오탐 차단
 - 공급하지 않음/계약 없음 등 한·영 부정 문구가 직접 공급관계 후보로 승격되지 않도록 5_2 검토 경계 보완. 신규 음성 테스트 포함 관련 **26 PASS/0 FAIL**, Git diff --check PASS.
 - 기능 Git SHA `99fe9e97aed7ed191e59d2cd96922e22e834d654` origin/main 확인. 실제 반도체 공식 공급계약 본문 독립 검수 0건, **완료 23/36(63.9%), NEXT_TASK=5_2 실제 증빙 수집·검증**. EraLeader 코드·DB·Git 및 중복 API 호출 없음.
+
+## 2026-10-13 | 5_5 수혜 그래프 관계 검토/PIT 무결성 강화
+- `beneficiary_graph_contract.py`에서 미래 관계 검토시각, available_at > last_reviewed_at, 잘못된 관계 종류, 공식 문서 검토 상태의 문서 SHA/검토 SHA 누락을 거부. 관련 테스트 **29 PASS/0 FAIL**, git diff --check PASS.
+- 기능 Git SHA `be2f2806a40870ad8e5d27a3b80bf8b830d2d067` origin/main 반영 확인. 5_5 실제 EraLeader 소비 연동/5_2 실거래 관계 증빙은 미완료. **23/36(63.9%), NEXT_TASK=5_2 실제 공식 반도체 공급망 관계 실증**. EraLeader 소스·DB·Git·공식 API 중복 수집 0.

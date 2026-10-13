@@ -1,0 +1,30 @@
+# AGENTS — NewsCatalystOS 개발 규칙
+1. REWRITE 금지, CONTINUE 우선. 사용자 승인 없는 부가 기능 추가 금지.
+2. 새 채팅에서는 START_HERE_NEXT_CHAT → AGENTS → PROJECT_STATE → DECISIONS → NEXT_TASK만 우선 확인한다.
+3. 정확한 실제 작업 상태를 검증한다. 기획 문서·테스트 코드만으로 실데이터 연동/투자 예측 성과 완료 주장 금지.
+4. EraLeader DART/SEC/KRX API 수집기·PIT/해시·기존 코드는 수정하지 않고 공식 자료를 읽기 전용 공유. 추후 공유 계약은 소스별 이용권한 준수.
+5. 1_1~6_6 6단계 기능별 독립 실험. 5단계 검증은 반도체 1개 산업부터.
+6. SNS는 미확인 제보로 취급하고 공식 검증 전 투자 사실로 승격 금지. 독립 보도 반복을 증거 개수로 오인 금지.
+7. AI는 필요한 신규 사건만 호출: 규칙 필터→사건 묶기→중요 AI 분석→캐싱. 월 비용 3만원 목표/5만원 상한은 초기 가설.
+8. 입력 시각 published_at/first_seen_at/decision_at 등 PIT 엄수. 주요 재료 원본의 근거·버전·SHA 유지.
+9. 개발 순서: 최소 기능 구현→변경 영향 pytest→오류 수정→재검증→Git 커밋/SHA→STATE/NEXT 업데이트. 전체 회귀는 단계 게이트/릴리스에서.
+10. V1.0 완료: 필수 기능 1_1~6_6, 시험 사례 정확도 목표, 반도체 공급망 검증, 다른 프로젝트 연동, 5거래일 운영, 백업·복원, P0/P1=0, 전체 회귀 exit0, 릴리스 태그.
+11. 자동매매·전략·홈페이지 제작·SNS 유료 확대·개인별 알림은 별도 프로젝트/후속 버전.
+12. Remote Desktop Commander 연결 실패 또는 API 키 미설정 시 멈추고 사실만 보고. 연속 백그라운드 개발을 보장한다고 주장 금지.
+
+
+## 병행 개발 안전 규칙 (NC-PARALLEL-2026-10-13)
+- EraLeader 개발이 동시에 진행되어도 NewsCatalystOS는 별도 작업 폴더·가상환경·DB·Git만 사용한다. EraLeader 파일/설정/비밀키/원본에 쓰기·stage·commit·push 금지.
+- DART·SEC·KRX 자료는 EraLeader에서 게시가 완료된 버전 고정 읽기전용 스냅샷과 SHA/PIT 영수증만 소비한다. 미완성 게시물·쓰기 중 DB·검증 실패 파일은 사용 금지.
+- 고부하 전체 회귀·장기 백테스트·대용량 수집/백업은 동일 Mac에서 서로 시간 분리. 가벼운 작업·변경 영향 테스트는 병행 가능.
+- 병행 실행 실패는 별도 원장에 기록하고 한 프로젝트 오류가 다른 프로젝트 기능·데이터를 변경하지 않도록 한다.
+- 1_1 완료 시 원본·Git 무변경, SHA·시각·스키마 검증, 원자적 게시 여부 확인 및 장애 격리 시험 필수.
+
+## GitHub Public 개발 규칙 (NC-PUBLIC-REPO-2026-10-13)
+- **실제 공개 저장소:** https://github.com/arirang0605-lgtm/1.NewsCatalystOS.git — 경로 앞의 1. 포함, 기본 main 확인.
+- 초기 확인 당시 SSD의 이 폴더는 Git 미초기화, 원격 저장소는 빈 상태였다. 최초 1_1 착수 때 최신 상태를 재확인한다. 기존 파일은 안전하게 보존하고 별도의 클론으로 덮어쓰지 않는다.
+- GitHub Public으로 공개할 대상은 보안 검수를 통과한 코드·테스트·허용 문서·도면뿐이다. API 키/시크릿/.env, 제한된 기사·원본 DB·운영 로그/백업, 사용자 계정·투자정보, EraLeader 원본은 공개 금지.
+- 첫 스테이징 전에 .gitignore 작성. git add . 무검토 금지; 파일별 명시적 stage, staged 파일 목록·diff·비밀정보·원문 라이선스 확인 후 커밋·푸시한다.
+- git push --force, git reset --hard, 기존 원격 덮어쓰기·타 프로젝트 Git 조작 금지. Public 여부와 오픈소스 LICENSE 선택은 서로 다르다. 사용자 승인 없이 라이선스를 고르지 않는다.
+- 단계별 커밋 SHA/실제 원격 푸시 성공·실패를 PROJECT_STATE.md에 정확히 기재한다.
+- 공개 전 세부 절차는 GITHUB_PUBLIC_POLICY.md, Chat 개발용 실행 지시문은 NewsCatalystOS_V1.0_CHAT_개발마스터프롬프트.md를 참조한다.

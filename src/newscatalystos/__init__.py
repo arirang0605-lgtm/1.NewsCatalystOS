@@ -33,6 +33,11 @@ from .evidence_archive import ArchivedEvidence, archive_evidence, read_archived_
 from .quality_watch import SourceQuality, check_sources, unresolved_count
 from .text_normalization import NormalizedText, normalize_feed_metadata, normalize_text, canonicalize_url
 from .exact_dedup import DedupDecision, register_exact
+from .event_cluster import EventCluster, Story, group_event_stories
+from .claim_filter import FilterDecision, classify_claim
+from .origin_provenance import Citation, OriginAssessment, assess_origins
+from .filter_evaluation import LabeledDecision, FilterEvaluation, evaluate_labeled_decisions
+from .prior_fact_state import FactInput, FactVersion, PriorState, record_prior_fact, prior_state_as_of
 
 __all__ = [
     "ReadBatch", "RawEvent", "SourceManifest", "SourceShareError",
@@ -57,4 +62,10 @@ __all__ = [
     "unresolved_count", "NormalizedText", "normalize_feed_metadata",
     "normalize_text", "canonicalize_url", "DedupDecision",
     "register_exact",
+    "EventCluster", "Story", "group_event_stories",
+    "FilterDecision", "classify_claim",
+    "Citation", "OriginAssessment", "assess_origins",
+    "LabeledDecision", "FilterEvaluation", "evaluate_labeled_decisions",
+    "FactInput", "FactVersion", "PriorState", "record_prior_fact",
+    "prior_state_as_of",
 ]

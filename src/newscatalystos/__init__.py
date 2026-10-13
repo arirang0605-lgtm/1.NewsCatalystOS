@@ -38,6 +38,14 @@ from .claim_filter import FilterDecision, classify_claim
 from .origin_provenance import Citation, OriginAssessment, assess_origins
 from .filter_evaluation import LabeledDecision, FilterEvaluation, evaluate_labeled_decisions
 from .prior_fact_state import FactInput, FactVersion, PriorState, record_prior_fact, prior_state_as_of
+from .novelty_detection import EconomicChange, detect_new_economic_claim
+from .barrier_changes import BarrierAssessment, detect_barrier_relief
+from .change_followup import FollowupChange, assess_followup
+from .impact_triage import ImpactInputs, PreliminaryImportance, triage_importance
+from .detection_history import (
+    DetectionInput, DetectionRecord, DetectionRecall,
+    record_detection, detection_history_as_of, evaluate_important_detection_recall,
+)
 
 __all__ = [
     "ReadBatch", "RawEvent", "SourceManifest", "SourceShareError",
@@ -67,5 +75,9 @@ __all__ = [
     "Citation", "OriginAssessment", "assess_origins",
     "LabeledDecision", "FilterEvaluation", "evaluate_labeled_decisions",
     "FactInput", "FactVersion", "PriorState", "record_prior_fact",
-    "prior_state_as_of",
+    "prior_state_as_of", "EconomicChange", "detect_new_economic_claim",
+    "BarrierAssessment", "detect_barrier_relief", "FollowupChange", "assess_followup",
+    "ImpactInputs", "PreliminaryImportance", "triage_importance",
+    "DetectionInput", "DetectionRecord", "DetectionRecall", "record_detection",
+    "detection_history_as_of", "evaluate_important_detection_recall",
 ]

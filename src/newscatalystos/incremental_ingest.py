@@ -15,6 +15,7 @@ import sqlite3
 import stat
 
 from .feed_transport import FeedTransportError, fetch_authorized_once
+from .new_source_adapter import FeedObservation
 from .provider_registry import ProviderRegistry
 from .source_share import SourceShareError, _must_sha, _when
 
@@ -32,6 +33,10 @@ class IncrementalResult:
     watermark: datetime
     usable_from: datetime
     certified_raw_event_count: int = 0
+    # In-memory only. Never stored in the SQLite polling ledger or logged.
+    # A downstream triage consumer reuses the SAME rate-limited GET response.
+    observations: tuple[FeedObservation, ...] = ()
+    newly_observed_event_ids: tuple[str, ...] = ()
 
 
 def _check_state_path(path: Path) -> Path:
@@ -196,6 +201,7 @@ def incremental_poll(
         conn.execute("BEGIN IMMEDIATE")
         try:
             fresh, duplicates = 0, 0
+            newly_observed = []
             for row in rows:
                 if (row.provider_id != provider_id or row.reported_published_at is not None
                         or row.first_seen_at > verified):
@@ -205,6 +211,8 @@ def incremental_poll(
                     (provider_id, _must_sha(row.event_id, "event digest"), verified.isoformat()),
                 ).rowcount
                 fresh += changed
+                if changed:
+                    newly_observed.append(row.event_id)
                 duplicates += 1 - changed
             conn.execute(
                 "UPDATE source_state SET last_success_at=?,failure_count=0 "
@@ -224,6 +232,7 @@ def incremental_poll(
             status="SUCCESS_NEW" if fresh else "SUCCESS_UNCHANGED",
             new_count=fresh, duplicate_count=duplicates,
             watermark=verified, usable_from=verified,
+            observations=tuple(rows), newly_observed_event_ids=tuple(newly_observed),
         )
     finally:
         conn.close()

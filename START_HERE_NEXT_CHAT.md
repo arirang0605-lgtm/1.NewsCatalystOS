@@ -181,3 +181,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 인계 — 실 뉴스 제목 로컬 검색
 - 기능 `692850de780e0e0af2032371854f7bd307f280f3` origin/main SHA 일치 확인. 승인된 RSS 1_3 완료 ACK/SQLite/PIT/원문 메타 SHA를 검증해 `output/search_cache/news_search.sqlite3` FTS5 인덱스 구축·`scripts/search_news.py --query 기업` 실제 Mac 고유 제목 35건 중 결과 5건. `--query 반도체 --semiconductor-only` 현재 대상 제목 0건, 본문 저장/API·AI 추가 호출 0. `66 PASS/0 FAIL`, 컴파일·Public 검사 PASS.
 - 6_5 Mac 1시간 launchd 정상 가동, 실제 영수증 4건/2026-10-14 한 날짜, 로컬 물리 DR PASS. **완료 23/36(63.9%) 유지**. 최신 NEXT_TASK에서 5_2 공식 반도체 고객·공급자 문서 증거 확보/후속 파급 기능 연결과 6_5 실제 운영일 누적. REWRITE·EraLeader Git/원본/공식 API 중복 수집 금지. 자세한 검색 명령은 `docs/2_1-6_4_NEWS_TITLE_SEARCH.md`.
+
+## 2026-10-14 | 최신 인계 — 공식 공급관계 리뷰 5_2~5_5 read-only handoff
+- 기능 Git SHA `0e95762c4a12fdfdfa804292df775a86e6fa5abe` 원격 main 일치. 기존 5_2 공식문서 SHA/PIT + 운영자 리뷰 → 반도체 5_3/5_4 가설 파급·수혜 후보 → 5_5 SHA·원자 outbox → 후속 프로젝트용 독립 읽기 CLI의 `candidate_edges` 연결 구현. **115 PASS/0 FAIL**, Python 컴파일/Public 검사 PASS, 합성 검토 입력의 별도 Python 소비 CLI `exit0`/미확정 관계 후보1/실수혜0. 합성 증거는 실공식 관계가 아님.
+- 실제 고객사·공급사 공식 본문/회사ID 검수 0, 원천 없다면 운영용 outbox **생성 금지**. 총 완료 **23/36(63.9%)** 유지. 다음 `NEXT_TASK.md` 맨 아래: 5_2 실제 승인 공식 거래관계 증거 1건 실증 + 기존 6_5 1시간 Mac RSS 5거래일 누적. EraLeader 원본·DB·Git/공식 API 재수집 금지. `docs/5_2-5_5_REVIEWED_BENEFICIARY_DELIVERY.md`.

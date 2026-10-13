@@ -111,3 +111,9 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **실물 오프라인 게이트 실행:** 기존 Mac 별도 pin과 EraLeader 2026-10-12 공식 연구 인덱스 사용. **수신 캡처 5/5 검증**, 증빙 미설정으로 `DATA_UNAVAILABLE`, **exit 4** 예상대로 반환(정상 종료 아님). 독립 공개시각·발행자·정정 외부 증거 여전히 없음; 정식 `RawEvent=0`.
 - **테스트/공개:** 1_1 관련 11개 파일 **207 PASS / 0 FAIL**, compileall PASS. 보안 검수한 실행 코드·합성 테스트·허용 문서 **3개만** 선택적 stage; Public secret/바이너리 검사, diff --check PASS. 기능 commit `72cfb61abf37a07250568a7952df05b6bc77e042` `origin/main` 비강제 push 및 원격 SHA 동일.
 - **완료 판정:** 현재 `1_1` **미완료**, 전체 **0/36(0.0%)**, `NEXT_TASK=1_1`, 외부 인증 증빙 없으므로 `DATA_UNAVAILABLE` 유지. EraLeader 정상 코드·DB·Git·원본 변경 및 공식 API 중복 수집 0. 실제 AI API 0회, 연속 운영 0거래일. 36개 개발 계획·반도체 한 산업 검증·완료 조건 불변.
+
+## 2026-10-13 | 1_1 외부 증빙 검증자 사전 등록부 보안 강화 (NC-1_1-WITNESS-TRUST)
+- **실제 구현:** `witness_registry.py`는 Mac 내부의 프로젝트 전용 owner-only 신뢰 등록부를 원본 SSD와 별개 디바이스에서 읽어 사전 등록된 검증자 고유 ID/허용 공식 제공자/등록시각/공개키 SHA256을 확인한다. 실제 등록부·키는 이번 작업에서 자동 생성하지 않음. `scripts/check_official_proof.py`의 `--witness-key-sha256` 동시 자가신뢰 옵션을 제거하고 이전에 신뢰 등록된 SHA만 서명 검증에 전달. 누락·위조·중복·이른 과거 판단·허용되지 않은 제공자는 실패 처리. 다른 프로젝트 파일/DB/Git/API 설정은 변경하지 않음.
+- **검증:** 기존 1_1 관련 **222 passed / 0 failed / exit 0**, Python compileall PASS. 기존 EraLeader 공식 완료 캡처 5종 실제 읽기 전용 검사 PASS, 신뢰 증빙 미제공 상태 `DATA_UNAVAILABLE` / CLI 종료코드 **4** / 실제 인증 `RawEvent=0` 재현. Public 공개 대상 5파일 명시 stage/키·바이너리·크기/공백 검사 PASS.
+- **GitHub 기능 SHA:** `dac46e90bd96ff15563040f54161fa56e5c31d4f`, `origin/main` 비강제 push 및 원격 SHA 일치. 기존 원본 수신본 5개/연구 관측 3,868·메타 3,866 수치는 이전 검증에 따른 기록이며 새 수집/성공 이벤트 발생 아님.
+- **실제 잔여 조건:** 사전에 승인된 **진짜 독립 기관 검증자**와 DART/SEC 공시 공개시각·issuer·정정 이력·최초 증거 확보 시각의 외부 증거는 미확보. 등록부의 로컬 파일만으로 법적 공증을 주장하지 않음. `NEXT_TASK=1_1`, `DATA_UNAVAILABLE`, 엄격 완료 **0/36(0.0%)**. 실제 AI API 0회, 자동운영 0거래일. 기존 36개 계획/반도체 범위/EraLeader 데이터 공유 규칙 불변.

@@ -58,3 +58,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-13 | 최신 1_1 실제 외부 증빙 게이트 인계 (NC-1_1-PROOF-CLI)
 - `72cfb61abf37a07250568a7952df05b6bc77e042` 기능 GitHub `origin/main` 푸시 검증, **207 PASS/0 FAIL**. `scripts/check_official_proof.py` 실물 EraLeader 완료 수신 캡처 5개 read-only 검사 PASS, 승인된 외부 공개시각 서명 증빙 없음 → `DATA_UNAVAILABLE`, exit 4, 정식 `RawEvent=0`. 기존 코드 중복 구현/기존 캡처 반복 점검 금지.
 - `NEXT_TASK=1_1`, **0/36**. 외부 독립 실물 증빙(발행기관 공개시각·issuer·정정·검증자 신뢰키/서명)이 제공될 때에만 게이트를 실제로 재실행해 전체 완료 판정. 채팅방 잔여 문맥 사용량 % 직접 측정 불가; 길이·성능 저하 때 새 채팅 이동 안내.
+
+## 2026-10-13 | 최신 1_1 외부 검증자 등록부 인계 (NC-1_1-WITNESS-TRUST)
+- `dac46e90bd96ff15563040f54161fa56e5c31d4f` `origin/main` push·SHA 확인. `witness_registry.py` 추가 및 `check_official_proof.py` 임의 공개키+SHA 동시 제출 경로 제거. **222 PASS/0 FAIL**, 실제 공식 캡처 5개 read-only 게이트는 외부 증빙 미입력으로 exit 4 `DATA_UNAVAILABLE`. 실제 공식 인증 RawEvent=0, `NEXT_TASK=1_1`, **0/36** 유지.
+- 다음은 `NEXT_TASK.md` 마지막 외부 증거 조달/검증 게이트. 다른 프로젝트 변경·수집 중복·기구현 계약 재작성 금지. 새 채팅 재개 시 가장 마지막 코드/MD SHA를 사용해 반복 분석 없이 시작.

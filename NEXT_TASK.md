@@ -81,3 +81,8 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - 기능 commit `72cfb61abf37a07250568a7952df05b6bc77e042`: 최종 `scripts/check_official_proof.py` 게이트 준비/실행; 관련 **207 PASS/0 FAIL**. 기존 공식 캡처 5개로 실물 read-only 검증 PASS, 서명 증거 부재에 대해 `DATA_UNAVAILABLE` / 종료코드 4 / 실제 인증 `RawEvent=0` 명확히 확인. 정상 경계 재구현이나 무한 반복 검사 금지.
 - **다음 실제 필요 작업:** DART·SEC 기존 공식 수신본 최소 1건과 일치하는 외부 독립 발행기관의 대외 공개시각·issuer·정정 계보, 실제 최초 증거 확보시각 및 사전 독립 신뢰 등록된 검증자 키/서명 증거를 확보한다. 확보한 신뢰 증빙만 `check_official_proof.py`의 전체 옵션으로 검사하고 원본 불변·PIT·음성/장애·실제 정식 `RawEvent` 평가 이후 1_1 완료 여부 판정.
 - 증빙을 확보할 수 없으면 `DATA_UNAVAILABLE`·1_1 미완료·**0/36** 유지. SEC 접수시각/DART 접수일/같은 Mac TOFU를 과거 대외 공개시각의 공식 인증으로 변환 금지. 기존 EraLeader 공식 API 수집기는 유지하고 NewsCatalystOS는 검증·게시 결과만 읽기 전용 공유.
+
+## 2026-10-13 | 최신 실제 장애 — 외부 공시 발표·issuer 인증 증거
+- 최신 기능 `dac46e90bd96ff15563040f54161fa56e5c31d4f`: 임의 키+자기 SHA 동시제출을 막고 독립 디스크 owner-only 검증자 신뢰 등록부를 사전 확인하도록 강화. 관련 **222 PASS / 0 FAIL**, 기존 EraLeader 공식 캡처 5종 재수집 없는 읽기 전용 확인 PASS. 실제 외부 신뢰 검증자 등록부는 자동 생성하지 않았고 신뢰키/서명/공식 공개시각 증거는 미제공.
+- **다음 단 하나의 작업:** 실제 사전 독립 검증기관/발행기관에서 검토·입증 가능한 DART/SEC 1건의 공개시각·issuer·정정 연결, 검증자 실제 승인일·신뢰키 SHA 및 서명 증빙을 획득. 비공개 owner-only 독립 디스크 등록부로 진위/시점 확보 후 `check_official_proof.py`의 기존 최종 검증을 수행해 정식 `RawEvent`를 판단. 외부 증거 없으면 `DATA_UNAVAILABLE`/RawEvent 0/1_1 미완료 유지.
+- SEC 접수시각, DART 접수일, 로컬 TOFU/자가 생성 서명을 과거 대외 공개 인증으로 가장하거나 EraLeader API/원본/DB/Git을 변경하지 않는다. **0/36(0.0%)**, 1_1~6_6 개발계획 변경 금지.

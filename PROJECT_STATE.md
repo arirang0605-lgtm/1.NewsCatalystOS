@@ -225,3 +225,7 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - `tests/test_gold_review_intake.py` 9개 신규 시나리오 추가: 2인 합의/불일치·누락, source SHA/예측 SHA, 검토/PIT 미래 차단, 중요 사건 제외, 500건 합성 라벨과 인증 구분. 최초 테스트 2건의 fixture 기대 조건 수정 후 관련 26 PASS/0 FAIL, Git diff --check PASS.
 - 기능 커밋 `5bf22318efcf9a5d22a45a5fd9826596a5ba82c8` origin/main 푸시 성공. 실제 독립 검수 gold 500건은 0건, 반도체 공식 공급망 실거래 검증 0건. 2_6/3_6/5_2 완료 승격 없음.
 - **엄격 완료 23/36(63.9%), NEXT_TASK=5_2** 실제 허가 공식 공시 본문·회사 역할 증빙 확보 후 읽기전용 검증. EraLeader 원본/수집기·DB·Git 무변경. 실제 AI/5거래일 운영·별도 물리 복원은 미완료.
+
+## 2026-10-13 | 5_2 공식 공급망 관계 기업 식별자 안전성 보완
+- `official_relation_review.py`에서 DART→DART_CORP, SEC→SEC_CIK로 공급자·고객자 모두 동일 공식 네임스페이스를 요구. 교차/잘못된 네임스페이스 합성 음성 테스트 추가, 영향범위 **24 PASS/0 FAIL**, git diff --check PASS.
+- 기능 Git SHA `d920008651089483662e6e61f605353a477274d5` origin/main push 검증. 실제 문서 본문 독립 SHA/공급망 계약 실증은 여전히 0건. **완료 23/36(63.9%), NEXT_TASK=5_2 실물 공식 반도체 관계 검증**. EraLeader 쓰기/중복 공식 수집 0.

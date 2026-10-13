@@ -89,3 +89,12 @@ def test_relation_future_review_and_inconsistent_timing_rejected():
     with pytest.raises(SourceShareError,match="timing invalid"):
         build_beneficiary_graph(profile,path,[replace(linked,available_at=NOW,
             last_reviewed_at=NOW-timedelta(seconds=1))],[candidate],NOW,now=NOW)
+
+
+def test_official_proof_status_cannot_be_attached_to_thematic_edge():
+    _,profile,path,linked,candidate=graph()
+    from newscatalystos.official_relation_review import RELATION_STATUS
+    forged=replace(linked,evidence_status=RELATION_STATUS,
+                   relation_kind="THEMATIC_ASSOCIATION")
+    with pytest.raises(SourceShareError,match="thematic relation"):
+        build_beneficiary_graph(profile,path,[forged],[candidate],NOW,now=NOW)

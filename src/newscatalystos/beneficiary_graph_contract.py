@@ -57,6 +57,9 @@ def build_beneficiary_graph(
             raise SourceShareError("relation review/PIT timing invalid")
         if edge.relation_kind not in ("REPORTED_DIRECT_TRANSACTION", "THEMATIC_ASSOCIATION"):
             raise SourceShareError("invalid relation kind")
+        if (edge.evidence_status == RELATION_STATUS and
+                edge.relation_kind != "REPORTED_DIRECT_TRANSACTION"):
+            raise SourceShareError("official document proof cannot certify a thematic relation")
         if edge.evidence_status == RELATION_STATUS and (
                 edge.document_sha256 is None or edge.review_proof_sha256 is None):
             raise SourceShareError("reviewed official relation missing document proof")

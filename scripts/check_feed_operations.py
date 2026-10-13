@@ -23,6 +23,10 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--registry", type=Path, default=base / "providers" / "authorized_sources.json")
     p.add_argument("--inbox-root", type=Path, default=base / "inbox" / "feed_triage")
     p.add_argument("--state", type=Path, default=base / "state" / "incremental_feeds.sqlite3")
+    p.add_argument("--physical-pin-root", type=Path,
+                   default=base / "pins" / "physical_recovery")
+    p.add_argument("--backup-root", type=Path,
+                   default=Path(__file__).resolve().parent.parent / ".local_backups")
     return p
 
 
@@ -43,7 +47,9 @@ def main(argv: list[str] | None = None) -> int:
     opts = parser().parse_args(argv)
     try:
         report = operation_status(_registry(opts.registry),
-                                  opts.inbox_root, opts.state)
+                                  opts.inbox_root, opts.state,
+                                  physical_pin_root=opts.physical_pin_root,
+                                  backup_root=opts.backup_root)
         code = 0
     except (SourceShareError, OSError, ValueError) as exc:
         code, report = 4, {"status": "OPERATIONS_EVIDENCE_UNAVAILABLE",

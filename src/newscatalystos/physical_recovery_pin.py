@@ -144,3 +144,38 @@ def verify_recovery_from_pin(pin_path: Path, pin_root: Path,
         expected_manifest_sha256=pinned.receipt.manifest_sha256,
     )
     return restored
+
+
+def checked_local_recovery_sources(pin_root: Path,
+                                   backup_root: Path) -> frozenset[str]:
+    """Read-only status: Mac-side pins and SSD SHA remain recoverable.
+
+    Each pin was created only after an isolated verified restore. This does
+    not imply that an off-site copy or five trading days are certified.
+    """
+    pin_root = Path(pin_root)
+    backup_root = Path(backup_root)
+    if not pin_root.exists() and not pin_root.is_symlink():
+        return frozenset()
+    if not backup_root.exists() and not backup_root.is_symlink():
+        return frozenset()
+    pinned_root, backups = _validate_locations(pin_root, backup_root)
+    from .backup_recovery import _file_sha
+    sources = set()
+    for file in sorted(pinned_root.iterdir()):
+        if not file.name.endswith(".pin.json"):
+            raise SourceShareError("unexpected DR pin file in private store")
+        check = read_recovery_pin(file, pinned_root, backups)
+        receipt = check.receipt
+        folder = _private_dir(backups / receipt.backup_id)
+        manifest = folder / "manifest.json"
+        _regular_owner(manifest)
+        if sha256(_read_regular(manifest, PIN_LIMIT)).hexdigest() != receipt.manifest_sha256:
+            raise SourceShareError("DR backup manifest no longer matches independent pin")
+        snapshot = folder / "state.sqlite3"
+        _regular_owner(snapshot)
+        digest, size = _file_sha(snapshot)
+        if digest != receipt.snapshot_sha256 or size != receipt.snapshot_bytes:
+            raise SourceShareError("DR snapshot no longer matches independent pin")
+        sources.add(receipt.source_name)
+    return frozenset(sources)

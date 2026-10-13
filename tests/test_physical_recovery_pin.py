@@ -113,3 +113,21 @@ def test_wrong_backup_directory_does_not_match_trusted_pin(tmp_path, monkeypatch
         physical_recovery_pin.read_recovery_pin(
             saved.pin_path, pin_root, other,
         )
+
+
+def test_readonly_status_rechecks_saved_manifest_and_snapshot(tmp_path, monkeypatch):
+    _, backup, _, checked, pin_root, saved = pin_fixture(tmp_path, monkeypatch)
+    found = physical_recovery_pin.checked_local_recovery_sources(pin_root, backup)
+    assert found == frozenset({"incremental_feeds.sqlite3"})
+    manifest = backup / checked.backup_id / "manifest.json"
+    with open(manifest, "ab") as file:
+        file.write(b"changed")
+    with pytest.raises(SourceShareError, match="manifest no longer matches"):
+        physical_recovery_pin.checked_local_recovery_sources(pin_root, backup)
+
+
+def test_missing_private_pin_is_not_reported_as_verified(tmp_path):
+    source, state, backup, restore = fixture(tmp_path)
+    assert physical_recovery_pin.checked_local_recovery_sources(
+        tmp_path / "not_created", backup
+    ) == frozenset()

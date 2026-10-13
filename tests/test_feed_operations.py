@@ -77,3 +77,34 @@ def test_completed_status_never_doubles_from_repeat_check(tmp_path):
     second = operation_status(registry(), inbox, state)
     assert first["completed_triage_receipts"] == 1
     assert second["completed_triage_receipts"] == 1
+
+
+def test_physical_dr_flag_requires_both_live_operational_state_pins(
+    tmp_path, monkeypatch,
+):
+    from newscatalystos import feed_operations
+    from newscatalystos.physical_recovery import ALLOWED
+    state, _, inbox, _ = paths(tmp_path)
+    physical = tmp_path / "pins"
+    backups = tmp_path / "backup"
+    monkeypatch.setattr(
+        feed_operations, "checked_local_recovery_sources",
+        lambda pin_root, backup_root: frozenset({"incremental_feeds.sqlite3"}),
+    )
+    partial = operation_status(
+        registry(), inbox, state, physical_pin_root=physical, backup_root=backups,
+    )
+    assert partial["local_recovery_source_count"] == 1
+    assert not partial["independent_physical_recovery_verified"]
+    monkeypatch.setattr(
+        feed_operations, "checked_local_recovery_sources",
+        lambda pin_root, backup_root: frozenset(ALLOWED),
+    )
+    complete = operation_status(
+        registry(), inbox, state, physical_pin_root=physical, backup_root=backups,
+    )
+    assert complete["independent_physical_recovery_verified"] is True
+    assert complete["local_recovery_source_count"] == 2
+    assert complete["offsite_backup_verified"] is False
+    assert complete["five_trading_day_operation_certified"] is False
+    assert complete["v1_release_ready"] is False

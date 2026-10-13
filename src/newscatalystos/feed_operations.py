@@ -17,6 +17,8 @@ from .feed_recovery import (
     read_retry_checkpoint, check_committed_ingest,
 )
 from .provider_registry import ProviderRegistry
+from .physical_recovery import ALLOWED
+from .physical_recovery_pin import checked_local_recovery_sources
 from .source_share import SourceShareError, _json, _read_regular, _when
 
 ACK_FILENAME = re.compile(r"[0-9a-f]{64}\.json\Z")
@@ -25,12 +27,19 @@ ACK_FILENAME = re.compile(r"[0-9a-f]{64}\.json\Z")
 def operation_status(
     registry: ProviderRegistry, inbox_root: Path, state: Path, *,
     now: datetime | None = None,
+    physical_pin_root: Path | None = None,
+    backup_root: Path | None = None,
 ) -> dict:
     """Report actual completed source/day coverage, not a release approval."""
     at = _when((now or datetime.now(timezone.utc)).isoformat(), "now")
     if not isinstance(registry, ProviderRegistry):
         raise SourceShareError("approved registry required")
     authorized = tuple(sorted(registry.approved_ids(at=at)))
+    if (physical_pin_root is None) != (backup_root is None):
+        raise SourceShareError("both physical pin and backup roots required")
+    local_restored = (checked_local_recovery_sources(
+        physical_pin_root, backup_root,
+    ) if physical_pin_root is not None else frozenset())
     root = _private_root(inbox_root)
     ack_root = root / "acked"
     days: dict[str, set[str]] = {}
@@ -81,6 +90,8 @@ def operation_status(
         "pending_recovery_checkpoints": pending,
         "verified_exchange_trading_days": 0,
         "five_trading_day_operation_certified": False,
-        "independent_physical_recovery_verified": False,
+        "independent_physical_recovery_verified": set(ALLOWED).issubset(local_restored),
+        "local_recovery_source_count": len(local_restored),
+        "offsite_backup_verified": False,
         "v1_release_ready": False,
     }

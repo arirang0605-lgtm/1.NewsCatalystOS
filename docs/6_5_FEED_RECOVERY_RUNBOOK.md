@@ -36,3 +36,7 @@ PYTHONPATH=src python3 scripts/check_feed_operations.py
 - 기본 실행(새 snapshot 2개 + 핀 2개 + 일회 복원): `PYTHONPATH=src python3 scripts/check_physical_recovery.py`. 추후 복원: `PYTHONPATH=src python3 scripts/check_physical_recovery.py --verify-pin "$HOME/Library/Application Support/NewsCatalystOS/pins/physical_recovery/<백업ID>.pin.json"`.
 - **실제 Mac 실행 결과:** `incremental_feeds.sqlite3` **45,056바이트**, `triage_exact_index.sqlite3` **40,960바이트**가 각각 SSD로 온라인 백업→맥북 내부 별도 복원 SHA/SQLite PASS. Mac 별도 디스크 핀 2개를 실제 작성했고 **나중 PIN 기반 cold restore 2개도 PASS**. 사용자 운영 DB, EraLeader 원본/코드/DB/Git 변경 없음. 백업 및 핀은 private 디렉터리에만 존재.
 - 위 결과는 **로컬의 서로 다른 물리 장치 간 재해복구 시험**에 해당한다. Mac과 SSD가 함께 손상되는 사고까지 견디는 오프사이트 백업은 아직 미검증이며, `offsite_backup_verified=false`와 `five_trading_day_operation_certified=false`를 유지한다. 6_5 최종 합격은 5개 실제 거래일의 승인 RSS 성공 이력/장애 발생 후 회복/업무 운영 확인을 추가로 요구한다. V1.0 릴리스 태그 발행 금지.
+
+## 2026-10-14 | 실제 장치 복원 상태의 운영 점검 연동
+- `check_feed_operations.py`은 운영자에게 보고할 때 **새로운 백업을 매번 만들지 않고**, 이미 Mac 내부 다른 디스크에 보관된 2개 SHA PIN과 T5DATA 외장 SSD의 각 snapshot/manifest를 다시 **읽기 전용** 검증한다. `independent_physical_recovery_verified`는 RSS 원장·중복 인덱스 **두 상태 DB 모두**의 PIN/manifest/snapshot SHA가 일치할 때만 `true`; 하나라도 없으면 `false`, 일부라도 변조되면 오류/출시 차단한다.
+- Mac 실제 조회에서 `independent_physical_recovery_verified=true`, `local_recovery_source_count=2`, `offsite_backup_verified=false`, `five_trading_day_operation_certified=false`, `v1_release_ready=false`, 운영 ACK 2개/단일 날짜 기록 1개를 확인했다. 복원 실증 자체는 `check_physical_recovery.py --verify-pin`로 별도로 실제 PASS한 증거를 사용한다. 물리 복구 상태 반영은 6_5 전체 완료나 6_6 릴리스 승인으로 자동 연결되지 않는다.

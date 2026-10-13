@@ -153,3 +153,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 인계 — 5_2 비공개 공식문서 오프라인 검토 입력 기능
 - 기능 `c189f632b9f7178629dfb7e53d5dc37f1650e2a1` 원격 SHA 대조 성공. 신규 `official_relation_intake.py`/`scripts/review_supply_relation.py` 및 PIT 첫 소비시점 보정, 기존 `SupplyChainEdge`/후속 `BeneficiaryGraph` 연결 합성 시험 **81 PASS/0 FAIL**, Public 스캔 PASS.
 - 실제 공식 공급관계 독립 검수 **0건**, **완료 23/36(63.9%)**, 다음은 `NEXT_TASK.md` 맨 아래 **5_2 허용 공식 본문/실물 관계 증빙 확보→오프라인 검사**. 기존 합성 테스트/부정어 가드 반복 대신 실물·다음 실운영 게이트 우선. EraLeader 읽기 전용, 원본/DB/Git/공식 API 중복 수집 금지.
+
+## 2026-10-14 | 최신 인계 — 실제 DART/SEC 검토 작업목록
+- 기능 `070a8688020e4d1876b3b28f4ed8de0110ca540a` origin/main 푸시 SHA 확인. Mac 기존 `coverage_v2_smoke` 완료 공시 메타 read-only **DART 100/SEC 1,001 = 1,101건** 검토 큐를 개인 `output/`에 SHA/원자 게시. 임의 단일 DART ID도 조회 PASS. 해당 큐는 기사/공시 본문 및 반도체 관계 증명이 아니라 **UNSCREENED** 메타 목록.
+- 영향범위 **93 PASS/0 FAIL**, Public 검사 PASS. 실제 공급망 검토/수혜 확정 0, 완료 **23/36(63.9%)**. `NEXT_TASK.md` 최신 5_2 실문서·운영자 승인 관계 검증부터 계속; 준비된 CLI/합성 가드 재개발 금지. 문서 `docs/5_2_OFFICIAL_REVIEW_QUEUE.md`. EraLeader 원본·Git/중복 API 수집 금지, 기존 사용자 미추적 파일 보존.

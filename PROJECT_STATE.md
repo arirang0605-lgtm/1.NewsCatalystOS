@@ -251,3 +251,10 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - 기존 `review_official_supply_relation`에 `consumer_observed_at` 선택 계약을 추가해 검토자 과거 날짜·새 소비시점의 PIT 혼동 수정. 첫 완전 검증 시점 전에는 관계 후보를 소급 노출하지 않음. 기존 타입·함수 기본 호출 유지.
 - **변경 영향:** 공식 리뷰/그래프/관측 게시 6개 테스트 파일 **81 PASS / 0 FAIL**, compileall PASS, Git diff --check PASS, staged 파일 5개 explicit/Public 비밀 패턴 검사 및 ignore 검사 PASS. 기존 사용자 미추적 도면·문서 원형 유지, EraLeader 코드·DB·Git·DART/SEC/KRX API 호출/변경 0.
 - **실증 미완료:** 실제 승인된 공식 반도체 거래문서 본문/사람 검토 관계 0건, 500건 사람이 검수한 gold 0, AI 공급자 실호출 및 5거래일/독립 물리 DR 미진행. 5_2는 도구 준비 기능만 통과했으며 **완료 23/36(63.9%), NEXT_TASK=5_2 실문서/관계 실증** 유지. 미확인 거래·매출·투자확정 주장 금지.
+
+## 2026-10-14 | 5_2 실제 공시 메타 1,101건 비공개 검토 큐 구현 (NC-5_2-LIVE-QUEUE)
+- **기능 Git SHA `070a8688020e4d1876b3b28f4ed8de0110ca540a`**, GitHub `origin/main` 정상 push/동일 SHA. `official_review_queue.py` 및 `scripts/build_official_review_queue.py` 추가: 이미 완료·SHA 확인된 v2 공시 메타를 DART/SEC 검토 작업목록으로 선별/페이지/문서ID 선택하여 NewsCatalystOS private output에 원자 게시. 다른 프로젝트 API 호출/수집/DB/Git 변경 0, 뉴스원문 저장 0.
+- **Mac 실데이터 결과:** 기존 게시본 `coverage_v2_smoke` read-only, 로컬 SHA 일관성 검증 후 `output/official_relation_review_queue_...`에 **DART 100 + SEC 1,001 = 1,101** 메타 항목 기록. 1건 DART 문서ID 지정 재실행 1/1 성공. 큐 SHA 재확인 PASS, private root/dir `0700`; 파일은 생성 `0600` 요청했으나 현 T5DATA 마운트에서 `0700` 표시(그룹·기타 사용자 권한 0). 큐 데이터는 `.gitignore`의 `output/` 내부에만 있고 Git staged 0.
+- 로컬 게시본에서 **즉시 계산한 SHA는 같은 파일의 무결성 일관성 확인에만 사용**했고 독립 외부 공시 공개시각 증명/과거 PIT 공증으로 주장하지 않음. 해당 메타는 공식 공시 본문을 포함하지 않으므로 **반도체 관련성 확정 0, 실제 계약관계 독립 검수 0, 매출/수혜 확정 0**. 정렬은 회사 추천순위가 아니라 문서ID 순.
+- **변경 영향 검증 93 PASS/0 FAIL**, Python compileall·git diff --check·Public staged 4파일 비밀패턴 검사 PASS. 사용자 기존 미추적 문서/도면 보존, EraLeader 코드/DB/Git·DART/SEC/KRX 재수집 0.
+- **완료 23/36(63.9%) 유지**, 다음 5_2 실제 반도체 관계 문서·공식 양사 ID·사람검수 후 `review_supply_relation.py` 실증; 5_3~5_5 외부 소비 및 5_6 gold, 4단계 실제 API, 6_5 5거래일 운영/물리 DR도 미완료.

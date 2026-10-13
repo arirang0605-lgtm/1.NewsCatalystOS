@@ -196,3 +196,9 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - 기능 `c189f632b9f7178629dfb7e53d5dc37f1650e2a1` origin/main 반영 검증: 완결 v2 공식 관측 메타 + 운영자 개인 폴더의 인적 검토 JSON + 접근 허용된 공식 텍스트 + 별도 SHA PIN을 오프라인으로 결합하는 `official_relation_intake`/CLI 신규 구현. 첫 로컬 검증 완료 전 PIT 소급 금지. 6개 관련 테스트 **81 PASS/0 FAIL**, 컴파일·Public 보안 검사 PASS.
 - **다음 실제 작업:** 기존 EraLeader 완료된 DART/SEC 공시 메타에서 공시 ID 1개를 선택하고, 외부 승인 경로로 해당 **실제 공식 제출 본문/명시 공급사·고객사 관계 문장/양사 공식 식별자**를 권한 있게 확보하여 별도 SHA·첫 관측·사람 검토 영수증을 만든다. 실제 자료가 확보되면 `docs/5_2_OFFICIAL_RELATION_REVIEW.md`의 신규 `scripts/review_supply_relation.py`로 SHA/PIT/부정 검증하고, 5_3→5_5 기존 그래프·표준출력 소비를 시험한다.
 - 현재 완료 **23/36(63.9%)**, 실제 독립 반도체 공급계약 검토 0건. 공개시각 공증/실거래 수행/수혜 확정은 계속 별도. 실물 자료 부재 시 `DATA_UNAVAILABLE`를 유지하고 **동일 형태 합성 가드 반복 구현보다 실제 허가 자료 확인·5_6 독립 라벨/4단계 실 AI/6_5 운영**에 집중. 기존 EraLeader 코드·DB·Git·중복 공식 API 수집 절대 금지. 실제 5거래일 운영 및 릴리스 36/36 주장 금지.
+
+## 2026-10-14 | **NEXT_TASK=5_2 실제 공식 문서 검토** — 1,101건 실데이터 검토 큐 구축
+- 신규 `official_review_queue.py`/`scripts/build_official_review_queue.py`가 SHA/PIT 검증된 완결 게시본 v2에서 **DART 100·SEC 1,001 공시 메타** 작업목록을 Mac 개인 `output/`에 원자 게시, SHA 재검증·단일 공시 ID 선택 PASS. 정렬은 문서ID 순, 반도체/공급거래 관련성은 모두 `UNKNOWN_UNSCREENED`; 본문, 계약·매출 증거 없음.
+- 변경 코드 SHA `070a8688020e4d1876b3b28f4ed8de0110ca540a`, `origin/main` push 확인. **93 PASS/0 FAIL**, 컴파일·Public 보안검사 PASS. 사용법: `docs/5_2_OFFICIAL_REVIEW_QUEUE.md`; 입력 및 증거 연결: `docs/5_2_OFFICIAL_RELATION_REVIEW.md`. 큐 private 데이터는 Git에 올라가지 않음.
+- **다음 실질 작업:** 큐에서 반도체 관련 가능성이 있는 실제 공식 문서 ID를 운영자 검토로 고르고, 접근권한 확인 후 해당 공시의 공식 본문과 양사 DART_CORP/SEC_CIK 매핑·관계 문장·독립 PIN/첫확보 시각을 별도 비공개 경로로 준비. `scripts/review_supply_relation.py`에서 실물 1건을 검토하고 기존 `SupplyChainEdge`→5_3/5_4/`BeneficiaryGraph` 소비 및 5_6 평가 입력으로 연결. 소스 본문에 없다면 UNKNOWN, 새 DART/SEC/KRX API 수집 금지.
+- 실제 인적 검수 계약·AI API 키/호출·500건 gold·5거래일/물리 복원 미완료. **23/36(63.9%)**, 5_2/36 승격 보류. 원천 부재 시 동일 합성 경계 테스트/부정어 추가보다 합법적 실증 데이터 또는 다른 미완료 기능 구현을 우선. V1.0 완료/릴리스 태그 무근거 보고 금지.

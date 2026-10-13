@@ -38,6 +38,8 @@ def _check_state_path(path: Path) -> Path:
     path = Path(path)
     if not path.is_absolute() or ".." in path.parts or path.suffix != ".sqlite3":
         raise SourceShareError("absolute private sqlite3 state path required")
+    if any(part.lower() == "eraleader" for part in path.parts):
+        raise SourceShareError("EraLeader database paths are read-only and forbidden")
     parent = path.parent
     try:
         parent.mkdir(mode=0o700, parents=True, exist_ok=True)

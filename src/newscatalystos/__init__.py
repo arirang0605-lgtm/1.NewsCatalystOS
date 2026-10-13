@@ -57,6 +57,12 @@ from .supply_chain_graph import SupplyChainEdge, observed_supply_edge
 from .semiconductor_impact import SemiconductorTransmission, propagate_semiconductor_claim
 from .beneficiary_classification import BeneficiaryCandidate, classify_semiconductor_beneficiary
 from .beneficiary_graph_contract import BeneficiaryGraph, build_beneficiary_graph
+from .event_lifecycle import LifecycleVersion, LifecycleState, append_lifecycle, lifecycle_as_of
+from .analysis_cache import CachedAnalysis, cache_analysis_once, get_cached_analysis
+from .catalyst_audit import AuditInput, AuditVersion, append_catalyst_audit, audit_as_of
+from .standard_delivery import StandardBundle, build_standard_bundle, read_standard_bundle, to_parquet_bytes
+from .backup_recovery import BackupReceipt, backup_sqlite, restore_to_new_dir
+from .release_readiness import ReadinessInputs, ReadinessReport, evaluate_v1_readiness
 
 __all__ = [
     "ReadBatch", "RawEvent", "SourceManifest", "SourceShareError",
@@ -102,4 +108,10 @@ __all__ = [
     "SemiconductorTransmission", "propagate_semiconductor_claim",
     "BeneficiaryCandidate", "classify_semiconductor_beneficiary",
     "BeneficiaryGraph", "build_beneficiary_graph",
+    "LifecycleVersion", "LifecycleState", "append_lifecycle", "lifecycle_as_of",
+    "CachedAnalysis", "cache_analysis_once", "get_cached_analysis",
+    "AuditInput", "AuditVersion", "append_catalyst_audit", "audit_as_of",
+    "StandardBundle", "build_standard_bundle", "read_standard_bundle",
+    "to_parquet_bytes", "BackupReceipt", "backup_sqlite", "restore_to_new_dir",
+    "ReadinessInputs", "ReadinessReport", "evaluate_v1_readiness",
 ]

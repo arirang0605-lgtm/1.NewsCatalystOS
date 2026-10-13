@@ -224,3 +224,10 @@ def test_invalid_event_digest_rolls_back_success_state(tmp_path):
     state_info = state_snapshot(path, NAME)
     assert state_info["seen_count"] == 0
     assert state_info["last_success_at"] is None
+
+def test_era_original_project_database_path_is_forbidden(tmp_path):
+    path = tmp_path / "eraleader" / "db" / "source.sqlite3"
+    with pytest.raises(SourceShareError, match="EraLeader"):
+        incremental_poll(reg(), NAME, path, now=NOW,
+                         fetcher=fetch((item(),), []))
+    assert not path.parent.exists()

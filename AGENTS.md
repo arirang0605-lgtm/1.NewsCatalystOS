@@ -28,3 +28,13 @@
 - git push --force, git reset --hard, 기존 원격 덮어쓰기·타 프로젝트 Git 조작 금지. Public 여부와 오픈소스 LICENSE 선택은 서로 다르다. 사용자 승인 없이 라이선스를 고르지 않는다.
 - 단계별 커밋 SHA/실제 원격 푸시 성공·실패를 PROJECT_STATE.md에 정확히 기재한다.
 - 공개 전 세부 절차는 GITHUB_PUBLIC_POLICY.md, Chat 개발용 실행 지시문은 NewsCatalystOS_V1.0_CHAT_개발마스터프롬프트.md를 참조한다.
+
+## 공식 API 데이터 공유 원칙 (NC-READONLY-DATA-SHARE-2026-10-13)
+
+- EraLeader는 기존 DART·SEC·KRX 공식 데이터 수집 기능을 유지한다.
+- NewsCatalystOS는 EraLeader가 수집·검증하고 게시한 데이터를 표준 읽기 전용 인터페이스로 공유받는다.
+- NewsCatalystOS는 경제뉴스·기업 IR·정부 정책 등 기존 EraLeader에서 수집하지 않는 정보만 자체 수집한다.
+- 두 프로젝트는 독립적으로 실행되며, 공유 데이터에 장애가 발생해도 기존 원본과 분석 이력을 보호한다.
+- 기존 EraLeader 코드를 변경하거나 중복 수집기를 개발하지 않는다.
+
+이 원칙은 기존 V1.0 1_1~6_6 총 36개 작업, PIT·SHA 검증, 반도체 한 산업 범위 및 완료 조건을 변경하지 않는다.

@@ -75,3 +75,7 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **실제 결과:** EraLeader의 게시 완료된 캡처 **5종**, 관측 메타행 **3,866개**, `RawEvent=0`; private JSON `2,513,011 bytes`, SHA256 `a7b572e395ce7ec8c8825fbe87c9aea49f19c1a165882523756ffc6ed1ae9328`; 게시 marker SHA/크기·모든 항목 release_at null 검사 PASS. 신규 공식 API 호출, 운영 DB/원본 데이터 쓰기 및 비밀 Git 업로드 0.
 - **검증:** 1_1 관련 자동 테스트 **145 passed / 0 failed / exit 0**, compileall PASS, Git staged 허용목록 5개·키 패턴·바이너리/대용량·diff 검사 PASS. 기능 SHA `e5150be753323d610b1f265a93781eb662b226ab` `origin/main` 비강제 push/remote SHA 일치.
 - **미완료:** SEC 접수와 공식 공개시각 인증은 다름. DART 기존 첫 페이지 자료는 하루 전체가 아님. 외부 신뢰 검증자/공식 공개시각·issuer/정정 실물 증빙 없음, 인증된 `RawEvent` 0, AI API·실운영 0. 따라서 `NEXT_TASK=1_1`, 엄격 완료수 **0/36=0.0%**, 상태 `DATA_UNAVAILABLE` 유지. 1_2로 진행한 것으로 보고하지 않음.
+
+## 2026-10-13 | API 데이터 공유 표현·경계 확정 (NC-READONLY-DATA-SHARE-2026-10-13)
+- 사용자 첨부 5개 원칙을 AGENTS.md 및 Chat 개발 마스터 프롬프트에 추가, DECISIONS.md D-017 기록. EraLeader 공식 DART·SEC·KRX API는 기존 수집 기능을 유지하고, NewsCatalystOS는 수집·검증·게시된 결과를 읽기 전용 공유한다. NewsCatalystOS 자체 수집 범위는 EraLeader가 수집하지 않는 경제뉴스·기업 IR·정부 정책 등으로 제한. 독립 실행·공유 장애 격리·원본/분석 이력 보호·EraLeader 코드/중복 수집기 금지.
+- **문서·정책 반영만 수행**: 코드 기능·API 연결·테스트 결과 새 완료 주장 없음, 1_1 여전히 미완료/0/36. 기존 36개 단계·반도체 산업 범위·PIT 및 V1.0 검증 조건 변경 없음.

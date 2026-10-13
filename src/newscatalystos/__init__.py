@@ -25,6 +25,10 @@ from .incremental_ingest import (
     IncrementalResult, incremental_poll, resume_after_rights_review,
     state_snapshot,
 )
+from .event_identity import (
+    CompanyBinding, RevisionEvidence, NormalizedEvent,
+    normalize_observed_event,
+)
 
 __all__ = [
     "ReadBatch", "RawEvent", "SourceManifest", "SourceShareError",
@@ -43,4 +47,6 @@ __all__ = [
     "FeedObservation", "parse_authorized_feed", "fetch_authorized_once",
     "FeedTransportError", "IncrementalResult", "incremental_poll",
     "resume_after_rights_review", "state_snapshot",
+    "CompanyBinding", "RevisionEvidence", "NormalizedEvent",
+    "normalize_observed_event",
 ]

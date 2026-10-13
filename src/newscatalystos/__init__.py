@@ -20,6 +20,7 @@ from .operational_observations import (
 )
 from .provider_registry import Provider, ProviderRegistry, parse_provider_registry
 from .new_source_adapter import FeedObservation, parse_authorized_feed
+from .feed_transport import fetch_authorized_once
 
 __all__ = [
     "ReadBatch", "RawEvent", "SourceManifest", "SourceShareError",
@@ -35,5 +36,5 @@ __all__ = [
     "OperationalObservation", "OperationalObservationSet",
     "load_operational_observations", "project_operational_observations",
     "Provider", "ProviderRegistry", "parse_provider_registry",
-    "FeedObservation", "parse_authorized_feed",
+    "FeedObservation", "parse_authorized_feed", "fetch_authorized_once",
 ]

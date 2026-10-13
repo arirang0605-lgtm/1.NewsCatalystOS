@@ -21,3 +21,11 @@
 - 공개된 다른 정책브리핑(https://www.korea.kr/etc/noticeView.do?newsId=132038885&pWise=main&pWiseSub=O1)은 **2026-07-01 RSS 서비스 중단**을 공지하므로 해당 구독 경로는 제공자 목록에서 제외해야 함.
 - 일부 정부 게시물은 문서 링크에 비밀이 아닌 `?cbIdx=...&bcIdx=...` 같은 쿼리를 사용하므로, HTTPS URL 검증은 비밀 쿼리 키(token/api_key/serviceKey/auth 등)는 거부하면서 일반 문서 식별 쿼리는 허용하도록 수정.
 - 아직 기업 IR 및 라이선스 확인된 언론 소스 실수집 연동은 없으며 호출량 제한/스케줄링 1_3 단계까지는 **1_2 부분 구현**. `1/36` 유지; 원문 라이선스 확대/비공개 전송 금지.
+
+## 2026-10-13 | 1_2 수집 경계 통합·실물 소스 2종 인수 (NC-1_2-LIVE-RSS-GATE)
+- `feed_transport.py`: 사전 권한이 확인된 `ProviderRegistry.active`로만 **HTTPS GET 1회** 수행. 표준 TLS, 리다이렉트 차단, 비밀정보 포함 URL 차단, 지정된 제한시간·128KiB/콘텐츠 타입·HTTP 상태 확인. 403/리다이렉트/응답 5xx/과대 응답/권한 만료는 재시도나 원문 보존 없이 `SourceShareError`로 보류. 주기 스케줄·watermark는 1_3 예정.
+- `scripts/check_new_feed.py`: 로컬 Mac `~/Library/Application Support/NewsCatalystOS/providers/authorized_sources.json` owner-only 0600을 읽어 승인된 소스의 최신 메타데이터 수만 출력. 실제 URL, 제목, 본문, 인증정보·원문은 Public에 올리지 않음. 이 등록 파일은 이번 세션에 **없음을 확인한 뒤 신규 생성**했고 기존 파일은 덮어쓰지 않았다. 호출 상한 필드는 등록돼 있지만 지속적인 호출 계수·재시도 스케줄은 아직 1_3 범위.
+- 실제 Mac 단발 실행 검증: 중소벤처기업부 공식 보도자료 RSS `https://www.mss.go.kr/rss/smba/board/86.do` **20건**, RSS 이용근거 `https://www.mss.go.kr/site/smba/contents/view.do?menuCd=20905000000002024122902&siteCd=smba`. 뉴스와이어 공개 RSS의 IT 분야 `https://api.newswire.co.kr/rss/industry/600` **15건**, 구독/사이트 표시 안내 `https://www.newswire.co.kr/?nd=31`. 두 소스의 제목·문서링크·원본 ID만 1회 파싱, `first_seen_at`은 수신/검증 완료시각, `reported_published_at=None`, 실제 공식 사건 인증 0, 유료 원문·본문 보관 0. 뉴스와이어는 **보도자료 배포/미검증 주장**이며 독립 사실 확인 기사로 인정하지 않음.
+- 기업 직접 제공 RSS 후보 삼성물산 건설부문 `https://rnc.samsungcnt.com/pr/news/rss.xml`은 공식 RSS 안내 `https://rnc.samsungcnt.com/customer/rss.html`가 있지만 실제 Mac GET에서 **HTTP 403** 반환되어 추가 접근·우회 시도 없이 **비활성화**. 삼성전자 뉴스룸은 `https://news.samsung.com/global/terms`에서 비상업적 이용 제한을 밝히므로 별도 허가 전 미승인으로 유지. 행정안전부 RSS는 128KiB 수신 상한 초과로 안전 차단(원문 대용량 저장·한도 해제 안 함).
+- 이번 1_2 목표인 ProviderRegistry 허용/거부·공식 정책 RSS/배포 RSS·권리 범위별 기본 거부·실제 메타만 수신·문제 소스 장애 격리는 **보통 수준 인수 통과**. 직접 기업 IR은 이용가능한 허가 확인된 소스가 없어 지원 인터페이스만 유지하고 자동 수집은 시작하지 않음. 이는 전체 소스망 커버리지나 뉴스 사실 판정 완료가 아니다.
+- 전체 기존/신규 관련 **297 PASS, 0 FAIL**, Python compileall PASS. `1_2` 운영 가능 베이스 완료로 `2/36` 처리, 신규 1_3 단계에서 스케줄·증분 수집·watermark·요청량 관리를 시작한다.

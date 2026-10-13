@@ -19,3 +19,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 - `main` 최초 기능 commit `445b6ae553c43afc864324630a6bc110c99cd125`을 원격 `origin/main`에 정상 푸시하고 SHA 재확인. 이제 이 폴더는 Git 저장소이며 이전 "미초기화" 문장은 과거 상태임.
 - `src/newscatalystos/source_share.py` 합성 23개 테스트 PASS. 실제 EraLeader 공개 완료 export 통합은 여전히 미완료. `NEXT_TASK=1_1` 유지, 완료 0/36. 토큰 절약을 위해 `NEXT_TASK.md`의 최신 하단 작업부터 이어갈 것.
 - GitHub Public에 전부 올리지 않음. 검수한 파일만 추적하며 비공개 원본·백업·EraLeader 파일은 절대 stage하지 않음.
+
+## 2026-10-13 | 두 번째 실제 개발 체크포인트
+- 최신 기능 커밋 `505b073d31418713b56cc791c1d5b9257e7e2d63`: EraLeader 공식 수신본 연구용 5개 소스 오프라인 read-only 실증 완료. 단위/보안/PIT 테스트 **57 passed, 0 failed**.
+- `PROJECT_STATE.md` 최신 하단 기록과 `NEXT_TASK.md` 최신 하단 항목에서 이어갈 것. 공시 공개시각 검증/독립 PIN 보관/RawEvent 정상화가 남아 `NEXT_TASK=1_1` 유지.

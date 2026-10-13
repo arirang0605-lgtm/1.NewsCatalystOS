@@ -1,7 +1,7 @@
 # NEXT_TASK — 다음에 수행할 단 하나의 작업
 작업 ID: 1_1
 제목: EraLeader DART·SEC·KRX 공식 자료를 읽기 전용으로 가져오는 표준 계약 구현
-상태: 소비자 계약 부분 구현·23개 합성 테스트 통과. EraLeader 실제 게시 export 인수·원본 불변 확인 미완료.
+상태: 1_1 연구용 실제 수신본 5종 read-only 검증 성공·57개 단위 테스트 PASS. 정확한 공시 release_at, 독립 신뢰 PIN 장기 보관, 실 RawEvent 정상화/검증은 미완료.
 선행 조건: NewsCatalystOS 기존 폴더·정상 파일 백업 계획 확인, EraLeader 데이터 API 이용약관 및 원본 위치 확인.
 목표: 신규 수집기 재작성 없이 EraLeader 검증 자료의 출처·원본 SHA·published_at/first_seen_at을 보존한 SourceManifest/RawEvent 인터페이스 확정.
 시작 시: 현재 로컬 소스/Git/권한 확인→최소 어댑터 구현→가짜 출처/미래 시각/원본 불변 테스트→결과 기록. EraLeader 코드 변경 금지.
@@ -26,3 +26,9 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - 다음에는 **읽기 전용**으로 기존 EraLeader 공식 캡처 포맷(수신 영수증 SHA/원본 SHA/first_local_received_at_utc/quality)을 검증하는 공유 경계를 확정하고, 이미 원자 발행된 snapshot인지 증거를 확보한다. 필요하다면 NewsCatalystOS 소유의 **합성 테스트/변환 코드**만 추가한다. EraLeader의 Git/DB/코드/비밀을 수정하지 않는다.
 - 당일 원본/영수증의 독립 SHA pin, 공개/최초 수신 시각, 게시 완료 상태, DART 날짜 정밀도 제한 및 부분 페이지 품질 확인이 불가능하면 `DATA_UNAVAILABLE` 유지. 합성 시험 PASS를 운영 성공으로 표시하지 않는다.
 - 실제 게시 표본에서 각 provider 데이터 1회 이상 read-only 결과 검증·원본 SHA 사전/사후 동일·PIT 미래차단/품질실패/미완성 게시물 격리 재확인 후에만 1_1을 **1/36 완료**로 전환하고 `NEXT_TASK=1_2`로 이동.
+
+## 2026-10-13 | 1_1 다음 미완료 게이트
+- 2026-10-13 실제 오프라인 검증은 `505b073d31418713b56cc791c1d5b9257e7e2d63`에서 완료. 더 이상 존재하는 캡처를 반복 탐색하지 말 것.
+- **남은 하나의 작업:** 최초 수신시각 `first_seen_at`과 원천 공개시각 `published_at`을 혼동하지 않는 공시/원천별 메타데이터 정규화 완성. 증명되지 않은 release_at은 `None/UNKNOWN`, DART 첫 페이지만 `PARTIAL`, SEC facts taxonomy는 신고 이벤트 0건 유지.
+- 증거를 실제로 수집 가능한 범위에서 서로 다른 보관소에 리포트 SHA pin 보관, 과거 확정 시각이 없는 원본의 `RawEvent` 승격 차단 테스트, 기존 코드/원본 무변경 증빙, 실제 DART/SEC/KRX 승인된 event evidence 내역 검증을 완료한 뒤에만 1_1 종료.
+- 외부 권한/자료가 계속 불가하면 정확히 DATA_UNAVAILABLE으로 기록하고 1_2 작업으로 완료 숫자를 부풀리지 말 것. V1.0 다른 산업 확대 금지, 전체 회귀는 단계 게이트까지 보류.

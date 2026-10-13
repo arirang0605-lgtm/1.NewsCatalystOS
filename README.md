@@ -11,6 +11,7 @@ Evidence-first economic news and disclosure analysis. V1.0 development is staged
 - Developer execution instructions: `NewsCatalystOS_V1.0_CHAT_개발마스터프롬프트.md`
 - Public repository boundary: `GITHUB_PUBLIC_POLICY.md`
 - The first source metadata contract: `docs/1_1_SOURCE_SHARE_CONTRACT.md`
+- Read-only existing EraLeader captures: `docs/1_1_ERA_CAPTURE_READONLY_INTEGRATION.md`
 
 ## Local targeted tests
 
@@ -18,7 +19,7 @@ Evidence-first economic news and disclosure analysis. V1.0 development is staged
 python3 -m pytest -q tests/test_source_share.py
 ```
 
-The 23 tests use only generated fixtures. A passing result is **not** proof of actual DART/SEC/KRX source availability, successful AI API connection, or operational readiness.
+The 57 tests use only generated fixtures. Separately, the local read-only integration verified five previously captured EraLeader official API sources using SHA-pinned research records. This is **not** independent publication-time certification, a new live API authentication test, or operational readiness.
 
 ## Privacy and scope
 

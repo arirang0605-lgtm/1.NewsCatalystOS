@@ -145,3 +145,9 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify_era_captures.py 
 - `authenticate_from_era_readonly(..., proof_observed_at=...)`는 실제 파일 기반 진입점에서 시점을 필수 입력으로 요구하고, 결정시각보다 늦으면 원본 읽기 전에 거부. `authenticate_anchored_official_record`는 `usable_from`에 이 시각을 합쳐 `RawEvent.first_seen_at`도 소급되지 않도록 한다.
 - 운영 `scripts/check_official_proof.py`는 증빙 파일들을 읽은 직후 현재 UTC를 로컬 최초 관측으로 찍고, `--decision-at` 미지정 시 실제 읽기 완료 시각으로 결정시각을 맞춘다. 과거 `--decision-at`이 지정되면 이후에 처음 도착한 증빙을 과거에 사용할 수 없다. 테스트용 합성 API는 기존 호출을 유지하며 실사용 래퍼만 fail-closed.
 - 범위 테스트 236 PASS/0 FAIL, Python 컴파일 PASS. **로컬 시각은 외부 공시 공개시각의 인증이 아니며**, 이전부터 증빙이 존재했음을 역사적으로 공증하지 않는다. 실제 외부 발행기관 검증 증거/사전 승인 서명자는 아직 확보되지 않아 `DATA_UNAVAILABLE`, 인증 `RawEvent=0`, 1_1 미완료를 유지한다.
+
+## 2026-10-13 | 실사용 인증 함수 직접 호출 시 신뢰 등록부 우회 차단 (NC-1_1-ENTRY-TRUST)
+- 이전에는 `scripts/check_official_proof.py`가 외부 검증자 신뢰 등록부를 확인했지만, 다른 코드가 `authenticate_from_era_readonly()`를 직접 호출하면 스스로 제공한 키 SHA/등록 시각을 전달할 수 있었다.
+- **실사용 파일 진입점 자체**가 owner-only 별도 디스크 `load_operator_witness(era_root, witness_id, source_id, decision_at)`를 재확인하고, 사전 등록된 검증자 공개키 SHA와 호출자 제공 SHA가 다르면 거절한다. 별도 전달된 등록 시각이 실제 등록부와 다르면 거절하고, 아래 인증 경로에는 조회된 `trusted.enrolled_at`만 전달한다. 신뢰가 확인되기 전 EraLeader 데이터 파일은 열지 않는다.
+- 합성 내부 함수는 기존 API를 유지해 저수준 정합성 테스트를 보존한다. 공개된 실사용 함수의 외부 등록부 강제 검사는 누락·임의 SHA·허위 등록 시각을 원본 조회 전 차단한다. 단, 운영자 로컬 등록부 자체로 검증기관의 실제 권한이나 공식 공개시각이 공증되지는 않는다.
+- 외부 독립 진짜 증거가 아직 없으므로 `RawEvent=0`, `DATA_UNAVAILABLE`, 엄격 `NEXT_TASK=1_1` 유지. EraLeader 수집기·DB·Git/원본 변경이나 공식 중복 API 호출 없음.

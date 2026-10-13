@@ -19,6 +19,7 @@ from .source_share import RawEvent, SourceShareError, _when
 from .verified_reference import (
     VerifiedOfficialSources, verify_official_research_reference,
 )
+from .witness_registry import load_operator_witness
 
 
 @dataclass(frozen=True)
@@ -174,6 +175,21 @@ def authenticate_from_era_readonly(
     )
     if proof_seen > decision or proof_seen > instant or decision > instant:
         raise SourceShareError("proof unavailable at decision")
+    # The file-based production boundary must enforce out-of-band trust even
+    # when called directly rather than through check_official_proof.py.
+    trusted = load_operator_witness(
+        era_root, trusted_witness_id, source_id, decision, now=instant
+    )
+    if trusted_public_key_sha256 != trusted.public_key_sha256:
+        raise SourceShareError("witness key differs from independently enrolled pin")
+    if witness_enrolled_at is not None:
+        enrolled = _when(
+            witness_enrolled_at.isoformat()
+            if isinstance(witness_enrolled_at, datetime) else None,
+            "witness enrolled at",
+        )
+        if enrolled != trusted.enrolled_at:
+            raise SourceShareError("witness enrollment differs from trusted registry")
     anchor = read_local_reference_anchor(
         era_root, research_reference, private_anchor, decision_at
     )
@@ -185,6 +201,6 @@ def authenticate_from_era_readonly(
         claim_bytes, expected_claim_sha256, statement, signature,
         witness_public_key_pem, trusted_public_key_sha256,
         trusted_witness_id, decision_at,
-        witness_enrolled_at=witness_enrolled_at,
+        witness_enrolled_at=trusted.enrolled_at,
         proof_observed_at=proof_seen, now=instant
     )

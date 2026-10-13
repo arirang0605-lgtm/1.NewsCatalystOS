@@ -204,3 +204,60 @@ def test_production_wrapper_requires_observed_proof_before_source_reads(monkeypa
             "registered-external-witness", ANCHOR_AT,
             proof_observed_at=NOW, now=NOW,
         )
+
+
+def test_direct_production_call_cannot_skip_operator_registry(monkeypatch, tmp_path):
+    from newscatalystos import official_promotion as mod
+
+    def missing_registry(*_args, **_kwargs):
+        raise SourceShareError("trusted witness registry missing")
+
+    def no_source_reads(*_args, **_kwargs):
+        raise AssertionError("EraLeader data read without external enrollment")
+
+    monkeypatch.setattr(mod, "load_operator_witness", missing_registry)
+    monkeypatch.setattr(mod, "read_local_reference_anchor", no_source_reads)
+    with pytest.raises(SourceShareError, match="registry missing"):
+        mod.authenticate_from_era_readonly(
+            tmp_path, tmp_path / "reference", tmp_path / "anchor",
+            "sec-submissions", "doc123", b"{}", "a" * 64,
+            b"{}", b"0" * 64, b"public", "b" * 64,
+            "independent-witness", NOW,
+            proof_observed_at=NOW, now=NOW,
+        )
+
+
+def test_direct_production_call_rejects_unenrolled_pin_or_fake_date(monkeypatch, tmp_path):
+    from newscatalystos import official_promotion as mod
+    from newscatalystos.witness_registry import TrustedWitness
+
+    enrolled = ANCHOR_AT
+    calls = []
+    def trusted_registry(*_args, **_kwargs):
+        calls.append("trust_lookup")
+        return TrustedWitness(
+            "independent-witness", "c" * 64, enrolled,
+            frozenset({"sec-submissions"}),
+        )
+    def no_source_reads(*_args, **_kwargs):
+        raise AssertionError("original source was opened despite invalid trust")
+
+    monkeypatch.setattr(mod, "load_operator_witness", trusted_registry)
+    monkeypatch.setattr(mod, "read_local_reference_anchor", no_source_reads)
+    args = (
+        tmp_path, tmp_path / "reference", tmp_path / "anchor",
+        "sec-submissions", "doc123", b"{}", "a" * 64,
+        b"{}", b"0" * 64, b"public", "b" * 64,
+        "independent-witness", NOW,
+    )
+    with pytest.raises(SourceShareError, match="independently enrolled pin"):
+        mod.authenticate_from_era_readonly(
+            *args, proof_observed_at=NOW, now=NOW,
+        )
+    args = args[:10] + ("c" * 64,) + args[11:]
+    with pytest.raises(SourceShareError, match="enrollment differs"):
+        mod.authenticate_from_era_readonly(
+            *args, proof_observed_at=NOW,
+            witness_enrolled_at=enrolled + timedelta(hours=1), now=NOW,
+        )
+    assert calls == ["trust_lookup", "trust_lookup"]

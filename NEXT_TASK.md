@@ -56,3 +56,8 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - 신규 기능 `e5150be753323d610b1f265a93781eb662b226ab` GitHub push 검증; 합성/실데이터 연구용 경계 관련 **145 PASS / 0 FAIL**. `observed_batch.py`+ `scripts/inspect_official_observations.py`가 기존 완료 캡처 5개를 읽어 비공개 메타 3,866건을 원자 게시하고 SHA 대조 성공. 신규 재수집 0, 공식 `RawEvent` 0.
 - **여전히 미완료인 1_1 게이트:** 실제 공시의 대외 공개시각·정정/발행자 진위를 외부 독립적으로 인증할 만한 신뢰된 출처 증거/서명 및 당시 가용시각 확보. `SEC acceptance` 또는 DART 접수일을 공개시각으로 변조하지 말 것. 신뢰 가능한 실물 증빙 1건 이상 획득 시 기존 `inspect_release_claim → authenticate_publication → proof.as_of` 경계에 연결하고 원본불변·PIT·정정 음성시험 통과 후에만 1_1 완료/1_2 전환.
 - 외부 인증증거가 없다면 **DATA_UNAVAILABLE, 미완료 1_1, 0/36**. 반복 API 수집·EraLeader 코드/DB/Git 변경·이미 통과한 전체 테스트 중복 실행 금지. 이후 동일 SHA/상태는 `PROJECT_STATE.md` 최신 아래 기록에서 이어간다.
+
+## 2026-10-13 | 최신 1_1 미완료 게이트 (검증된 연구 배치 소비 구현 이후)
+- 직전 기능 `801db132bbb0ea0b429f5916da174966d0db34f2`: NewsCatalystOS 내 비공개 원자 게시 결과의 read-only 소비/PIT·SHA 품질 게이트 구현, **170 PASS / 0 FAIL**, 실제 EraLeader 5개 공식 캡처 기반 연구 메타 3,866건 end-to-end 로컬 재검증 PASS. 신규 API 재호출/중복 수집/다른 프로젝트 변경 없음. 기존 메타 연구 배치 및 로컬 검증 반복은 불필요.
+- **남은 단일 핵심:** 기존 DART/SEC 수신본 최소 1건의 실제 대외 공개시각·발행자 신원·정정 계보를 **외부 독립 증거**로 확인하고 그 증거의 최초 가용시각·신뢰 인증 자료를 확보하여 `inspect_release_claim → authenticate_publication → proof.as_of` 실물 검증 수행. 검증된 시각 자료를 소급 생성하거나 SEC 수리시각/DART 접수일로 대신하지 않는다.
+- 외부 증명이 확보되지 않는 동안 실제 인증 `RawEvent=0`·`DATA_UNAVAILABLE`, `1_1` 완료 판정 유예, `NEXT_TASK=1_1`, **0/36(0.0%)** 유지. EraLeader 공식 수집 공유 경계를 유지하며 다른 35개 단계의 순서·V1.0 완료 조건 변경 금지.

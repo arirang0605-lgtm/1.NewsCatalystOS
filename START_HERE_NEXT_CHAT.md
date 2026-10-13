@@ -39,3 +39,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-13 | 최신 1_1 구현 인계 (NC-1_1-OBSERVED-BATCH)
 - `e5150be753323d610b1f265a93781eb662b226ab` 원격 main 반영 검증. 로컬 read-only 5개 캡처 → PIT-safe 연구 관측 3,866건 → 민감정보 제외 `output/` 원자 게시/검증 PASS. **145 PASS, 0 FAIL**, 원본 불변/중복 API 수집 없음.
 - 공개시각 검증은 불가능한 자료를 추정으로 만들지 않고 `published_at=null` 고정, 실제 인증 `RawEvent=0`. **NEXT_TASK=1_1, 완료 0/36**, 남은 외부 발행 증명 및 PIT 인증 게이트는 `NEXT_TASK.md` 맨 아래 참조. 기구현 어댑터/전체 코드 반복 분석 금지.
+
+## 2026-10-13 | 1_1 최신 기능 인계 (NC-1_1-READ-PUBLISHED)
+- 기능 `801db132bbb0ea0b429f5916da174966d0db34f2` `origin/main` push/원격 SHA 대조 성공: 연구 배치 read-only SHA/PIT/품질 소비 경계 추가, 최초 로컬 게시시각 기록, legacy 미인증 게시 차단, 관련 **170 PASS / 0 FAIL**.
+- EraLeader 기존 API 수집결과 5종/연구메타 3,866건 새 원자 게시→복원 읽기 로컬 PASS, 공식 RawEvent 0, 외부 공개시각 인증 부재. 다음 `NEXT_TASK.md` 맨 아래 1_1 외부 독립 증빙 게이트부터 재개. **엄격 완료 0/36**, EraLeader 공유/독립 실행/원본보호 원칙 불변.

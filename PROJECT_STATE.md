@@ -79,3 +79,10 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 ## 2026-10-13 | API 데이터 공유 표현·경계 확정 (NC-READONLY-DATA-SHARE-2026-10-13)
 - 사용자 첨부 5개 원칙을 AGENTS.md 및 Chat 개발 마스터 프롬프트에 추가, DECISIONS.md D-017 기록. EraLeader 공식 DART·SEC·KRX API는 기존 수집 기능을 유지하고, NewsCatalystOS는 수집·검증·게시된 결과를 읽기 전용 공유한다. NewsCatalystOS 자체 수집 범위는 EraLeader가 수집하지 않는 경제뉴스·기업 IR·정부 정책 등으로 제한. 독립 실행·공유 장애 격리·원본/분석 이력 보호·EraLeader 코드/중복 수집기 금지.
 - **문서·정책 반영만 수행**: 코드 기능·API 연결·테스트 결과 새 완료 주장 없음, 1_1 여전히 미완료/0/36. 기존 36개 단계·반도체 산업 범위·PIT 및 V1.0 검증 조건 변경 없음.
+
+## 2026-10-13 | 1_1 비공개 연구 배치 읽기 검증 및 PIT 게이트 (NC-1_1-READ-PUBLISHED)
+- **구현:** `src/newscatalystos/published_observations.py`에 원자 게시된 NewsCatalystOS 자체 `output/` 연구 배치의 안전한 **읽기 전용 소비자** 추가. 별도 전달 SHA256 pin·원본/마커 SHA·크기·스키마·출처별 품질·처음 수신/앵커/로컬 게시시각의 PIT·원본/영수증 SHA·중복 차단, 심볼릭 링크·경로 탈출·미완성 게시 거절. `published_at=null`, `issuer_verified=false`, 연구 전용 유지.
+- **기존 코드 최소 변경:** `inspect_official_observations.py` 로컬 게시 마커에 `first_local_published_at` 기록 추가; 과거 이 필드 없는 결과는 기존 그대로 보존하고 **소비 단계에서 보류**(소급 판단 금지). `__init__.py` 공개 API/문서/합성 테스트 추가. EraLeader 수집기·API 키·DB·Git·운영자료 변경 및 재수집 0건.
+- **실데이터 검증:** 이미 별도 로컬 SHA로 고정된 EraLeader 공식 캡처 **5개**를 읽어 연구용 메타 **3,866행**을 NewsCatalystOS private `output/`에 새 원자 게시 → 소비자 재개방 PASS. 재게시된 배치 로컬 SHA256 `5573ce9abe6a7bc63d50a85a96fcbdb809b00f42e54015e9b13142b94f491a2e`. 이것은 **동일 컴퓨터 로컬 무결성 테스트**이며 독립 외부 공개시각 공증이 아님. 실제 RawEvent 0건.
+- **테스트:** 1_1 관련 9파일 **170 PASS / 0 FAIL**, compileall PASS. staged 파일 5개 명시 허용목록·비밀/바이너리/크기·diff 검증 PASS. 기능 커밋 `801db132bbb0ea0b429f5916da174966d0db34f2` `origin/main` push 및 원격 SHA 일치.
+- **여전히 미완료:** 신뢰할 만한 외부 발행기관의 실제 공개시각·issuer·정정 연결 시점 인증 증거 부재; SEC acceptance와 DART 날짜는 발표 시각 인증 아님. 실제 인증 이벤트 0, AI API 0회, 운영 0거래일. 현 `NEXT_TASK=1_1`, 엄격 완료 **0/36(0.0%)**, `DATA_UNAVAILABLE` 유지. 기존 36개 개발계획/공식 API 공유 정책 불변.

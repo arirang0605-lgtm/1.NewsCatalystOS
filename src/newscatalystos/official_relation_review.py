@@ -115,6 +115,9 @@ def review_official_supply_relation(
         r"[A-Z0-9_-]{3,32}", review.reviewer_code
     ):
         raise SourceShareError("operator reviewer code required")
+    if (supplier.id_namespace != customer.id_namespace
+            or supplier.id_namespace != ("DART_CORP" if source.provider_id == "DART" else "SEC_CIK")):
+        raise SourceShareError("official source and both company ID namespaces mismatch")
     names = (review.supplier_name, review.customer_name)
     statement = review.evidence_statement
     if (any(not isinstance(n, str) or not 2 <= len(n) <= 140 for n in names)

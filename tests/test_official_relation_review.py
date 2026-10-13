@@ -197,3 +197,12 @@ def test_review_proof_survives_readonly_beneficiary_json_without_false_sales():
             profile, economic, [replace(linked, document_sha256="a"*64)],
             [candidate], NOW, now=NOW,
         )
+
+
+def test_mixed_or_wrong_official_company_namespace_is_rejected():
+    observed, supplier, customer, review = setup()
+    with pytest.raises(SourceShareError, match="namespaces mismatch"):
+        run(customer=replace(customer, id_namespace="SEC_CIK", company_id="123456"))
+    with pytest.raises(SourceShareError, match="namespaces mismatch"):
+        run(supplier=replace(supplier, id_namespace="SEC_CIK", company_id="123456"),
+            customer=replace(customer, id_namespace="SEC_CIK", company_id="654321"))

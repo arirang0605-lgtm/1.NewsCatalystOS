@@ -97,3 +97,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-13 | 최신 1_3 증분 워터마크/예약 개발 인계 (NC-1_3-INCREMENTAL)
 - 기능 SHA `664b30c3da9563bc07cf16cb94cb8991baf5d802` origin/main push 검증. 소스별 SQLite SHA 이벤트 중복방지·원자 watermark/요청 예약·호출량·429/5xx 백오프·403 안전 중단/권한 재검토 복구 완성. 관련 **323 PASS / 0 FAIL**. 실제 허가 소스 2종 신규 20+15건·직후 재실행 2소스 NOT_DUE/추가 요청 0. SQLite/launchd private owner-only; 15분 예약 plist는 문법검증만 수행했고 자동 운영은 **아직 시작하지 않음**.
 - **1_1~1_3 완료 3/36(8.3%), NEXT_TASK=1_4**, 위 문서 및 NEXT_TASK 최신 하단 기준 CONTINUE. EraLeader 원본·DB·Git 변경/공식 API 중복 수집 0, PIT 절대 미래정보 누출 금지. 전체 36/반도체 1산업 원칙 유지.
+
+## 2026-10-13 | 최신 1_4 공통 이벤트/PIT 정규화 인계 (NC-1_4-EVENT-IDENTITY)
+- 기능 `c6406375654928e7fc380bccb9f729cc6d9f79cc` origin/main SHA 대조 성공: 공시 관측·RSS 메타·기존 서명된 공식 발표 객체의 공통 시각/기업 네임스페이스/정정 근거를 PIT-safe 구분. 공식 실제 5개 캡처 기반 기존 private 배치 3,866 메타 정규화 PASS, 원본/Issuer/release 인증 임의 생성 0. **345 PASS/0 FAIL**, Public 보안 스캔 PASS.
+- **작업 완료 4/36(11.1%), NEXT_TASK=1_5**. 1_5 승인된 보관권한에 따른 원본/영수증 SHA 안전 저장과 정정 버전부터 CONTINUE, 기존 공식 수집기 및 EraLeader 코드/DB/Git 무변경. 1_4 완료는 실사용 관측형 계약 기준이며 최종 5거래일 운영·공시 외부 공개시각 공증 완료가 아님.

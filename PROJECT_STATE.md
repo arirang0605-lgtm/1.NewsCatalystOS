@@ -215,3 +215,8 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **6_6:** release_readiness.py + scripts/check_v1_release.py — 36개 단계, 실제 사람검수 라벨 500·정밀도/중요 탐지·수혜 정확도/숫자 증거, 실 AI 요금, 5거래일/독립복원/타 프로젝트 소비/P0-P1/전체 회귀 입증 부족을 명시. 23개 완료를 입력한 실제 Mac 실행 결과 **NOT_READY, missing 13 tasks, exit 4(의도된 출시 차단)**. 합성 모든 조건 True여도 독립 출시 인증 FALSE, V1.0 tag 생성/푸시 안 함.
 - **기능 검증:** 전체 관련 테스트 **611 PASS / 0 FAIL**(exit 0), Python compileall PASS, Public 허용목록 staging 18파일·민감 패턴·바이너리/용량·.env/DB/원본 제외 및 git diff --check PASS. EraLeader 코드/DB/Git·공식 수집 API 호출/변경 0. 기능 Git SHA **648806f6984e3ef6a1d7bf25114cbc49d6f334db**, GitHub origin/main 정상 비강제 push 및 remote SHA 일치.
 - **엄격 개발 합격 23/36(63.9%)**: 기존 19/36 + 6_1~6_4 네 기본 기능. 아직 13개 미완료: 2_6,3_6,4_1,4_2,4_5,4_6,5_2,5_3,5_4,5_5,5_6,6_5,6_6. 실제 경제뉴스 정답셋/AI 키·비용/공식 고객·공급자 거래·EraLeader 소비/별도 물리복원·5거래일/출시 태그 증명 없음. 다음은 5_2 공식 공급망 관계 read-only 실증 시도; 증거 없으면 UNKNOWN, 허위 수혜 확정 금지.
+
+## 2026-10-13 | 5_2 문서 검토 경계·2_6/3_6 골드 검토 입력 통합
+- 5_2 공식 메타 관측→별도 SHA 고정 공시 본문/사람 검토 관계 후보 경계 추가. 기능 `f10e167c7dc6246afbf3533489f25473936ed70a` origin/main 푸시. 관련 29 PASS/0 FAIL, Python compile 및 staged 공개 보안 검사 PASS. 실제 공급망 독립 검증 관계 0건으로 5_2 실증은 미완료.
+- 기존 GitHub 독립 브랜치 `feature/gold-review-intake-20261013`의 2_6/3_6 이중 라벨·PIT 정답셋 입력 모듈을 SSD main에 안전 통합, `bdd50c119b45bbd7bcf73f0be05fc9f542d8e6fe` origin/main 푸시. 관련 기존 테스트 29 PASS/0 FAIL. 새 모듈 전용 실라벨 테스트 및 500건 독립 평가 미실시, 2_6·3_6 완료 아님.
+- **현재 완료 23/36(63.9%), NEXT_TASK=5_2 실자료 독립 검증**. 실 AI 공급자/500건 gold/반도체 계약 관계/5거래일 운영·독립 물리 복원/릴리스 태그 미완료. 사용자 기존 미추적 도면·문서 보존, EraLeader 코드·DB·Git/공식 API 중복 수집 없음.

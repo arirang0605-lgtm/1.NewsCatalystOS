@@ -119,3 +119,8 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 - 코드 commit 648806f6984e3ef6a1d7bf25114cbc49d6f334db origin/main SHA 검증: 6_1 lifecycle 전이/재활성화 SHA PIT, 6_2 AI 결과 변경감지 캐시, 6_3 원본 근거·모델/프롬프트 변경감사 SHA 원장, 6_4 CatalystEvent/BeneficiaryGraph/EventHistory JSON/Parquet. 6_5 SQLite 일관성 스냅샷/별도 private 복원, 6_6 NOT_READY 출시 차단 체크까지 코드 구현. **전체 611 PASS/0 FAIL** 및 컴파일/공개검사 PASS; Mac 실제 private 원장 45,056 bytes의 별도 폴더 복원 PASS.
 - **완료 23/36(63.9%).** 6_5의 연속 5거래일/독립 물리 백업, 6_6 릴리스 등 13개는 미완료. 실제 release 체크에서 13개 missing/필수 실검증 부족 => exit4 의도된 보류, v1.0 태그 생성/기능 동결 없음. EraLeader 코드·DB·Git 쓰기/중복 API 수집 0. 기존 사용자 미추적 자료 보존.
 - 최신 NEXT_TASK=5_2 공급망 공식 고객·공급자 관계 실증. 기능/상태/결정 파일부터 CONTINUE하고 최초 공개시각/실 거래 증거 없으면 사실처럼 창작하지 말 것. 단일 반도체 산업/36단계/PIT·SHA·비밀 보호 불변.
+
+## 2026-10-13 | 5_2 문서 검토 경계·2_6/3_6 골드 검토 입력 통합
+- 5_2 공식 메타 관측→별도 SHA 고정 공시 본문/사람 검토 관계 후보 경계 추가. 기능 `f10e167c7dc6246afbf3533489f25473936ed70a` origin/main 푸시. 관련 29 PASS/0 FAIL, Python compile 및 staged 공개 보안 검사 PASS. 실제 공급망 독립 검증 관계 0건으로 5_2 실증은 미완료.
+- 기존 GitHub 독립 브랜치 `feature/gold-review-intake-20261013`의 2_6/3_6 이중 라벨·PIT 정답셋 입력 모듈을 SSD main에 안전 통합, `bdd50c119b45bbd7bcf73f0be05fc9f542d8e6fe` origin/main 푸시. 관련 기존 테스트 29 PASS/0 FAIL. 새 모듈 전용 실라벨 테스트 및 500건 독립 평가 미실시, 2_6·3_6 완료 아님.
+- **현재 완료 23/36(63.9%), NEXT_TASK=5_2 실자료 독립 검증**. 실 AI 공급자/500건 gold/반도체 계약 관계/5거래일 운영·독립 물리 복원/릴리스 태그 미완료. 사용자 기존 미추적 도면·문서 보존, EraLeader 코드·DB·Git/공식 API 중복 수집 없음.

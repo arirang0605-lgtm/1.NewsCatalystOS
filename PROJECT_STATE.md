@@ -137,3 +137,7 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **검증:** 새 합성 음성 시험 2개 추가; 1_1 관련 전체 **236 PASS / 0 FAIL (exit 0)**, Python compileall / git diff --check / Public 5파일 명시 allowlist·비밀 패턴·비텍스트·용량·gitignore 검사 PASS. 증빙·서명키·운영 DB 공개/중복 수집 없음. EraLeader 파일/코드/Git 쓰기 수행하지 않음.
 - **GitHub 기능 SHA:** `8f24d48cf8abd0af782962cfd5ef0dd10a306e46` `origin/main` 정상 push, remote SHA 일치 확인. 사용자 미추적 문서·도면 미스테이징.
 - **외부 조건 미충족:** 실제 승인 검증자 서명과 공식 외부 공개시각·issuer/정정 증거는 계속 없음. CLI에 실제 인증 증빙이 제공되지 않았으므로 `RawEvent=0`, `DATA_UNAVAILABLE`, `NEXT_TASK=1_1`, **0/36(0.0%)** 유지. 이 수정은 로컬 관측 PIT 가드이지 공시 공개시각 인증이 아님.
+
+## 2026-10-13 | External evidence check (NC-1_1-EXTERNAL-BLOCKER-CHECK)
+- Current verified Git HEAD before this checkpoint: 6c9a54c3ea53b3f29489ba15d4febc2f72986573. Separate-disk local PIT SHA anchor exists, but owner-approved independent witness trust registry and private proof inbox were NOT_FOUND. No new official external publication-time, issuer, correction-chain or trusted signed evidence was received.
+- This session added no application code and ran no new tests. The previously recorded 236 PASS is a prior checkpoint, not a new test outcome. No EraLeader code/data/DB/Git changes or duplicate API calls. Official RawEvent 0; DATA_UNAVAILABLE, NEXT_TASK=1_1, strict 0/36.

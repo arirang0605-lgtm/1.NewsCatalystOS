@@ -103,3 +103,7 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - 기능 `8f24d48cf8abd0af782962cfd5ef0dd10a306e46` `main` push 검증; `proof_observed_at`을 실제 증빙 파일 입수 완료 후에 찍어 원래 서명 확인시각으로 과거 결정을 소급 승인하지 못하도록 수정. **236 PASS / 0 FAIL**. 기존 정상 모듈/요청서 재구현·동일 EraLeader 캡처 반복 검사 금지.
 - **다음 실제 한 작업은 외부 자료 확보:** 별도 승인 기관의 SEC/DART 실제 공개시각·issuer·정정 계보, 검증자 신원·사전 등록/서명 및 최초 입수시각에 대한 진짜 독립 증거를 확보한다. 승인 검증이 완료된 실물 증빙을 기존 `scripts/check_official_proof.py`로 처리하고 원본/PIT/정정·장애 시험 후 1_1 완료 판정.
 - 외부 자료가 없으면 `DATA_UNAVAILABLE`, 인증 RawEvent 0, `NEXT_TASK=1_1`, **0/36(0%)** 유지; 인증 문서/시각/서명 자체 생성·중복 공식 수집·EraLeader 소스/DB/Git 변경 금지.
+
+## 2026-10-13 | External proof still unavailable (NC-1_1-EXTERNAL-BLOCKER-CHECK)
+- The Mac has no enrolled independent external witness registry and no dedicated proof inbox. Existing request_official_proof.py and check_official_proof.py are implemented; do not recreate or repeat synthetic tests without changed inputs.
+- One required external action: obtain authentic issuer/publication time/correction evidence for one DART or SEC document previously captured by EraLeader, plus time-of-acquisition and independently approved witness key/signature. Then run the existing proof gate and PIT/nonmutation tests. If absent: DATA_UNAVAILABLE, NEXT_TASK=1_1, 0/36.

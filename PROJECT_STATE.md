@@ -51,3 +51,12 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **기능 commit:** `73a87949c938cf01ba436b0cf82ab17845bbcd4f`, `origin/main` 정상 push, `ls-remote` SHA 일치.
 - **남은 1_1 차단요인:** 신뢰 가능한 원천 실제 대외 공개시각+정정/버전+발행자 증빙을 갖춘 공식 `RawEvent` 실물 0건, DART 첫 페이지 한계, SEC 전체 이력/issuer 미검증. 실제 AI API 0회, 연속 자동운영 0거래일. 외부 증거 전 무검증 자료를 정식 이벤트로 승격하지 않음.
 - **엄격 V1.0 검증 완료율:** **0/36 (0.0%)**. 1_1 부분 기능 구현은 정상이나 1_1 전체 게이트 미충족. **NEXT_TASK=1_1** 유지.
+
+## 2026-10-13 | 1_1 공개시각 주장·정정본 검증 후보 계약 (NC-1_1-CLAIM-GATE)
+- **이번 실제 구현:** `src/newscatalystos/release_claim.py` + `tests/test_release_claim.py` + 패키지 공개 API + `docs/1_1_ERA_CAPTURE_READONLY_INTEGRATION.md` 갱신. DART/SEC 제공자·개별 접수번호와 HTTPS 공식 URL 구조, 별도 전달된 SHA256 pin, claim 시각·PIT, issuer 문자열/정정 버전·원본 ID 참조를 검사. 8KiB 제한 및 JSON 중복 키 거절.
+- **안전한 거절:** 입력된 URL 문자열·로컬 digest는 독립 공개시각/발행자 진위 증명 아님. 결과 `PINNED_CLAIM_UNAUTHENTICATED` 유지, `RawEvent` 자동 전환 항상 거절. 기존 EraLeader 수집 코드·Git·DB/원본 및 별도 디스크 TOFU pin 쓰기 0; 직접 신규 API/AI 호출 0.
+- **관련 검사:** 신규+기존 1_1 연결 테스트 6파일 **105 passed / 0 failed / exit 0**. 최초 신규 테스트 1건에서 예외 메시지 기대값 수정 후 영향 테스트 42 passed. Python compileall PASS.
+- **보안 검수:** 코드/테스트/허용 문서 4개만 명시적 stage, staged allowlist 일치, 키/토큰/인증서 패턴·비텍스트·대용량 파일 검사 PASS, `git diff --cached --check` PASS. 사용자 미추적 문서/도면·로컬 백업 stage하지 않음.
+- **기능 GitHub push:** `8233fe499a5a19e8f7d9f5d13a6451d37072de24` → `origin/main`; `git ls-remote` SHA 동일 검증.
+- **남은 핵심 차단:** 공신력 있는 외부 원문/발행기관의 독립 공개시각 증빙, 실제 issuer/정정 이력 인증, 실제 공식 `RawEvent` 1건의 PIT 재현이 없어 `1_1` 완료 전환 금지. EraLeader 5개 기존 공식 캡처 연구용 read-only 실증은 직전 기록과 동일. 500건 평가/반도체 산업 통합/실 AI API/5거래일 운영은 미완료.
+- **엄격 완료율:** **0/36 = 0.0%** (1_1 부분 구현). `CURRENT_NEXT_TASK=1_1`, 외부 증거 미확보 시 `DATA_UNAVAILABLE` 유지.

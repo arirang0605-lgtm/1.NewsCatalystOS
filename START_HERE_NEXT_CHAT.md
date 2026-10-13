@@ -27,3 +27,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-13 | 1_1 최신 개발 체크포인트
 - Feature `73a87949c938cf01ba436b0cf82ab17845bbcd4f` (`origin/main` push 검증): SEC 접수/최초 수신/원천 공개 시각 분리, 연구 후보 `RawEvent` 차단, Mac 내부 별도 디스크 pin(LOCAL_TOFU), **78 PASS / 0 FAIL**.
 - EraLeader 실제 5개 읽기 전용 검증 및 메타후보 3,866개, 기존 원본 SHA 불변 확인. 최초 공개시각 외부 증명 없음. `NEXT_TASK=1_1`, 전체 완료 **0/36** 유지. 최신 작업은 `NEXT_TASK.md` 맨 아래 참조.
+
+## 2026-10-13 | 최신 기능개발 인계 (NC-1_1-CLAIM-GATE)
+- Feature `8233fe499a5a19e8f7d9f5d13a6451d37072de24`: DART/SEC 공개시각 주장·정정·issuer 메타 검증 후보 구현; 신규 `release_claim.py`/테스트·문서. 1_1 범위 6개 테스트 파일 **105 PASS / 0 FAIL** 및 공개보안 스캔 PASS, GitHub push 및 원격 SHA 일치.
+- 중요: 공개 URL/별도 SHA와 메타 주장은 실제 대외 공개시각 독립 인증이 아님. RawEvent 승격 0건, AI API 직접 연결 0회, 운영 0거래일. `NEXT_TASK=1_1`, **0/36**. 다음은 `NEXT_TASK.md` 최신 하단의 외부 독립 증거 게이트부터 계속하고 기존 검증·수집 구현은 반복하지 말 것.

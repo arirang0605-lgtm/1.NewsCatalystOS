@@ -245,3 +245,9 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 ## 2026-10-14 | 5_5 테마 관계의 공식 거래 증거 가장 차단
 - 공식 문서 검토 상태(`RELATION_STATUS`)가 단순 테마 관계(`THEMATIC_ASSOCIATION`)에 결합되면 BeneficiaryGraph 생성을 거부. 관련 테스트 **30 PASS/0 FAIL**, git diff --check PASS.
 - 기능 Git SHA `4d658973948fa793c02f8cf63f0fc9b9d5cbcd71` origin/main 확인. 실제 공급망 관계 본문·독립 검토 및 EraLeader 실소비 미완료. **23/36(63.9%), NEXT_TASK=5_2 실제 공식 반도체 공급망 관계 실증**. EraLeader 원본·Git/공식 API 중복 수집 변경 0.
+
+## 2026-10-14 | 5_2 실제 문서 도착 대비 독립 PIN + PIT 오프라인 입력 연결
+- **기능 Git SHA:** `c189f632b9f7178629dfb7e53d5dc37f1650e2a1` 원격 `origin/main` non-force 푸시/동일 SHA 확인. `official_relation_intake.py`가 완료된 v2 공개 메타를 별도 payload SHA로 소비하고 owner-only 사람 검토 JSON·공식 문서 UTF-8 텍스트·별도 문서 SHA를 결합하도록 구현. `scripts/review_supply_relation.py`는 계약/매출이 확정되지 않은 관계 후보의 SHA·검토시점만 출력, 원문 미저장·네트워크/재수집 0.
+- 기존 `review_official_supply_relation`에 `consumer_observed_at` 선택 계약을 추가해 검토자 과거 날짜·새 소비시점의 PIT 혼동 수정. 첫 완전 검증 시점 전에는 관계 후보를 소급 노출하지 않음. 기존 타입·함수 기본 호출 유지.
+- **변경 영향:** 공식 리뷰/그래프/관측 게시 6개 테스트 파일 **81 PASS / 0 FAIL**, compileall PASS, Git diff --check PASS, staged 파일 5개 explicit/Public 비밀 패턴 검사 및 ignore 검사 PASS. 기존 사용자 미추적 도면·문서 원형 유지, EraLeader 코드·DB·Git·DART/SEC/KRX API 호출/변경 0.
+- **실증 미완료:** 실제 승인된 공식 반도체 거래문서 본문/사람 검토 관계 0건, 500건 사람이 검수한 gold 0, AI 공급자 실호출 및 5거래일/독립 물리 DR 미진행. 5_2는 도구 준비 기능만 통과했으며 **완료 23/36(63.9%), NEXT_TASK=5_2 실문서/관계 실증** 유지. 미확인 거래·매출·투자확정 주장 금지.

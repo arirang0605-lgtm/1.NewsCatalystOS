@@ -191,3 +191,8 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 ## 2026-10-14 | 5_5 테마 관계의 공식 거래 증거 가장 차단
 - 공식 문서 검토 상태(`RELATION_STATUS`)가 단순 테마 관계(`THEMATIC_ASSOCIATION`)에 결합되면 BeneficiaryGraph 생성을 거부. 관련 테스트 **30 PASS/0 FAIL**, git diff --check PASS.
 - 기능 Git SHA `4d658973948fa793c02f8cf63f0fc9b9d5cbcd71` origin/main 확인. 실제 공급망 관계 본문·독립 검토 및 EraLeader 실소비 미완료. **23/36(63.9%), NEXT_TASK=5_2 실제 공식 반도체 공급망 관계 실증**. EraLeader 원본·Git/공식 API 중복 수집 변경 0.
+
+## 2026-10-14 | **현재 유효 NEXT_TASK=5_2 공식 반도체 관계 실물 확인** (신규 파일 입력 경로 준비)
+- 기능 `c189f632b9f7178629dfb7e53d5dc37f1650e2a1` origin/main 반영 검증: 완결 v2 공식 관측 메타 + 운영자 개인 폴더의 인적 검토 JSON + 접근 허용된 공식 텍스트 + 별도 SHA PIN을 오프라인으로 결합하는 `official_relation_intake`/CLI 신규 구현. 첫 로컬 검증 완료 전 PIT 소급 금지. 6개 관련 테스트 **81 PASS/0 FAIL**, 컴파일·Public 보안 검사 PASS.
+- **다음 실제 작업:** 기존 EraLeader 완료된 DART/SEC 공시 메타에서 공시 ID 1개를 선택하고, 외부 승인 경로로 해당 **실제 공식 제출 본문/명시 공급사·고객사 관계 문장/양사 공식 식별자**를 권한 있게 확보하여 별도 SHA·첫 관측·사람 검토 영수증을 만든다. 실제 자료가 확보되면 `docs/5_2_OFFICIAL_RELATION_REVIEW.md`의 신규 `scripts/review_supply_relation.py`로 SHA/PIT/부정 검증하고, 5_3→5_5 기존 그래프·표준출력 소비를 시험한다.
+- 현재 완료 **23/36(63.9%)**, 실제 독립 반도체 공급계약 검토 0건. 공개시각 공증/실거래 수행/수혜 확정은 계속 별도. 실물 자료 부재 시 `DATA_UNAVAILABLE`를 유지하고 **동일 형태 합성 가드 반복 구현보다 실제 허가 자료 확인·5_6 독립 라벨/4단계 실 AI/6_5 운영**에 집중. 기존 EraLeader 코드·DB·Git·중복 공식 API 수집 절대 금지. 실제 5거래일 운영 및 릴리스 36/36 주장 금지.

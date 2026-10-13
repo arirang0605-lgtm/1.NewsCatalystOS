@@ -149,3 +149,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 5_5 테마 관계의 공식 거래 증거 가장 차단
 - 공식 문서 검토 상태(`RELATION_STATUS`)가 단순 테마 관계(`THEMATIC_ASSOCIATION`)에 결합되면 BeneficiaryGraph 생성을 거부. 관련 테스트 **30 PASS/0 FAIL**, git diff --check PASS.
 - 기능 Git SHA `4d658973948fa793c02f8cf63f0fc9b9d5cbcd71` origin/main 확인. 실제 공급망 관계 본문·독립 검토 및 EraLeader 실소비 미완료. **23/36(63.9%), NEXT_TASK=5_2 실제 공식 반도체 공급망 관계 실증**. EraLeader 원본·Git/공식 API 중복 수집 변경 0.
+
+## 2026-10-14 | 최신 인계 — 5_2 비공개 공식문서 오프라인 검토 입력 기능
+- 기능 `c189f632b9f7178629dfb7e53d5dc37f1650e2a1` 원격 SHA 대조 성공. 신규 `official_relation_intake.py`/`scripts/review_supply_relation.py` 및 PIT 첫 소비시점 보정, 기존 `SupplyChainEdge`/후속 `BeneficiaryGraph` 연결 합성 시험 **81 PASS/0 FAIL**, Public 스캔 PASS.
+- 실제 공식 공급관계 독립 검수 **0건**, **완료 23/36(63.9%)**, 다음은 `NEXT_TASK.md` 맨 아래 **5_2 허용 공식 본문/실물 관계 증빙 확보→오프라인 검사**. 기존 합성 테스트/부정어 가드 반복 대신 실물·다음 실운영 게이트 우선. EraLeader 읽기 전용, 원본/DB/Git/공식 API 중복 수집 금지.

@@ -46,6 +46,17 @@ from .detection_history import (
     DetectionInput, DetectionRecord, DetectionRecall,
     record_detection, detection_history_as_of, evaluate_important_detection_recall,
 )
+from .ai_provider import AIModel, AIRequest, AIResult, run_ai_analysis
+from .fact_extraction import FactProposal, ExtractedFacts, verify_extracted_facts
+from .claim_boundaries import ClaimBoundary, classify_evidence_claim
+from .economic_path import ImpactHypothesis, AnalysisEvent, build_impact_analysis
+from .analysis_validation import AnalysisValidation, validate_analysis_lineage
+from .ai_cost_ledger import AIReservation, reserve_ai_call, settle_ai_call
+from .semiconductor_profile import SemiconductorProfile, build_semiconductor_profile
+from .supply_chain_graph import SupplyChainEdge, observed_supply_edge
+from .semiconductor_impact import SemiconductorTransmission, propagate_semiconductor_claim
+from .beneficiary_classification import BeneficiaryCandidate, classify_semiconductor_beneficiary
+from .beneficiary_graph_contract import BeneficiaryGraph, build_beneficiary_graph
 
 __all__ = [
     "ReadBatch", "RawEvent", "SourceManifest", "SourceShareError",
@@ -80,4 +91,15 @@ __all__ = [
     "ImpactInputs", "PreliminaryImportance", "triage_importance",
     "DetectionInput", "DetectionRecord", "DetectionRecall", "record_detection",
     "detection_history_as_of", "evaluate_important_detection_recall",
+    "AIModel", "AIRequest", "AIResult", "run_ai_analysis",
+    "FactProposal", "ExtractedFacts", "verify_extracted_facts",
+    "ClaimBoundary", "classify_evidence_claim",
+    "ImpactHypothesis", "AnalysisEvent", "build_impact_analysis",
+    "AnalysisValidation", "validate_analysis_lineage",
+    "AIReservation", "reserve_ai_call", "settle_ai_call",
+    "SemiconductorProfile", "build_semiconductor_profile",
+    "SupplyChainEdge", "observed_supply_edge",
+    "SemiconductorTransmission", "propagate_semiconductor_claim",
+    "BeneficiaryCandidate", "classify_semiconductor_beneficiary",
+    "BeneficiaryGraph", "build_beneficiary_graph",
 ]

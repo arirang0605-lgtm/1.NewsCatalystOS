@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from ipaddress import ip_address
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlsplit
 
 from .source_share import SourceShareError, _json, _must_id, _when
 
@@ -42,8 +42,14 @@ def _safe_https_endpoint(text: object) -> str:
     except ValueError as exc:
         raise SourceShareError("malformed provider endpoint") from exc
     if (uri.scheme != "https" or not host or uri.username or uri.password
-            or uri.fragment or port is not None or uri.query):
-        raise SourceShareError("provider endpoint must be plain HTTPS without credentials")
+            or uri.fragment or port is not None):
+        raise SourceShareError("provider endpoint must be HTTPS without credentials")
+    # Government RSS/article links commonly require non-secret query IDs.
+    # Never let credentials creep into Public configs or logged URLs.
+    forbidden = {"token", "api_key", "apikey", "servicekey", "access_token",
+                 "secret", "password", "authorization", "auth", "key"}
+    if any(key.lower() in forbidden for key, _ in parse_qsl(uri.query, keep_blank_values=True)):
+        raise SourceShareError("provider endpoint cannot embed API credentials")
     if host in ("localhost", "localhost.localdomain") or host.endswith(".local"):
         raise SourceShareError("local provider endpoint not permitted")
     try:

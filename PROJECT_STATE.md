@@ -147,3 +147,16 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **검증:** 직접 진입점의 등록부 누락/허위 SHA/등록시각 회귀 시험 2개 추가. 1_1 전체 관련 **238 PASS / 0 FAIL**, compileall PASS, git diff --check PASS. Public 3파일 explicit stage·비밀키/토큰/바이너리/크기·.gitignore 검사 PASS. EraLeader 코드/운영DB/원본/Git 변경 및 직접 API 중복 수집 0.
 - **기능 GitHub:** `6f2ae882c2f0f5c8e1db033c49fd7da75e15a3af` `origin/main` 비강제 push, 원격 SHA 일치 확인. 기존 미추적 사용자 자료·도면 무변경/스테이지 제외.
 - **완료 제약:** Mac 외부 검증자 owner-approved 등록부·실물 독립 검증자 증거/원천 최초 웹 공개시각·issuer·정정 계보가 아직 존재하지 않음. 코드 안전 경계 보완 ≠ 실증 인증. 공식 `RawEvent=0`, `DATA_UNAVAILABLE`, `NEXT_TASK=1_1`, **엄격 완료 0/36(0.0%)** 유지. AI API 0회, 5거래일 운영 0일.
+
+## 2026-10-13 | 1_1 관측형 운영 게이트 합격 · 1_2 권한 등록부 개발 착수 (NC-OBSERVED-PIT-MODERATE)
+- **사용자 직접 승인 D-018:** 과거 웹 최초 공개시각 외부 공증은 고정밀 검증용으로 유지하되 1_1 필수 완료조건에서 제외. NewsCatalystOS가 검증한 **실제 로컬 시점 이후만** 데이터를 사용할 수 있는 `OperationalObservation`을 별도 이벤트 타입으로 채택. `published_at=null`, issuer 검증 FALSE, `RawEvent` 자동 승격 금지 유지.
+- **1_1 실제 관측형 공유:** 기존 EraLeader DART·SEC·KRX 원자 게시·SHA/영수증/PIT/품질 기반 private v2 5소스, 관측 메타 **3,866**(공시 1,101 / KRX 시장 참고 2,765), 최초 웹 공개 인증 `RawEvent=0`. `available_at=max(원본 수신, 앵커, 로컬 원자 게시, **새 소비 검증 시각**)`으로 과거 정보 누출 차단; 과거 백테스트 인증과 다르게 운영 관측형 합격. 새 코드 `operational_observations.py` 및 9개 합성/오류 회귀 시험.
+- **1_1 판정:** 조정된 관측형 1_1 인수기준(5개 출처 read-only, SHA/PIT·원자 게시·부분범위 경고, 원본/다른 프로젝트 코드 불변, 오류 주입, 관련 테스트) PASS. **단계 완료 1/36(2.8%)**, `NEXT_TASK=1_2`. 외부 최초 대외 공개시각·신원/정정 서명 공증은 선택 모듈로 계속 미완료이며 과거 PIT 인증을 주장하지 않음.
+- **1_2 기능 구현 착수:** `provider_registry.py`에서 정부 정책·기업 IR·허용된 언론 RSS/API의 권리검토/만료/요청 상한/원문 저장 허가를 **기본 거부**로 처리; EraLeader DART/SEC/KRX 중복 수집 금지. `new_source_adapter.py`는 허가된 입력 바이트의 RSS/JSON 헤드라인·문서 ID·URL·관측시각만 정규화, 원문·비밀·API 직접 호출 없음. 테스트 source URL/권한은 합성. 실제 신규 소스 이용권한 확인/라이브 수집이 없어 **1_2는 부분 구현 미완료**.
+- **실제 검증:** 1_1~1_2 코드 포함 영향 범위 전체 `281 passed / 0 failed`, compileall PASS, staged 명시 allowlist/비밀패턴·바이너리·크기/공백·.gitignore 검사 PASS. 기존 EraLeader DART·SEC·KRX 코드/DB/Git 변경과 중복 API 호출 없음; 사용자 미추적 파일 무변경.
+- **GitHub 기능 SHA:** 1_1 `d8d0b45139ef5429303fb5bc28da483a94a454f0`, 1_2 `abf396d99fea418f0d6adb2c0211964fed8b99ff`; 각각 origin/main 정상 push 및 원격 SHA 대조 성공. 상태 문서 최종 커밋 별도 기록.
+
+## 2026-10-13 | 1_2 중소벤처기업부 공식 RSS 실제 헤더 검증 (NC-1_2-MSS-RSS-SMOKE)
+- **검증된 신규 공식 출처:** 중소벤처기업부 `https://www.mss.go.kr/rss/smba/board/86.do`, 공식 RSS 제공 안내 `https://www.mss.go.kr/site/smba/contents/view.do?menuCd=20905000000002024122902&siteCd=smba`. 실제 Mac HTTPS GET 1회, RSS XML **6,760 bytes**, 항목 20개. 새 권한 게이트/헤더 어댑터에서 **관측 20 메타/고유 ID 20/원문 본문 보관 0/공개시각 외부인증 0** 정상 파싱. 기존 EraLeader 중복 공식 API 호출 아님.
+- **표준 소스 경계 보완:** 일반 정부 문서 링크 쿼리 `cbIdx/bcIdx` 허용, API 비밀키/토큰 쿼리는 거절. 중단된 `korea.kr` RSS는 2026-07-01 공식 서비스 제공 종료 공지로 인해 활성 제공자에서 제외; 본문 라이선스 확대·자동 재게시 안 함.
+- **테스트:** 관련 총 **282 passed/0 failed**, compileall PASS. 이번 1_2 라이브 1회는 매시간 자동 운영/스케줄/리트라이 통합 완료가 아님. 기업 IR 및 허용된 언론 소스 별도 실연동·권한 범위 검증 필요, **1_2 부분 구현**, 전체 **1/36(2.8%)** 유지.

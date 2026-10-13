@@ -14,3 +14,10 @@
 3. 신규 관측 이력의 출처·최초 수신·PIT/원문 보관 금지 확인.
 
 운영 연결 전까지 **1_2 부분 구현**으로만 기록한다. 기존 1_1 완료 1/36과 별개로 1_2 완료 숫자를 올리지 않는다.
+
+## 2026-10-13 | 신규 정부 RSS 1개 실제 오프라인 헤더 검증
+- 공적 출처 우선 확인: **중소벤처기업부 RSS 안내**(https://www.mss.go.kr/site/smba/contents/view.do?menuCd=20905000000002024122902&siteCd=smba)는 정책/보도자료 RSS 이용 제공을 명시하며 **보도자료** 링크 `https://www.mss.go.kr/rss/smba/board/86.do`를 게시한다. 이것은 RSS 헤더 내부 소비 근거이지 기사의 전체 본문 재배포/상업적 라이선스는 아님.
+- 실제 Mac에서 공식 **www.mss.go.kr** RSS 1회 GET (응답 XML 6,760 bytes, RSS 항목 20개) 후 이번 `ProviderRegistry` + `parse_authorized_feed`로 **신규 메타 20행 파싱 PASS**, 고유ID 20, 본문 0, 발표시각 독립 인증 0, 관측시각 현재 UTC. 네트워크 응답 원문/제목은 Git에 올리지 않음. 테스트 URL은 공개 공식 공지에 기재된 경로이며 Meta만 사용.
+- 공개된 다른 정책브리핑(https://www.korea.kr/etc/noticeView.do?newsId=132038885&pWise=main&pWiseSub=O1)은 **2026-07-01 RSS 서비스 중단**을 공지하므로 해당 구독 경로는 제공자 목록에서 제외해야 함.
+- 일부 정부 게시물은 문서 링크에 비밀이 아닌 `?cbIdx=...&bcIdx=...` 같은 쿼리를 사용하므로, HTTPS URL 검증은 비밀 쿼리 키(token/api_key/serviceKey/auth 등)는 거부하면서 일반 문서 식별 쿼리는 허용하도록 수정.
+- 아직 기업 IR 및 라이선스 확인된 언론 소스 실수집 연동은 없으며 호출량 제한/스케줄링 1_3 단계까지는 **1_2 부분 구현**. `1/36` 유지; 원문 라이선스 확대/비공개 전송 금지.

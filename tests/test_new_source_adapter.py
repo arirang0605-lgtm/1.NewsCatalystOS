@@ -79,3 +79,16 @@ def test_large_feed_rejected():
     with pytest.raises(SourceShareError, match="too large"):
         parse_authorized_feed(registry(), "synthetic-government-feed",
                               b"x" * (129 * 1024), observed_at=NOW)
+
+
+def test_official_rss_document_links_support_nonsecret_query_ids():
+    payload = b"""<rss version="2.0"><channel>
+    <item><title>Official policy update</title>
+    <link>https://www.mss.go.kr/site/smba/ex/bbs/View.do?cbIdx=86&amp;bcIdx=1234</link>
+    </item></channel></rss>"""
+    rows = parse_authorized_feed(
+        registry(), "synthetic-government-feed", payload, observed_at=NOW
+    )
+    assert len(rows) == 1
+    assert rows[0].document_id == rows[0].source_url
+    assert "cbIdx=86" in rows[0].source_url

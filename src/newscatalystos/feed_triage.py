@@ -70,11 +70,13 @@ def triage_committed_feed(
     registry: ProviderRegistry, poll: IncrementalResult, dedup_state: Path, *,
     decision_at: datetime | None = None,
     now: datetime | None = None,
+    replayed_from_checkpoint: bool = False,
 ) -> FeedTriage:
     """Only reports possible relevance. Does not create economic fact/novelty."""
     present = _when((now or datetime.now(timezone.utc)).isoformat(), "now")
     decision = _when((decision_at or present).isoformat(), "decision_at")
-    if (not isinstance(poll, IncrementalResult)
+    if (type(replayed_from_checkpoint) is not bool
+            or not isinstance(poll, IncrementalResult)
             or poll.status not in ("SUCCESS_NEW", "SUCCESS_UNCHANGED")
             or not poll.observations or decision < poll.usable_from
             or decision > present or len(poll.observations) > 100):
@@ -147,6 +149,7 @@ def triage_committed_feed(
         "provider_id": poll.provider_id, "source_kind": source_role,
         "decision_at": decision.isoformat(),
         "source_poll_status": poll.status,
+        "replayed_from_checkpoint": replayed_from_checkpoint,
         "observed_count": len(entries),
         "new_identity_count": len(fresh_ids),
         "keyword_review_count": sum(x["needs_human_review"] for x in entries),

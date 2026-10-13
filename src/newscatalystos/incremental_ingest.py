@@ -172,7 +172,7 @@ def _failure(conn: sqlite3.Connection, name: str, at: datetime,
 
 def incremental_poll(
     registry: ProviderRegistry, provider_id: str, database_path: Path,
-    *, now: datetime | None = None, fetcher=None,
+    *, now: datetime | None = None, fetcher=None, before_commit=None,
 ) -> IncrementalResult:
     """One safe attempt: reserve -> one bounded feed read -> atomic watermark.
 
@@ -181,6 +181,8 @@ def incremental_poll(
     the collection watermark. A disabled/expired source is rejected first.
     """
     observed = _when((now or datetime.now(timezone.utc)).isoformat(), "now")
+    if before_commit is not None and not callable(before_commit):
+        raise SourceShareError("before_commit must be a callable checkpoint hook")
     if not isinstance(registry, ProviderRegistry):
         raise SourceShareError("approved provider registry required")
     provider = registry.active(provider_id, at=observed)
@@ -214,6 +216,19 @@ def incremental_poll(
                 if changed:
                     newly_observed.append(row.event_id)
                 duplicates += 1 - changed
+            result = IncrementalResult(
+                provider_id=provider_id,
+                status="SUCCESS_NEW" if fresh else "SUCCESS_UNCHANGED",
+                new_count=fresh, duplicate_count=duplicates,
+                watermark=verified, usable_from=verified,
+                observations=tuple(rows),
+                newly_observed_event_ids=tuple(newly_observed),
+            )
+            # Optional 6_5 recovery checkpoint must be durable BEFORE the
+            # watermark/seen-ID commit, never after successful ingest returns.
+            # An orphan checkpoint cannot be replayed without committed SQL proof.
+            if before_commit is not None:
+                before_commit(result)
             conn.execute(
                 "UPDATE source_state SET last_success_at=?,failure_count=0 "
                 "WHERE provider_id=?",
@@ -227,13 +242,7 @@ def incremental_poll(
         except Exception:
             conn.execute("ROLLBACK")
             raise
-        return IncrementalResult(
-            provider_id=provider_id,
-            status="SUCCESS_NEW" if fresh else "SUCCESS_UNCHANGED",
-            new_count=fresh, duplicate_count=duplicates,
-            watermark=verified, usable_from=verified,
-            observations=tuple(rows), newly_observed_event_ids=tuple(newly_observed),
-        )
+        return result
     finally:
         conn.close()
 

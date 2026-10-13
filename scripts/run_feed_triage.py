@@ -15,6 +15,10 @@ from pathlib import Path
 
 from newscatalystos.feed_triage import triage_committed_feed, publish_feed_triage
 from newscatalystos.incremental_ingest import incremental_poll
+from newscatalystos.feed_recovery import (
+    save_retry_checkpoint, pending_retry_checkpoints,
+    check_committed_ingest, acknowledge_retry_checkpoint,
+)
 from newscatalystos.provider_registry import MAX_BYTES, parse_provider_registry
 from newscatalystos.source_share import SourceShareError, _read_regular
 
@@ -48,24 +52,56 @@ def parser() -> argparse.ArgumentParser:
                    default=base / "state" / "triage_exact_index.sqlite3")
     p.add_argument("--output-root", type=Path,
                    default=Path(__file__).resolve().parent.parent / "output")
+    p.add_argument("--inbox-root", type=Path,
+                   default=base / "inbox" / "feed_triage")
+    p.add_argument("--replay-only", action="store_true",
+                   help="Process pending durable metadata without provider HTTP")
     return p
 
 
 def evaluate(opts: argparse.Namespace) -> tuple[int, dict]:
     try:
         registry = _registry(opts.registry)
-        poll = incremental_poll(registry, opts.provider_id, opts.state)
-        # The ingestion commit completes before analysis; use current local
-        # verification, never the provider's unverifiable publication date.
+        pending = pending_retry_checkpoints(
+            opts.inbox_root, opts.state, registry, opts.provider_id,
+        )
+        recovered = bool(pending)
+        if recovered:
+            receipt = pending[0]
+            poll = receipt.poll
+        elif opts.replay_only:
+            return 0, {"status": "NO_PENDING_REPLAY",
+                       "provider_id": opts.provider_id, "network_called": False,
+                       "ai_call_count": 0}
+        else:
+            written = []
+            poll = incremental_poll(
+                registry, opts.provider_id, opts.state,
+                before_commit=lambda result: written.append(
+                    save_retry_checkpoint(opts.inbox_root, result)),
+            )
+            if len(written) != 1:
+                raise SourceShareError("feed poll did not produce durable retry checkpoint")
+            receipt = written[0]
+        check_committed_ingest(opts.state, poll)
+        # The ingestion commit completes before analysis; replay begins NOW,
+        # never retrospectively at the old source/publication timestamp.
         checked = datetime.now(timezone.utc)
         screened = triage_committed_feed(
             registry, poll, opts.dedup_state, decision_at=checked,
             now=checked,
+            replayed_from_checkpoint=recovered,
         )
         folder = publish_feed_triage(screened, opts.output_root)
+        acknowledge_retry_checkpoint(
+            opts.inbox_root, receipt, folder, screened.payload_sha256,
+        )
         return 0, {
-            "status": "FEED_METADATA_TRIAGE_READY",
+            "status": ("RECOVERED_FROM_DURABLE_CHECKPOINT"
+                       if recovered else "FEED_METADATA_TRIAGE_READY"),
+            "network_called": not recovered,
             "provider_id": opts.provider_id,
+            "checkpoint_sha256": receipt.payload_sha256,
             "poll_status": poll.status,
             "feed_count": screened.observed_count,
             "new_provider_ids": screened.newly_seen_count,

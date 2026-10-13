@@ -161,3 +161,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 인계 — 실 RSS 메타 재료 검토 연결
 - 기능 `871c34721e6f4ec85b262ec8f4a5f8d8e87297b8` GitHub main 반영 확인. `src/newscatalystos/feed_triage.py`·`scripts/run_feed_triage.py`로 1_3 승인 RSS 1회 조회→2_1/2_2/2_3/2_4→3_5 UNKNOWN 검토 및 개인 SHA JSON 출력을 통합. 변경 영향 **65 PASS/0 FAIL**·compile/Public 검사 PASS. 실제 중기부 20 + 뉴스와이어 15 = 35건, 신규 ID0, 반도체 후보0, AI0; 본문 보관0.
 - 공식 DART 완료 표본 100건의 명시 공급계약 제목 0, 새 공식 API 호출·EraLeader 쓰기 0. **23/36(63.9%)**, 여전히 NEXT_TASK=5_2 실공식 반도체 거래관계 확보(증거 없으면 UNKNOWN). 다음 독립 구현 가능 작업 6_5 지속 운영/분석 중간 실패 복구; 세부는 `NEXT_TASK.md` 마지막 블록과 `docs/1_3-3_5_LIVE_FEED_TRIAGE.md`. 기존 미추적 사용자 도면·기존 프로젝트 Git 변경 금지.
+
+## 2026-10-14 | 최신 개발 인계 — 6_5 분석 실패 복구·운영 확인 도구
+- 기능 `6b2255d3e0207e93afc93ba819ba498576e61cdb` origin/main push 확인. 1_3 성공 DB commit **이전** 소스 승인 RSS 메타를 private SHA checkpoint로 보존→분석 실패 시 사후 재수집 없이 검증된 DB 연계 재처리→출력 확인 ACK까지 연결. `check_feed_operations.py`은 완료 ACK/개별 소스·날짜·미처리 건수만 보고하며 5거래일/독립 물리 복원 자동인증 금지.
+- 영향범위 **76 PASS/0 FAIL**, 컴파일/Public 검사 PASS. 실제 Mac 승인 중기부 RSS `NOT_DUE`, `--replay-only` `NO_PENDING_REPLAY`, 새 ACK 0, 승인 RSS 2; 배치 수집 반복·백그라운드 시작 없음. 전체 **23/36 (63.9%)**, 남은 6_5 실제 반복·독립 DR 및 5_2 실제 공식 공급문서 관계 검수. 다음은 `NEXT_TASK.md` 최신 하단과 `docs/6_5_FEED_RECOVERY_RUNBOOK.md` 참고; 기존 정상 코드/원본/미추적 자료 보존, 재작성 금지.

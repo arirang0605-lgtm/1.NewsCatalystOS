@@ -219,3 +219,8 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - **현실 운영 증빙 2026-10-14:** 승인된 중기부 RSS 20건+뉴스와이어 IT RSS 15건 단발 처리 후 원장 ACK 2, 모든 승인 소스가 동일 날짜 완료 1일치. **신규 경제사건/AI/확정 수혜 0**, 남은 미처리 0. 자동 launchd 실행은 아직 시작하지 않음. `check_feed_operations.py`은 실제 거래소 세션 검증 전 `verified_exchange_trading_days=0` 및 `five_trading_day_operation_certified=false` 고정. 이 결과를 5일 성공으로 소급하지 말 것.
 - **다음 실질 작업:** 기존 허가 RSS의 정상 호출 시각 이후 중복 요청하지 않고 6_5 분석/완료 영수증을 추가 실제 일자에 누적하고 출처 신선도·오류·재생/중복·복원 상태를 점검한다. 5개 실제 거래일의 결측 없는 검증 완료 시에만 최종 인수를 평가. 별도 Mac+SSD 동시 장애 대비 오프사이트 보관은 미검증. 범위 확장·인증 없는 사실 승격·EraLeader 코드/DB/Git 수정 금지. 5_2 허가 공식 공급계약 본문/양사 기업 ID가 준비되면 기존 5_2 review CLI로 검토; 실자료 없으면 UNKNOWN. 2_6/3_6/4_1~4_6/5_6·6_6 인수 증거도 미완료.
 - 사용법 `docs/6_5_FEED_RECOVERY_RUNBOOK.md`. 복구 확인 `scripts/check_physical_recovery.py` 기본 2개 DB; `--verify-pin`은 신규 API·수집 없이 저장된 Mac 개인 SHA PIN에서 복원. **완료 23/36(63.9%)**, v1.0 출시 tag 보류.
+
+## 2026-10-14 | 최신 NEXT_TASK=6_5 실제 운영일 누적 및 5_2 공식 계약 증빙
+- 기능 Git SHA `dd8f9facf6f10466f8882e7deb215d2816c5a332` origin/main 확인. 맥북/T5DATA 서로 다른 저장장치의 SQLite 2개 독립 백업 SHA PIN을 기존 `check_feed_operations.py` 운영 상태에 연결, `independent_physical_recovery_verified=true` 실제 관측. 오프사이트 백업/연속 5거래일·출시 조건은 별도 미검증.
+- 2026-10-14 승인 RSS 2종 각각 실관측 완료 ACK 1건씩, 모든 승인소스 성공 날짜 **1일**; 과거 데이터 소급 완료 처리 금지. 변경 영향 테스트 55 PASS/0 FAIL. **전체 23/36 (63.9%)**.
+- 다음: 승인 RSS의 기존 호출/권한·백오프를 그대로 쓰는 가벼운 **실사용 정기 실행 경로** 연결, 5거래일 실제 ACK 누적/오류 기록·중단·복구 및 원본 보존 검증. 단발 기능 완성 반복보다 실운영 우선. 동시에 실제 반도체 공식 공급관계 원본 확보 때만 기존 5_2 검토 함수로 연결, 확인 못한 사실은 UNKNOWN 유지.

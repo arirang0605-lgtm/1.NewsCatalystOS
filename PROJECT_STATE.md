@@ -279,3 +279,8 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **실물 스냅샷 크기:** `incremental_feeds.sqlite3` 45,056 bytes, `triage_exact_index.sqlite3` 40,960 bytes. PIN과 운용 DB·복원본 모두 맥북/T5DATA private 경로만 보관해 GitHub Public 제외. local snapshot/pin은 제3자 공시시각 공증 또는 Mac+SSD 동시 손실 대비 오프사이트 보관 증빙이 아님.
 - 기능 커밋 `31a1ba7d3702f2efbed32beccd3886a376b76a3a`, `origin/main` 비강제 push 및 SHA 일치 확인. **변경 영향 pytest 52 PASS / 0 FAIL**, compileall PASS, Git diff --check 및 명시 6파일 staged Public secret-pattern/.gitignore 검사 PASS. EraLeader 코드·DB·Git/DART·SEC·KRX API 신규 호출·변경 0. 실제 5거래일/오프사이트 백업과 500건 라벨·AI 모델 실호출·공식 반도체 계약 증빙/실수혜/릴리스 태그는 여전히 미완료.
 - **완료 수 23/36(63.9%) 유지**: 로컬 분리 디스크 DR은 실증 통과, 6_5 전체는 5거래일 실제 운용 증거 부족으로 미완료. 다음은 승인된 RSS 정상 수집시점마다 새 운영 ACK를 누적하되 중복 네트워크 회수 없이 상태 점검 및 장애 후 복구 실검증. `NEXT_TASK.md` 마지막 블록 참고.
+
+## 2026-10-14 | 6_5 운영 상태의 실제 독립 물리 DR 반영 (NC-6_5-DR-HEALTH)
+- 기능 `dd8f9facf6f10466f8882e7deb215d2816c5a332` GitHub `origin/main` 푸시/SHA 동일 확인. 기존 `check_feed_operations.py`가 Mac 내부 `pins/physical_recovery`의 저장된 SHA PIN과 외장 T5DATA `.local_backups`의 snapshot/manifest를 **읽기 전용** 재검증해 두 운영 SQLite 모두 있는 경우에만 `independent_physical_recovery_verified=true`를 출력한다. 부족·변조는 false/오류로 차단. 재백업·외부 API 호출·EraLeader 쓰기 없음.
+- 실제 Mac 운영 응답: `local_recovery_source_count=2`, `independent_physical_recovery_verified=true`, `offsite_backup_verified=false`, `completed_triage_receipts=2`, 모든 승인 소스 완료 날짜 `2026-10-14` 한 개, `pending_recovery_checkpoints=0`, `five_trading_day_operation_certified=false`, `v1_release_ready=false`. 변경 영향 **55 pytest PASS/0 FAIL**, compile/Python 및 Public secret/diff 검사 PASS. 오프사이트 DR·외부 최초 공개시각 인증/5거래일 검증은 주장하지 않는다.
+- **완료 23/36 (63.9%)** 유지. 다음은 실제 일자별 승인 RSS를 주기 제한에 따라 처리하고 6_5 5거래일/복구 증빙을 누적, 5_2 반도체 공식 양사 거래 본문 확보·기존 검토 함수 연결. v1.0 tag 보류.

@@ -160,3 +160,10 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **검증된 신규 공식 출처:** 중소벤처기업부 `https://www.mss.go.kr/rss/smba/board/86.do`, 공식 RSS 제공 안내 `https://www.mss.go.kr/site/smba/contents/view.do?menuCd=20905000000002024122902&siteCd=smba`. 실제 Mac HTTPS GET 1회, RSS XML **6,760 bytes**, 항목 20개. 새 권한 게이트/헤더 어댑터에서 **관측 20 메타/고유 ID 20/원문 본문 보관 0/공개시각 외부인증 0** 정상 파싱. 기존 EraLeader 중복 공식 API 호출 아님.
 - **표준 소스 경계 보완:** 일반 정부 문서 링크 쿼리 `cbIdx/bcIdx` 허용, API 비밀키/토큰 쿼리는 거절. 중단된 `korea.kr` RSS는 2026-07-01 공식 서비스 제공 종료 공지로 인해 활성 제공자에서 제외; 본문 라이선스 확대·자동 재게시 안 함.
 - **테스트:** 관련 총 **282 passed/0 failed**, compileall PASS. 이번 1_2 라이브 1회는 매시간 자동 운영/스케줄/리트라이 통합 완료가 아님. 기업 IR 및 허용된 언론 소스 별도 실연동·권한 범위 검증 필요, **1_2 부분 구현**, 전체 **1/36(2.8%)** 유지.
+
+## 2026-10-13 | 1_2 공식 신규 RSS 2개 실연동·단발 실행 완료 (NC-1_2-LIVE-GATE)
+- **이번 구현:** `feed_transport.py`(허가된 ProviderRegistry → TLS HTTPS 단발 GET → 리다이렉트·403·5xx·크기/Content-Type/시간초과 거절 → metadata-only 파싱), `scripts/check_new_feed.py`(owner-only 0600 제공자 등록부 읽고 이름/관측수/가용시각만 출력), 합성 장애·권한 테스트. 네트워크 호출 시도는 해당 신규 승인 공급원에만 한정; EraLeader DART/SEC/KRX 추가 수집 0.
+- **실제 승인 공개 RSS:** 중기부 `https://www.mss.go.kr/rss/smba/board/86.do` 20건, 뉴스와이어 IT 보도자료 `https://api.newswire.co.kr/rss/industry/600` 15건. 각각 공식 RSS 이용 안내 링크 확인, Mac 보안 연결 CLI에서 1회 성공. **35 메타/고유 관측**, 기사 본문·원문 파일/인증정보 저장 0, 최초 웹 공개시각 독립 인증 0, 주장 미확인 유지. URL/권한 참조만 별도 Mac 내부 디스크 `~/Library/Application Support/NewsCatalystOS/providers/authorized_sources.json` owner-only 0600/폴더0700 신규 생성, 기존 파일 덮어쓰기 없음; Public 업로드 금지.
+- **안전 비활성:** 삼성물산 건설 공식 RSS GET HTTP 403, 우회 금지·미활성화. 삼성전자 뉴스룸 콘텐츠 이용약관은 비상업적 개인 이용 중심이라 별도 허가 전 미활성. 행안부 RSS는 기존 설정한 128KiB 한도 초과 시 거절. 뉴스와이어는 보도자료 유통 플랫폼이므로 독립 언론 보도/사실 인증으로 간주하지 않음. 기타 IR 허가 미확인 소스는 `ProviderRegistry`에서 disabled.
+- **검증:** 기존 282개 + 신규 15개 = **297 passed / 0 failed**, compileall PASS, 403/redirect/5xx/과대/만료/미승인/본문 금지·속임수 음성 시험 PASS. Public 6개 파일 allowlist·비밀/원문/바이너리/용량·.gitignore 검사 PASS.
+- **기능 Git SHA:** `e3a28b4c0eb3669d2972daef14dc6be897b9cfe1` origin/main push SHA 일치. D-019 승인된 운영 기본 게이트에 따라 **1_2 완료, 전체 2/36 (5.6%)**. 비활성 회사 IR은 권한 확인 후 설정 추가 가능; V1.0 타 단계/반도체 한 산업 계획 변경 없음. 다음 `NEXT_TASK=1_3`.

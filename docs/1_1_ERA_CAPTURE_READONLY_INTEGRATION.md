@@ -79,3 +79,11 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify_era_captures.py 
 - 로컬 재현: `PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 python3 scripts/inspect_official_observations.py --era-root /Volumes/T5DATA/eraleader --reference /Volumes/T5DATA/eraleader/output/official_api_integrated_20261012/official_api_pit_research.json --anchor "$HOME/Library/Application Support/NewsCatalystOS/pins/official_api_pit_research.pin.json" --output-name official_observations_20261013_v1.json`
 - 실제 오프라인 실증: **5개 캡처, 메타행 3,866개, 인증된 RawEvent 0개**. `observations.json` **2,513,011 bytes** SHA256 **`a7b572e395ce7ec8c8825fbe87c9aea49f19c1a165882523756ffc6ed1ae9328`**, `publication.json`의 해시/크기 재대조 PASS; 모든 기록의 `published_at=null`, 사용자 자료 외부 업로드/신규 공식 API 재수집 없음.
 - 이 배치는 실운영 투자 신호·`RawEvent`가 **아니며** 발행 원문 공개시각/issuer 독립 인증·정정 증거가 확보되지 않은 상태. 1_1 최종 인증 게이트는 계속 보류. 안전한 신규 소비 기능을 개발한 것과 1_1 전체 검증 통과를 혼동하지 않는다.
+
+## 2026-10-13 | 연구용 게시 결과 소비자·역사 PIT 경계 (NC-1_1-READ-PUBLISHED)
+
+- `src/newscatalystos/published_observations.py`: NewsCatalystOS 소유 `output/<원자적 게시 디렉터리>/`의 `observations.json` 및 `publication.json`을 **읽기 전용**으로 재검증하는 소비자. 별도로 신뢰된 `expected_payload_sha256`를 호출자가 입력해야 한다. 게시 마커 안의 자기 SHA를 자동 신뢰 승인하지 않는다.
+- 게시 마커에 `first_local_published_at`(프로젝트 로컬 실제 게시 시작 시각)을 추가했다. 파일을 나중에 발견했다고 옛 거래 시점으로 소급하지 않도록 `decision_at >= first_local_published_at` 차단한다. 예전 게시물의 시각 필드가 없으면 명확히 **차단**하고 새 버전으로 원자 게시한다(기존 결과 보존).
+- 파일/디렉터리 owner-only, 심볼릭 링크·상대경로/탈출 거부, MAX 16MiB/20,000행/공급자 5개, 원본 SHA와 독립 핀/게시 마커 무결성, JSON 중복 필드, 출처별 품질·SEC acceptance·DART 날짜·`first_seen_at`/독립 pin·사용가능 시각·문서 중복 검사. `published_at`은 **항상 null**, `issuer_verified`는 **false**, `certified_raw_event_count=0`만 허용. 변경·미게시/부분게시·미래자료는 실패 처리한다.
+- 실데이터 오프라인 end-to-end 재검증: 기존 EraLeader **공식 캡처 5종**, NewsCatalystOS 비공개 연구 메타 **3,866행**, 인증된 `RawEvent` **0건**. 새 원자 게시·소비자 재개방 SHA/시간/품질 PASS. 기존 EraLeader 코드/원본/Git/API 인증정보 변경 및 신규 공식 API 호출 **0건**. private `output/` 디렉터리는 공개 GitHub에서 제외.
+- **신뢰수준 경고:** 이번 실증에서 게시된 파일의 SHA를 같은 Mac에서 직접 계산해 넣은 것은 **로컬 데이터 무결성 연동 테스트**다. 제3자 원천 공개시각 인증/독립 신뢰 핀이 아니다. 운영용 독립 PIN은 사전에 별도 신뢰 보관소·최초 관측시각으로 관리해야 한다. 1_1 공식 발표시각 게이트는 계속 `DATA_UNAVAILABLE`이며 완료 단계/36 수를 올리지 않는다.

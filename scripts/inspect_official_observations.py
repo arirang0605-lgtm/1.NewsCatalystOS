@@ -61,6 +61,7 @@ def _private_output(name: str, data: bytes, *, root: Path | None = None) -> Path
             "payload_size_bytes": len(data),
             "payload_file": "observations.json",
             "certified_raw_event_count": 0,
+            "first_local_published_at": datetime.now(timezone.utc).isoformat(),
         }
         marker_bytes = (json.dumps(marker, sort_keys=True, separators=(",", ":"))
                         + "\n").encode("utf-8")

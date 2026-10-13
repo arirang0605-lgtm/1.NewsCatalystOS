@@ -20,3 +20,5 @@ D-015: 최초 확인 당시 NewsCatalystOS SSD 폴더는 Git 미초기화이며 
 D-016: Public Git 설정은 1_1의 선행 작업이며 새 V1.0 개발 단계나 확대 기능이 아니다. 개발 범위 1_1~6_6, 반도체 1개 산업 우선 검증, 5거래일 인수시험 등 기존 조건을 유지한다.
 
 D-017 (NC-READONLY-DATA-SHARE-2026-10-13): EraLeader는 DART·SEC·KRX 공식 데이터 수집을 유지하며 NewsCatalystOS에는 **검증·게시 완료 데이터만 표준 읽기 전용 인터페이스로 공유**한다. NewsCatalystOS는 EraLeader가 수집하지 않는 경제뉴스·기업 IR·정부 정책 등만 독립적으로 수집한다. 양 프로젝트는 독립 실행·장애 격리·원본/분석 이력 보호 원칙을 지키며 EraLeader 코드 변경·중복 수집기를 금지한다. 기존 36개 작업/완료 조건은 불변.
+
+D-018 (NC-OBSERVED-PIT-MODERATE-2026-10-13, 사용자 승인): **1_1 운영 완료 기준 재정의.** D-002/D-008 보존. EraLeader가 원자 게시한 공식 수신본의 SHA/영수증/출처 품질을 검증한 후, NewsCatalystOS에서 실제 확인한 `verified_at` 이후의 신규 분석에만 관측 메타데이터를 사용한다. 공시 `published_at` 불명은 `None/UNKNOWN` 유지하고 `OperationalObservation`은 `RawEvent(공개시각 인증)`와 별도 유형으로 명시한다. 정식 issuer/공개시각·정정 이력 외부 인증 및 과거 역사 PIT는 **선택적 고정밀/후속 게이트**이며 운영 관측형 `1_1`의 필수 선행조건이 아니다. 다만 수신/게시 전 과거 사용·누락 출처 완전성 가장·KRX 가격데이터 뉴스 이벤트 혼동·증빙 위조는 계속 금지. 36개 단계/반도체 1개 산업/V1.0 운영·보안·PIT 원칙은 불변.

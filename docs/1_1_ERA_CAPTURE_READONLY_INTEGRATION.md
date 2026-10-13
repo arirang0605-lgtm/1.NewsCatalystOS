@@ -151,3 +151,10 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify_era_captures.py 
 - **실사용 파일 진입점 자체**가 owner-only 별도 디스크 `load_operator_witness(era_root, witness_id, source_id, decision_at)`를 재확인하고, 사전 등록된 검증자 공개키 SHA와 호출자 제공 SHA가 다르면 거절한다. 별도 전달된 등록 시각이 실제 등록부와 다르면 거절하고, 아래 인증 경로에는 조회된 `trusted.enrolled_at`만 전달한다. 신뢰가 확인되기 전 EraLeader 데이터 파일은 열지 않는다.
 - 합성 내부 함수는 기존 API를 유지해 저수준 정합성 테스트를 보존한다. 공개된 실사용 함수의 외부 등록부 강제 검사는 누락·임의 SHA·허위 등록 시각을 원본 조회 전 차단한다. 단, 운영자 로컬 등록부 자체로 검증기관의 실제 권한이나 공식 공개시각이 공증되지는 않는다.
 - 외부 독립 진짜 증거가 아직 없으므로 `RawEvent=0`, `DATA_UNAVAILABLE`, 엄격 `NEXT_TASK=1_1` 유지. EraLeader 수집기·DB·Git/원본 변경이나 공식 중복 API 호출 없음.
+
+## 2026-10-13 | 사용자 승인: 운영 관측 PIT 우선, 독립 공개시각 인증은 선택 (NC-OBSERVED-PIT-MODERATE)
+- **완료 조건 조정(D-018):** 관측된 공식 수신본의 원본·영수증 SHA 및 게시 완료/출처별 건수·품질/원본 불변을 검증하고, 실제 NewsCatalystOS 로컬 `verified_at` **이후**에만 신규 분석에 사용하면 1_1의 관측형 공유를 합격 판정할 수 있다. 과거 수신/접수시각만으로 발행기관의 최초 대외 공개시각을 인증했다고 주장하지 않는다. 기존 외부 Ed25519/검증자 신뢰 등록부/공개시각 정확 인증 모듈은 보존하되 필수 1_1 운영 게이트에서 분리한다.
+- 신규 `operational_observations.py`는 기존 `read_published_observations`의 출처 완결성 확인된 **v2** 원자 게시물을 재사용한다. `available_at=max(원본 first_seen, 로컬 SHA anchor, 뉴스OS 원자 게시, **이번 소비 검증시각**)` 이후에만 `OperationalObservation`으로 노출한다. `published_at=None`, `issuer_verified=False`, `release_certified=False`, `RawEvent` 직접 승격 거절. V1 데이터와 변조/미완성 게시물은 거부. 외부 시각공증·원문 공개확인 없이 과거 백테스트에 소급하는 것은 계속 금지.
+- SEC/DART 공시 메타는 `DISCLOSURE_OBSERVED` (분석 후보)로, KRX 시장데이터는 `MARKET_CONTEXT_NOT_NEWS`로 분리. DART 첫 페이지만 수신했으면 `INCOMPLETE_FIRST_PAGE_NOT_FULL_DAY`, SEC 최근 제출분만 있으면 `RECENT_SUBMISSIONS_NOT_FULL_HISTORY`를 그대로 노출한다. SEC facts taxonomy는 뉴스 행 0개이며 출처 장부에는 남는다.
+- 실제 **기존 EraLeader 스냅샷 5개** 기반 NewsCatalystOS 기존 private v2 원자 게시물을 새로운 Python 소비자에서 읽어 **3,866개의 관측 메타**를 검증: `DISCLOSURE_OBSERVED=1,101`, `MARKET_CONTEXT_NOT_NEWS=2,765`, 정식 인증 RawEvent **0**, 공개시각 알려진 행 **0**, v2 출처 count **5**. 이는 실시간 5거래일 운용이나 최초 웹 공개시각 검증 실증이 아니라 로컬 SHA/PIT·읽기 전용 공유 경계 실증이다.
+- 비공개 증빙/원본 SHA를 GitHub Public에 올리지 않는다. `load_operational_observations(publication, root, independently_supplied_payload_sha256)` 호출의 SHA가 같은 컴퓨터에서 즉석 생성된 경우 **로컬 일관성 검사**일 뿐 과거 시점 공증으로 보지 않는다.

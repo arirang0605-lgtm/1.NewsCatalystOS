@@ -14,6 +14,10 @@ from .observed_batch import (ObservedOfficialBatch, ObservedOfficialSource,
                              build_observed_official_batch)
 from .published_observations import (PublishedResearchObservations,
                                      read_published_observations)
+from .operational_observations import (
+    OperationalObservation, OperationalObservationSet,
+    load_operational_observations, project_operational_observations,
+)
 
 __all__ = [
     "ReadBatch", "RawEvent", "SourceManifest", "SourceShareError",
@@ -26,4 +30,6 @@ __all__ = [
     "ObservedOfficialBatch", "ObservedOfficialSource",
     "build_observed_official_batch",
     "PublishedResearchObservations", "read_published_observations",
+    "OperationalObservation", "OperationalObservationSet",
+    "load_operational_observations", "project_operational_observations",
 ]

@@ -18,9 +18,11 @@ import stat
 import uuid
 
 from .operational_observations import OperationalObservationSet
+from .official_filing_context import FilingContext
 from .source_share import SourceShareError, _when
 
 SCHEMA = "newscatalyst.official_relation_review_queue.v1"
+CONTEXT_SCHEMA = "newscatalyst.official_relation_review_queue.v2"
 MARKER_SCHEMA = "newscatalyst.review_queue_publication.v1"
 SOURCE_IDS = ("dart-disclosures", "sec-submissions")
 MAX_ROWS = 2000
@@ -48,6 +50,10 @@ def build_official_review_queue(
     decision_at: datetime, source_id: str = "ALL",
     offset: int = 0, limit: int = 100,
     document_id: str | None = None,
+    filing_context: dict[tuple[str, str], FilingContext] | None = None,
+    issuer_contains: str | None = None,
+    title_contains: str | None = None,
+    filing_form: str | None = None,
     now: datetime | None = None,
 ) -> OfficialReviewQueue:
     """Page stable identifiers; preserve UNKNOWN relevance and relationship."""
@@ -62,6 +68,15 @@ def build_official_review_queue(
             or type(offset) is not int or type(limit) is not int
             or offset < 0 or not 1 <= limit <= MAX_ROWS):
         raise SourceShareError("invalid review queue pagination or source")
+    if (any(v is not None for v in (issuer_contains, title_contains, filing_form))
+            and filing_context is None):
+        raise SourceShareError("issuer/title/form screening requires independently pinned context")
+    for label, phrase in (("issuer", issuer_contains), ("title", title_contains),
+                          ("filing form", filing_form)):
+        if phrase is not None and (not isinstance(phrase, str)
+                or not 1 <= len(phrase.strip()) <= 120
+                or any(ord(ch) < 32 for ch in phrase)):
+            raise SourceShareError(f"invalid {label} screening filter")
     rows = observations.as_of(decision, now=current)
     eligible = [
         r for r in rows
@@ -72,6 +87,30 @@ def build_official_review_queue(
         eligible = [r for r in eligible if r.source_document_id == document_id]
         if not eligible:
             raise SourceShareError("requested document absent from verified publication")
+    if filing_context is not None:
+        if not isinstance(filing_context, dict):
+            raise SourceShareError("validated filing context mapping required")
+        matched = []
+        for row in eligible:
+            hint = filing_context.get((row.source_id, row.source_document_id))
+            if (not isinstance(hint, FilingContext)
+                    or hint.source_receipt_sha256 != row.receipt_sha256
+                    or hint.original_sha256 != row.original_sha256
+                    or hint.issuer_authority_attested or hint.filing_text_available
+                    or hint.actual_supply_relation_verified
+                    or hint.local_context_verified_at > decision):
+                raise SourceShareError("issuer context must match the completed SHA/PIT snapshot")
+            if (issuer_contains is not None
+                    and issuer_contains.casefold() not in hint.issuer_name_observed.casefold()):
+                continue
+            if (title_contains is not None
+                    and title_contains.casefold() not in hint.filing_heading_observed.casefold()):
+                continue
+            if (filing_form is not None
+                    and filing_form.casefold() != hint.filing_type_observed.casefold()):
+                continue
+            matched.append(row)
+        eligible = matched
     eligible.sort(key=lambda r: (r.source_id, r.source_document_id, r.evidence_id))
     if len({(r.source_id, r.source_document_id) for r in eligible}) != len(eligible):
         raise SourceShareError("ambiguous duplicate official document ID")
@@ -89,8 +128,26 @@ def build_official_review_queue(
         "supply_relation_status": "UNREVIEWED",
         "verified_real_transaction": False,
     } for row in page]
+    if filing_context is not None:
+        for output, row in zip(items, page):
+            evidence = filing_context[(row.source_id, row.source_document_id)]
+            output.update({
+                "issuer_name_observed": evidence.issuer_name_observed,
+                "issuer_namespace_observed": evidence.issuer_namespace_observed,
+                "issuer_code_observed": evidence.issuer_code_observed,
+                "ticker_observed": evidence.ticker_observed,
+                "filing_type_observed": evidence.filing_type_observed,
+                "filing_heading_observed": evidence.filing_heading_observed,
+                "local_context_verified_at": evidence.local_context_verified_at.isoformat(),
+                "issuer_authority_attested": False,
+                "filing_text_available": False,
+                "semiconductor_keyword_hint_only": bool(re.search(
+                    r"(?i)반도체|하이닉스|파운드리|HBM|DRAM|NAND|SEMICONDUCTOR|FOUNDRY",
+                    evidence.issuer_name_observed + " " + evidence.filing_heading_observed,
+                )),
+            })
     payload = {
-        "schema": SCHEMA,
+        "schema": CONTEXT_SCHEMA if filing_context is not None else SCHEMA,
         "status": "OFFICIAL_METADATA_ONLY_MANUAL_SCREENING_REQUIRED",
         "decision_at": decision.isoformat(),
         "source_filter": source_id,
@@ -103,6 +160,13 @@ def build_official_review_queue(
         "semiconductor_relevance_verified_count": 0,
         "items": items,
     }
+    if filing_context is not None:
+        payload.update({
+            "context_mode": "PINNED_FIRST_CAPTURE_FILING_METADATA",
+            "issuer_contains": issuer_contains,
+            "title_contains": title_contains,
+            "filing_form": filing_form,
+        })
     data = (json.dumps(payload, sort_keys=True, separators=(",", ":"),
                        ensure_ascii=False) + "\n").encode("utf-8")
     return OfficialReviewQueue(decision, len(eligible), len(items),

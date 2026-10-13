@@ -124,3 +124,10 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **검증:** 1_1 관련 전체 12개 테스트 파일 **224 passed / 0 failed (exit 0)**, compileall PASS, git diff --check PASS. Public 명시 7파일 allowlist/개인키·토큰·비텍스트/용량 검사 PASS. 원래 사용자 미추적 파일·비공개 운영데이터 공개/스테이징 안 함.
 - **GitHub 기능 커밋:** `ba7f9583b056cd0c1c18e639c66e0e68b2ee9399` -> `origin/main` 비강제 push, 원격 SHA 동일 확인. 기존 EraLeader 코드/수집/운영 DB/Git 변경·공식 API 중복 호출 0.
 - **증빙 한계:** SEC 공식 FAQ는 EDGAR 접수와 최초 웹 공개 사이 1~3분 이상 차이가 날 수 있으며 해당 최초 웹 공개시각을 나타내는 시각 필드가 없다고 밝힘(https://www.sec.gov/files/about/webmaster-faq.htm). 이 사실을 토대로 SEC 접수시각을 실제 공개시각으로 가장하지 않음. 외부 기관의 승인된 검증자/발행기관·정정/실제 독립 공개시각 서명 증빙 미확보: **실제 인증 RawEvent=0, DATA_UNAVAILABLE**. `NEXT_TASK=1_1`, 엄격 완료 **0/36(0.0%)**. AI API 0회/운영 0거래일 유지.
+
+## 2026-10-13 | 1_1 실물 SEC 수신본 외부 증빙 요청 계약 (NC-1_1-PROOF-REQUEST)
+- **기능:** `src/newscatalystos/proof_request.py` + `scripts/request_official_proof.py` 신설. 기존 EraLeader 공식 수신본/별도 Mac 디스크 SHA 핀을 오프라인 read-only로 검증한 뒤 지정 DART·SEC 문서 한 건에 대한 신뢰 검증자용 **비공개 메타데이터 요청서**를 생성. 원본/영수증 SHA·문서ID·수신/앵커 시각·provider acceptance만 담고, publisher 공개시각·issuer·정정 계보는 미입증 값 `null` 유지. 수집/쓰기/인증키 등록/외부 발송 없음.
+- **실증:** 기존 SEC `0001140361-26-039158` 수신본을 대상으로 CLI 실행하여 `newscatalyst.external_proof_request.v1` 생성 PASS. 로컬 최초 수신/앵커 SHA 바인딩 성공, 결과 `EXTERNAL_EVIDENCE_REQUIRED_NOT_CERTIFIED`, `certified_raw_event_count=0`. 접수시각은 증명되지 않은 공개시각으로 승격하지 않음.
+- **검증:** 합성 positive/negative/변조/미래·PIT·개별문서·공급자·실패시 비밀 경로 숨김 시험 포함 1_1 연계 13개 파일 **234 PASS / 0 FAIL (exit 0)**, compileall PASS. Public 4개 파일 명시 스테이징/개인키·키패턴·바이너리·용량·diff 검사 PASS. 사용자 미추적 파일/비공개 운영 자료 업로드 안 함.
+- **GitHub 기능 커밋:** `afb9bf61d84d26782ed2f8823a6b5b3241fdf383` 원격 origin/main 푸시, 원격 SHA 동일 확인. EraLeader 원본·DB·수집기·키·Git 변경/중복 공식 API 호출 0건.
+- **엄격 완료 조건:** 실제 승인된 독립 서명 검증자 및 발행기관의 공개시각/발행자/정정 연쇄와 독립 최초 증거 입수시점 미확보. 요청서는 실제 증빙이 아니므로 정식 RawEvent=0, `DATA_UNAVAILABLE`, `NEXT_TASK=1_1`, **0/36 (0.0%)** 유지. AI API 0회, 5거래일 운영 0일.

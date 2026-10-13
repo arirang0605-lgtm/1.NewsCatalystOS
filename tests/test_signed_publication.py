@@ -162,3 +162,18 @@ def test_legacy_v1_witness_without_capture_lineage_not_accepted(tmp_path, witnes
     )
     with pytest.raises(SourceShareError, match="unexpected attestation schema"):
         check(claim, body, sig, public)
+
+def test_witness_enrollment_time_prevents_backdating(tmp_path, witness):
+    claim, body, sig, key, _, _ = signed(tmp_path, witness)
+    enrolled = datetime(2026, 10, 12, 12, 20, tzinfo=timezone.utc)
+    proof = check(claim, body, sig, key, witness_enrolled_at=enrolled)
+    assert proof.witness_verified_at < enrolled
+    assert proof.usable_from == enrolled
+    assert proof.as_of(NOW).first_seen_at == enrolled
+    with pytest.raises(SourceShareError, match="not available"):
+        proof.as_of(datetime(2026, 10, 12, 12, 19, tzinfo=timezone.utc))
+    with pytest.raises(SourceShareError, match="not enrolled at decision"):
+        check(claim, body, sig, key,
+              witness_enrolled_at=datetime(2026, 10, 14, tzinfo=timezone.utc))
+    with pytest.raises(SourceShareError, match="timezone|invalid"):
+        check(claim, body, sig, key, witness_enrolled_at=datetime(2026, 10, 12, 12, 20))

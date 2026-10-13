@@ -124,3 +124,10 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify_era_captures.py 
 - 사용자 CLI의 `--witness-key-sha256` 옵션을 **삭제**했다. 검증에 사용할 fingerprint는 반드시 이전에 운영자가 승인·별도 보관한 등록부에서 로드한다. 등록 누락, 출처 범위 불일치, 등록 전 판단시점, 위조·중복·미래시각은 fail-closed. `--witness-key` 파일은 실제 서명 확인용 공개키이며 신뢰지문 출처가 아니다.
 - 등록부 형식은 `{"schema":"newscatalyst.official_witness_registry.v1","trust_level":"OPERATOR_APPROVED_EXTERNAL_WITNESS","witnesses":[{"witness_id":"externally-reviewed-witness","public_key_sha256":"<independently-enrolled-64hex>","enrolled_at":"<actual-observed-UTC-ISO>","allowed_sources":["sec-submissions"]}]}` 이며, **예시값은 절대 실제 신뢰로 등록하지 않는다**.
 - **증거력 제한:** 별도 디스크의 로컬 등록부만으로 외부 기관 실재·승인·서명 역사시점이 암호학적으로 공증되는 것은 아니다. 실제 운영자는 검증자 신원/발행기관·공개시각·실제 승인일을 독립 감사해야 한다. 해당 증빙이 없으므로 `RawEvent=0`, 1_1은 아직 미완료.
+
+
+## 2026-10-13 | 외부 검증자 신뢰 등록 지연에 따른 PIT 차단 (NC-1_1-WITNESS-ENROLLMENT-ASOF)
+- 발견한 위험: 증빙 서명시각·원본 수신·로컬 SHA 핀을 확인했더라도 **외부 검증자의 신뢰 등록이 그보다 늦으면** 등록 이전 시점에 인증 이벤트를 소급 사용할 수 없음.
+- `signed_publication.authenticate_publication(..., witness_enrolled_at=...)`는 별도 독립 신뢰 등록시각을 전달받았을 때 `usable_from=max(원본 first_seen, 서명 검증시각, 신뢰 등록시각)`로 제한하고, 등록시각이 의사결정 시점보다 미래거나 시각에 시간대가 없으면 거부.
+- `official_promotion` 연결 계층 및 `check_official_proof.py` 운영 CLI에서 owner-only 검증자 등록부의 `enrolled_at`을 누락 없이 전달. 나중에 등록한 키로 이전 시점의 인증 `RawEvent.first_seen_at`을 생성하지 않음.
+- 변경사항은 **합성 서명/가짜 fixture에 대한 PIT 음성 회귀**이며 실제 공식 대외 공개시각이나 공신력 있는 검증자 서명을 확보한 것이 아님. 실물 `RawEvent=0`, 외부 증빙 부족 시 `DATA_UNAVAILABLE` 및 `NEXT_TASK=1_1` 유지.

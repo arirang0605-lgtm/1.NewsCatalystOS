@@ -165,3 +165,13 @@ def test_downstream_event_first_seen_never_predates_late_anchor(tmp_path, witnes
     assert event.published_at < event.first_seen_at
     with pytest.raises(SourceShareError, match="unavailable"):
         proof.as_of(proof.usable_from - timedelta(microseconds=1), now=NOW)
+
+def test_late_witness_enrollment_blocks_historical_event(tmp_path, witness):
+    values, _, _ = scenario(tmp_path, witness)
+    enrolled = ANCHOR_AT + timedelta(minutes=5)
+    values["witness_enrolled_at"] = enrolled
+    proof = authenticate_anchored_official_record(**values)
+    assert proof.usable_from == enrolled
+    assert proof.as_of(NOW, now=NOW).first_seen_at == enrolled
+    with pytest.raises(SourceShareError, match="unavailable"):
+        proof.as_of(ANCHOR_AT, now=NOW)

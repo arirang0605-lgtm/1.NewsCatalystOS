@@ -100,6 +100,7 @@ def authenticate_publication(
     trusted_witness_id: str,
     decision_at: datetime,
     *,
+    witness_enrolled_at: datetime | None = None,
     now: datetime | None = None,
 ) -> SignedPublication:
     """Trust only out-of-band configured witness identity/key, not JSON claims.
@@ -155,6 +156,14 @@ def authenticate_publication(
     if (attested < claim.observed_at or released > claim.first_seen_at or
         attested > decision or decision > present or released > attested):
         raise SourceShareError("attestation unavailable at decision / invalid PIT")
+    # An attestation cannot be considered trusted before the signer was
+    # independently enrolled, even if its signature was produced earlier.
+    enrolled = (_when(witness_enrolled_at.isoformat(), "witness enrolled at")
+                if isinstance(witness_enrolled_at, datetime) else None)
+    if witness_enrolled_at is not None and enrolled is None:
+        raise SourceShareError("invalid witness enrollment time")
+    if enrolled is not None and (enrolled > decision or enrolled > present):
+        raise SourceShareError("witness not enrolled at decision")
     _verify_ed25519(statement, signature, witness_public_key_pem)
     event_id = sha256((
         claim.provider_id + "\x00" + claim.source_document_id + "\x00"
@@ -177,7 +186,7 @@ def authenticate_publication(
         revision_id=claim.revision_id, revision_kind=claim.revision_kind,
         supersedes_document_id=claim.supersedes_document_id, witness_id=witness,
         witness_verified_at=attested,
-        usable_from=max(claim.first_seen_at, attested),
+        usable_from=max(claim.first_seen_at, attested, enrolled or attested),
         witness_public_key_sha256=expected,
         source_capture_first_seen_at=claim.first_seen_at,
     )

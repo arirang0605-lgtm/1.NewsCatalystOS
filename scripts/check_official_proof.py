@@ -79,7 +79,8 @@ def evaluate(args: argparse.Namespace, *, now: datetime | None = None) -> tuple[
         args.source_id, args.document_id,
         claim, args.claim_sha256,
         attestation, signature, witness_key,
-        registered.public_key_sha256, registered.witness_id, decision, now=instant,
+        registered.public_key_sha256, registered.witness_id, decision,
+        witness_enrolled_at=registered.enrolled_at, now=instant,
     )
     event = result.as_of(decision, now=instant)
     return 0, {

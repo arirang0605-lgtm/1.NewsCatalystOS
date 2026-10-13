@@ -57,6 +57,7 @@ def authenticate_anchored_official_record(
     trusted_witness_id: str,
     decision_at: datetime,
     *,
+    witness_enrolled_at: datetime | None = None,
     now: datetime | None = None,
 ) -> AnchoredOfficialPublication:
     """Connect three independently verified contracts, never self-pin.
@@ -112,7 +113,8 @@ def authenticate_anchored_official_record(
         raise SourceShareError("SEC issuer mismatches original pinned request CIK")
     attestation = authenticate_publication(
         claim, statement, signature, witness_public_key_pem,
-        trusted_public_key_sha256, trusted_witness_id, decision, now=instant
+        trusted_public_key_sha256, trusted_witness_id, decision,
+        witness_enrolled_at=witness_enrolled_at, now=instant
     )
     sealed_event = attestation.as_of(decision)
     if (sealed_event.source_sha256 != capture.raw_sha256 or
@@ -144,6 +146,7 @@ def authenticate_from_era_readonly(
     trusted_witness_id: str,
     decision_at: datetime,
     *,
+    witness_enrolled_at: datetime | None = None,
     now: datetime | None = None,
 ) -> AnchoredOfficialPublication:
     """Production entry: independent pin -> verified immutable source -> proof.
@@ -160,5 +163,6 @@ def authenticate_from_era_readonly(
         reference, anchor, source_id, provider_document_id,
         claim_bytes, expected_claim_sha256, statement, signature,
         witness_public_key_pem, trusted_public_key_sha256,
-        trusted_witness_id, decision_at, now=now
+        trusted_witness_id, decision_at,
+        witness_enrolled_at=witness_enrolled_at, now=now
     )

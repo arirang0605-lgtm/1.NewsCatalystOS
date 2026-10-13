@@ -121,6 +121,7 @@ def test_explicit_witness_files_call_existing_pipeline_only(tmp_path, monkeypatc
     assert values[7] == b"{}"
     assert values[8] == b"x" * 64
     assert kwargs["witness_enrolled_at"] == NOW
+    assert kwargs["proof_observed_at"] == NOW
     assert report["note"].startswith("Witness authority")
 
 

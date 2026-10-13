@@ -175,3 +175,32 @@ def test_late_witness_enrollment_blocks_historical_event(tmp_path, witness):
     assert proof.as_of(NOW, now=NOW).first_seen_at == enrolled
     with pytest.raises(SourceShareError, match="unavailable"):
         proof.as_of(ANCHOR_AT, now=NOW)
+
+def test_late_arriving_witness_bytes_never_certify_prior_decision(tmp_path, witness):
+    values, _, _ = scenario(tmp_path, witness)
+    arrived = ANCHOR_AT + timedelta(minutes=7)
+    values["proof_observed_at"] = arrived
+    proof = authenticate_anchored_official_record(**values)
+    assert proof.usable_from == arrived
+    assert proof.as_of(NOW, now=NOW).first_seen_at == arrived
+    with pytest.raises(SourceShareError, match="unavailable"):
+        proof.as_of(ANCHOR_AT, now=NOW)
+    values["decision_at"] = arrived - timedelta(microseconds=1)
+    with pytest.raises(SourceShareError, match="proof.*decision"):
+        authenticate_anchored_official_record(**values)
+
+
+def test_production_wrapper_requires_observed_proof_before_source_reads(monkeypatch, tmp_path):
+    from newscatalystos import official_promotion as mod
+
+    def no_reads(*args, **kwargs):
+        raise AssertionError("source read before confirming evidence arrival")
+    monkeypatch.setattr(mod, "read_local_reference_anchor", no_reads)
+    with pytest.raises(SourceShareError, match="proof.*decision"):
+        mod.authenticate_from_era_readonly(
+            tmp_path, tmp_path / "research", tmp_path / "pin",
+            "sec-submissions", "doc1", b"{}", "a" * 64,
+            b"{}", b"x" * 64, b"public key", "b" * 64,
+            "registered-external-witness", ANCHOR_AT,
+            proof_observed_at=NOW, now=NOW,
+        )

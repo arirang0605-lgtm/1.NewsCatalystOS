@@ -58,6 +58,7 @@ def authenticate_anchored_official_record(
     decision_at: datetime,
     *,
     witness_enrolled_at: datetime | None = None,
+    proof_observed_at: datetime | None = None,
     now: datetime | None = None,
 ) -> AnchoredOfficialPublication:
     """Connect three independently verified contracts, never self-pin.
@@ -74,6 +75,12 @@ def authenticate_anchored_official_record(
     instant = _when((now or datetime.now(timezone.utc)).isoformat(), "now")
     if decision > instant:
         raise SourceShareError("future decision")
+    proof_seen = (_when(proof_observed_at.isoformat(), "proof observed at")
+                  if isinstance(proof_observed_at, datetime) else None)
+    if proof_observed_at is not None and proof_seen is None:
+        raise SourceShareError("invalid proof observation time")
+    if proof_seen is not None and (proof_seen > decision or proof_seen > instant):
+        raise SourceShareError("proof unavailable at decision")
     if not isinstance(verified, VerifiedOfficialSources) or not verified.research_only:
         raise SourceShareError("only verified research reference is allowed")
     if not isinstance(anchor, LocalReferenceAnchor) or anchor.trust_level != TRUST_LEVEL:
@@ -122,7 +129,8 @@ def authenticate_anchored_official_record(
             sealed_event.source_document_id != provider_document_id or
             attestation.source_capture_first_seen_at != capture.first_seen_at):
         raise SourceShareError("signed event differs from original pinned capture")
-    usable_from = max(anchored_at, attestation.usable_from)
+    usable_from = max(anchored_at, attestation.usable_from,
+                      proof_seen or attestation.usable_from)
     if decision < usable_from:
         raise SourceShareError("signed proof not usable at decision")
     return AnchoredOfficialPublication(
@@ -146,13 +154,26 @@ def authenticate_from_era_readonly(
     trusted_witness_id: str,
     decision_at: datetime,
     *,
+    proof_observed_at: datetime,
     witness_enrolled_at: datetime | None = None,
     now: datetime | None = None,
 ) -> AnchoredOfficialPublication:
     """Production entry: independent pin -> verified immutable source -> proof.
 
     File reads only; no EraLeader API invocation, no source/DB/Git mutation.
+    The real proof bytes cannot be usable before this invocation observed them.
     """
+    decision = _when(
+        decision_at.isoformat() if isinstance(decision_at, datetime) else None,
+        "decision_at",
+    )
+    instant = _when((now or datetime.now(timezone.utc)).isoformat(), "now")
+    proof_seen = _when(
+        proof_observed_at.isoformat() if isinstance(proof_observed_at, datetime) else None,
+        "proof observed at",
+    )
+    if proof_seen > decision or proof_seen > instant or decision > instant:
+        raise SourceShareError("proof unavailable at decision")
     anchor = read_local_reference_anchor(
         era_root, research_reference, private_anchor, decision_at
     )
@@ -164,5 +185,6 @@ def authenticate_from_era_readonly(
         claim_bytes, expected_claim_sha256, statement, signature,
         witness_public_key_pem, trusted_public_key_sha256,
         trusted_witness_id, decision_at,
-        witness_enrolled_at=witness_enrolled_at, now=now
+        witness_enrolled_at=witness_enrolled_at,
+        proof_observed_at=proof_seen, now=instant
     )

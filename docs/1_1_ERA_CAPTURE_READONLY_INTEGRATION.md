@@ -139,3 +139,9 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify_era_captures.py 
   `PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 python3 scripts/request_official_proof.py --era-root /Volumes/T5DATA/eraleader --reference /Volumes/T5DATA/eraleader/output/official_api_integrated_20261012/official_api_pit_research.json --anchor "$HOME/Library/Application Support/NewsCatalystOS/pins/official_api_pit_research.pin.json" --source-id sec-submissions --document-id 0001140361-26-039158`
 - SEC 실제 첫 수신본의 해당 공시와 SHA/anchor를 대조해 요청서 생성 PASS. `provider_acceptance_at=2026-10-09T02:30:32+00:00`은 **접수시각**이며 공개시각 증명이 아님. SEC 공식 설명: https://www.sec.gov/about/webmaster-frequently-asked-questions (SEC 접수 후 공개까지 지연, 정확한 최초 웹 공개시각 표시 없음).
 - 이후 외부 기관/검증자가 사전 승인·서명한 진짜 증빙이 제공된 경우에만 **기존** `check_official_proof.py`에 입력하여 인증·정정/PIT 시험을 수행한다. EraLeader 수집기/키/DB/원본 및 Git 변경 금지. V1.0 1_1 승인 게이트 자체는 불변.
+
+## 2026-10-13 | 증빙 파일 실제 입수시점 PIT 누출 방어 (NC-1_1-PROOF-ARRIVAL)
+- 발견·수정: 외부 서명이 주장하는 `witness_verified_at`이 과거여도, 그 서명 파일을 NewsCatalystOS가 뒤늦게 처음 **읽은 시점**보다 이른 판단에서는 해당 증빙을 사용할 수 없다. 기존 `max(원본 수신, 로컬 SHA 핀, 서명 확인, 검증자 등록)` 사용 가능 시각에 **실제 로컬 증빙 읽기 완료시점 `proof_observed_at`**을 추가.
+- `authenticate_from_era_readonly(..., proof_observed_at=...)`는 실제 파일 기반 진입점에서 시점을 필수 입력으로 요구하고, 결정시각보다 늦으면 원본 읽기 전에 거부. `authenticate_anchored_official_record`는 `usable_from`에 이 시각을 합쳐 `RawEvent.first_seen_at`도 소급되지 않도록 한다.
+- 운영 `scripts/check_official_proof.py`는 증빙 파일들을 읽은 직후 현재 UTC를 로컬 최초 관측으로 찍고, `--decision-at` 미지정 시 실제 읽기 완료 시각으로 결정시각을 맞춘다. 과거 `--decision-at`이 지정되면 이후에 처음 도착한 증빙을 과거에 사용할 수 없다. 테스트용 합성 API는 기존 호출을 유지하며 실사용 래퍼만 fail-closed.
+- 범위 테스트 236 PASS/0 FAIL, Python 컴파일 PASS. **로컬 시각은 외부 공시 공개시각의 인증이 아니며**, 이전부터 증빙이 존재했음을 역사적으로 공증하지 않는다. 실제 외부 발행기관 검증 증거/사전 승인 서명자는 아직 확보되지 않아 `DATA_UNAVAILABLE`, 인증 `RawEvent=0`, 1_1 미완료를 유지한다.

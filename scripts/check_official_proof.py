@@ -74,15 +74,23 @@ def evaluate(args: argparse.Namespace, *, now: datetime | None = None) -> tuple[
     attestation = _read_regular(args.attestation, MAX_ATTESTATION)
     signature = _read_regular(args.signature, 128)
     witness_key = _read_regular(args.witness_key, 4096)
+    # The proof was first available to THIS consumer no earlier than this
+    # completed local read. A signed older witness time cannot backdate it.
+    proof_observed = _when(
+        (now or datetime.now(timezone.utc)).isoformat(), "proof observed at"
+    )
+    if args.decision_at is None:
+        decision = proof_observed
     result = authenticate_from_era_readonly(
         args.era_root, args.reference, args.anchor,
         args.source_id, args.document_id,
         claim, args.claim_sha256,
         attestation, signature, witness_key,
         registered.public_key_sha256, registered.witness_id, decision,
-        witness_enrolled_at=registered.enrolled_at, now=instant,
+        proof_observed_at=proof_observed,
+        witness_enrolled_at=registered.enrolled_at, now=proof_observed,
     )
-    event = result.as_of(decision, now=instant)
+    event = result.as_of(decision, now=proof_observed)
     return 0, {
         "status": "SIGNED_PROOF_GATE_PASS",
         "certified_raw_event_count": 1,

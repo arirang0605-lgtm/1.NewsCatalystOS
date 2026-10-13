@@ -76,3 +76,8 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - 직전 보완 `78a53132ed87bb37ca6e5677348954dc002b7f53`: 서명 증빙/독립 pin의 지연 취득을 `RawEvent.first_seen_at` 사용 가용시각에 반영하도록 PIT 누출 경계 수정. 원본 receipt first_seen은 `source_capture_first_seen_at`로 별도 보존. **200 PASS/0 FAIL**, origin/main push 검증. 이미 작동하는 계약/합성 서명 검증 재구현 금지.
 - **남은 단일 핵심:** 기존 EraLeader 공식 수신 캡처에 대응하는 DART 또는 SEC 공시 최소 1건의 대외 공개시각·issuer·정정 버전의 **독립 검증 가능한 신뢰 증거**와 실제 당시 가용시각 및 승인된 검증자 신뢰키 확보. 확보 이후 `authenticate_from_era_readonly`로 진짜 증거만 연결해 원본불변/음성·PIT 검증 후 1_1 완료 게이트 평가.
 - 외부 증빙이 없으면 `DATA_UNAVAILABLE`, 실 인증 RawEvent 0, `NEXT_TASK=1_1`, **0/36** 유지. SEC 접수시각·DART 날짜·동일 Mac 로컬 SHA/TOFU를 공식 발표시각으로 가장하지 않는다. EraLeader 코드·DB·Git 변경 및 DART/SEC/KRX 중복 수집 금지.
+
+## 2026-10-13 | 최신 1_1 단일 차단조건 — 실제 독립 공시 증빙 입수
+- 기능 commit `72cfb61abf37a07250568a7952df05b6bc77e042`: 최종 `scripts/check_official_proof.py` 게이트 준비/실행; 관련 **207 PASS/0 FAIL**. 기존 공식 캡처 5개로 실물 read-only 검증 PASS, 서명 증거 부재에 대해 `DATA_UNAVAILABLE` / 종료코드 4 / 실제 인증 `RawEvent=0` 명확히 확인. 정상 경계 재구현이나 무한 반복 검사 금지.
+- **다음 실제 필요 작업:** DART·SEC 기존 공식 수신본 최소 1건과 일치하는 외부 독립 발행기관의 대외 공개시각·issuer·정정 계보, 실제 최초 증거 확보시각 및 사전 독립 신뢰 등록된 검증자 키/서명 증거를 확보한다. 확보한 신뢰 증빙만 `check_official_proof.py`의 전체 옵션으로 검사하고 원본 불변·PIT·음성/장애·실제 정식 `RawEvent` 평가 이후 1_1 완료 여부 판정.
+- 증빙을 확보할 수 없으면 `DATA_UNAVAILABLE`·1_1 미완료·**0/36** 유지. SEC 접수시각/DART 접수일/같은 Mac TOFU를 과거 대외 공개시각의 공식 인증으로 변환 금지. 기존 EraLeader 공식 API 수집기는 유지하고 NewsCatalystOS는 검증·게시 결과만 읽기 전용 공유.

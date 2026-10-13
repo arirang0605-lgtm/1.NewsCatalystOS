@@ -105,3 +105,9 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **변경 영향 검증:** 1_1 관련 10파일 **200 passed, 0 failed**, Python compileall PASS. 새 지연-앵커 직렬화/PIT 회귀 시험 포함; 관련 코드와 doc 총 5개 파일만 명시 stage, 키/바이너리·diff 검사 PASS. EraLeader API/수집기·원본/운영DB/Git 변경 없음.
 - **기능 GitHub SHA:** `78a53132ed87bb37ca6e5677348954dc002b7f53`, origin/main push 및 ls-remote 일치.
 - **남은 완료 게이트:** 실제 DART/SEC 공시 발표시각·issuer·정정의 외부 독립 증명/승인된 서명 키가 없음. 합성 증빙 외 **실제 인증 RawEvent 0건**, 정식 1_1 단계 **미완료**, `NEXT_TASK=1_1`, 전체 완료율 **0/36(0.0%)**. 실제 AI API 0회·자동운영 0거래일, `DATA_UNAVAILABLE` 유지. 36개 계획 및 EraLeader 공식 API 데이터 읽기 전용 공유 범위 변경 없음.
+
+## 2026-10-13 | 1_1 실제 외부 증빙 준비상태 CLI 구현 (NC-1_1-PROOF-CLI)
+- **기능 구현:** `scripts/check_official_proof.py` 실행 도구를 추가하여 EraLeader의 기존 게시 완료 공식 수신본/별도 로컬 SHA 핀을 읽기 전용으로 검증하고 외부 증빙 유무를 fail-closed로 판정. 신뢰 자료가 없을 때 `DATA_UNAVAILABLE` / `certified_raw_event_count=0` / **exit 4** 출력. 독립 증빙(개별 공시 문서ID, 승인된 검증자 서명/키 지문/시각 등)이 제공되면 기존 `authenticate_from_era_readonly` 계약을 단일 검증 경로로 호출. 키·증빙 내용 stdout 노출 금지, 미완성 입력/미래시각/경로 심볼릭링크/크기 제한 방어. 기존 EraLeader API 직접 재호출/운영DB 쓰기 없음.
+- **실물 오프라인 게이트 실행:** 기존 Mac 별도 pin과 EraLeader 2026-10-12 공식 연구 인덱스 사용. **수신 캡처 5/5 검증**, 증빙 미설정으로 `DATA_UNAVAILABLE`, **exit 4** 예상대로 반환(정상 종료 아님). 독립 공개시각·발행자·정정 외부 증거 여전히 없음; 정식 `RawEvent=0`.
+- **테스트/공개:** 1_1 관련 11개 파일 **207 PASS / 0 FAIL**, compileall PASS. 보안 검수한 실행 코드·합성 테스트·허용 문서 **3개만** 선택적 stage; Public secret/바이너리 검사, diff --check PASS. 기능 commit `72cfb61abf37a07250568a7952df05b6bc77e042` `origin/main` 비강제 push 및 원격 SHA 동일.
+- **완료 판정:** 현재 `1_1` **미완료**, 전체 **0/36(0.0%)**, `NEXT_TASK=1_1`, 외부 인증 증빙 없으므로 `DATA_UNAVAILABLE` 유지. EraLeader 정상 코드·DB·Git·원본 변경 및 공식 API 중복 수집 0. 실제 AI API 0회, 연속 운영 0거래일. 36개 개발 계획·반도체 한 산업 검증·완료 조건 불변.

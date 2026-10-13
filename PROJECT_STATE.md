@@ -42,3 +42,12 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **테스트:** 새 관련 합성 fixture 포함 `python3 -m pytest -q tests/test_source_share.py tests/test_era_capture_share.py tests/test_verified_reference.py` → **57 PASS, 0 FAIL, exit 0**. `compileall` PASS. 원래 EraLeader 수집기/DB/Git/비밀 설정 쓰기 0, 신규 외부 API 호출 0.
 - **Public 검수:** 새 코드/테스트/문서 7개 파일만 명시적으로 stage; secret 패턴·바이너리·diff whitespace 검사 PASS. 기능 commit `505b073d31418713b56cc791c1d5b9257e7e2d63` GitHub `origin/main` 푸시 및 원격 SHA 동일 확인.
 - **실사용 한계:** 공식 문서 실제 공개 시각, DART 하루 전체, SEC 전체/법적 share-class, 외부 독립 PIN 보관 및 RawEvent 승격은 미완료. `OfficialRecord.release_at=None`, `historical_pit_certified=False`, 5거래일 자동운영 0회. 운영 이벤트로 자동 승격/확정 투자분석 금지. NEXT_TASK 1_1 유지, 36개 중 엄격 완료 **0/36(0.0%)**.
+
+## 2026-10-13 | 1_1 시각 분리 + 로컬 별도 디스크 SHA 핀 (NC-1_1-TIMESTAMP-PIN)
+- **실제 구현:** SEC `acceptanceDateTime`을 `provider_acceptance_at`으로 UTC 정규화하며 잘못된 시각·최초 수신 후의 미래 시각 거절. DART `rcept_dt`은 날짜만. `official_normalization.py`로 공식 메타후보 정규화, `published_at` 증명 없으면 `RawEvent` 승격 차단.
+- **독립 보관(한계 포함):** Mac 내부 디스크의 `~/Library/Application Support/NewsCatalystOS/pins/official_api_pit_research.pin.json`에 별도 디바이스 SHA 핀을 최초 관측 시각으로 **한 번만 생성(O_EXCL)**, owner-only 보관. EraLeader SSD와 다른 디바이스 ID 확인. `LOCAL_TOFU_NOT_EXTERNAL_ATTESTATION`: 제3자 공증도 과거 publication time 증명도 아님. GitHub로 핀 파일을 올리지 않음.
+- **실데이터 오프라인 검사:** 기존 EraLeader DART 1/SEC 2/KRX 2 총 **5개 캡처** 별도 pin 연동 및 읽기 전용 연구 재검증 PASS, 메타후보 **3,866개**, 이벤트 승격 0개. 원본 캡처/리포트 SHA 사전·사후 동일 PASS. 신규 직접 API 호출/재수집 0.
+- **검증:** 변경 영향 관련 **78 passed, 0 failed**, compileall exit 0. 스테이지 7개 명시적 파일 allowlist + 비밀 패턴/바이너리 크기/공백 검사 PASS; 사용자 미추적 원본/도면/설정 파일 미스테이지.
+- **기능 commit:** `73a87949c938cf01ba436b0cf82ab17845bbcd4f`, `origin/main` 정상 push, `ls-remote` SHA 일치.
+- **남은 1_1 차단요인:** 신뢰 가능한 원천 실제 대외 공개시각+정정/버전+발행자 증빙을 갖춘 공식 `RawEvent` 실물 0건, DART 첫 페이지 한계, SEC 전체 이력/issuer 미검증. 실제 AI API 0회, 연속 자동운영 0거래일. 외부 증거 전 무검증 자료를 정식 이벤트로 승격하지 않음.
+- **엄격 V1.0 검증 완료율:** **0/36 (0.0%)**. 1_1 부분 기능 구현은 정상이나 1_1 전체 게이트 미충족. **NEXT_TASK=1_1** 유지.

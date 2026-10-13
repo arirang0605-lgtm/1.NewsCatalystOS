@@ -23,3 +23,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-13 | 두 번째 실제 개발 체크포인트
 - 최신 기능 커밋 `505b073d31418713b56cc791c1d5b9257e7e2d63`: EraLeader 공식 수신본 연구용 5개 소스 오프라인 read-only 실증 완료. 단위/보안/PIT 테스트 **57 passed, 0 failed**.
 - `PROJECT_STATE.md` 최신 하단 기록과 `NEXT_TASK.md` 최신 하단 항목에서 이어갈 것. 공시 공개시각 검증/독립 PIN 보관/RawEvent 정상화가 남아 `NEXT_TASK=1_1` 유지.
+
+## 2026-10-13 | 1_1 최신 개발 체크포인트
+- Feature `73a87949c938cf01ba436b0cf82ab17845bbcd4f` (`origin/main` push 검증): SEC 접수/최초 수신/원천 공개 시각 분리, 연구 후보 `RawEvent` 차단, Mac 내부 별도 디스크 pin(LOCAL_TOFU), **78 PASS / 0 FAIL**.
+- EraLeader 실제 5개 읽기 전용 검증 및 메타후보 3,866개, 기존 원본 SHA 불변 확인. 최초 공개시각 외부 증명 없음. `NEXT_TASK=1_1`, 전체 완료 **0/36** 유지. 최신 작업은 `NEXT_TASK.md` 맨 아래 참조.

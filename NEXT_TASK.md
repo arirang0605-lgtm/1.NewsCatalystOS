@@ -32,3 +32,10 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - **남은 하나의 작업:** 최초 수신시각 `first_seen_at`과 원천 공개시각 `published_at`을 혼동하지 않는 공시/원천별 메타데이터 정규화 완성. 증명되지 않은 release_at은 `None/UNKNOWN`, DART 첫 페이지만 `PARTIAL`, SEC facts taxonomy는 신고 이벤트 0건 유지.
 - 증거를 실제로 수집 가능한 범위에서 서로 다른 보관소에 리포트 SHA pin 보관, 과거 확정 시각이 없는 원본의 `RawEvent` 승격 차단 테스트, 기존 코드/원본 무변경 증빙, 실제 DART/SEC/KRX 승인된 event evidence 내역 검증을 완료한 뒤에만 1_1 종료.
 - 외부 권한/자료가 계속 불가하면 정확히 DATA_UNAVAILABLE으로 기록하고 1_2 작업으로 완료 숫자를 부풀리지 말 것. V1.0 다른 산업 확대 금지, 전체 회귀는 단계 게이트까지 보류.
+
+## 2026-10-13 | 실제 최신 재개점 — 1_1 남은 출처 공개시각 검증 게이트
+- **직전 구현 푸시:** `73a87949c938cf01ba436b0cf82ab17845bbcd4f`; 합성 변경 영향 시험 **78 PASS / 0 FAIL**. 별도 Mac 내부 디스크 local-TOFU 핀과 EraLeader 5개 실제 캡처 재검증 PASS, 연구용 메타후보 3,866개. 원본 변경 없음.
+- **중복 구현 금지:** `era_capture_share.py`의 SEC acceptance timestamp, `official_normalization.py`의 후보/승격 차단, `pin_anchor.py`의 재작성 불가능한 로컬 별도 디스크 pin은 이미 작성·실증. 같은 확인을 매번 전체 반복하지 말 것.
+- **남은 핵심 한 작업:** 공식 출처별 독립적으로 검증 가능한 **대외 공개시각·정정 버전·발행자 provenance** 자료가 있는지 확인하고, 자료가 확인된 개별 기록에 한해 검증 증거에 묶인 `RawEvent` 전환 계약 구현/음성 테스트. SEC `acceptanceDateTime`은 독립된 공개시각 확증이 아니며 DART `rcept_dt`은 날짜 정밀도뿐임. 외부 증거 없으면 `DATA_UNAVAILABLE` 유지.
+- **추가 제약:** 외부 신뢰 시각공증/제3자 서명은 현재 없음. 로컬 별도 디스크 핀은 생성 이후 변조 탐지용 TOFU이지 과거 PIT 인증이 아님. EraLeader 원본·Git·수집 코드를 절대 수정하지 않는다.
+- **완료 전환 금지:** 정식 `RawEvent` 실물 하나 이상의 검증/명시된 범위·PIT·SHA/원본무변경 게이트 미충족. **NEXT_TASK=1_1, 완료 0/36** 유지. 외부 접근 제한이면 데이터 부족 상태를 기록하고 1_2 완료로 세지 않는다.

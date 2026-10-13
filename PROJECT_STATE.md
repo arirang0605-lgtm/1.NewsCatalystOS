@@ -205,3 +205,13 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - 기존 원본·EraLeader 코드/DB/Git/PIT/SHA 수정·DART/SEC/KRX 재수집 0, 자동매매/홈페이지/다른 산업 구현 0. 신규 총 24코드·테스트·문서 파일 Public 명시 staged/토큰·키 패턴/바이너리/크기/.gitignore 검사 PASS.
 - **검증:** 신·구 합계 `566 PASS / 0 FAIL`, Python compileall 및 Git diff check PASS. 신규 `docs/4_1-5_5_IMPLEMENTATION.md`에 완료/미완료 세부 구분. 기능 Git SHA `80f8c838445c4954b703242415a8eb5ab5cf196f` origin/main 푸시·원격 SHA 일치.
 - **완료 카운트:** 이전 16 + 4_3/4_4(2) + 5_1(1) = **19/36 (52.8%)**. 미완료 2_6·3_6(2), 4_1/4_2/4_5/4_6(4), 5_2~5_6(5), 6_1~6_6(6) = **17개**. 실제 독립 라벨·반도체 공급망 증거·5거래일 운영·P0/P1·V1.0 release tag 없음. 다음 구현 가능한 6_1 이벤트 생명주기, 동시에 앞 단계 실검증 게이트는 별도 보류.
+
+## 2026-10-13 | 6_1~6_6 신규 기능/출시 게이트 구현 — V1.0 출시 미완료 (NC-6_1-6_6-CODE)
+- **6_1:** event_lifecycle.py — DETECTED→CONFIRMED→STRENGTHENED/WEAKENED→INVALIDATED + INVALIDATED→DETECTED 재활성화; 기존 SQLite 원본 보존·PIT/근거 SHA. 아무 자료나 CONFIRMED로 승격 금지, 기존 AnchoredOfficialPublication 타입과 해당 event ID가 일치해야 공식 확인 주장 가능. 재활성화 이전 이력 삭제/무뉴스 자동 만료 금지.
+- **6_2:** analysis_cache.py — event/version/model/prompt/metadata SHA 바뀌지 않으면 별도 AI 재분석 방지. SHA 검증된 bounded 응답만 private SQLite에 저장하며 AI 가설 사실 승격 금지.
+- **6_3:** catalyst_audit.py — 사건별 근거 SHA/첫 관측·실제 등록시각/상태 변경/AI 모델·프롬프트 해시를 append-only, PIT 당시 원장 조회 및 변경 이력 보존.
+- **6_4:** standard_delivery.py — 동일 사건 ID·시점 근거 묶음 CatalystEvent/BeneficiaryGraph/EventHistory를 JSON/Parquet로 버전화, SHA 확인·잘못된 source/cross-event/과거 누출/미확인 수혜 확정 거부. 실제 EraLeader 수신 환경 소비와 법적 공개 증거는 미검증이나 계약 기본 구현 통과.
+- **6_5:** backup_recovery.py — 활성 NewsCatalystOS private SQLite의 일관성 백업/매니페스트 SHA 및 별도 복원 디렉터리 신규 0600·0700/SQLite PRAGMA integrity_check 검증. 실제 Mac incremental_feeds.sqlite3 45,056 bytes를 private Mac 백업 폴더에 SHA 고정한 뒤 다른 owner-only 디렉터리에서 복원 PASS. **다른 물리 장치의 독립백업·연속 5거래일 실제 자동운영은 하지 않았으므로 6_5 미완료**, 기존 launchd 예약 템플릿은 미활성.
+- **6_6:** release_readiness.py + scripts/check_v1_release.py — 36개 단계, 실제 사람검수 라벨 500·정밀도/중요 탐지·수혜 정확도/숫자 증거, 실 AI 요금, 5거래일/독립복원/타 프로젝트 소비/P0-P1/전체 회귀 입증 부족을 명시. 23개 완료를 입력한 실제 Mac 실행 결과 **NOT_READY, missing 13 tasks, exit 4(의도된 출시 차단)**. 합성 모든 조건 True여도 독립 출시 인증 FALSE, V1.0 tag 생성/푸시 안 함.
+- **기능 검증:** 전체 관련 테스트 **611 PASS / 0 FAIL**(exit 0), Python compileall PASS, Public 허용목록 staging 18파일·민감 패턴·바이너리/용량·.env/DB/원본 제외 및 git diff --check PASS. EraLeader 코드/DB/Git·공식 수집 API 호출/변경 0. 기능 Git SHA **648806f6984e3ef6a1d7bf25114cbc49d6f334db**, GitHub origin/main 정상 비강제 push 및 remote SHA 일치.
+- **엄격 개발 합격 23/36(63.9%)**: 기존 19/36 + 6_1~6_4 네 기본 기능. 아직 13개 미완료: 2_6,3_6,4_1,4_2,4_5,4_6,5_2,5_3,5_4,5_5,5_6,6_5,6_6. 실제 경제뉴스 정답셋/AI 키·비용/공식 고객·공급자 거래·EraLeader 소비/별도 물리복원·5거래일/출시 태그 증명 없음. 다음은 5_2 공식 공급망 관계 read-only 실증 시도; 증거 없으면 UNKNOWN, 허위 수혜 확정 금지.

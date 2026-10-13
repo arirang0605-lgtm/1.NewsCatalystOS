@@ -114,3 +114,8 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-13 | 최신 4_1~5_5 구현 완료 상태와 6_1 재개 (NC-4_1-5_5)
 - 기능 `80f8c838445c4954b703242415a8eb5ab5cf196f` origin/main push SHA 확인. AI 공통 스키마·금액 인용 exact 검증·추론/반례·비용 하드한도/중복 캐시, 반도체 9부문/7경로·공급망 후보·파급·JSON 계약 구현. 전체 **566 PASS/0 FAIL**, 컴파일/공개보안 PASS; EraLeader 코드·DB·Git·수집 0.
 - **완료 19/36 (52.8%)**: 기존 16 + 4_3/4_4/5_1(3). 실제 3개 AI API 환경키 미설정·실호출 0, 반도체 실제 거래 검증 0, 정식 수혜 확정 0. 4_1/4_2/4_5/4_6 및 5_2~5_6/2_6·3_6은 증빙·라벨·실운영 전 미완료. **다음 독립 코딩 6_1** 상태 전이·재활성화 및 SHA/PIT 테스트. 상세 완료/미완료는 PROJECT_STATE.md 하단·NEXT_TASK.md 하단 기준.
+
+## 2026-10-13 | 최신 6_1~6_6 기능 구현/원장 백업 체크포인트
+- 코드 commit 648806f6984e3ef6a1d7bf25114cbc49d6f334db origin/main SHA 검증: 6_1 lifecycle 전이/재활성화 SHA PIT, 6_2 AI 결과 변경감지 캐시, 6_3 원본 근거·모델/프롬프트 변경감사 SHA 원장, 6_4 CatalystEvent/BeneficiaryGraph/EventHistory JSON/Parquet. 6_5 SQLite 일관성 스냅샷/별도 private 복원, 6_6 NOT_READY 출시 차단 체크까지 코드 구현. **전체 611 PASS/0 FAIL** 및 컴파일/공개검사 PASS; Mac 실제 private 원장 45,056 bytes의 별도 폴더 복원 PASS.
+- **완료 23/36(63.9%).** 6_5의 연속 5거래일/독립 물리 백업, 6_6 릴리스 등 13개는 미완료. 실제 release 체크에서 13개 missing/필수 실검증 부족 => exit4 의도된 보류, v1.0 태그 생성/기능 동결 없음. EraLeader 코드·DB·Git 쓰기/중복 API 수집 0. 기존 사용자 미추적 자료 보존.
+- 최신 NEXT_TASK=5_2 공급망 공식 고객·공급자 관계 실증. 기능/상태/결정 파일부터 CONTINUE하고 최초 공개시각/실 거래 증거 없으면 사실처럼 창작하지 말 것. 단일 반도체 산업/36단계/PIT·SHA·비밀 보호 불변.

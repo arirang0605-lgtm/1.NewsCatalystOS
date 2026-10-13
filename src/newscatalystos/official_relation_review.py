@@ -59,6 +59,7 @@ def review_official_supply_relation(
     trusted_document_sha256: str,
     decision_at: datetime,
     now: datetime | None = None,
+    consumer_observed_at: datetime | None = None,
 ) -> SupplyChainEdge:
     """Validate the complete metadata-to-document-to-review evidence chain.
 
@@ -108,9 +109,18 @@ def review_official_supply_relation(
     observed = _time(review.document_observed_at, "document observed")
     pinned = _time(review.pin_observed_at, "independent pin observed")
     reviewed = _time(review.reviewed_at, "human review")
-    if (max(source.available_at, source.verified_at, observed, pinned)
-            > reviewed or reviewed > decision):
+    # An offline review may predate this consumer's first validated read.
+    # Never expose a relation before the complete evidence actually arrived.
+    consumed = (_time(consumer_observed_at, "consumer observation")
+                if consumer_observed_at is not None else reviewed)
+    if consumed > decision:
+        raise SourceShareError("relation evidence unavailable at decision")
+    effective = max(reviewed, consumed)
+    if (max(observed, pinned) > reviewed or reviewed > decision
+            or max(source.available_at, source.verified_at) > effective):
         raise SourceShareError("document/pin/review unavailable at decision")
+    if (supplier.validate() > reviewed or customer.validate() > reviewed):
+        raise SourceShareError("review predates source or company mapping")
     if not isinstance(review.reviewer_code, str) or not re.fullmatch(
         r"[A-Z0-9_-]{3,32}", review.reviewer_code
     ):
@@ -142,13 +152,14 @@ def review_official_supply_relation(
     edge = observed_supply_edge(
         source, supplier, customer, product_stage=review.product_stage,
         relation_kind="REPORTED_DIRECT_TRANSACTION",
-        reviewed_at=reviewed, now=current,
+        reviewed_at=effective, now=current,
     )
     review_metadata = {
         "source_evidence_id":source.evidence_id,
         "document_sha256":expected,
         "pin_observed_at":pinned.isoformat(),
         "reviewed_at":reviewed.isoformat(),
+        "consumer_observed_at":consumed.isoformat(),
         "reviewer_code":review.reviewer_code,
         "supplier_name":names[0],
         "customer_name":names[1],
@@ -162,6 +173,7 @@ def review_official_supply_relation(
     relation_sha = sha256((edge.edge_sha256 + ":" + proof_sha).encode()).hexdigest()
     return replace(
         edge, edge_sha256=relation_sha, evidence_sha256=expected,
-        evidence_status=RELATION_STATUS, available_at=reviewed,
+        evidence_status=RELATION_STATUS, available_at=effective,
+        last_reviewed_at=effective,
         document_sha256=expected, review_proof_sha256=proof_sha,
     )

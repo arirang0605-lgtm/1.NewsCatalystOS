@@ -18,3 +18,10 @@
 - 합성 문서에 대한 SHAs·역할·시점·부정 테스트와 그래프 JSON 호환 검증은 완료했다.
 - **실제 독립 검수된 반도체 고객/공급 관계는 아직 0건**. SEC 접수시각/DART 접수일과 검토자 주장은 공식 공개시각 공증 또는 거래 이행 증명이 아니다.
 - 따라서 **5_2 최종 실증/완료 판정은 보류**, V1.0 완료 수는 23/36 그대로다.
+
+## 2026-10-14 | 실제 별도 문서 도착 시 오프라인 5_2 입력 경로
+- `official_relation_intake.read_official_relation_intake`가 **기존 비공개 완료된 v2 관측 배치**를 사용자 별도 보관 SHA로 재검증하고, 별도 보관 중인 승인 공식문서 UTF-8 텍스트(최대 1 MiB)와 사람 검토 JSON을 읽는다. API 네트워크/원문 복제/EraLeader 쓰기 없음. 문서·JSON은 소유자 전용 디렉터리(0700)와 파일(0600)에 두어야 한다.
+- JSON은 `schema: "newscatalyst.official_relation_intake.v1"` + `review`, `supplier`, `customer` 세 객체. `review`는 `OfficialRelationReview` 필드 전체(기존 공시 source ID, 문서 ID, 증거 SHA, 수신영수증 SHA, 본문 SHA, 최초 확보/pin/인적검토 시각, 검토자 코드, 양사 이름, 문서 안의 원문 일치 관계 문장, 반도체 product_stage), 양사 객체는 `CompanyBinding` 필드 전체를 반드시 포함한다. 일시는 UTC offset 포함 ISO 문자열.
+- 실행: `PYTHONPATH=src python3 scripts/review_supply_relation.py --publication <비공개-v2-게시-폴더> --publication-root <비공개-게시-상위폴더> --payload-sha256 <별도-보관-배치SHA> --review-json <private-review.json> --document-text <허가받은-공식문서.txt> --document-sha256 <별도-보관-문서SHA>`. 두 SHA를 입력 파일/게시 마커에서 방금 계산해 독립 증거로 둔갑시키지 말 것.
+- 실제 입력 완료시각을 PIT 최초 사용 가능시각으로 강제한다. 이미 과거 날짜의 인적 검토가 있더라도 **현 시점 증거 소비보다 앞선 과거 시점에 소급 표시 금지**. 성공 시 `OFFICIAL_DOCUMENT_REVIEW_CANDIDATE_ONLY` + 관계 SHA/검토 SHA/현재 사용 가능시각만 화면에 표시(원문/회사명/민감정보 출력·Git 저장 0). 실패 시 `DATA_UNAVAILABLE` / exit 4.
+- 반환된 `SupplyChainEdge`는 기존 `classify_semiconductor_beneficiary` 및 `build_beneficiary_graph`에 타입 그대로 연결 가능하지만, 여전히 **상업적 거래 실행 확인 0/매출수혜 확정 0**. 기존 공개 메타에 공식 문서 본문이 없으므로 외부 승인 문서·사람 검토가 없으면 실물 통과/5_2 완료 판정 금지.

@@ -23,6 +23,15 @@ JSON_MEDIA = frozenset({"application/json", "text/json"})
 MAX_TIMEOUT_SECONDS = 10
 
 
+class FeedTransportError(SourceShareError):
+    """Classifiable failure; caller may schedule later retry, never inline retry."""
+
+    def __init__(self, reason: str, *, http_code: int | None = None):
+        super().__init__(reason)
+        self.http_code = http_code
+        self.retryable = http_code in (408, 429) or (http_code is not None and 500 <= http_code <= 599)
+
+
 class _NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
@@ -80,9 +89,11 @@ def fetch_authorized_once(
                     raise SourceShareError("feed exceeds configured size limit")
             raw = response.read(MAX_FEED_BYTES + 1)
     except HTTPError as exc:
-        raise SourceShareError(f"provider HTTP status {exc.code}; no retry") from None
+        raise FeedTransportError(f"provider HTTP status {exc.code}; no inline retry",
+                                 http_code=exc.code) from None
     except (URLError, TimeoutError, OSError) as exc:
-        raise SourceShareError("provider feed transport unavailable") from None
+        raise FeedTransportError("provider feed transport unavailable",
+                                 http_code=503) from None
     if not raw or len(raw) > MAX_FEED_BYTES:
         raise SourceShareError("feed missing or exceeds size limit")
     # Delivery, not claimed publication time, is the earliest PIT signal.

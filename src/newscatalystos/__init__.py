@@ -20,7 +20,11 @@ from .operational_observations import (
 )
 from .provider_registry import Provider, ProviderRegistry, parse_provider_registry
 from .new_source_adapter import FeedObservation, parse_authorized_feed
-from .feed_transport import fetch_authorized_once
+from .feed_transport import FeedTransportError, fetch_authorized_once
+from .incremental_ingest import (
+    IncrementalResult, incremental_poll, resume_after_rights_review,
+    state_snapshot,
+)
 
 __all__ = [
     "ReadBatch", "RawEvent", "SourceManifest", "SourceShareError",
@@ -37,4 +41,6 @@ __all__ = [
     "load_operational_observations", "project_operational_observations",
     "Provider", "ProviderRegistry", "parse_provider_registry",
     "FeedObservation", "parse_authorized_feed", "fetch_authorized_once",
+    "FeedTransportError", "IncrementalResult", "incremental_poll",
+    "resume_after_rights_review", "state_snapshot",
 ]

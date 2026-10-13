@@ -60,3 +60,11 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **기능 GitHub push:** `8233fe499a5a19e8f7d9f5d13a6451d37072de24` → `origin/main`; `git ls-remote` SHA 동일 검증.
 - **남은 핵심 차단:** 공신력 있는 외부 원문/발행기관의 독립 공개시각 증빙, 실제 issuer/정정 이력 인증, 실제 공식 `RawEvent` 1건의 PIT 재현이 없어 `1_1` 완료 전환 금지. EraLeader 5개 기존 공식 캡처 연구용 read-only 실증은 직전 기록과 동일. 500건 평가/반도체 산업 통합/실 AI API/5거래일 운영은 미완료.
 - **엄격 완료율:** **0/36 = 0.0%** (1_1 부분 구현). `CURRENT_NEXT_TASK=1_1`, 외부 증거 미확보 시 `DATA_UNAVAILABLE` 유지.
+
+## 2026-10-13 | 1_1 외부 서명 증거 검증 경계 구현, 실제 완료 게이트 보류 (NC-1_1-SIGNED-PROOF)
+- **실제 코드:** `signed_publication.py`에서 별도 신뢰 등록된 Ed25519 검증자의 공개키 SHA 및 원본 64바이트 서명 검증(OpenSSL 3), 공시 issuer/accession/정정/발행시각 주장/증빙 ID 상호 바인딩, `witness_verified_at`와 최초 수신 간 PIT 차단, `SignedPublication.as_of()` 제한 구현. `release_claim.py`는 `source_id` 보존과 SEC URL의 CIK 일치 검사를 강화. `__init__.py` 및 1_1 문서 갱신.
+- **테스트:** 전체 1_1 관련 파일 7개에서 **127 passed, 0 failed**, `compileall` PASS, staged allowlist/공개 키·토큰/바이너리 검사 PASS, diff whitespace PASS. 합성 외부 서명 검증(긍정·위조·PIT·정정)은 **실제 공증이 아님**.
+- **실제 EraLeader 재검증:** Mac 내부 별도 디스크 이전 TOFU pin 이용, 공식 캡처 5/5 오프라인 읽기 전용 SHA/PIT 확인 PASS, 연구 메타후보 3,866건, **실제 독립 발행 인증 RawEvent 0건**. 원본·설정·운영 DB·EraLeader 코드/Git 변경 0, 공식 신규 수집/API 재호출 0.
+- **공식/독립 근거 조사:** SEC EDGAR 공시 `0001140361-26-039158`의 issuer·accepted 시각을 확인했으나 EDGAR 수리시각과 최초 외부 공개시각은 동일하지 않을 수 있음. 웹사이트의 제3자 사후 조회/수집시각 주장은 서명 또는 독립 역사 시점공증이 아니므로 자동 승격 차단.
+- **기능 commit/push:** `c744909bf4f3ead33babc9788f77e9de480ae69b` `origin/main` 원격 SHA 일치. Public에는 허용 코드/합성 테스트/문서 6개 파일만 stage.
+- **명확한 차단 조건:** 실제 독립 검증자의 사전 승인된 신뢰키 및 출처 공개시각·발행기관·정정 연쇄에 대한 독립 서명/시점 감사 증거가 없음. 직접 AI API 0회, 운영 0거래일. `1_1=미완료, DATA_UNAVAILABLE`; 엄격 완료 **0/36 = 0.0%**, 다음 작업 **1_1**. 신뢰 증거 없이는 가짜 완료/가짜 공시 시각 생성 금지.

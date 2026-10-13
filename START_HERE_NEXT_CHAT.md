@@ -31,3 +31,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-13 | 최신 기능개발 인계 (NC-1_1-CLAIM-GATE)
 - Feature `8233fe499a5a19e8f7d9f5d13a6451d37072de24`: DART/SEC 공개시각 주장·정정·issuer 메타 검증 후보 구현; 신규 `release_claim.py`/테스트·문서. 1_1 범위 6개 테스트 파일 **105 PASS / 0 FAIL** 및 공개보안 스캔 PASS, GitHub push 및 원격 SHA 일치.
 - 중요: 공개 URL/별도 SHA와 메타 주장은 실제 대외 공개시각 독립 인증이 아님. RawEvent 승격 0건, AI API 직접 연결 0회, 운영 0거래일. `NEXT_TASK=1_1`, **0/36**. 다음은 `NEXT_TASK.md` 최신 하단의 외부 독립 증거 게이트부터 계속하고 기존 검증·수집 구현은 반복하지 말 것.
+
+## 2026-10-13 | 최신 1_1 서명 검증 기능 인계 (NC-1_1-SIGNED-PROOF)
+- 기능 커밋 `c744909bf4f3ead33babc9788f77e9de480ae69b` 원격 push 대조 성공. 독립 Ed25519 서명 검증+issuer/정정 증거 바인딩+PIT as-of 게이트 구현, **127 PASS / 0 FAIL**. EraLeader 공식 5개/연구 후보 3,866개 재검증 읽기 전용 PASS.
+- 외부 증명 키/정식 원천 공개시각 서명 부재로 실물 `RawEvent=0`, `1_1` **미완료, 0/36**. 다음은 `NEXT_TASK.md` 마지막 증빙 게이트부터; 테스트/수집 반복 및 무근거 완료 판정 금지.

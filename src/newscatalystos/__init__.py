@@ -29,6 +29,10 @@ from .event_identity import (
     CompanyBinding, RevisionEvidence, NormalizedEvent,
     normalize_observed_event,
 )
+from .evidence_archive import ArchivedEvidence, archive_evidence, read_archived_evidence
+from .quality_watch import SourceQuality, check_sources, unresolved_count
+from .text_normalization import NormalizedText, normalize_feed_metadata, normalize_text, canonicalize_url
+from .exact_dedup import DedupDecision, register_exact
 
 __all__ = [
     "ReadBatch", "RawEvent", "SourceManifest", "SourceShareError",
@@ -48,5 +52,9 @@ __all__ = [
     "FeedTransportError", "IncrementalResult", "incremental_poll",
     "resume_after_rights_review", "state_snapshot",
     "CompanyBinding", "RevisionEvidence", "NormalizedEvent",
-    "normalize_observed_event",
+    "normalize_observed_event", "ArchivedEvidence", "archive_evidence",
+    "read_archived_evidence", "SourceQuality", "check_sources",
+    "unresolved_count", "NormalizedText", "normalize_feed_metadata",
+    "normalize_text", "canonicalize_url", "DedupDecision",
+    "register_exact",
 ]

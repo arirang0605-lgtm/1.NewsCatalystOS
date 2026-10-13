@@ -183,6 +183,8 @@ def incremental_poll(
         reader = fetch_authorized_once if fetcher is None else fetcher
         try:
             rows = reader(registry, provider_id, at=now)
+            if not rows:
+                raise SourceShareError("empty feed: no new success watermark")
         except SourceShareError as exc:
             _failure(conn, provider_id, observed, exc)
             raise

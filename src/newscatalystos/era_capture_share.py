@@ -50,6 +50,7 @@ class OfficialCapture:
     source_id: str
     provider_id: str
     source_schema: str
+    source_request_value: str
     first_seen_at: datetime
     first_receipt_sha256: str
     raw_sha256: str
@@ -245,5 +246,5 @@ def read_official_capture(
         raise SourceShareError("capture changed during read")
     return OfficialCapture(
         source_id=source, provider_id=SOURCES[source], source_schema=CAPTURE_SCHEMA,
-        first_seen_at=first_seen, first_receipt_sha256=expected_receipt_sha256,
+        source_request_value=value, first_seen_at=first_seen, first_receipt_sha256=expected_receipt_sha256,
         raw_sha256=digest, quality=quality, observed_count=observed, records=records)

@@ -94,3 +94,12 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify_era_captures.py 
 - 이 변경으로 **SEC companyfacts taxonomy 2건·뉴스 이벤트 0행**처럼 행이 없는 공식 출처도 출처 장부에 남는다. `source_count`로 행 개수만 추정하는 문제를 제거한다. 품질상 `NO_DAILY_ROWS` 등 0건은 0건으로 기록하고, 개별 공식 출처의 포맷별 건수 무결성을 검사한다.
 - 기존 `v1` 연구용 게시 파일은 **삭제·덮어쓰기 없이** `read_published_observations()`에서 하위호환으로 읽되 `coverage_verified=False`를 명시한다. v2는 원천 요약이 완결·정합할 때만 `coverage_verified=True`; v1 결과를 v2 출처 완결로 자동 승격하지 않는다. 이 필드는 원본 스냅샷의 전체 역사·정식 공개시각 공증을 의미하지 않는다.
 - 기존 DART·SEC·KRX EraLeader 공식 5개 캡처로 v2 배치 실제 비공개 게시·재읽기 PASS: 원천 관측 **3,868**, 메타행 **3,866**, SEC companyfacts 원천 관측 **2/뉴스 0**, `RawEvent` **0**. 결과는 여전히 `RESEARCH_ONLY_RELEASE_UNVERIFIED`이며 공개시각 `null`/발행기관 독립 신원 미확정. 공식 신규 API 중복 수집·EraLeader 원본/DB/Git 변경 **0**.
+
+## 2026-10-13 | 1_1 실물 공식 수신본–독립 서명–PIT 연결 게이트 (NC-1_1-PROOF-JOIN)
+
+- `src/newscatalystos/official_promotion.py`는 세 개의 검증 경계를 연결한다. ① 별도 디스크에 고정된 EraLeader 연구 인덱스 SHA pin을 검증하고 기존 **공식 완료 수신본**만 읽음(`read_local_reference_anchor` → `verify_official_research_reference`). ② 지정한 DART/SEC 제공자·문서ID가 실제 수신본에 유일하게 존재하고 원본 SHA/영수증 SHA·최초 수신시각과 일치하는 메타후보만 `inspect_release_claim`에 전달. ③ 사전에 승인된 **독립 서명 검증자**의 Ed25519 증빙을 `authenticate_publication`에서 확인한 뒤 `AnchoredOfficialPublication.as_of`로 판단 당시 자료 가용성을 검사. EraLeader 수집기·API·코드·DB·Git 쓰기 **0**.
+- 증거 재사용 방지: 실제 데이터 수신본을 특정하려면 서명 명세 **`newscatalyst.publication_attestation.v2`**의 서명 대상 JSON에 `source_sha256`, `source_receipt_sha256`, `first_seen_at`을 필수 포함한다. 종전 v1(수신 원본 SHA 미결합) 서명은 **유효한 생산 증빙으로 간주하지 않으며 거절**한다. 이전 실증 중 실제 독립 서명 자료는 없으므로 기존 운영 공시 자료를 덮어쓰지 않는다.
+- 역사 PIT 강제: `usable_from=max(EraLeader 첫 수신, 독립 pin 최초 관측, 증빙 검증자 시점)`. 이후 조회라도 위 시각보다 이전 결정에 증거를 소급 사용할 수 없다. 발행기관·서명 신뢰키·실제 공개시각을 발급한 독립 증빙이 없을 경우 `RawEvent`로 승격하지 않는다.
+- 합성 Ed25519 키로만 정상/실패 경로를 테스트한다. 실제 독립 검증자 키 또는 법적 공식 게시시각 증거를 생성하거나 추정하지 않으며 `1_1` 완료율은 기존 조건에 따라 계속 미완료 처리한다.
+
+- **원본 issuer 교차 검증 추가:** `OfficialCapture.source_request_value`로 기존 검증된 수신 영수증의 SEC 요청 CIK를 보존하고, 서명된 claim issuer/EDGAR 경로 CIK와 일치하는지 확인한다. URL 자기 일치만으로 다른 기업의 공시를 승인하지 않는다. 기존 EraLeader 수신 파일을 수정하거나 API를 재호출하지 않는다. v1 서명은 합성 구형 시험에만 해당하며 인증 대상에서 명시적으로 거절한다.

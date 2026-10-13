@@ -38,6 +38,9 @@ def signed(tmp_path, witness, provider="SEC", changes=None):
         "supersedes_document_id": claim.supersedes_document_id,
         "official_url": claim.official_url,
         "publisher_released_at": claim.claimed_published_at.isoformat(),
+        "source_sha256": claim.source_sha256,
+        "source_receipt_sha256": claim.source_receipt_sha256,
+        "first_seen_at": claim.first_seen_at.isoformat(),
         "witness_id": "thirdparty-release-notary",
         "witness_verified_at": "2026-10-12T12:01:00+00:00",
     }
@@ -88,6 +91,9 @@ def test_genuine_synthetic_witness_promotes_only_at_verified_decision(tmp_path, 
     {"publisher_released_at": "2026-10-12T09:00:00Z"},
     {"issuer_id": "NOT_THE_SAME_ISSUER"},
     {"claim_sha256": "0" * 64},
+    {"source_sha256": "0" * 64},
+    {"source_receipt_sha256": "0" * 64},
+    {"first_seen_at": "2026-10-01T00:00:00Z"},
     {"provider_id": "DART"},
     {"source_document_id": "FAKE"},
     {"source_id": "dart-disclosures"},
@@ -146,3 +152,12 @@ def test_late_signer_not_made_available_at_raw_first_receipt(tmp_path, witness):
     result = check(claim, body, sig, key)
     assert result.usable_from == datetime(2026, 10, 12, 12, 1, tzinfo=timezone.utc)
     assert result.source_capture_first_seen_at < result.usable_from
+
+
+def test_legacy_v1_witness_without_capture_lineage_not_accepted(tmp_path, witness):
+    claim, body, sig, public, _, _ = signed(
+        tmp_path, witness,
+        changes={"schema": "newscatalyst.publication_attestation.v1"},
+    )
+    with pytest.raises(SourceShareError, match="unexpected attestation schema"):
+        check(claim, body, sig, public)

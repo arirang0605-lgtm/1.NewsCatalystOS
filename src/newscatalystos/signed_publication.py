@@ -21,13 +21,14 @@ from .source_share import (
     EVENT_SCHEMA, RawEvent, SourceShareError, _json, _must_id, _must_sha, _when,
 )
 
-SCHEMA = "newscatalyst.publication_attestation.v1"
+SCHEMA = "newscatalyst.publication_attestation.v2"
 VERIFIED = "EXTERNAL_WITNESS_SIGNED_RELEASE"
 REQUIRED = frozenset({
     "schema", "claim_sha256", "provider_id", "source_id",
     "source_document_id", "issuer_id", "revision_id", "revision_kind",
     "supersedes_document_id", "official_url", "publisher_released_at",
     "witness_id", "witness_verified_at",
+    "source_sha256", "source_receipt_sha256", "first_seen_at",
 })
 MAX_ASSERTION = 8192
 
@@ -131,9 +132,14 @@ def authenticate_publication(
         "supersedes_document_id": claim.supersedes_document_id,
         "official_url": claim.official_url,
         "witness_id": witness,
+        "source_sha256": claim.source_sha256,
+        "source_receipt_sha256": claim.source_receipt_sha256,
     }
     if any(assertion[k] != v for k, v in same.items()):
         raise SourceShareError("signed evidence differs from pinned candidate")
+    claimed_first_seen = _when(assertion["first_seen_at"], "first_seen_at")
+    if claimed_first_seen != claim.first_seen_at:
+        raise SourceShareError("witness first receipt differs from pinned capture")
     released = _when(assertion["publisher_released_at"], "publisher_released_at")
     if released != claim.claimed_published_at:
         raise SourceShareError("signed publication time differs from claim")

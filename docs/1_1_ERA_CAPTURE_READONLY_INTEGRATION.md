@@ -117,3 +117,10 @@ PYTHONPATH=src PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify_era_captures.py 
 - 사용 예: `PYTHONPATH=src python3 scripts/check_official_proof.py --era-root /Volumes/T5DATA/eraleader --reference /Volumes/T5DATA/eraleader/output/official_api_integrated_20261012/official_api_pit_research.json --anchor "$HOME/Library/Application Support/NewsCatalystOS/pins/official_api_pit_research.pin.json"`.
 - 실제 증거 확보 이후에는 `--source-id`, `--document-id`, `--claim`, `--claim-sha256`, `--attestation`, `--signature`, `--witness-key`, `--witness-key-sha256`, `--witness-id`를 **한꺼번에** 별도로 승인된 신뢰 채널에서 제공해야 합니다. 일부만 제공하면 실패(exit 4). 필드는 크기 제한 및 심볼릭 링크 차단 읽기로 처리되며 내용을 stdout에 노출하지 않습니다. 검증 성공 메시지는 실제 발행기관·독립 검증자 권한/정확도에 대한 추가 인간 감사 없이 과거 최초 공개시각의 완전한 공증을 의미하지 않습니다.
 - **주의:** 서명키 파일과 그 SHA를 동일 입력 자료에서 스스로 추출해 공급하면 독립 신뢰 검증이 아닙니다. 이전 외부 신뢰 등록/출처·입수시각의 감사 증거가 없는 경우 운영 이벤트로 확정하지 않습니다. 현재 실데이터에는 해당 신뢰 자료가 없으므로 1_1 전체 완료를 선언하지 않습니다.
+
+## 2026-10-13 | 외부 서명 검증자 사전 신뢰 등록부 의무화 (NC-1_1-WITNESS-REGISTRY)
+- 발견된 허점: 이전 CLI는 `--witness-key`와 `--witness-key-sha256`를 **동일 실행에서 함께 공급**할 수 있어 임의 생성한 키의 SHA를 '독립 검증자 핀'처럼 주장할 위험이 있었다.
+- `witness_registry.py`는 Mac 내부 디스크의 `~/Library/Application Support/NewsCatalystOS/trust/official_witness_registry.json`을 읽기 전용으로만 확인한다. 폴더·파일 소유자 전용 권한, 소스 SSD와 다른 디바이스, 신뢰 스키마·검증자 고유 ID·허용된 SEC/DART 원천 범위·등록 시점·키 SHA를 검증한다. 신규 등록 파일/검증자 키를 **자동 생성하지 않는다**.
+- 사용자 CLI의 `--witness-key-sha256` 옵션을 **삭제**했다. 검증에 사용할 fingerprint는 반드시 이전에 운영자가 승인·별도 보관한 등록부에서 로드한다. 등록 누락, 출처 범위 불일치, 등록 전 판단시점, 위조·중복·미래시각은 fail-closed. `--witness-key` 파일은 실제 서명 확인용 공개키이며 신뢰지문 출처가 아니다.
+- 등록부 형식은 `{"schema":"newscatalyst.official_witness_registry.v1","trust_level":"OPERATOR_APPROVED_EXTERNAL_WITNESS","witnesses":[{"witness_id":"externally-reviewed-witness","public_key_sha256":"<independently-enrolled-64hex>","enrolled_at":"<actual-observed-UTC-ISO>","allowed_sources":["sec-submissions"]}]}` 이며, **예시값은 절대 실제 신뢰로 등록하지 않는다**.
+- **증거력 제한:** 별도 디스크의 로컬 등록부만으로 외부 기관 실재·승인·서명 역사시점이 암호학적으로 공증되는 것은 아니다. 실제 운영자는 검증자 신원/발행기관·공개시각·실제 승인일을 독립 감사해야 한다. 해당 증빙이 없으므로 `RawEvent=0`, 1_1은 아직 미완료.

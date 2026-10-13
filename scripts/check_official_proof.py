@@ -18,10 +18,11 @@ from pathlib import Path
 from newscatalystos.official_promotion import authenticate_from_era_readonly
 from newscatalystos.pin_anchor import verify_with_local_anchor
 from newscatalystos.source_share import SourceShareError, _read_regular, _when
+from newscatalystos.witness_registry import load_operator_witness
 
 PROOF_FIELDS = (
     "source_id", "document_id", "claim", "claim_sha256", "attestation",
-    "signature", "witness_key", "witness_key_sha256", "witness_id",
+    "signature", "witness_key", "witness_id",
 )
 MAX_CLAIM = 8192
 MAX_ATTESTATION = 8192
@@ -40,7 +41,6 @@ def parser() -> argparse.ArgumentParser:
     command.add_argument("--attestation", type=Path)
     command.add_argument("--signature", type=Path)
     command.add_argument("--witness-key", type=Path)
-    command.add_argument("--witness-key-sha256")
     command.add_argument("--witness-id")
     return command
 
@@ -66,8 +66,10 @@ def evaluate(args: argparse.Namespace, *, now: datetime | None = None) -> tuple[
                        if not configured else "INCOMPLETE_INDEPENDENT_WITNESS_INPUT"),
         }
 
-    # Size-bounded O_NOFOLLOW reads; keys/pins provided independently.
-    # The caller must have externally enrolled the issuer/witness authority.
+    # Never trust a public-key hash that arrived in the same proof package.
+    registered = load_operator_witness(
+        args.era_root, args.witness_id, args.source_id, decision, now=instant
+    )
     claim = _read_regular(args.claim, MAX_CLAIM)
     attestation = _read_regular(args.attestation, MAX_ATTESTATION)
     signature = _read_regular(args.signature, 128)
@@ -77,7 +79,7 @@ def evaluate(args: argparse.Namespace, *, now: datetime | None = None) -> tuple[
         args.source_id, args.document_id,
         claim, args.claim_sha256,
         attestation, signature, witness_key,
-        args.witness_key_sha256, args.witness_id, decision, now=instant,
+        registered.public_key_sha256, registered.witness_id, decision, now=instant,
     )
     event = result.as_of(decision, now=instant)
     return 0, {

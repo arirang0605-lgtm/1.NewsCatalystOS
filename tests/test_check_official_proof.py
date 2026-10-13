@@ -6,6 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from newscatalystos.witness_registry import TrustedWitness
+
 from scripts import check_official_proof as cli
 from newscatalystos.source_share import SourceShareError
 
@@ -86,6 +88,8 @@ def test_real_script_error_redacts_private_file_paths(tmp_path, monkeypatch, cap
 
 def test_explicit_witness_files_call_existing_pipeline_only(tmp_path, monkeypatch):
     called = _known_sources(monkeypatch)
+    monkeypatch.setattr(cli, "load_operator_witness", lambda *a, **kw:
+        TrustedWitness("independent-witness", "b" * 64, NOW, frozenset({"sec-submissions"})))
     paths = {
         "claim": b"{}",
         "attestation": b"{}",
@@ -93,7 +97,7 @@ def test_explicit_witness_files_call_existing_pipeline_only(tmp_path, monkeypatc
         "witness-key": b"-----BEGIN PUBLIC KEY-----\nFAKE\n",
     }
     argv = ["--source-id", "sec-submissions", "--document-id", "doc123",
-            "--claim-sha256", "a" * 64, "--witness-key-sha256", "b" * 64,
+            "--claim-sha256", "a" * 64,
             "--witness-id", "independent-witness"]
     for field, content in paths.items():
         path = tmp_path / field
@@ -121,8 +125,10 @@ def test_explicit_witness_files_call_existing_pipeline_only(tmp_path, monkeypatc
 
 def test_unsafe_symlink_proof_file_cannot_be_read(tmp_path, monkeypatch):
     called = _known_sources(monkeypatch)
+    monkeypatch.setattr(cli, "load_operator_witness", lambda *a, **kw:
+        TrustedWitness("independent-witness", "b" * 64, NOW, frozenset({"sec-submissions"})))
     argv = ["--source-id", "sec-submissions", "--document-id", "doc123",
-            "--claim-sha256", "a" * 64, "--witness-key-sha256", "b" * 64,
+            "--claim-sha256", "a" * 64,
             "--witness-id", "independent-witness"]
     for field in ("claim", "attestation", "signature", "witness-key"):
         path = tmp_path / field

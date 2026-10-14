@@ -64,3 +64,6 @@ D-037 (NC-6_5-RSS-LAUNCHD-HEALTH-2026-10-14): 승인 RSS Mac 1시간 launchd 운
 
 
 D-038 (NC-6_5-REVIEWED-KRX-SESSION-2026-10-14): 6_5 운영 인수에서 단순 월~금 후보와 실제 거래소 날짜를 구별한다. 운영자가 별도 허가 경로로 취득·보관한 KRX 공식 일정의 사유화된 source_snapshot + SHA256과 owner-only 검토파일(reviewed_at/reviewer_id/session_dates)을 read-only로 확인하고 실제 승인 RSS 양소스 ACK 완료 날짜에 한해서 `operator_reviewed_calendar_days`를 보고한다. 사람이 입력한 거래일 목록·자체 SHA는 외부 기관의 독립 검증이 아니므로 `verified_exchange_trading_days=0`, `five_trading_day_operation_certified=false`, `v1_release_ready=false` 유지. 수집/매매/공식 DART·SEC·KRX API 호출/ EraLeader 변경 금지. 실제 일정 증빙 없이 과거 성공일을 소급 생성 금지. **23/36 유지**.
+
+
+D-039 (NC-2_6-3_6-APPEND-REAL-GOLD-2026-10-14): 실뉴스 gold 인수는 기존 비공개 `gold_batch_<SHA>` 및 2인 검수 답안지를 **절대 덮어쓰지 않고** 증분 배치를 별도 고정한다. `run_gold_review.py freeze --new-only`는 모든 종전 배치의 Mac 독립 SHA PIN/예측/검토표/게시 증명을 확인하고 승인 RSS 완료 ACK의 공급자+문서사건 ID+제목버전 SHA가 이전과 중복되지 않는 것만 새 원자 배치로 게시한다. 기존 배치 중 변조/독립 pin 누락/상호 중복 발견 시 fail-closed. `progress`는 기존 골드와 현재 승인 RSS를 **네트워크 호출·상태 쓰기 없이** 대조하며, 사람이 라벨하지 않은 제목은 정답셋으로 계산하지 않는다. 금번 실제 새 17건/기존 39건 = 고유 후보 56건, **인적 검수 0건**, 전체 500건/품질·독립성 게이트 미완료. 실서비스·EraLeader API/DB/Git 미변경, 전체 23/36 유지.

@@ -267,3 +267,9 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - `f2b454b7fdb4e8527224da1c20f42b9b0db26db3`: KRX 거래일 operator-reviewed 일정 폴더를 `scripts/check_feed_operations.py --calendar-review-dir <Mac-private-folder>`로 *선택적으로* 대조, 실제 양승인 제공자 완료 ACK를 소급하거나 기존 RSS 워터마크에 쓰지 않음. 잘못된 원본·SHA/미검토 일정 오류 차단. **46 PASS/0 FAIL**, compile/Public 검사 PASS. 현재 사설 실제 공식 일정 리뷰 **입수0** → 검토된 거래일0/출시 false. 승인 RSS 2/실분석 ACK10, 실제 모든소스 완료 날짜 2026-10-14 한 날짜, 별도 물리 복원 true.
 - **다음 핵심 외부 실증:** 실제 KRX 공식 2026 거래일 일정의 합법적 개인 근거 파일/운영 검토가 있을 때 SHA·시각을 입력해 기존 승인 RSS ACK 날짜와 대조. Mac 기존 1시간 RSS launchd로 **추가 4개의 실제 거래일** 관측이 필요, 달력상 날짜/공휴·휴장·소스 정상/오류·DR을 확인. 과거 날짜/데이터 임의 생성 금지. `verified_exchange_trading_days`와 5일 완료 플래그는 독립 실증 전 0/false.
 - 5_2 실제 공식 반도체 고객사·공급사 본문+양사 공식 식별자·SHA/PIT/사람 검수 미확보 → UNKNOWN. 2_6/3_6 독립 인적 gold 0(39건 블라인드 대기), AI 실공급자/반도체 수혜 정확도/6_6 최종 출시 인수 미완료. **23/36(63.9%)**. EraLeader Git·코드·DB/API 수집 변경 절대 금지, 기존 사설 자료 보존.
+
+
+## 2026-10-14 | 최신 NEXT_TASK=2_6/3_6 실제 2인 리뷰·신규 444건 누적; 5_2 계약증거·6_5 5거래일
+- 기능 **`98dd4a662c745c0d6c840872c25c4f206c09188e`** (공개 원격 push 확인 필요): `PYTHONPATH=src python3 scripts/run_gold_review.py progress` 읽기전용 SHA/PIT 중복 없는 실제 검수 후보 현황, `freeze --new-only`는 기존 39건·새 17건 pinned batch 및 검수자 답변을 그대로 두고 이후 실제 승인 뉴스만 별도 인수한다. 현재 총 **56건 고유 검토 후보/2배치**, 실제 인적 gold **0**, 목표까지 **444건 부족**, 검증 precision/recall N/A. 빈 신규 리뷰 시트 2개 Mac 내부 보관. 변경 영향 **45 PASS/0 FAIL**, compile/Public 검사 PASS.
+- **다음 실질 작업:** 실제 독립 검토자 2명이 승인된 제목/공식 근거를 판정하고 출처 SHA·리뷰 종료시각을 답안지에 입력. 더 많은 합법적 신뢰 가능한 승인 RSS/공식 기존 읽기전용 스냅샷 뉴스 사건을 중복 없이 누적하고 검수·분모 편향 점검; 내부 코드로 '사람 정답' 대체 금지. 5_2 공급사–고객사 공식 본문/양사 IDs/별도 SHA·검토 원천은 아직 0건(없으면 UNKNOWN), Mac 자동 RSS 6_5 실제 5거래일·독립 거래일 확인 및 4단계 실 AI 모델/비용 인수도 미완료.
+- **현재 엄격 23/36(63.9%)**, 6_6 출시 태그 보류, 실모델·가짜 정답/수혜 승격·EraLeader 원본/DB/Git·DART/SEC/KRX 신규 중복 수집 금지. 문서 `docs/2_6-3_6_LIVE_GOLD_REVIEW.md` 참고.

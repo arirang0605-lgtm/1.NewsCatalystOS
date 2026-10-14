@@ -208,3 +208,8 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 인계 — 6_5 운영자 검토 KRX 일정·실제 RSS ACK 대조
 - 기능 Git SHA `f2b454b7fdb4e8527224da1c20f42b9b0db26db3`, 합성 포함 영향범위 **46 PASS/0 FAIL**·컴파일/Public 검사 PASS. KRX 개인 합법 출처 스냅샷 owner-only+SHA+검토 시점이 실제로 준비된 경우만 운영 RSS 승인 2소스 실 ACK와 날짜 교집합 `operator_reviewed_calendar_days` 출력. 현재 실공식 일정 리뷰 미제공으로 실제 operator-reviewed 0, 5거래일/출시 false 유지.
 - Mac 실원장 실제 ACK10/2026-10-14 양 소스 완료 1일/미처리0/물리 분리 SSD 복원 true. **완료 23/36(63.9%)**, `NEXT_TASK.md` 최신 하단에서 6_5 추가 실제 날짜/실 KRX 일정 + 5_2 공식 반도체 계약 증빙/2_6·3_6 사람 라벨부터 CONTINUE. 기존 프로젝트 코드·EraLeader·Git·DB·원본 및 사용자 미추적 도면 보존.
+
+
+## 2026-10-14 | 최신 인계 — 2_6/3_6 56건 실제 뉴스 검수 후보 증분 누적
+- **기능 `98dd4a662c745c0d6c840872c25c4f206c09188e`**, 기존 RSS 개인 완료 ACK 검증 후 기존 첫 39건 그대로 유지 + 새 실수집 뉴스 제목 버전 **17건 별도 Mac PIN/T5DATA 비공개 동결**, 누적 **56건**, 현재 추가 미동결 0건, 500까지 **444건 추가 필요**. `progress` 읽기전용 조회/`freeze --new-only` 새 후보만 append, 원본 검수자료/기존 두 사람 답안지 덮어쓰기 금지, 미인증 source/중복/손상 pin 차단. 영향 테스트 **45 PASS/0 FAIL**/compile·Public 검사 PASS. 신규 빈 2인 리뷰시트 준비됐으나 **실제 인적 정답 0**, 정확도 N/A·release false.
+- 완료 **23/36(63.9%) 유지**. 다음 `NEXT_TASK.md` 마지막 블록: 실제 인간 검토 2명/실뉴스 추가 444건, 5_2 실제 반도체 계약/공식 식별자, 6_5 후속 실운영 5거래일, 실 AI 승인·6_6 최종 출시. 기존 EraLeader와 사용자 미추적 원본·코드/Git/운영DB 보존. 작업 재개 시 기존 합성/전체 코드 반복 점검 금지.

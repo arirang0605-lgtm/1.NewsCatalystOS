@@ -18,6 +18,7 @@ import sqlite3
 import tempfile
 
 from .ai_provider import AIModel, AIRequest
+from .change_followup import assess_followup
 from .ai_openai_transport import run_budgeted_openai_analysis
 from .analysis_cache import cache_analysis_once, get_cached_analysis, _result_bytes
 from .evidence_archive import _private_root, _write_new
@@ -182,6 +183,45 @@ def _screen(item: dict, prior: PriorState, at: datetime) -> tuple[dict, FactInpu
     return report, fact
 
 
+def _contract_cancellation_followup(
+    item: dict, prior: PriorState, rows: list[dict], at: datetime,
+) -> dict | None:
+    """3_4: link a reported cancellation only to an earlier same-document deal.
+
+    Older headlines are prior *claims*, not proof a contract existed or ended.
+    The existing followup comparator supplies the candidate/hold outcome.
+    """
+    if _category(item["headline"]) != "CONTRACT_TERMINATION":
+        return None
+    earlier = [row for row in rows
+        if (row["provider_id"] == item["provider_id"]
+            and row["event_id"] == item["event_id"]
+            and row["document_id"] == item["document_id"]
+            and row["canonical_url"] == item["canonical_url"]
+            and _when(row["available_at"], "earlier version time") <
+                _when(item["available_at"], "current version time")
+            and _category(row["headline"]) == "NEW_CONTRACT"
+            and not PLANNED.search(row["headline"])
+            and row["claim_classification"] not in BLOCKED)]
+    preceding = max(earlier, key=lambda row: (
+        _when(row["available_at"], "earlier version time"), _version(row))) if earlier else None
+    matched = (tuple(f for f in prior.facts if f.source_event_sha256 == _version(preceding))
+               if preceding else ())
+    state = PriorState(prior.reviewed_subject_id, at, matched)
+    change = assess_followup(state, _claim(item, at), "BUSINESS_CANCELLED", at, now=at)
+    return {
+        "change_kind": change.change_kind, "status": change.status,
+        "prior_fact_sha256": change.previous_fact_sha256,
+        "prior_title_sha256": (preceding["title_sha256"]
+                               if change.previous_fact_sha256 is not None else None),
+        "prior_available_at": (preceding["available_at"]
+                               if change.previous_fact_sha256 is not None else None),
+        "available_at": change.available_at.isoformat(),
+        "scope": "SAME_PROVIDER_DOCUMENT_AND_EXPLICIT_PRIOR_CONTRACT_TITLE",
+        "prior_claim_verified": False, "realization_confirmed": change.is_realization_confirmed,
+    }
+
+
 def _sources(inbox: Path, state: Path, registry: ProviderRegistry, at: datetime) -> list[dict]:
     versions = {}
     for ack, document, digest in read_completed_title_snapshots(inbox, state, registry, now=at):
@@ -272,6 +312,7 @@ def analyze_completed_feed(
                 record_prior_fact(facts, _claim(previous, decision), now=decision)
         prior = prior_state_as_of(facts, _subject(item), decision, now=decision)
         report, fact = _screen(item, prior, decision)
+        report["followup_change"] = _contract_cancellation_followup(item, prior, rows, decision)
         report.update(ai_status="NOT_ELIGIBLE", ai_analysis=None, ai_adapter_attempted=False)
         if fact:
             record_prior_fact(facts, fact, now=decision)

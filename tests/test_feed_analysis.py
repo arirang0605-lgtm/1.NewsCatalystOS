@@ -320,3 +320,68 @@ def test_english_supply_contract_termination_does_not_become_a_new_deal(tmp_path
     assert row["reported_termination_only"] and not row["verified_supply_transaction"]
     assert row["source_amount_mentions"] == []
     assert not row["ai_eligible"] and row["ai_status"] == "NOT_ELIGIBLE"
+
+
+def test_contract_cancellation_followup_links_earlier_contract_only_as_candidate(tmp_path):
+    original = "글로벌 HBM 반도체 3년간 공급 계약 2000억원 체결"
+    info = setup(tmp_path, original)
+    first = run(info)["results"][0]
+    assert first["followup_change"] is None
+    collect(info[0], info[1], GOV,
+            [("contract-1", original.replace("체결", "해지"), URL)],
+            at=NOW + timedelta(hours=1))
+    second = run(info)["results"][0]
+    followup = second["followup_change"]
+    assert second["category_candidate"] == "CONTRACT_TERMINATION"
+    assert followup["change_kind"] == "BUSINESS_CANCELLED"
+    assert followup["status"] == "INVALIDATED_CANDIDATE"
+    assert followup["prior_fact_sha256"] is not None
+    assert followup["prior_title_sha256"] == first["source_title_sha256"]
+    assert followup["prior_available_at"] == first["source_available_at"]
+    assert followup["available_at"] >= second["source_available_at"]
+    assert not followup["prior_claim_verified"] and not followup["realization_confirmed"]
+    assert not second["verified_supply_transaction"] and not second["verified_economic_fact"]
+    assert second["ai_status"] == "AWAITING_EXPLICIT_AI_AUTHORIZATION"
+    report = run(info)
+    saved, digest = publish_feed_analysis(report, tmp_path / "reports")
+    from newscatalystos.feed_analysis_delivery import consume_feed_analysis
+    out = consume_feed_analysis(saved, saved.parent, digest)
+    assert out["results"][0]["followup_change"]["status"] == "INVALIDATED_CANDIDATE"
+    assert out["ai_calls"] == out["source_fetch_calls"] == out["database_writes"] == 0
+
+
+def test_contract_cancellation_with_no_earlier_contract_is_held(tmp_path):
+    info = setup(tmp_path, "글로벌 HBM 반도체 3년간 공급 계약 2000억원 해지")
+    row = run(info)["results"][0]
+    assert row["category_candidate"] == "CONTRACT_TERMINATION"
+    assert row["followup_change"]["status"] == "NO_PRIOR_EVENT_HOLD"
+    assert row["followup_change"]["prior_title_sha256"] is None
+    assert row["followup_change"]["prior_fact_sha256"] is None
+    assert not row["followup_change"]["realization_confirmed"]
+
+
+def test_planned_or_unrelated_contract_does_not_establish_followup(tmp_path):
+    for idx, original, next_id in (
+        ("plan", "글로벌 HBM 반도체 공급 계약 2000억원 계획", "contract-1"),
+        ("other", "글로벌 HBM 반도체 공급 계약 2000억원 체결", "another-document"),
+    ):
+        folder = tmp_path / idx
+        folder.mkdir(mode=0o700)
+        info = setup(folder, original)
+        run(info)
+        collect(info[0], info[1], GOV,
+                [(next_id, "글로벌 HBM 반도체 공급 계약 2000억원 해지", URL)],
+                at=NOW + timedelta(hours=1))
+        second = run(info)
+        cancelled = next(r for r in second["results"]
+                         if r["headline"].endswith("해지"))
+        assert cancelled["followup_change"]["status"] == "NO_PRIOR_EVENT_HOLD"
+        assert cancelled["followup_change"]["prior_fact_sha256"] is None
+
+
+def test_rumored_or_denied_cancellation_creates_no_followup(tmp_path):
+    info = setup(tmp_path, "글로벌 HBM 반도체 공급 계약 2000억원 해지 루머")
+    row = run(info)["results"][0]
+    assert row["category_candidate"] is None
+    assert row["followup_change"] is None
+    assert row["ai_status"] == "NOT_ELIGIBLE"

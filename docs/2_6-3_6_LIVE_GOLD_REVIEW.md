@@ -56,3 +56,32 @@ PYTHONPATH=src python3 scripts/run_gold_review.py evaluate \
 - 중복 precision은 **전체 배치 true_positive / (전체 true_positive + false_positive)**, 중요 사건 recall은 **전체 탐지 중요 건수 / 전체 실제 중요 건수**이다. 배치별 퍼센트의 단순평균은 사용하지 않는다. 평가 입력이 0이면 해당 비율은 `null`을 표시한다.
 - 실제 Mac에서 기존 39건 + 17건의 두 배치·사용자가 작성한 두 쌍의 빈 검수 양식을 합산해 **표본 56, 2인 합의 0, 미검수 56, precision/recall N/A, 목표 500까지 후보 444건/인적 합의 500건 부족** 결과 확인. 이 결과는 실측 정답을 생성하거나 과거 시점의 실시간 예측 성능을 증명하지 않는다.
 - `mathematical_threshold_met_on_supplied_labels`이 향후 true가 되더라도 검수자 독립성, 실제 사건 원문 근거·소스 다양성·검증된 과거 예측 성과를 자동 인증하지 않으며, `reviewer_independence_certified=false`, `source_diversity_certified=false`, `prospective_live_accuracy_certified=false`, `release_gate_verified=false`는 별도 최종 인수까지 유지한다. 2_6·3_6을 합성 라벨 테스트로 완료 처리하지 않는다.
+
+
+## 2026-10-14 | 실제 검수자 개별 판정 입력 CLI (NC-HUMAN-REVIEW-ENTRY)
+
+기존 2개 frozen 배치(39건 + 17건)는 수정하지 않고 Mac 개인 `gold_review_workspace`에 마련된 빈 답안지에 **실제 검수자의 직접 판단만** 입력할 수 있게 했다. 원본 뉴스 본문·개인 근거 메모는 Public GitHub에 올리지 않는다. 모든 명령은 맥북 터미널에서 직접 실행해야 하며, AI가 자동으로 yes/no 또는 검토 근거를 작성하는 기능은 없다.
+
+1. 검수자 A가 현재 배치의 블라인드 뉴스 제목·링크·사건 SHA를 확인:
+   ```sh
+   cd /Volumes/T5DATA/1.NewsCatalystOS
+   PYTHONPATH=src python3 scripts/run_gold_review.py review-list \
+     --expected-sha256 '<배치의 기존 SHA>' --reviewer-slot UNASSIGNED_A --limit 10
+   ```
+   이 조회에서 예측값은 숨긴다. 검수자 B는 `UNASSIGNED_B`로 조회하며, 다른 검수자의 라벨을 열어보지 않고 실제 출처를 직접 검토한다.
+
+2. 검수자는 기사 링크와 허용된 공식 근거를 독립 확인한 뒤, 본인 검수 폴더(`.../gold_batch_<SHA>/UNASSIGNED_A/`)에 `evidence_<case_sha256>.txt`를 **직접 작성하고 chmod 600**으로 잠근다. 여기에 출처 링크, 확인한 사실, 증거 위치와 판단 이유를 사람이 작성한다. 원문 유료 기사·키·개인정보를 복사하지 않는다. 이 파일은 외부에 전송하지 않으며 SHA256만 답안지에 기록된다.
+
+3. 사람이 직접 사건 1건을 판정할 때에만 실행:
+   ```sh
+   PYTHONPATH=src python3 scripts/run_gold_review.py review-one \
+     --expected-sha256 '<배치 SHA>' --reviewer-slot UNASSIGNED_A \
+     --reviewer-code REVIEWER_A --case-sha256 '<검수할 사건 SHA>' \
+     --true-duplicate false --important-event true \
+     --evidence-file '<개인 슬롯>/evidence_<사건SHA>.txt' --confirm-human-review
+   ```
+   `true-duplicate`와 `important-event`는 검수한 사실에 맞춰 각각 true/false를 선택하며 **예시 값이 정답은 아니다**. 검수 종료시각은 시스템이 현재 UTC 시점으로 기록한다. 답안지 업데이트 전에 이전 내용을 Mac 슬롯 내부 `review_history/<case>.before.json`으로 따로 보존하고, 갱신 내용 SHA 영수증을 기록한 후 owner-only 답안지를 원자 교체한다. 이미 완료한 건은 덮어쓰기/수정 불가. 검수자 코드와 슬롯은 하나로 고정한다. 호출에 자동 뉴스 수집·AI 분석은 없다.
+
+4. 실제 검수자 두 명의 입력이 끝나면 `PYTHONPATH=src python3 scripts/run_gold_review.py aggregate`로 전체 합계(진짜 2인 합의/충돌/미입력)를 조회한다. 동일 실제 2인의 독립성은 명령 실행만으로 인증할 수 없다. 검수자 진위와 자료 접근권한은 운영자가 별도 관리하고, 수치 성능/500건/V1 릴리스 게이트는 독립 실증까지 **false**다.
+
+실 Mac에서 `review-list`로 신규 17건 미검수 후보 조회 PASS. 입력 기능은 합성 테스트에서만 판정 1건 및 A/B 분리 기록을 시험했고, 실제 뉴스의 사람이 검수한 정답은 **현재 0건**으로 유지한다.

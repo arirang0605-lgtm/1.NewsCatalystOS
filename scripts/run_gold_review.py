@@ -23,6 +23,7 @@ from newscatalystos.live_gold_samples import (
     prepare_blank_human_review_sheets, gold_freeze_progress,
     summarize_all_gold_reviews,
 )
+from newscatalystos.human_review_entry import list_review_cases, record_review_once
 from newscatalystos.source_share import SourceShareError
 
 
@@ -51,6 +52,23 @@ def parser() -> argparse.ArgumentParser:
     portfolio=commands.add_parser("aggregate",help="read-only verified all-batch metrics")
     portfolio.add_argument("--workspace-root",type=Path,
                            default=base/"gold_review_workspace")
+    browse=commands.add_parser("review-list",help="show local blind cases awaiting human review")
+    browse.add_argument("--expected-sha256",required=True)
+    browse.add_argument("--reviewer-slot",required=True,choices=["UNASSIGNED_A","UNASSIGNED_B"])
+    browse.add_argument("--workspace-root",type=Path,default=base/"gold_review_workspace")
+    browse.add_argument("--offset",type=int,default=0)
+    browse.add_argument("--limit",type=int,default=10)
+    submit=commands.add_parser("review-one",help="record one human decision from private source note")
+    submit.add_argument("--expected-sha256",required=True)
+    submit.add_argument("--reviewer-slot",required=True,choices=["UNASSIGNED_A","UNASSIGNED_B"])
+    submit.add_argument("--reviewer-code",required=True)
+    submit.add_argument("--workspace-root",type=Path,default=base/"gold_review_workspace")
+    submit.add_argument("--case-sha256",required=True)
+    submit.add_argument("--true-duplicate",required=True,choices=["true","false"])
+    submit.add_argument("--important-event",required=True,choices=["true","false"])
+    submit.add_argument("--evidence-file",required=True,type=Path)
+    submit.add_argument("--confirm-human-review",action="store_true",required=True,
+                        help="confirm real source examination, not auto-generated labels")
     read=commands.add_parser("evaluate",help="preview evidence-linked label metrics")
     read.add_argument("--batch-folder",type=Path,required=True)
     read.add_argument("--expected-sha256",required=True)
@@ -69,6 +87,21 @@ def evaluate(opts: argparse.Namespace) -> tuple[int,dict]:
         if opts.command=="aggregate":
             return 0, summarize_all_gold_reviews(
                 opts.out_root, opts.pin_root, opts.workspace_root,
+            )
+        if opts.command=="review-list":
+            return 0, list_review_cases(
+                opts.out_root, opts.pin_root, opts.workspace_root,
+                opts.expected_sha256, opts.reviewer_slot,
+                offset=opts.offset, limit=opts.limit,
+            )
+        if opts.command=="review-one":
+            if opts.confirm_human_review is not True:
+                raise SourceShareError("explicit human confirmation required")
+            return 0, record_review_once(
+                opts.out_root, opts.pin_root, opts.workspace_root,
+                opts.expected_sha256, opts.reviewer_slot, opts.reviewer_code,
+                opts.case_sha256, opts.true_duplicate == "true",
+                opts.important_event == "true", opts.evidence_file,
             )
         if opts.command=="freeze":
             registry=_registry(opts.registry)

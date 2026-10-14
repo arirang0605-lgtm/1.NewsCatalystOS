@@ -41,3 +41,16 @@ launchctl bootout "gui/$(id -u)/com.newscatalystos.triage"
 ## V1.0 인수 경계
 - 실제 5개 **거래소 거래일**, 동시 모든 승인 소스 정상/장애 후 회복, PIT/원장 무결성, 미처리 0 등은 향후 실제 운영 기록으로 인수. `weekday_candidate_days`는 단순 월~금이며 한국/미국 증시 휴장·실제 거래일 검증을 대신할 수 없다.
 - 로컬 다른 물리 장치 드라이브 간 DR/SHA PIN 검증은 이미 완료했지만, 원거리 오프사이트 백업과 5거래일 동작, 5_2 공식 반도체 거래문서, AI 실비용 및 500건 독립 라벨 검증은 미완료. **23/36 유지**, `6_5` 최종 완료·V1.0 릴리스 태그는 보류.
+
+
+## 2026-10-14 | 실사용 자동작업 상태 진단 (6_5 health)
+```sh
+cd /Volumes/T5DATA/1.NewsCatalystOS
+PYTHONPATH=src python3 scripts/check_triage_agent_health.py
+```
+- 기존 서비스/승인RSS를 **읽기 전용** 조회한다. 새 수집·API·AI 호출, launchctl 시작/중지, 운영 원장/백업/로그 수정 없음. 종료코드 0은 최근 관측된 자동실행 상태 OK, 종료코드 4는 운영자 점검 필요.
+- 실제 owner-only Mac LaunchAgent plist를 기존 승인 2소스/1시간 설정과 비교하고, `launchctl print`의 실행 횟수·마지막 종료코드·간격 및 오래되지 않은 마지막 stdout JSON을 확인한다. 비활성 `com.newscatalystos.incremental` 중복 실행 시 오류로 보고한다.
+- `AGENT_HEALTHY_OBSERVED` 는 로컬 자동실행이 최근 정상이라는 **운영 건강도만 뜻하며**, 뉴스 최신성·공시 첫 공개시각·5거래일 인증·실제 공급관계/수혜·V1 출시 합격은 뜻하지 않는다.
+- 대표 실패사유: `AGENT_NOT_LOADED`(스케줄러 정지), `NO_RECENT_TICK`(마지막 로그가 2시간 15분보다 오래됨), `LAST_RUN_FAILED`, `AGENT_CONFIG_MISMATCH`, `LAST_TICK_UNVERIFIED`, `DUPLICATE_SCHEDULER_ACTIVE`. 맥북 잠자기·SSD 연결해제·권한 오류가 발생한 경우 원인 확인 후 기존 `check_feed_operations.py`로 실제 ACK/PIT/물리복원 여부를 따로 확인한다.
+- Mac 로그는 사용자의 `~/Library/Application Support/NewsCatalystOS/logs/` 내부 owner-only 파일을 마지막 일부만 읽는다. 로그 원문·개인경로는 JSON에 출력하지 않으며 Private 저장 원칙을 유지한다. 서비스 간격 중 `state=not running`은 정상일 수 있으므로 오류로 간주하지 않는다.
+- 실제 2026-10-14 Mac 단발 검증: `runs=4`, `last_exit_code=0`, 승인 제공자 2개, `AGENT_HEALTHY_OBSERVED`, 외부 신규 API 0, 인수 운영일은 별도 1일 기록에 머문다. 기능은 자동 운영 완료를 인증하거나 V1.0 태그를 발급하지 않는다.

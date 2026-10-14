@@ -19,6 +19,7 @@ if str(PROJECT) not in sys.path:
 
 from scripts.run_feed_triage import _registry, default_state
 from newscatalystos.news_search import search_titles, sync_completed_titles
+from newscatalystos.feed_analysis_delivery import attach_saved_analysis_to_search
 from newscatalystos.federated_news_search import (
     TitleSearchWorkspace, search_completed_workspaces,
 )
@@ -59,7 +60,24 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--motir-gold-out-root", type=Path, default=PROJECT / "output" / "motir_gold_review")
     p.add_argument("--motir-gold-pin-root", type=Path, default=base / "pins" / "motir_gold")
     p.add_argument("--motir-review-workspace-root", type=Path, default=base / "motir_gold_review_workspace")
+    p.add_argument("--analysis-report-file", type=Path,
+                   help="existing private feed analysis publication, optional")
+    p.add_argument("--analysis-reports-root", type=Path,
+                   help="private root containing that published report")
+    p.add_argument("--analysis-expected-sha256",
+                   help="producer's independently retained SHA, not calculated from input")
     return p
+
+
+def _with_saved_analysis(report: dict, opts: argparse.Namespace) -> dict:
+    selected = (getattr(opts, "analysis_report_file", None),
+                getattr(opts, "analysis_reports_root", None),
+                getattr(opts, "analysis_expected_sha256", None))
+    if not any(value is not None for value in selected):
+        return report  # unchanged search when enrichment not requested
+    if (not all(selected) or getattr(opts, "review_links", False)):
+        raise SourceShareError("complete saved analysis selection required without gold links")
+    return attach_saved_analysis_to_search(report, *selected)
 
 
 def evaluate(opts: argparse.Namespace) -> tuple[int, dict]:
@@ -68,6 +86,9 @@ def evaluate(opts: argparse.Namespace) -> tuple[int, dict]:
         if scope not in ("core", "motir", "all"):
             raise SourceShareError("unsupported search scope")
         review_links = getattr(opts, "review_links", False)
+        if review_links and any(getattr(opts, key, None) is not None for key in (
+                "analysis_report_file", "analysis_reports_root", "analysis_expected_sha256")):
+            raise SourceShareError("saved AI analysis must not enter blind human review")
         if review_links and getattr(opts, "reviewer_slot", None) is None:
             raise SourceShareError("review links require an explicit reviewer slot")
         if scope != "core" or review_links:
@@ -92,13 +113,13 @@ def evaluate(opts: argparse.Namespace) -> tuple[int, dict]:
                     slot=opts.reviewer_slot, source_id=opts.source_id,
                     semiconductor_only=opts.semiconductor_only, limit=opts.limit,
                 )
-                return (0 if report["review_links_complete"] else 4), report
+                return (0 if report["review_links_complete"] else 4), _with_saved_analysis(report, opts)
             report = search_completed_workspaces(
                 tuple(workspaces), opts.query, registry_reader=_registry,
                 source_id=opts.source_id, semiconductor_only=opts.semiconductor_only,
                 limit=opts.limit,
             )
-            return (0 if report["coverage_complete"] else 4), report
+            return (0 if report["coverage_complete"] else 4), _with_saved_analysis(report, opts)
         registry = _registry(opts.registry)
         status = sync_completed_titles(
             opts.inbox_root, opts.state, opts.index, registry,
@@ -109,7 +130,7 @@ def evaluate(opts: argparse.Namespace) -> tuple[int, dict]:
             semiconductor_only=opts.semiconductor_only,
             limit=opts.limit,
         )
-        return 0, {
+        return 0, _with_saved_analysis({
             "status": "LOCAL_APPROVED_METADATA_SEARCH",
             "indexed_document_versions": status.unique_documents,
             "acknowledged_triage_receipts_checked": status.processed_receipts,
@@ -121,7 +142,7 @@ def evaluate(opts: argparse.Namespace) -> tuple[int, dict]:
             "market_action": None,
             "network_calls": 0,
             "ai_calls": 0,
-        }
+        }, opts)
     except (SourceShareError, OSError, ValueError) as exc:
         return 4, {
             "status": "SEARCH_DATA_UNAVAILABLE",

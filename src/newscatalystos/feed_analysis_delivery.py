@@ -192,3 +192,45 @@ def consume_feed_analysis(
         "database_writes": 0, "human_labels_added": 0,
         "verified_economic_facts": 0, "market_action": None,
     }
+
+
+def attach_saved_analysis_to_search(
+    search_report: dict, report_file: Path, reports_root: Path,
+    expected_sha256: str, *, now: datetime | None = None,
+) -> dict:
+    """Join one prior SHA-pinned report to verified title-search identities.
+
+    No matching analysis means *not present in this report*, not no event.
+    Both paths remain separate and no earlier search time is retroactively
+    awarded the later analysis availability timestamp.
+    """
+    saved = consume_feed_analysis(
+        report_file, reports_root, expected_sha256, limit=100, now=now,
+    )
+    indexed = {(r["provider_id"], r["source_event_sha256"],
+                r["source_title_sha256"]): r for r in saved["results"]}
+    joined = []
+    count = 0
+    for original in search_report["results"]:
+        key = (original["provider_id"], original["event_id"], original["title_sha256"])
+        analysis = indexed.get(key)
+        if analysis is not None:
+            # A matching ID with different verified source evidence is not a join.
+            if any((original[search_key] != analysis[analysis_key]) for search_key, analysis_key in (
+                ("headline", "headline"), ("source_url", "source_url"),
+                ("source_kind", "source_kind"),
+                ("source_available_at", "source_available_at"),
+                ("triage_evidence_sha256", "source_triage_sha256"),
+            )):
+                raise SourceShareError("search result differs from saved analysis source")
+            count += 1
+        joined.append(dict(original, saved_analysis=analysis))
+    return dict(search_report, results=joined,
+                saved_analysis_report_sha256=saved["source_report_sha256"],
+                saved_analysis_producer_checked_at=saved["producer_checked_at"],
+                saved_analysis_consumer_available_at=saved["consumer_available_at"],
+                saved_analysis_matches=count,
+                saved_analysis_unmatched=len(joined) - count,
+                saved_analysis_scope="EXACT_SOURCE_VERSION_IN_ONE_SAVED_REPORT",
+                analysis_source_freshness_certified=False,
+                historical_analysis_join_certified=False)

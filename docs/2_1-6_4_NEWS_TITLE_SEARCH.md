@@ -95,3 +95,20 @@ A/B 각 슬롯에서 2건 모두 정확한 선택 사례를 읽었으며 인적 
 Gold/PIN/검수 파일 **55개 SHA가 동일**했다. 89건은 독립 사건/정답 수가 아니다.
 변경 영향 9개 테스트 파일 **119 PASS / 0 FAIL**, 컴파일·diff 검사 PASS.
 전체 V1.0 인수는 **23/36 유지**이며 공급관계·실AI·5거래일/출시 조건은 별도다.
+
+## 뉴스 검색 → 기존 경제 사건 분석 결과 연결 (2026-10-15)
+기존 `search_news.py`가 찾은 승인 RSS 제목을 **이미 게시된 분석 결과**와 연결할 수 있다. 검색 결과는 종전과 동일하며 아래 세 옵션을 모두 명시한 경우에만 각 결과의 `saved_analysis`에 원래 분석 행을 첨부한다. 보고서 파일/SHA는 예약 분석 또는 별도 생산자 출력에서 **기존에 기록된 것**을 전달해야 한다. 검색 시 재분석·새 RSS 수집·유료 AI 호출은 없다.
+
+```sh
+cd /Volumes/T5DATA/1.NewsCatalystOS
+PYTHONPATH=src python3 scripts/search_news.py --scope all --query 반도체 \
+  --analysis-report-file "/private/approved/reports/feed_analysis_<SHA>.json" \
+  --analysis-reports-root "/private/approved/reports" \
+  --analysis-expected-sha256 "<producer_retained_report_sha256>"
+```
+
+- 기존 SHA/PIT reader가 **전체 보고서**를 먼저 검증한 뒤 `(provider_id,event_id,title_sha256)`와 원래 제목·URL·출처 유형·가용 시각·triage SHA까지 대조한다. 같은 ID인데 출처 값이 다른 경우 `SEARCH_DATA_UNAVAILABLE`/exit4이며 임의의 분석 내용을 연결하지 않는다.
+- 이 분석 보고서에 없는 제목은 `saved_analysis: null`; `saved_analysis_unmatched`는 **해당 보고서에 미포함**이라는 뜻이다. 실제 미발생·무관계·AI 분석 실패의 증거가 아니다. `saved_analysis_matches`, 저장 SHA, 생산 시각과 **현재 소비 가능 시각**은 분리하여 출력한다.
+- `saved_analysis`의 사건 분류·중요도·AI 요약·불확실성은 원본 그대로 **미확인** 상태다. 검색·연결은 `fact_verified_by_search=false`, `historical_analysis_join_certified=false`, `market_action=null`을 유지하고 과거 재생시점에 새 정보를 소급 제공하지 않는다. 결과에는 비공개 분석 메타가 포함될 수 있으므로 표준출력·JSON을 공개 로그/Git에 기록하지 않는다.
+- `--review-links`의 독립 Gold 맹검 작업에는 분석값을 섞지 않는다. 세 분석 옵션과 맹검 모드를 함께 사용하면 오류를 반환한다. `--scope core`의 종전 로컬 검색 인덱스 갱신 동작은 유지되며, `--scope all/motir`은 기존 완료 스냅샷을 읽기 전용 조회한다.
+- 변경 영향 8개 테스트파일 **133 PASS/0 FAIL**, 그리고 이전에 보관한 실제 승인 메타(core/MOTIR) 결과에 대해 별도 CLI 프로세스 각각 exit0, 관련 분석 결합 2건/1건, 두 보고서 SHA 무변경, 신규 네트워크/유료AI 0회 확인. **실제 뉴스 내용의 사실성·반도체 수혜관계·인적 평가·5거래일 인수는 미검증**으로 구분한다.

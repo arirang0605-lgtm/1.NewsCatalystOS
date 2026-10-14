@@ -88,3 +88,6 @@ D-045 (NC-2_6-3_6-PROSPECTIVE-GOLD-HOURLY-2026-10-14): 500개 인적 gold 목표
 
 
 D-046 (NC-2_6-3_6-REAL-SCOPE-BIAS-2026-10-14): V1.0 반도체 단일 산업의 2_6/3_6 실검증은 500 RSS 제목 단순 누적만으로 합격시킬 수 없다. 이미 독립 Mac SHA PIN 고정된 모든 GoldBatch의 T5DATA 블라인드 메타/예측/PIT 및 기존 A/B 답안을 읽기 전용 확인해 출처별·제공역할별·제목 반도체 키워드 힌트/사람 합의 정답수를 `run_gold_review.py scope-audit`로 검사한다. 보도자료 배포자를 독립 취재원으로 계산하거나 키워드를 실제 경제사건·거래관계로 승격하지 않고 편중 경고를 보고한다. Mac 실제 70 제목후보 중 공식기관23/배포보도자료47, 반도체 제목 키워드1(1.4%), 사람 정답0. 신규 API/AI/DB 쓰기0, EraLeader 무변경, **23/36 유지**, V1.0 실측 완료 false.
+
+
+D-047 (NC-MOTIR-REVIEWED-POST-2026-10-14): V1.0 반도체 정부 산업정책의 신규 실제 자료원으로 **산업통상부 공식 보도·참고자료 RSS**만 별도 등록·운용한다. 공식 게시판 `https://www.motir.go.kr/kor/article/ATCL3f49a5a8c`에는 RSS 및 공공누리 제1유형(출처표시) 조건이 명시돼 있다. RSS 버튼의 `rssForm`은 해당 정확한 `https://www.motir.go.kr/kor/article/ATCL3f49a5a8c/rss` 주소로 **빈 POST** 요청(일반 GET 405)을 사용하므로 기존 등록부/수집 transport에 특별히 해당 정부 기관·URL로만 제한된 `RSS_POST` 기능을 추가한다. 이외 웹사이트 일반 POST/기존 두 RSS GET/공식 DART·SEC·KRX API 수집기를 절대 변경하지 않는다. 자동수집 대상은 별도 Mac owner-only 등록부·상태 DB·복구함·T5DATA private gold와 사용자 LaunchAgent `com.newscatalystos.motir`로 **격리**한다. 홈페이지 콘텐츠 재배포/첨부파일·본문 저장 금지, 출처 명시/별도 이용권한 확인 준수. SK하이닉스 공식 뉴스룸 약관에는 무단 로봇·자동 접근 제한이 있어 별도 허가 전 등록 금지. 실제 기사 제목 10건/반도체 키워드 힌트1/PIT·SHA 증빙, 사람 검수0/실공급사–고객사 관계0, 타 RSS 70건과 중복 제거 전 합산 검증 불가. 기존 23/36 단계 인수 변경 없음.

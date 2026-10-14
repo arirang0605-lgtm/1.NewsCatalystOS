@@ -248,3 +248,8 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 인계 — 실제 RSS 검증 gold의 반도체 표본 부족 명시
 - 기능 `ee2c0997a4896df01448f3d7a8ca385e9dc38f23`: 독립 PIN 4배치의 70 실제 RSS 제목 버전을 기존 A/B human 검수와 read-only 묶어 `run_gold_review.py scope-audit`에서 출처·반도체 제목 키워드 대표성 점검. **59 PASS/0 FAIL**/컴파일/Public PASS. 공식기관23/보도자료47, 반도체 키워드 **1/70(1.4%)** 힌트, 실 2인 합의0, 출시false, 진행 **23/36(63.9%)** 유지.
 - `NEXT_TASK.md` 하단 우선: 사람 2명 진짜 라벨, 허가된 반도체 전문 IR/공공정책/독립 소스 후보 확보(승인 전 새 RSS 등록/공식 API 중복 호출 금지), 5_2 양사 실공급관계 문서/ID 검증, 6_5 5개 실거래일, 4_1 승인 AI 실연동. T5DATA와 Mac 실사용 triage/gold 1시간 운영 유지, EraLeader 원본 코드/DB/Git·사용자 미추적 도면 보존, 6_6 태그 불가.
+
+
+## 2026-10-14 | 최신 인계 — 산업통상부 실제 공식 정책 RSS 신규 1소스 연동
+- 기능 SHA `f513999b32d7733993839636c9742880df8af6a9`: 정부 `motir.go.kr` 공식 보도자료 RSS는 빈 POST 방식(GET 405/POST 200), 사이트에 공공누리1유형 출처표시 조건 명시. 기존 수집기에 특정 정부 주소만 `RSS_POST` 허용. 별도 Mac 소스 등록부/SQLite/재처리함·전용 T5DATA Gold/반대물리 Mac PIN, 신규 사용자 LaunchAgent `com.newscatalystos.motir` 1시간 등록·kickstart **runs1/exit0**. 실제 **10개 뉴스 메타 성공/반도체 키워드 1후보**, 인간 답안0, 기존 2 RSS Gold70과 합산 중복 독립성 미검증, 5_2 실공급관계0. 변경 영향 **118 PASS/0 FAIL**, 컴파일·Public 검수 PASS. 완료 **23/36(63.9%)**.
+- `NEXT_TASK.md` 맨 아래가 최신: MOTIR 후속 실운영·2인 검수/정식 업종 관련성, 실 5_2 공식 본문·양사ID/4_1 승인 AI/6_5 5거래일 증빙. 기존 EraLeader 코드/DB/Git/API 중복수집·다른 회사 로봇약관 위반·기존 개인 미추적 문서 변경 금지.

@@ -54,3 +54,44 @@ PYTHONPATH=src python3 scripts/search_news.py --query 기업 --limit 20
 `test_federated_news_search.py`, `test_news_search.py`, `test_feed_recovery.py`, `test_feed_operations.py`, `test_feed_triage.py`, `test_incremental_ingest.py`, `test_live_gold_samples.py`, `test_live_gold_incremental.py`, `test_gold_capture_once.py`의 변경 영향 테스트 **100 PASS / 0 FAIL**. 실제 ACK 파이프라인을 사용한 합성 테스트에서 세 출처 결합·정정 보존·동일 버전 멱등성·전역 제한·광고 제외·미승인/손상 자료 부분 실패·PIT·운영 입력 불변·기본 CLI 호환을 검증했다. 전체 프로젝트 회귀나 실제 사람 평가를 새로 완료한 것은 아니다.
 
 **V1.0 완료는 23/36(63.9%) 유지.** 2_6/3_6 독립 인적 정답, 5_2 공식 반도체 공급관계 본문/양사 식별자, 승인된 실 AI·요금, 6_5 실제 5거래일 및 6_6 최종 인수는 별도 미완료이다.
+
+## 검색 결과에서 기존 PIN 고정 검수 사례로 이동 (2026-10-14)
+
+`--review-links`는 검색된 `provider_id/event_id/title_sha256`를 기존 Gold
+사례 SHA에 정확히 연결한다. 기존 승인 RSS의 완료 ACK와 원장, 별도 디스크
+PIN 및 동결된 제목/링크를 재검증하고 **선택한 검수자 공간만** 읽는다.
+등록부·수집 DB·Gold 묶음·검수 답안지·서비스는 합치거나 새로 만들지 않는다.
+
+```sh
+cd /Volumes/T5DATA/1.NewsCatalystOS
+PYTHONPATH=src python3 scripts/search_news.py \
+  --scope all --query 반도체 --semiconductor-only \
+  --review-links --reviewer-slot UNASSIGNED_A
+# 다른 검수자는 같은 명령의 슬롯을 UNASSIGNED_B로 지정한다.
+```
+
+결과 `review_entry_argv`는 기존 `review_news_interactive.py`를 특정
+`--batch-sha256`/`--case-sha256`에 연결하는 **실행하지 않은 인자 목록**이다.
+실제 검수자가 프로젝트 폴더에서 본인의 `--reviewer-code`를 추가해 실행해야 한다.
+대화형 프로그램은 출처 확인, 중복/중요 여부, 근거 메모 및 최종 확인을
+사람에게 직접 요구한다. 프로그램이 선택한 뉴스 대신 묶음의 첫 사례를
+검수하지 않으며, 이미 제출한 사례는 다른 사례로 자동 대체하지 않는다.
+
+- `READY_FOR_HUMAN_REVIEW`: 기존 PIN과 선택한 빈 검수 사례가 일치한다.
+- `SELECTED_SLOT_ALREADY_SUBMITTED`: 선택한 슬롯에 제출된 답변이 있으므로 재입력하지 않는다. 답변 내용/정답 여부는 표시하지 않는다.
+- `NOT_FROZEN_YET`: 검색된 제목 버전이 아직 기존 Gold에 없으며, 새 PIN/답안지를 임의 생성하지 않는다.
+- `GOLD_DATA_UNAVAILABLE` / `REVIEW_ENTRY_UNAVAILABLE`: PIN·동결 자료·작업공간 누락/손상 또는 출처 불일치. 정상 범위의 결과만 유지하고 exit 4로 불완전함을 알린다.
+
+이 모드에서는 자동 중복 힌트·모델 분류/예측·다른 검수자의 답변을 숨긴다.
+특정 키워드로 선택된 검수 목록은 **평가용 무작위 표본이나 전체 정답셋이 아니다**.
+`review_links_complete`는 반환된 검색 결과의 연결 상태이고, 전체 검색 건수는
+`matched_document_versions`, 잘린 결과 여부는 `has_more_matches`로 구분한다.
+인적 합의/정확도는 기존 `run_gold_review.py aggregate`에서 실제 답변으로만 평가한다.
+
+실제 Mac 확인(2026-10-14 18:24 KST): 승인 3소스의 제목 버전 **89건** 중
+반도체 검색 후보 **2건**(뉴스와이어IT·산업통상부)을 기존 PIN Gold에 연결했다.
+A/B 각 슬롯에서 2건 모두 정확한 선택 사례를 읽었으며 인적 라벨 추가 **0건**,
+새 Gold 생성 **0건**, 외부/AI 호출 **0건**이다. 조회 전후 등록부·운영 DB·
+Gold/PIN/검수 파일 **55개 SHA가 동일**했다. 89건은 독립 사건/정답 수가 아니다.
+변경 영향 9개 테스트 파일 **119 PASS / 0 FAIL**, 컴파일·diff 검사 PASS.
+전체 V1.0 인수는 **23/36 유지**이며 공급관계·실AI·5거래일/출시 조건은 별도다.

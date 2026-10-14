@@ -88,15 +88,36 @@ def _verified_slot(out_root: Path, pin_root: Path, workspace_root: Path,
 
 def list_review_cases(out_root: Path, pin_root: Path, workspace_root: Path,
                       digest: str, slot: str, *, offset: int = 0,
-                      limit: int = 10, now: datetime | None = None) -> dict:
+                      limit: int = 10, now: datetime | None = None,
+                      case_sha256: str | None = None) -> dict:
     """Show local titles + links, never model predictions, to real reviewers."""
     at = _when((now or datetime.now(timezone.utc)).isoformat(), "review browse time")
     if type(offset) is not int or offset < 0 or type(limit) is not int or not 1 <= limit <= 25:
         raise SourceShareError("invalid review page")
-    _, _, _, document, _, blind, _ = _verified_slot(
+    _, _, _, document, _, blind, pinned = _verified_slot(
         out_root, pin_root, workspace_root, digest, slot, at,
     )
     labels = {x["case_sha256"]: x for x in document["labels"]}
+    selected = None
+    if case_sha256 is not None:
+        selected = _must_sha(case_sha256, "selected review case SHA")
+        if selected not in labels:
+            raise SourceShareError("selected case not in pinned review batch")
+        target = labels[selected]
+        values = [target[k] for k in (
+            "true_duplicate", "important_event", "review_evidence_sha256", "reviewed_at"
+        )]
+        if not all(value is None for value in values):
+            # A partial/corrupt answer must not masquerade as a submitted review.
+            if (type(target["true_duplicate"]) is not bool
+                    or type(target["important_event"]) is not bool):
+                raise SourceShareError("selected case has incomplete human answers")
+            _must_sha(target["review_evidence_sha256"], "selected review evidence")
+            reviewed = _when(target["reviewed_at"], "selected human review time")
+            code = document["reviewer_code"]
+            if (not isinstance(code, str) or not REVIEWER_PATTERN.fullmatch(code)
+                    or code.startswith("UNASSIGNED") or not pinned <= reviewed <= at):
+                raise SourceShareError("selected human submission identity/time invalid")
     eligible = []
     for entry in blind["cases"]:
         item = labels[entry["case_sha256"]]
@@ -110,7 +131,8 @@ def list_review_cases(out_root: Path, pin_root: Path, workspace_root: Path,
     return {
         "status": "BLIND_HUMAN_REVIEW_LOCAL_ONLY",
         "unreviewed_count": len(eligible),
-        "cases": eligible[offset:offset + limit],
+        "cases": ([row for row in eligible if row["case_sha256"] == selected]
+                  if selected is not None else eligible)[offset:offset + limit],
         "model_predictions_exposed": False,
         "human_labels_added": 0,
         "release_gate_verified": False,

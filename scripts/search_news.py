@@ -22,6 +22,7 @@ from newscatalystos.news_search import search_titles, sync_completed_titles
 from newscatalystos.federated_news_search import (
     TitleSearchWorkspace, search_completed_workspaces,
 )
+from newscatalystos.search_gold_review import GoldSearchWorkspace, search_gold_review_links
 from newscatalystos.source_share import SourceShareError
 
 
@@ -49,6 +50,15 @@ def parser() -> argparse.ArgumentParser:
                    default=base / "state" / "motir_incremental_feeds.sqlite3")
     p.add_argument("--motir-inbox-root", type=Path,
                    default=base / "inbox" / "motir_feed_triage")
+    p.add_argument("--review-links", action="store_true",
+                   help="show blind source links to existing PIN gold; no labels or overlap hints")
+    p.add_argument("--reviewer-slot", choices=("UNASSIGNED_A", "UNASSIGNED_B"))
+    p.add_argument("--gold-out-root", type=Path, default=PROJECT / "output" / "gold_review")
+    p.add_argument("--gold-pin-root", type=Path, default=base / "pins" / "live_gold")
+    p.add_argument("--review-workspace-root", type=Path, default=base / "gold_review_workspace")
+    p.add_argument("--motir-gold-out-root", type=Path, default=PROJECT / "output" / "motir_gold_review")
+    p.add_argument("--motir-gold-pin-root", type=Path, default=base / "pins" / "motir_gold")
+    p.add_argument("--motir-review-workspace-root", type=Path, default=base / "motir_gold_review_workspace")
     return p
 
 
@@ -57,15 +67,32 @@ def evaluate(opts: argparse.Namespace) -> tuple[int, dict]:
         scope = getattr(opts, "scope", "core")
         if scope not in ("core", "motir", "all"):
             raise SourceShareError("unsupported search scope")
-        if scope != "core":
+        review_links = getattr(opts, "review_links", False)
+        if review_links and getattr(opts, "reviewer_slot", None) is None:
+            raise SourceShareError("review links require an explicit reviewer slot")
+        if scope != "core" or review_links:
             workspaces = []
-            if scope == "all":
+            if scope in ("core", "all"):
                 workspaces.append(TitleSearchWorkspace(
                     "core", opts.registry, opts.state, opts.inbox_root,
                 ))
-            workspaces.append(TitleSearchWorkspace(
-                "motir", opts.motir_registry, opts.motir_state, opts.motir_inbox_root,
-            ))
+            if scope in ("motir", "all"):
+                workspaces.append(TitleSearchWorkspace(
+                    "motir", opts.motir_registry, opts.motir_state, opts.motir_inbox_root,
+                ))
+            if review_links:
+                linked_workspaces = tuple(GoldSearchWorkspace(
+                    source,
+                    opts.gold_out_root if source.scope == "core" else opts.motir_gold_out_root,
+                    opts.gold_pin_root if source.scope == "core" else opts.motir_gold_pin_root,
+                    opts.review_workspace_root if source.scope == "core" else opts.motir_review_workspace_root,
+                ) for source in workspaces)
+                report = search_gold_review_links(
+                    linked_workspaces, opts.query, registry_reader=_registry,
+                    slot=opts.reviewer_slot, source_id=opts.source_id,
+                    semiconductor_only=opts.semiconductor_only, limit=opts.limit,
+                )
+                return (0 if report["review_links_complete"] else 4), report
             report = search_completed_workspaces(
                 tuple(workspaces), opts.query, registry_reader=_registry,
                 source_id=opts.source_id, semiconductor_only=opts.semiconductor_only,

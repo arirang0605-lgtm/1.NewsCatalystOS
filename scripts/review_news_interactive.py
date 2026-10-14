@@ -26,6 +26,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--batch-sha256", required=True)
     p.add_argument("--slot", choices=("UNASSIGNED_A", "UNASSIGNED_B"), required=True)
     p.add_argument("--reviewer-code", required=True)
+    p.add_argument("--case-sha256",
+                   help="review this exact pinned case, never fall back to another case")
     p.add_argument("--out-root", type=Path, default=PROJECT / "output" / "gold_review")
     p.add_argument("--pin-root", type=Path, default=base / "pins" / "live_gold")
     p.add_argument("--workspace-root", type=Path, default=base / "gold_review_workspace")
@@ -45,10 +47,15 @@ def run_one(opts: argparse.Namespace, *, input_func=input, output_func=print) ->
         page = list_review_cases(
             opts.out_root, opts.pin_root, opts.workspace_root,
             opts.batch_sha256, opts.slot, limit=1,
+            case_sha256=getattr(opts, "case_sha256", None),
         )
         if not page["cases"]:
-            return 0, {"status": "NO_UNREVIEWED_CASE", "remaining": 0,
-                       "human_labels_added": 0, "release_gate_verified": False}
+            return 0, {
+                "status": ("SELECTED_CASE_ALREADY_SUBMITTED"
+                           if getattr(opts, "case_sha256", None) else "NO_UNREVIEWED_CASE"),
+                "remaining": page["unreviewed_count"],
+                "human_labels_added": 0, "release_gate_verified": False,
+            }
         item = page["cases"][0]
         output_func("Source:", item["source_url"])
         output_func("Headline:", item["headline"])

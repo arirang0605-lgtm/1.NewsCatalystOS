@@ -17,6 +17,8 @@ from newscatalystos.source_share import SourceShareError
 
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--graph-version", choices=("v1", "v2"), default="v1",
+                   help="explicit v2 opt-in for publisher documents; default v1 is unchanged")
     p.add_argument("--folder", type=Path, required=True)
     p.add_argument("--out-root", type=Path, required=True)
     p.add_argument("--expected-sha256", required=True,
@@ -26,8 +28,12 @@ def parser() -> argparse.ArgumentParser:
 
 def evaluate(args: argparse.Namespace) -> tuple[int, dict]:
     try:
+        version = getattr(args, "graph_version", "v1")
+        if version not in ("v1", "v2"):
+            raise SourceShareError("unsupported consumer graph version")
+        options = {"graph_version": "v2"} if version == "v2" else {}
         report = consume_reviewed_beneficiary_graph(
-            args.folder, args.out_root, args.expected_sha256,
+            args.folder, args.out_root, args.expected_sha256, **options,
         )
         return 0, report
     except (SourceShareError, ValueError, OSError) as exc:

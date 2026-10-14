@@ -9,9 +9,15 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
+
+PROJECT = Path(__file__).resolve().parent.parent
+if str(PROJECT) not in sys.path:
+    sys.path.insert(0, str(PROJECT))
 
 from newscatalystos.reviewed_beneficiary_delivery import (
     prepare_reviewed_beneficiary_graph, publish_reviewed_beneficiary_graph,
+    prepare_publisher_beneficiary_graph,
 )
 from newscatalystos.semiconductor_profile import CAUSES
 from newscatalystos.source_share import SourceShareError
@@ -19,11 +25,16 @@ from newscatalystos.source_share import SourceShareError
 
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--publication", type=Path, required=True)
-    p.add_argument("--publication-root", type=Path, required=True)
-    p.add_argument("--payload-sha256", required=True)
+    p.add_argument("--input-kind", choices=("official", "publisher"), default="official")
+    p.add_argument("--publication", type=Path)
+    p.add_argument("--publication-root", type=Path)
+    p.add_argument("--payload-sha256")
+    p.add_argument("--archive-root", type=Path)
+    p.add_argument("--archive-version")
+    p.add_argument("--archive-receipt-sha256")
+    p.add_argument("--registry", type=Path)
     p.add_argument("--review-json", type=Path, required=True)
-    p.add_argument("--document-text", type=Path, required=True)
+    p.add_argument("--document-text", type=Path)
     p.add_argument("--document-sha256", required=True)
     p.add_argument("--trigger", required=True, choices=CAUSES)
     p.add_argument("--direction", default="UNKNOWN",
@@ -38,17 +49,35 @@ def parser() -> argparse.ArgumentParser:
 
 def evaluate(args: argparse.Namespace) -> tuple[int, dict]:
     try:
-        delivery = prepare_reviewed_beneficiary_graph(
-            args.publication, args.publication_root, args.payload_sha256,
-            args.review_json, args.document_text, args.document_sha256,
-            trigger=args.trigger, direction=args.direction,
-            evidence_note=args.evidence_note,
-        )
+        kind = getattr(args, "input_kind", "official")
+        official_fields = ("publication", "publication_root", "payload_sha256", "document_text")
+        publisher_fields = ("archive_root", "archive_version", "archive_receipt_sha256", "registry")
+        options = dict(trigger=args.trigger, direction=args.direction, evidence_note=args.evidence_note)
+        if kind == "publisher":
+            from scripts.run_feed_triage import _registry
+            if (not all(getattr(args, key, None) for key in publisher_fields)
+                    or any(getattr(args, key, None) is not None for key in official_fields)):
+                raise SourceShareError("publisher archive inputs required; no filing substitution")
+            delivery = prepare_publisher_beneficiary_graph(
+                args.archive_root, args.archive_version, args.archive_receipt_sha256,
+                args.review_json, args.document_sha256, _registry(args.registry), **options,
+            )
+        elif kind == "official":
+            if (not all(getattr(args, key, None) for key in official_fields)
+                    or any(getattr(args, key, None) is not None for key in publisher_fields)):
+                raise SourceShareError("official filing inputs required")
+            delivery = prepare_reviewed_beneficiary_graph(
+                args.publication, args.publication_root, args.payload_sha256,
+                args.review_json, args.document_text, args.document_sha256, **options,
+            )
+        else:
+            raise SourceShareError("unknown relation input kind")
         published = publish_reviewed_beneficiary_graph(delivery, args.out_root)
         return 0, {
             "status": "PRIVATE_REVIEWED_CANDIDATE_DELIVERY_READY",
             "outbox_folder": str(published.folder),
             "payload_sha256": published.payload_sha256,
+            "graph_schema": delivery.graph.schema_version,
             "reviewed_relation_candidate_count": published.candidate_count,
             "real_transaction_verified_count": 0,
             "real_beneficiary_verified_count": 0,

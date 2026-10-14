@@ -60,14 +60,14 @@ PYTHONPATH=src python3 scripts/review_supply_relation.py \
 publisher 모드에 `--publication` 등의 공시 입력을 섞으면 거절한다.
 출력에는 원문이나 인간 답안 대신 관계 종류·증빙 SHA·사용가능시각만 포함한다.
 
-## 그래프 호환성과 남은 작업
+## 그래프 호환성과 v2 게시·소비
 
 기업 발표 출처와 계획 관계를 담은 그래프는 `newscatalyst.beneficiary_graph.v2`로
 구분한다. 기존 공식 문서 그래프는 v1 그대로이며, v1 전용 게시·소비자는 v2를
-정상적으로 거절한다. **v2 외부 게시·소비 연결은 다음 5_5 작업**이다.
+정상적으로 거절한다. 이제 기존 게시 함수와 명시적인 `--graph-version v2` 소비 경로가 v2를 지원한다.
 문서가 검토됐다는 상태와 실제 수혜/매출 인증은 다르며 모두 false/null을 유지한다.
 
-## 2026-10-14 확인 결과
+## 이전 입력 구현 확인 결과 — 2026-10-14
 
 변경 영향 12개 테스트 파일 **158 PASS / 0 FAIL**. 회사 IR/정부 입력, 계획·거래 구분,
 정정 버전 보존, 출처별 식별자, 권한 만료·미검수·잘못된 원문/핀 거절,
@@ -85,3 +85,31 @@ PIT 및 기존 공식 경로의 하위호환을 검증했다. 테스트 허가·
 
 **전체 완료 23/36 유지.** 원문 사용권한·실제 검수·외부 소비·정답 평가·실 AI·
 5거래일 운영은 코드의 합성 시험만으로 완료하지 않는다.
+
+## 5_5 v2 게시·별도 소비 — 2026-10-14 기능 검증 완료
+
+기존 `prepare_publisher_beneficiary_graph`가 허가 아카이브/검수 입력을 기존 분석에
+연결하고, 출처 유형·제공자·문서 ID·영향 방향·추정 상태를 payload SHA에 묶는다.
+기존 원자 게시/소비 함수를 재사용한다. 원문·인용·검수 답안은 결과에 복제하지 않는다.
+
+`publish_reviewed_beneficiaries.py`에 기존 review CLI와 같은 `--input-kind publisher`,
+`--registry`, `--archive-root`, `--archive-version`, `--archive-receipt-sha256`,
+`--review-json`, `--document-sha256`를 전달하고 `--trigger`, `--direction`, `--out-root`를
+지정한다. 성공 결과의 `outbox_folder`와 별도 보관한 `payload_sha256`를 소비자에 전달한다.
+
+```sh
+PYTHONPATH=src python3 scripts/consume_reviewed_beneficiaries.py \
+  --graph-version v2 --folder "$PUBLISHED_FOLDER" \
+  --out-root "$OUTBOX" --expected-sha256 "$RETAINED_PAYLOAD_SHA"
+```
+
+기본 소비자는 v1이며 v2는 명시적으로 선택한다. v2는 IR/정부 출처와 회사별 식별체계를
+보존하고 공급계획을 실납품·수혜·매출로 바꾸지 않는다. 공정 불일치는 UNKNOWN_RELATIONSHIP.
+v2 available_at은 이번 소비 검증 완료시각 이후이며 원본이나 외부 프로젝트에 쓰지 않는다.
+
+변경 영향 **8개 파일 124 PASS/0 FAIL**. 반복 게시 때 빈 임시폴더가 남던 오류를 수정했다.
+합성 자료로 별도 producer/consumer Python 프로세스 **exit0/exit0**, 동일 payload SHA,
+계획·출처·불확실성 보존, 입력4파일/소비 outbox 불변, 원문 비포함을 확인했다.
+증거: `logs/publisher_v2_delivery_regression.log`, `logs/publisher_v2_delivery_smoke.json`.
+실제 원문 사용권한·사람 검수·회사 자료 인수가 아닌 **기능 구현·테스트 완료**다.
+기존 단계 인수23/36은 코드 구현률과 구분하며, 다음은 실제 RSS 분석→기존 AI 연결이다.

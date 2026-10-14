@@ -32,7 +32,7 @@ from .provider_registry import ProviderRegistry
 from .source_share import SourceShareError, _must_sha, _when
 
 SCHEMA = "newscatalyst.feed_economic_analysis.v1"
-RULE_VERSION = "rss-title-economic-v2"  # explicit reported contract termination
+RULE_VERSION = "rss-title-economic-v3"  # explicit reported contract termination/reduction
 # Screening assumptions, NOT release criteria or a verified economic scale.
 MEDIUM_KRW = Decimal("1000000000")
 LARGE_KRW = Decimal("100000000000")
@@ -52,6 +52,10 @@ TERMINATED_CONTRACT = re.compile(
     r"(?:공급\s*계약|납품\s*계약|수주\s*계약|supply\s+(?:contract|agreement))"
     r".{0,12}?(?:해지|취소|철회|terminat(?:ed|ion)|cancelled|canceled)", re.I)
 SIGNED_CONTRACT = re.compile(r"체결|수주\s*(?:완료|확정)|\b(?:signed|awarded)\b", re.I)
+REDUCED_CONTRACT = re.compile(
+    r"(?:공급|납품|수주)\s*계약.{0,30}?(?:금액|규모|계약액).{0,20}?(?:감액|감소|축소|삭감)"
+    r"|supply\s+(?:contract|agreement).{0,30}?(?:value|amount).{0,20}?(?:reduced|cut)", re.I)
+UNCERTAIN_CHANGE = re.compile(r"부인|루머|광고|사실\s*무근|\b(?:denies|rumou?r|unconfirmed)\b", re.I)
 PLANNED = re.compile(r"계획|예정|추진|검토|\b(?:plan\w*|will|proposed|potential)\b", re.I)
 GLOBAL = re.compile(r"전\s*세계|글로벌|\bglobal\b", re.I)
 INDUSTRY = re.compile(r"업계|산업\s*전반|\bindustry.wide\b", re.I)
@@ -82,6 +86,11 @@ def _subject(item: dict) -> str:
 
 
 def _category(title: str) -> str | None:
+    if REDUCED_CONTRACT.search(title):
+        if (SIGNED_CONTRACT.search(title) or PLANNED.search(title)
+                or NEGATED.search(title) or UNCERTAIN_CHANGE.search(title)):
+            return None
+        return "CONTRACT_REDUCTION"  # reported amount change, not realized loss
     if NEGATED.search(title):
         if (TERMINATED_CONTRACT.search(title) and not SIGNED_CONTRACT.search(title)
                 and not re.search(r"(?:부인|루머|광고|계약\s*없|체결하지\s*않|\bdenies\b|\bnot\s+signed\b|\brumou?r\b)", title, re.I)):
@@ -134,7 +143,8 @@ def _screen(item: dict, prior: PriorState, at: datetime) -> tuple[dict, FactInpu
         "CHANGED_ECONOMIC_CLAIM_REVIEW": "MATERIAL_REVISION",
         "EXISTING_ECONOMIC_CLAIM": "ALREADY_KNOWN",
     }.get(novelty, "UNKNOWN")
-    numeric = _krw(amounts[0]) if len(amounts) == 1 and category else None
+    numeric = (_krw(amounts[0]) if len(amounts) == 1 and category
+               and category != "CONTRACT_REDUCTION" else None)
     scale = ("UNKNOWN" if numeric is None else "LARGE" if numeric >= LARGE_KRW
              else "MEDIUM" if numeric >= MEDIUM_KRW else "SMALL")
     dimensions = dict(scale=scale,
@@ -159,6 +169,7 @@ def _screen(item: dict, prior: PriorState, at: datetime) -> tuple[dict, FactInpu
         "already_recorded_source_version": bool(own),
         "reported_plan_only": bool(PLANNED.search(title)),
         "reported_termination_only": category == "CONTRACT_TERMINATION",
+        "reported_reduction_only": category == "CONTRACT_REDUCTION",
         "dimensions": dimensions, "legacy_importance_priority": importance.priority,
         "complete_importance_score": importance.numeric_score,
         "known_dimension_score_lower_bound": known_score,
@@ -176,22 +187,26 @@ def _screen(item: dict, prior: PriorState, at: datetime) -> tuple[dict, FactInpu
             "Scale/scope/recurrence are screening estimates, not verified economic effects",
             "Supply relationships, realized revenue and market expectations are unverified"]
             + (["Reported cancellation/termination requires independent official confirmation"]
-               if category == "CONTRACT_TERMINATION" else []),
+               if category == "CONTRACT_TERMINATION" else [])
+            + (["Reported contract reduction requires independent official confirmation; "
+                "title amounts do not establish the change in value"]
+               if category == "CONTRACT_REDUCTION" else []),
         "verified_economic_fact": False, "verified_supply_transaction": False,
         "verified_beneficiary": False, "revenue_estimate_krw": None,
     }
     return report, fact
 
 
-def _contract_cancellation_followup(
+def _contract_change_followup(
     item: dict, prior: PriorState, rows: list[dict], at: datetime,
 ) -> dict | None:
-    """3_4: link a reported cancellation only to an earlier same-document deal.
+    """3_4: link a reported cancellation/reduction to an earlier same-document deal.
 
     Older headlines are prior *claims*, not proof a contract existed or ended.
     The existing followup comparator supplies the candidate/hold outcome.
     """
-    if _category(item["headline"]) != "CONTRACT_TERMINATION":
+    category = _category(item["headline"])
+    if category not in ("CONTRACT_TERMINATION", "CONTRACT_REDUCTION"):
         return None
     earlier = [row for row in rows
         if (row["provider_id"] == item["provider_id"]
@@ -208,7 +223,9 @@ def _contract_cancellation_followup(
     matched = (tuple(f for f in prior.facts if f.source_event_sha256 == _version(preceding))
                if preceding else ())
     state = PriorState(prior.reviewed_subject_id, at, matched)
-    change = assess_followup(state, _claim(item, at), "BUSINESS_CANCELLED", at, now=at)
+    kind = ("BUSINESS_CANCELLED" if category == "CONTRACT_TERMINATION"
+            else "CONTRACT_REDUCED")
+    change = assess_followup(state, _claim(item, at), kind, at, now=at)
     return {
         "change_kind": change.change_kind, "status": change.status,
         "prior_fact_sha256": change.previous_fact_sha256,
@@ -312,7 +329,11 @@ def analyze_completed_feed(
                 record_prior_fact(facts, _claim(previous, decision), now=decision)
         prior = prior_state_as_of(facts, _subject(item), decision, now=decision)
         report, fact = _screen(item, prior, decision)
-        report["followup_change"] = _contract_cancellation_followup(item, prior, rows, decision)
+        report["followup_change"] = _contract_change_followup(item, prior, rows, decision)
+        if (report["category_candidate"] == "CONTRACT_REDUCTION"
+                and report["followup_change"]["status"] != "WEAKENED_CANDIDATE"):
+            report["ai_eligible"] = False
+            report["routing_priority"] = "PARTIAL_EVIDENCE_ONLY"
         report.update(ai_status="NOT_ELIGIBLE", ai_analysis=None, ai_adapter_attempted=False)
         if fact:
             record_prior_fact(facts, fact, now=decision)

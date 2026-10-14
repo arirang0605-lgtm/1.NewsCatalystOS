@@ -266,7 +266,7 @@ def test_explicit_contract_termination_is_reviewed_not_a_new_contract(tmp_path):
     info = setup(tmp_path, title)
     report = run(info)  # no paid provider; original authorized metadata only
     row = report["results"][0]
-    assert report["rule_version"] == "rss-title-economic-v2"
+    assert report["rule_version"] == "rss-title-economic-v3"
     assert row["category_candidate"] == "CONTRACT_TERMINATION"
     assert row["reported_termination_only"] and not row["reported_plan_only"]
     assert row["ai_eligible"] and row["ai_status"] == "AWAITING_EXPLICIT_AI_AUTHORIZATION"
@@ -385,3 +385,55 @@ def test_rumored_or_denied_cancellation_creates_no_followup(tmp_path):
     assert row["category_candidate"] is None
     assert row["followup_change"] is None
     assert row["ai_status"] == "NOT_ELIGIBLE"
+
+
+def test_contract_reduction_links_prior_title_and_reaches_readonly_consumer(tmp_path):
+    original = "글로벌 HBM 반도체 공급 계약 금액 3000억원 체결"
+    reduced = "글로벌 HBM 반도체 공급 계약 금액 2000억원으로 감액"
+    info = setup(tmp_path, original)
+    first = run(info)["results"][0]
+    collect(info[0], info[1], GOV, [("contract-1", reduced, URL)],
+            at=NOW + timedelta(hours=1))
+    report = run(info)
+    row = report["results"][0]
+    change = row["followup_change"]
+    assert report["rule_version"] == "rss-title-economic-v3"
+    assert row["category_candidate"] == "CONTRACT_REDUCTION"
+    assert row["reported_reduction_only"] and not row["reported_termination_only"]
+    assert row["dimensions"]["scale"] == "UNKNOWN"
+    assert change["change_kind"] == "CONTRACT_REDUCED"
+    assert change["status"] == "WEAKENED_CANDIDATE"
+    assert change["prior_title_sha256"] == first["source_title_sha256"]
+    assert change["prior_available_at"] == first["source_available_at"]
+    assert change["available_at"] >= row["source_available_at"]
+    assert not change["prior_claim_verified"] and not change["realization_confirmed"]
+    assert not row["verified_economic_fact"] and not row["verified_supply_transaction"]
+    assert row["revenue_estimate_krw"] is None
+    saved, digest = publish_feed_analysis(report, tmp_path / "reports")
+    from newscatalystos.feed_analysis_delivery import consume_feed_analysis
+    consumed = consume_feed_analysis(saved, saved.parent, digest)
+    assert consumed["results"][0]["followup_change"] == change
+    assert consumed["ai_calls"] == consumed["source_fetch_calls"] == 0
+
+
+def test_contract_reduction_without_prior_or_with_other_document_is_held(tmp_path):
+    reduced = "글로벌 HBM 반도체 3년간 공급 계약 금액 2000억원으로 감액"
+    absent = run(setup(tmp_path / "absent", reduced))["results"][0]
+    assert absent["followup_change"]["status"] == "NO_PRIOR_EVENT_HOLD"
+    assert absent["followup_change"]["prior_fact_sha256"] is None
+    assert not absent["ai_eligible"] and absent["ai_status"] == "NOT_ELIGIBLE"
+    info = setup(tmp_path / "other", "HBM 반도체 공급 계약 금액 3000억원 체결")
+    run(info)
+    collect(info[0], info[1], GOV, [("other-document", reduced, URL)],
+            at=NOW + timedelta(hours=1))
+    changed = next(r for r in run(info)["results"] if r["headline"] == reduced)
+    assert changed["followup_change"]["status"] == "NO_PRIOR_EVENT_HOLD"
+
+
+@pytest.mark.parametrize("suffix", ["예정", "루머", "부인", "체결 후 감액", "해지"])
+def test_ambiguous_contract_reduction_does_not_create_followup(tmp_path, suffix):
+    title = "HBM 반도체 공급 계약 금액 2000억원 감액 " + suffix
+    row = run(setup(tmp_path, title))["results"][0]
+    assert row["category_candidate"] is None
+    assert row["followup_change"] is None
+    assert not row["verified_economic_fact"]

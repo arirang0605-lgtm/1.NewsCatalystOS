@@ -238,3 +238,8 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 인계 — 2_6·3_6 검수 제출 중단 복구
 - 기능 `9bc3564944d8f336c787844e06fb5a65a253a3c0`: 기존 2인 Mac 실제 검수자 입력이 답안지 원자 변경 직전 비정상 종료되어도 과거 인간이 직접 확정한 제출의 사전/제안 답안지·영수증·근거 SHA/PIT를 검증한 **한 건만** `run_gold_review.py review-recover`로 복구. 새로운 인적 라벨·추론 자동 생성 금지. 영향 테스트 **62 PASS/0 FAIL**, 컴파일/Public 검사 PASS. 실원장 2026-10-14 RSS 승인 2종 ACK18, 운영일 1일, launchd 정상, 3개 Gold PIN 배치 **65 뉴스 후보/인간 2인 합의 0건/500까지 435 부족**. 완료 **23/36(63.9%) 유지**.
 - `NEXT_TASK.md` 최신 하단: 실제 독립 사람 검수, 공식 반도체 5_2 실원문·회사ID, 실제 5거래일 운영/AI 유료 호출 승인 조건을 우선. 사용자의 기존 정상 코드/미추적 문서, EraLeader 코드/DB/Git 불변·공식 API 중복 수집 금지. 36/36 완료/릴리스 태그 무근거 보고 금지.
+
+
+## 2026-10-14 | 최신 인계 — 승인 RSS gold 후보를 Mac 1시간 독립서비스로 자동 누적
+- 기능 `806d40b79f9d24a0d27b529240152ba166f17ac5` GitHub push 이후 원격 SHA 확인 필요: 기존 RSS LaunchAgent는 그대로 두고 신규 `com.newscatalystos.gold` 3,600초 user LaunchAgent를 Mac 개인 plist로 별도 활성화. 완료 ACK SHA/PIT → 오직 신규 고유 제목 후보 동결→T5DATA private GoldBatch+Mac 독립 물리 PIN→빈 2인 검수자 시트. 실제 Mac 4개 PIN 배치/뉴스 제목 후보 **70건(기존65+새5)**, 인적 2인 gold **0**, 500까지 **430건 부족**. 금 자동서비스 kickstart 1회 exit0/로그오류0, 기존 승인 RSS 1시간 runs9/exit0 무변경, 실제 5거래일 인수는 아직 한 날짜뿐. 변경 영향 **66 PASS/0 FAIL**, compile/Public 검사 PASS.
+- 전체 **23/36(63.9%) 유지**. `NEXT_TASK.md` 마지막 블록: 자동 gold 정상 장기간 유지·실제 A/B 독립 인간 라벨(현재0), 5_2 공식 반도체 고객사/공급사 근거 및 회사 ID 2개, 실 5거래일/휴장·4_1 승인 AI·6_6 별도. EraLeader 원본/Git/DB 및 공식 API 중복 수집 절대 금지. 원본 기존/사용자 미추적 문서 단계별 보존, 합성 리뷰/유료 AI 호출 무단 인증 금지.

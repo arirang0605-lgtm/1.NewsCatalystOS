@@ -82,3 +82,6 @@ D-043 (NC-2_6-3_6-GUIDED-HUMAN-REVIEW-2026-10-14): 기존 실제 뉴스 PIN 동�
 
 
 D-044 (NC-2_6-3_6-REVIEW-CRASH-RECOVERY-2026-10-14): 실사용 2인 검수 제출 시 기존 원자적 답안 교체 직전 Mac/SSD 장애가 발생해 로컬 SHA 영수증만 남고 답안이 갱신되지 않는 상태를 복구한다. 사용자가 이미 직접 작성·확정한 제출만 `review_history/<case>.before.json`, `<case>.proposed.json`, `<case>.receipt.json` 및 owner-only 근거 메모·Mac 별도 SHA PIN 고정 배치를 검증한 후 `run_gold_review.py review-recover` 명시 실행으로 잔여 교체한다. 원래/제안 SHA가 정확히 일치해야 하며 다른 케이스·검수자 변경·검토시각 소급·재입력 자동 생성 금지. 로컬 SHA 영수증은 외부 서명 공증이 아니며 두 사람 독립성/정답 정확도 인증도 아니다. 완료 단계 **23/36 유지**; 기존 프로젝트·EraLeader 원본 불변.
+
+
+D-045 (NC-2_6-3_6-PROSPECTIVE-GOLD-HOURLY-2026-10-14): 500개 인적 gold 목표에 필요한 향후 **실제 승인 RSS 최초 관측·동결 누적**은 기존 `com.newscatalystos.triage`와 별개의 macOS 사용자 LaunchAgent `com.newscatalystos.gold`가 3,600초마다 1회 수행한다. 새 프로그램 `run_gold_capture_once.py`는 현재 명시 승인 2개 RSS의 **이미 완료된** 1_3~3_5 SHA/PIT ACK만 검증하고, Mac owner-only 배타 파일 잠금 후 신규 고유 뉴스 제목 버전만 이전 `freeze_real_gold_review_cases(...incremental_only=True)`로 T5DATA 불변 동결 + 별도 물리 Mac SHA PIN 발행한다. A/B 빈 검수자 양식은 기존 `prepare_blank_human_review_sheets` 재사용; 중단 후 누락 **빈** 양식만 복구하고 기존 입력·손상 서류는 절대 덮어쓰기하지 않는다. 유료 AI/공식 API/RSS 새 호출·자동 인적 정답·매매·EraLeader 변경 0. 원본 RSS LaunchAgent 무수정, gold 서비스만 별도 bootout 가능. 동일한 과거 ACK를 반복 실행해도 운영일·인적 gold/과거 동시 예측 성능으로 과장 금지. 실제 2026-10-14 Mac `gold` runs1/last exit0, triage runs9/last exit0, PIN 4배치 실제 고유 70건/라벨0, **23/36 유지**.

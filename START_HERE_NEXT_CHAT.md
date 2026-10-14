@@ -253,3 +253,9 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 인계 — 산업통상부 실제 공식 정책 RSS 신규 1소스 연동
 - 기능 SHA `f513999b32d7733993839636c9742880df8af6a9`: 정부 `motir.go.kr` 공식 보도자료 RSS는 빈 POST 방식(GET 405/POST 200), 사이트에 공공누리1유형 출처표시 조건 명시. 기존 수집기에 특정 정부 주소만 `RSS_POST` 허용. 별도 Mac 소스 등록부/SQLite/재처리함·전용 T5DATA Gold/반대물리 Mac PIN, 신규 사용자 LaunchAgent `com.newscatalystos.motir` 1시간 등록·kickstart **runs1/exit0**. 실제 **10개 뉴스 메타 성공/반도체 키워드 1후보**, 인간 답안0, 기존 2 RSS Gold70과 합산 중복 독립성 미검증, 5_2 실공급관계0. 변경 영향 **118 PASS/0 FAIL**, 컴파일·Public 검수 PASS. 완료 **23/36(63.9%)**.
 - `NEXT_TASK.md` 맨 아래가 최신: MOTIR 후속 실운영·2인 검수/정식 업종 관련성, 실 5_2 공식 본문·양사ID/4_1 승인 AI/6_5 5거래일 증빙. 기존 EraLeader 코드/DB/Git/API 중복수집·다른 회사 로봇약관 위반·기존 개인 미추적 문서 변경 금지.
+
+
+## 2026-10-14 | 최신 인계 — 세 승인 출처 통합 검색 실사용 연결 완료
+- **기능 `67b2bb28ccbdc2d0ffc9b438357e1c0df7b7372d` / origin main push·원격 SHA 확인 완료.** 기존 `search_news.py --scope all --query 반도체 --semiconductor-only`가 승인된 중기부/뉴스와이어IT/산업통상부의 별도 registry·DB·완료 ACK를 그대로 읽어 결과만 합친다. 신규 `federated_news_search.py`; 기존 검증 reader 및 SQLite read-only 연결 재사용. 정정 버전 보존·교차출처 동일 제목/URL은 미검증 힌트만, 손상 범위는 exit4 부분결과. 기존 core FTS 기본 동작 유지.
+- 실제 Mac 18:04 KST 제목 버전83(기존 범위73/산업부10), 반도체 후보2, 산업부 단독1, 기업14, HBM0; 추가 API/AI0·EraLeader 무접근. 운영 입력6파일 SHA 동일. 테스트 **100 PASS/0 FAIL**, compile/Public 검사 PASS. 전체 단계 **23/36(63.9%)**, 독립 경제사건/인적 gold83/5거래일·실AI 완료 주장은 금지.
+- 다음은 `NEXT_TASK.md` 맨 아래의 **통합 검색 반도체 후보 → 기존 PIN Gold 검수 사례/공식 근거 확인 연결**부터 CONTINUE. 기존 동결·A/B 검수의 블라인드 원칙·인적 정답만 인정하는 경계 유지, 새 프레임워크/중복수집/무단 유료호출 금지. 사용자 미추적 문서·도면/이미지와 EraLeader는 건드리지 않는다.

@@ -223,3 +223,8 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 인계 — 전체 검수 묶음 2_6·3_6 정확도 통합
 - 기능 `9fcfe7ab237348518edf4b69e0f27b9d044f5848`: 두 개의 실제 RSS 동결 gold 배치(39+17=56개 고유 후보)에서 Mac 독립 pin·T5DATA 예측/검수파일·두 사람 답안지를 재검증하고 TP/FP·중요사건 정확도 합산하는 `run_gold_review.py aggregate` 구현. 관련 **44 PASS/0 FAIL**·컴파일/Public 검사 PASS, 실제 인적 합의 0/56, precision/recall N/A/릴리스 false. 전체 **23/36(63.9%) 유지**.
 - 다음은 `NEXT_TASK.md` 최신 하단 2_6/3_6 사용자 승인 독립 검수자 실라벨·후속 실제 RSS 444 고유 후보 확보, 5_2 실공식 반도체 공급사 고객사 문서·기업ID 검증, 4_1 유료 API 승인 조건, 6_5 5거래일 누적. EraLeader 원본/코드/DB/Git 변경/중복 공시 수집 금지, 6_6 tag 보류.
+
+
+## 2026-10-14 | 최신 인계 — 2_6/3_6 실제 검수자가 작성할 수 있는 Mac CLI
+- 기능 `77a8cc8639dfc68d8dfe1f71ae57e625a8b6ffaa`: `human_review_entry.py`와 `run_gold_review.py review-list/review-one`이 **기존** 56건 실제 승인 RSS frozen 블라인드 목록을 보여주고, 실제 인간이 owner-only 근거 메모를 만들었을 때만 원자 답안 변경·기존 답안/개별 SHA 이력 보존. 신규 실제 검수 17건 목록 Mac 실행 정상, 합성 영향범위 **45 PASS/0 FAIL**, compile/Public 검사 PASS. 사람 라벨 **0건**, 증빙 없는 정확도 N/A·릴리스 false, 완료 **23/36(63.9%)**.
+- 다음은 `NEXT_TASK.md` 마지막 블록에서 독립된 실제 사람 2명 검수(문서 `docs/2_6-3_6_LIVE_GOLD_REVIEW.md`), 추가 444 실뉴스 후보·실 5_2 반도체 관계/4_1 API 승인/6_5 5거래일 순으로 CONTINUE. 기존 EraLeader 코드/DB/Git 수정·DART/SEC/KRX 수집 중복 및 사용자 미추적 자료 stage 금지.

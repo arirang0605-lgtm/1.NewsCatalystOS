@@ -285,3 +285,9 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - 커밋 `9fcfe7ab237348518edf4b69e0f27b9d044f5848`: `PYTHONPATH=src python3 scripts/run_gold_review.py aggregate` 전체 frozen 2배치 SHA/PIT/2인 리뷰파일 read-only 검사 및 합산 precision/recall. 44 PASS/0 FAIL, 컴파일/Public 검사 PASS. 실제 56 뉴스 제목 후보/인적 2인 합의 **0건**, 중복 정밀도/중요 탐지 재현율 N/A, 각 배치 리뷰 정답 파일 빈 상태·500건 중 444개 신규 고유 후보 부족. 완료 **23/36(63.9%)**.
 - **다음 실질 작업:** 공식 뉴스 메타·허가 원문을 확인할 권한이 있는 서로 다른 2명이 현 56건을 블라인드 독립 판정해 evidence SHA·reviewed_at과 함께 answer 파일에 직접 입력. 새로 승인받은 RSS 신규 사건이 들어오면 `progress` → `freeze --new-only`로만 기존 실 데이터를 보존하며 500개까지 점진 축적. 초기 2개 공급자/제목-only 편향 점검과 500건 규모에서 실제 결과 분모/홀드아웃 별도 인수 필요. **AI는 인간 리뷰어를 가장하여 정답을 입력하면 안 됨.**
 - 5_2는 확인된 공시 본문·양사 법인ID/관계 문장을 받은 경우만 기존 `review_supply_relation.py`→`publish_reviewed_beneficiaries.py`로 실제 전파; DART 100/SEC 1001 메타만으로 실거래 확정 불가. 4_1 실 OpenAI 키·사용자 유료 승인 없음, 6_5 실제 5거래일 및 공식 일정 독립 확인 미완료. EraLeader 원본·코드·DB/Git 수정 및 DART/SEC/KRX 직접 중복 수집 금지. 출시 tag 보류.
+
+
+## 2026-10-14 | 최신 NEXT_TASK=실제 2인 인적 리뷰 수행; 공식 반도체 원문/5거래일·AI 승인 별도 대기
+- 기능 `77a8cc8639dfc68d8dfe1f71ae57e625a8b6ffaa` Mac 독립 PIN 고정 GoldBatch의 블라인드 제목만 조회하는 `PYTHONPATH=src python3 scripts/run_gold_review.py review-list --expected-sha256 <SHA> --reviewer-slot UNASSIGNED_A` 및 명시적 인간 검토 `review-one` 입력 구현. reviewer 슬롯 owner-only `evidence_<case>.txt`를 사용자가 **스스로 작성**한 경우에만 판단을 입력, 기록시점/PIT·이전 답안 백업/SHA 이력 보존·덮어쓰기 차단. 실제 새 배치 17건 실목록 조회 성공, 기존 56건 검수 합의 0 유지. 영향 **45 PASS/0 FAIL**, 컴파일·공개보안 PASS.
+- **다음 실제 필수:** 승인된 뉴스 메타에 접근 가능한 독립 인간 2인이 Mac private A/B 검수 공간에서 공식 근거를 열어보고 자기 판단과 사유 SHA를 직접 기록. ChatGPT가 임의 라벨/검수시각/검토자 신원 생성하면 안 된다. 작업 후 `run_gold_review.py aggregate`로 실검수 현황·정밀도·재현율 확인. 실뉴스 신규 고유 사례 **444건**(기존 56) 및 500건 정답 인수 필요. `docs/2_6-3_6_LIVE_GOLD_REVIEW.md`의 새 검수 CLI 사용법 참조.
+- 5_2 공식 반도체 공급사·고객사 본문/회사 ID·거래 문장 인수 전 UNKNOWN, 실제 OpenAI 호출은 승인·환경키 미준비 0회, 6_5 5거래일/공식 거래소 일정 독립 확인 미완료. **23/36(63.9%)** 유지, EraLeader 자료 읽기전용, Git Public 정보검수, 6_6 tag 보류.

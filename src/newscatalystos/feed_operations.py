@@ -76,6 +76,18 @@ def operation_status(
                                  if set(authorized) <= providers and authorized))
     weekday_candidates = tuple(day for day in fully_covered
                                if datetime.fromisoformat(day).weekday() < 5)
+    # For each actually observed day, expose missing approved feeds for operator
+    # follow-up. Repeated hourly ACKs never multiply day/source coverage.
+    daily_coverage = [
+        {
+            "date": day,
+            "completed_sources": sorted(providers),
+            "missing_sources": sorted(set(authorized) - providers),
+        }
+        for day, providers in sorted(days.items())
+    ]
+    partial_days = [row["date"] for row in daily_coverage
+                    if row["missing_sources"]]
     pending = sum(len(pending_retry_checkpoints(
         root, state, registry, name, now=at,
     )) for name in authorized)
@@ -85,6 +97,8 @@ def operation_status(
         "approved_source_count": len(authorized),
         "completed_triage_receipts": completed,
         "days_with_all_sources": list(fully_covered),
+        "daily_source_coverage": daily_coverage,
+        "partial_source_days": partial_days,
         "weekday_candidate_days": list(weekday_candidates),
         "weekday_candidate_count": len(weekday_candidates),
         "pending_recovery_checkpoints": pending,

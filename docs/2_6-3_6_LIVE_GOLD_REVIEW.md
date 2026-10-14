@@ -125,3 +125,13 @@ PYTHONPATH=src python3 scripts/run_gold_review.py review-recover \
 복구는 Mac PIN 고정 GoldBatch·원래 답안지·완성 예정 답안지의 두 SHA와 영수증, 실제 검수자 코드/검수 시각(PIT), 검토 근거 메모의 SHA까지 검사한다. **원래 답안지 상태와 정확히 동일하거나 이미 목표 완성 상태일 때만** 실행할 수 있다. 다른 사례 변경·검토자 변경·영수증 누락·근거 변경·기존 답안지 변경을 감지하면 거절한다. 이미 적용한 리뷰를 다시 입력하거나 새로운 라벨을 생성하지 않고, 이전 인간 확인시각으로 보존한다. 근거의 신뢰성·두 사람의 독립성은 별도 실운영 검증 필요하다.
 
 이 기능은 새 사람을 가장하거나 라벨을 생성하지 않으며 새로운 DART/SEC/KRX/RSS/AI 호출도 하지 않는다. 현재 실제 뉴스 65건의 사람 검수 정답은 여전히 0건이다. 기존 사용자 파일과 EraLeader 데이터·코드는 변경하지 않았다.
+
+
+## 2026-10-14 | 실제 500건 후보의 자동 증분 동결·검수양식 생성 (독립 RSS 서비스 보존)
+
+- `scripts/run_gold_capture_once.py`는 **이미 수집·분석 완료된** 1_3→3_5 승인된 RSS ACK만 SHA/PIT로 검증한다. 별도 Mac `gold_capture.lock`의 배타 잠금을 잡고 `gold_freeze_progress`에 진짜 신규 제목 버전이 있을 때만 기존 `freeze_real_gold_review_cases(incremental_only=True)`를 호출한다. 새로운 T5DATA private 배치·Mac **다른 물리 디스크** PIN을 만들며, 검수자 A/B의 **비어 있는** 작업공간도 기존 `prepare_blank_human_review_sheets`를 재사용해 마련한다. 새 후보가 없으면 아무 배치도 추가하지 않는다.
+- SSD PIN이 생성된 후 절전/오류로 빈 검수 공간 생성에 실패해도 다음 실행에서 **기존 PIN을 다시 검증하고 해당 검수 공간이 전혀 없는 경우에만** 빈 시트를 생성한다. 기존 인간 검수자가 일부라도 입력한 답안지·손상된 작업공간은 절대 초기화/덮어쓰기하지 않으며 오류로 중단한다. 한 번에 두 프로그램이 돌면 배타 잠금으로 후행 작업은 취소된다. 자동 인간 정답/AI 호출/기사 원문 저장/공식 API 중복 수집 기능은 없다.
+- Mac에 기존 `com.newscatalystos.triage`와 **별개의 사용자 launchd** `com.newscatalystos.gold`를 **2026-10-14** 등록했다. 새로운 작업도 3,600초마다 실행하되 기존 RSS 작업 코드는 수정하지 않았다. `create_gold_agent.py --write`는 처음 설치할 때만 새 owner-only plist·개인 로그를 만들며 재설치 시 무단 덮어쓰기 금지. 소스 제한은 기존 승인 **중기부 보도자료 + 뉴스와이어 IT RSS 두 종**으로 고정한다. PIN/답안·로그/DB는 모두 개인 Mac·T5DATA에만 있고 GitHub 공개 대상이 아니다.
+- 실제 Mac 첫 수집 구간에는 추가 뉴스 제목 버전 **5개**를 별도 고정하여 누적 **70건(4개 pinned 배치; 중기부 23, 뉴스와이어 IT 47)**이 됐다. 정상 no-new 반복 실행은 추가 0, 빈 검수 공간 0, total70/remaining430/사람정답0/AI0/추가 RSS HTTP0을 반환했다. `launchctl kickstart gui/$(id -u)/com.newscatalystos.gold` 이후 실제 launchd `runs=1,last exit code=0`, stderr 0바이트, 개인 stdout의 같은 결과를 검증했다. 기존 triage `runs=9,last exit code=0`. 실제 완료 영수증20건이지만 모두 **10월14일 하루**, 거래소 실운영 5일 인수는 여전히 false.
+- 확인/중지: `PYTHONPATH=src python3 scripts/run_gold_capture_once.py`는 네트워크 사용 없이 즉시 한번 실행. `launchctl print gui/$(id -u)/com.newscatalystos.gold` 및 Mac `~/Library/Application Support/NewsCatalystOS/logs/gold_stdout.log`로 최근 상태 확인. 필요한 경우 `launchctl bootout gui/$(id -u)/com.newscatalystos.gold`로 **금 후보 자동 동결만 중지**할 수 있다(기존 RSS 수집은 유지). 자동 실행이 필요 없으면 plist는 사용자 승인하에 별도 보관·정리하며 자동 삭제하지 않는다.
+- **운영 범위**: 승인된 RSS 제목 버전 및 자동 동결 시각의 2~3단계 모델/룰 상태. 이는 **인간 독립 골드 라벨 70건, 공식 반도체 거래 70건, 과거 보도 시점 동시 예측 70건을 인증하지 않는다.** 500 후보까지 430건, 인간 2명 확인 골드 0건, 정확도/재현율 N/A, V1.0 출시 false. 새 뉴스는 1시간 서비스의 실제 동결시각 이후 사용 가능하며 과거 공개시각으로 소급하지 않는다.

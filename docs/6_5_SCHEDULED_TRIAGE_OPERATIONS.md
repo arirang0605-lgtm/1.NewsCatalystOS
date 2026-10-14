@@ -54,3 +54,10 @@ PYTHONPATH=src python3 scripts/check_triage_agent_health.py
 - 대표 실패사유: `AGENT_NOT_LOADED`(스케줄러 정지), `NO_RECENT_TICK`(마지막 로그가 2시간 15분보다 오래됨), `LAST_RUN_FAILED`, `AGENT_CONFIG_MISMATCH`, `LAST_TICK_UNVERIFIED`, `DUPLICATE_SCHEDULER_ACTIVE`. 맥북 잠자기·SSD 연결해제·권한 오류가 발생한 경우 원인 확인 후 기존 `check_feed_operations.py`로 실제 ACK/PIT/물리복원 여부를 따로 확인한다.
 - Mac 로그는 사용자의 `~/Library/Application Support/NewsCatalystOS/logs/` 내부 owner-only 파일을 마지막 일부만 읽는다. 로그 원문·개인경로는 JSON에 출력하지 않으며 Private 저장 원칙을 유지한다. 서비스 간격 중 `state=not running`은 정상일 수 있으므로 오류로 간주하지 않는다.
 - 실제 2026-10-14 Mac 단발 검증: `runs=4`, `last_exit_code=0`, 승인 제공자 2개, `AGENT_HEALTHY_OBSERVED`, 외부 신규 API 0, 인수 운영일은 별도 1일 기록에 머문다. 기능은 자동 운영 완료를 인증하거나 V1.0 태그를 발급하지 않는다.
+
+
+## 2026-10-14 | 별도 gold 동결 LaunchAgent (수집 서비스는 불변)
+
+- 기존 `com.newscatalystos.triage` RSS 2제공자 1시간 수집·분석/예산·PIT 서비스와 독립적으로 Mac 사용자 `com.newscatalystos.gold`를 새로 등록했다. `gold`는 **RSS HTTP를 호출하지 않으며**, 이미 완료된 SHA 검증 ACK·기수집 뉴스 메타에서 신규 동결 후보만 수집해 private T5DATA 골드/별도 Mac PIN·두 빈 검수자 시트를 생성한다. 실 AI 호출/사람 정답 자동 생성 없음.
+- 기존 RSS LaunchAgent plist·EraLeader 원본·DB·Git은 건드리지 않는다. 실제 신규 골드 agent의 첫 launchctl kickstart 실행 `runs=1`, `last exit code=0`, stdout 상태 `NO_NEW_VERIFIED_RSS_CANDIDATES`, stderr 0바이트. 기존 triage는 `runs=9`, `last exit code=0`. Mac 잠자기/SSD 분리·호출 충돌 시 해당 gold 동결만 안전 실패하며 진짜 출처별 인수 5거래일 완료 선언을 하지 않는다.
+- 중지: `launchctl bootout gui/$(id -u)/com.newscatalystos.gold`. 상태: `launchctl print gui/$(id -u)/com.newscatalystos.gold`. 사용자 private 로그: `~/Library/Application Support/NewsCatalystOS/logs/gold_stdout.log`, `gold_stderr.log`. 수동 단발 체크: `PYTHONPATH=src python3 scripts/run_gold_capture_once.py`. 공개 저장소에는 사용자 plist·운영 로그·PIN·원문/DB가 포함되지 않는다.

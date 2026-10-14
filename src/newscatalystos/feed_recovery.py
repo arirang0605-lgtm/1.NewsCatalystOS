@@ -15,6 +15,7 @@ import json
 import os
 import re
 import shutil
+import sqlite3
 import stat
 import tempfile
 
@@ -208,13 +209,31 @@ def read_retry_checkpoint(folder: Path, root: Path, digest: str) -> RetryCheckpo
 
 
 def check_committed_ingest(state: Path, poll: IncrementalResult, *,
-                           now: datetime | None = None) -> None:
+                           now: datetime | None = None,
+                           read_only: bool = False) -> None:
     """Reject an orphan written before a rolled-back ingestion transaction."""
     _validate_poll(poll)
     current = _when((now or datetime.now(timezone.utc)).isoformat(), "now")
     if poll.usable_from > current:
         raise SourceShareError("future checkpoint cannot be replayed")
-    conn = _connect(state)
+    if type(read_only) is not bool:
+        raise SourceShareError("explicit read-only state mode required")
+    if read_only:
+        # Search consumers must never bootstrap schemas or absent state files.
+        state = Path(state)
+        if (not state.is_absolute() or ".." in state.parts or state.suffix != ".sqlite3"
+                or any(part.casefold() == "eraleader" for part in state.parts)
+                or state.resolve(strict=False) != state):
+            raise SourceShareError("read-only private ingest state required")
+        info, parent = state.lstat(), state.parent.lstat()
+        if (not stat.S_ISREG(info.st_mode) or not stat.S_ISDIR(parent.st_mode)
+                or info.st_uid != os.geteuid() or parent.st_uid != os.geteuid()
+                or stat.S_IMODE(info.st_mode) & 0o077
+                or stat.S_IMODE(parent.st_mode) & 0o077):
+            raise SourceShareError("owner-private ingest state required")
+        conn = sqlite3.connect(state.as_uri() + "?mode=ro", uri=True, timeout=4)
+    else:
+        conn = _connect(state)
     try:
         record = conn.execute("SELECT last_success_at FROM source_state WHERE provider_id=?",
                               (poll.provider_id,)).fetchone()

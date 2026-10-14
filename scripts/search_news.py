@@ -19,6 +19,9 @@ if str(PROJECT) not in sys.path:
 
 from scripts.run_feed_triage import _registry, default_state
 from newscatalystos.news_search import search_titles, sync_completed_titles
+from newscatalystos.federated_news_search import (
+    TitleSearchWorkspace, search_completed_workspaces,
+)
 from newscatalystos.source_share import SourceShareError
 
 
@@ -38,11 +41,37 @@ def parser() -> argparse.ArgumentParser:
                    default=base / "inbox" / "feed_triage")
     p.add_argument("--index", type=Path,
                    default=PROJECT / "output" / "search_cache" / "news_search.sqlite3")
+    p.add_argument("--scope", choices=("core", "motir", "all"), default="core",
+                   help="core keeps the existing FTS cache; motir/all read isolated completed metadata")
+    p.add_argument("--motir-registry", type=Path,
+                   default=base / "providers" / "motir_authorized_sources.json")
+    p.add_argument("--motir-state", type=Path,
+                   default=base / "state" / "motir_incremental_feeds.sqlite3")
+    p.add_argument("--motir-inbox-root", type=Path,
+                   default=base / "inbox" / "motir_feed_triage")
     return p
 
 
 def evaluate(opts: argparse.Namespace) -> tuple[int, dict]:
     try:
+        scope = getattr(opts, "scope", "core")
+        if scope not in ("core", "motir", "all"):
+            raise SourceShareError("unsupported search scope")
+        if scope != "core":
+            workspaces = []
+            if scope == "all":
+                workspaces.append(TitleSearchWorkspace(
+                    "core", opts.registry, opts.state, opts.inbox_root,
+                ))
+            workspaces.append(TitleSearchWorkspace(
+                "motir", opts.motir_registry, opts.motir_state, opts.motir_inbox_root,
+            ))
+            report = search_completed_workspaces(
+                tuple(workspaces), opts.query, registry_reader=_registry,
+                source_id=opts.source_id, semiconductor_only=opts.semiconductor_only,
+                limit=opts.limit,
+            )
+            return (0 if report["coverage_complete"] else 4), report
         registry = _registry(opts.registry)
         status = sync_completed_titles(
             opts.inbox_root, opts.state, opts.index, registry,

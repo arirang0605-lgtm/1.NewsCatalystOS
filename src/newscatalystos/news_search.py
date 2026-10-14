@@ -106,7 +106,7 @@ def _trusted_snapshot(ack: dict, root: Path, state: Path,
     provider = registry.active(poll.provider_id, at=at)
     if provider.kind not in SOURCE_ROLES:
         raise SourceShareError("unsupported registry role for title search")
-    check_committed_ingest(state, poll, now=at)
+    check_committed_ingest(state, poll, now=at, read_only=True)
     folder = Path(ack["triage_folder"])
     raw = _read_regular(folder / "triage.json", 150_000)
     triage_sha = _must_sha(ack["triage_sha256"], "triage SHA")
@@ -169,17 +169,20 @@ def _trusted_snapshot(ack: dict, root: Path, state: Path,
     return doc, triage_sha
 
 
-def sync_completed_titles(inbox_root: Path, poll_state: Path, index_path: Path,
-                          registry: ProviderRegistry, *,
-                          now: datetime | None = None) -> SearchSync:
-    """Transactional private FTS index of all SHA-verified, committed RSS ACKs."""
+def read_completed_title_snapshots(
+    inbox_root: Path, poll_state: Path, registry: ProviderRegistry, *,
+    now: datetime | None = None,
+) -> tuple[tuple[dict, dict, str], ...]:
+    """Read verified metadata without creating a cache or polling a source."""
     at = _when((now or datetime.now(timezone.utc)).isoformat(), "now")
     if not isinstance(registry, ProviderRegistry):
         raise SourceShareError("approved provider registry required")
+    if not Path(inbox_root).exists() and not Path(inbox_root).is_symlink():
+        return ()
     root = _private_root(inbox_root)
     ack_root = root / "acked"
     if not ack_root.exists() and not ack_root.is_symlink():
-        return SearchSync(0, 0, 0, 0, at)
+        return ()
     ack_root = _private_root(ack_root)
     receipts = sorted(ack_root.iterdir())
     if len(receipts) > MAX_RECEIPTS:
@@ -197,6 +200,15 @@ def sync_completed_titles(inbox_root: Path, poll_state: Path, index_path: Path,
             continue
         document, triage_sha = _trusted_snapshot(ack, root, poll_state, registry, at)
         trusted.append((ack, document, triage_sha))
+    return tuple(trusted)
+
+
+def sync_completed_titles(inbox_root: Path, poll_state: Path, index_path: Path,
+                          registry: ProviderRegistry, *,
+                          now: datetime | None = None) -> SearchSync:
+    """Transactional private FTS index of all SHA-verified, committed RSS ACKs."""
+    at = _when((now or datetime.now(timezone.utc)).isoformat(), "now")
+    trusted = read_completed_title_snapshots(inbox_root, poll_state, registry, now=at)
     if not trusted:
         return SearchSync(0, 0, 0, 0, at)
     db = _connection(index_path)

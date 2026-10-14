@@ -52,6 +52,7 @@ class GoldBatch:
     first_available_at: datetime
     independently_labeled_cases: int = 0
     release_certified: bool = False
+    prior_frozen_case_count: int = 0
 
 
 def _rows(registry: ProviderRegistry, inbox: Path, state: Path, at: datetime):
@@ -81,9 +82,64 @@ def _rows(registry: ProviderRegistry, inbox: Path, state: Path, at: datetime):
     return tuple(records)
 
 
+def _prior_frozen_ids(out_root: Path, pin_root: Path, at: datetime):
+    """Verify EVERY prior independent SHA pin before counting historical cases."""
+    root, pin_dir = _private_root(out_root), _private_root(pin_root)
+    if not _different_disk(root, pin_dir):
+        raise SourceShareError("human gold pin must use independent local device")
+    ids, digests = set(), []
+    for prior in sorted(root.iterdir()):
+        if not prior.name.startswith("gold_batch_"):
+            continue
+        match = BATCH.fullmatch(prior.name)
+        if match is None or prior.is_symlink() or not prior.is_dir():
+            raise SourceShareError("unexpected historical gold batch")
+        prior_sha = match.group(1)
+        prior_pin = pin_dir / (prior.name + ".pin.json")
+        predictions, _ = _load_pinned_predictions(
+            prior, root, prior_sha, prior_pin, pin_dir, at,
+        )
+        for frozen in predictions:
+            if frozen.case_sha256 in ids:
+                raise SourceShareError("overlapping historical gold cases")
+            ids.add(frozen.case_sha256)
+        digests.append(prior_sha)
+    return ids, digests
+
+
+def gold_freeze_progress(
+    registry: ProviderRegistry, inbox: Path, state: Path, out_root: Path,
+    pin_root: Path, *, now: datetime | None = None,
+) -> dict:
+    """Read-only count of trusted future-freeze candidates; does not label news."""
+    at = _when((now or datetime.now(timezone.utc)).isoformat(), "progress checked")
+    frozen, batches = _prior_frozen_ids(out_root, pin_root, at)
+    eligible = set()
+    for ack_time, _, item in _rows(registry, inbox, state, at):
+        event = _must_sha(item["event_id"], "RSS event")
+        title = _must_sha(item["title_sha256"], "RSS title SHA")
+        if ack_time > at or _when(item["available_at"], "RSS available") > at:
+            raise SourceShareError("future RSS used for gold progress")
+        case = sha256((item["provider_id"] + "\0" + event + "\0" + title).encode()).hexdigest()
+        eligible.add(case)
+    return {
+        "status": "REAL_RSS_GOLD_FREEZE_PROGRESS_NOT_LABELED",
+        "historical_sha_pinned_batches": len(batches),
+        "distinct_sha_pinned_cases": len(frozen),
+        "eligible_current_source_cases": len(eligible),
+        "new_unfrozen_cases": len(eligible - frozen),
+        "unique_cases_if_frozen": len(frozen | eligible),
+        "remaining_to_500_if_frozen": max(0, 500 - len(frozen | eligible)),
+        "independent_human_gold_labeled_cases": 0,
+        "new_provider_requests": 0, "ai_calls": 0,
+        "release_gate_verified": False,
+    }
+
+
 def freeze_real_gold_review_cases(
     registry: ProviderRegistry, inbox: Path, state: Path, out_root: Path,
     pin_root: Path, *, now: datetime | None = None,
+    incremental_only: bool = False,
 ) -> GoldBatch:
     """Freeze first-observed approved title/version decisions; no human truth."""
     prepared = _when((now or datetime.now(timezone.utc)).isoformat(), "freeze prepared")
@@ -91,6 +147,12 @@ def freeze_real_gold_review_cases(
     pin_dir = _private_root(pin_root)
     if not _different_disk(root, pin_dir):
         raise SourceShareError("human gold pin must use independent local device")
+    if type(incremental_only) is not bool:
+        raise SourceShareError("incremental gold flag must be boolean")
+    already_frozen, prior_digests = (
+        _prior_frozen_ids(root, pin_dir, prepared)
+        if incremental_only else (set(), [])
+    )
     rows = _rows(registry, inbox, state, prepared)
     by_case = {}
     for ack_time, triage_sha, item in rows:
@@ -98,7 +160,7 @@ def freeze_real_gold_review_cases(
         event = _must_sha(item["event_id"], "RSS event")
         title_sha = _must_sha(item["title_sha256"], "RSS title SHA")
         unique = sha256((provider + "\0" + event + "\0" + title_sha).encode()).hexdigest()
-        if unique in by_case:
+        if unique in by_case or unique in already_frozen:
             continue
         source_at = _when(item["available_at"], "RSS first available")
         if source_at > prepared or ack_time > prepared:
@@ -128,7 +190,9 @@ def freeze_real_gold_review_cases(
              "economic_fact_verified": False},
         )
     if not 0 < len(by_case) <= MAX_CASES:
-        raise SourceShareError("no verified approved RSS cases available")
+        raise SourceShareError("no new verified approved RSS cases to freeze"
+                               if incremental_only else
+                               "no verified approved RSS cases available")
     ordered = sorted(by_case, key=lambda case: sha256(case.encode()).hexdigest())
     predictions = [by_case[k][0] for k in ordered]
     prediction_file = _encoded({
@@ -137,6 +201,8 @@ def freeze_real_gold_review_cases(
         "local_pin_first_observed_at": prepared.isoformat(),
         "realtime_detection_proof": False,
         "independent_gold_review_count": 0,
+        "prior_frozen_batch_sha256s": prior_digests,
+        "prior_unique_case_count": len(already_frozen),
         "cases": [{
             **{k:(v.isoformat() if isinstance(v,datetime) else v)
                for k,v in asdict(row).items()},
@@ -224,7 +290,8 @@ def freeze_real_gold_review_cases(
     except OSError as exc:
         # Unpinned SSD batch remains diagnostic; cannot evaluate as frozen.
         raise SourceShareError("independent gold SHA pin missing") from exc
-    return GoldBatch(dest,pin_file,digest,len(ordered),pinned)
+    return GoldBatch(dest,pin_file,digest,len(ordered),pinned,
+                     prior_frozen_case_count=len(already_frozen))
 
 
 def _load_pinned_predictions(batch_folder: Path, out_root: Path,

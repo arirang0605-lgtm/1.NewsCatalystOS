@@ -20,7 +20,7 @@ if str(PROJECT) not in sys.path:
 from scripts.run_feed_triage import _registry, default_state
 from newscatalystos.live_gold_samples import (
     freeze_real_gold_review_cases, evaluate_live_gold_reviews,
-    prepare_blank_human_review_sheets,
+    prepare_blank_human_review_sheets, gold_freeze_progress,
 )
 from newscatalystos.source_share import SourceShareError
 
@@ -35,6 +35,12 @@ def parser() -> argparse.ArgumentParser:
     freeze.add_argument("--registry",type=Path,default=base/"providers"/"authorized_sources.json")
     freeze.add_argument("--state",type=Path,default=default_state())
     freeze.add_argument("--inbox-root",type=Path,default=base/"inbox"/"feed_triage")
+    freeze.add_argument("--new-only", action="store_true",
+                        help="exclude every earlier verified frozen case; never overwrite old human work")
+    progress=commands.add_parser("progress",help="read-only SHA-verified candidate counts")
+    progress.add_argument("--registry",type=Path,default=base/"providers"/"authorized_sources.json")
+    progress.add_argument("--state",type=Path,default=default_state())
+    progress.add_argument("--inbox-root",type=Path,default=base/"inbox"/"feed_triage")
     drafts=commands.add_parser("draft",help="make two BLANK review sheets on Mac")
     drafts.add_argument("--batch-folder",type=Path,required=True)
     drafts.add_argument("--expected-sha256",required=True)
@@ -51,14 +57,25 @@ def parser() -> argparse.ArgumentParser:
 
 def evaluate(opts: argparse.Namespace) -> tuple[int,dict]:
     try:
+        if opts.command=="progress":
+            return 0, gold_freeze_progress(
+                _registry(opts.registry), opts.inbox_root, opts.state,
+                opts.out_root, opts.pin_root,
+            )
         if opts.command=="freeze":
             registry=_registry(opts.registry)
             result=freeze_real_gold_review_cases(
-                registry,opts.inbox_root,opts.state,opts.out_root,opts.pin_root
+                registry,opts.inbox_root,opts.state,opts.out_root,opts.pin_root,
+                incremental_only=getattr(opts, "new_only", False),
             )
             return 0,{
                 "status":"REAL_RSS_CASES_FROZEN_AWAITING_HUMAN_GOLD_LABELS",
                 "case_count":result.sample_count,
+                "prior_frozen_case_count":result.prior_frozen_case_count,
+                "cumulative_unique_frozen_case_count":(
+                    result.prior_frozen_case_count + result.sample_count),
+                "remaining_cases_to_500":max(
+                    0, 500 - result.prior_frozen_case_count - result.sample_count),
                 "batch_folder":str(result.folder),
                 "independent_mac_pin":str(result.pin_file),
                 "prediction_payload_sha256":result.payload_sha256,

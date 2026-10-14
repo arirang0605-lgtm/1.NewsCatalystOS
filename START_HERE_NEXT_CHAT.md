@@ -228,3 +228,8 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 인계 — 2_6/3_6 실제 검수자가 작성할 수 있는 Mac CLI
 - 기능 `77a8cc8639dfc68d8dfe1f71ae57e625a8b6ffaa`: `human_review_entry.py`와 `run_gold_review.py review-list/review-one`이 **기존** 56건 실제 승인 RSS frozen 블라인드 목록을 보여주고, 실제 인간이 owner-only 근거 메모를 만들었을 때만 원자 답안 변경·기존 답안/개별 SHA 이력 보존. 신규 실제 검수 17건 목록 Mac 실행 정상, 합성 영향범위 **45 PASS/0 FAIL**, compile/Public 검사 PASS. 사람 라벨 **0건**, 증빙 없는 정확도 N/A·릴리스 false, 완료 **23/36(63.9%)**.
 - 다음은 `NEXT_TASK.md` 마지막 블록에서 독립된 실제 사람 2명 검수(문서 `docs/2_6-3_6_LIVE_GOLD_REVIEW.md`), 추가 444 실뉴스 후보·실 5_2 반도체 관계/4_1 API 승인/6_5 5거래일 순으로 CONTINUE. 기존 EraLeader 코드/DB/Git 수정·DART/SEC/KRX 수집 중복 및 사용자 미추적 자료 stage 금지.
+
+
+## 2026-10-14 | 최신 인계 — 실제 검수 보조/65 RSS 고유 후보
+- 기능 `329fc01f10f387beb5526fa8b45dfd40fdd7e47f`: 승인 RSS 기존56 + 새9건 실제 첫 관측 검증 후 독립 Mac SHA PIN/T5DATA 새 증분 동결·A/B 빈 검수자 시트 생성, 총 **65건(중기부23/뉴스와이어IT42)**, 반도체 키워드 검토 힌트 1(미검증), 인간 정답 0, 500까지 435건. 인간 검수자가 직접 질문·근거·판정을 입력하는 `scripts/review_news_interactive.py` 추가, 과거 정답/원본 변경 없음. 관련 **55 PASS/0 FAIL**·compile/Public PASS, 완료 **23/36(63.9%) 유지**.
+- 다음은 `NEXT_TASK.md` 마지막 실제 2인 독립인적 검수와 신규 435 뉴스 후보, 5_2 실공식 공급사/고객사 문서, 6_5 실제 5거래일, 4_1 실 AI 승인. EraLeader 원본/DB/Git/API 중복 수집 금지, 기존 사용자 미추적 도면 보존·6_6 임의 태그 금지.

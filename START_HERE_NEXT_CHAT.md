@@ -264,3 +264,8 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 인계 — 검색된 뉴스의 기존 PIN Gold·정확한 인간 검수 진입 완료
 - 기능 **`411d6118c0ef95e024e730ed0be66c1469ab4c07`** GitHub main 원격 SHA 일치. 기존 통합 검색 `--review-links --reviewer-slot UNASSIGNED_A/B`가 출처/event/title SHA를 기존 PIN Gold에 연결하고, `review_news_interactive.py --case-sha256`은 선택 사례만 검수한다. 예측/중복 힌트·다른 검수자 답변 비노출, 미동결/누락은 대기·부분 실패, 새 Gold/답안 자동 생성 금지.
 - 실제 Mac 18:24 KST 기수집 제목89/반도체후보2건, A/B 각각2개 정확한 사례 조회 PASS, 입력55파일 SHA 불변. **119 PASS/0 FAIL**, compile/Public PASS, 추가 HTTP/AI0·EraLeader 무접근. 완료 **23/36(63.9%) 유지**. 검색 편의 연결은 이제 완료됐으니 반복 확장하지 말고 `NEXT_TASK.md` 마지막 **5_2 실제 관계 본문·양사 ID 근거 확보/기존 인수 연결**부터 CONTINUE. 실인적 답안·AI 승인·5거래일·6_6 태그는 별도 미완료.
+
+
+## 2026-10-14 | 최신 인계 — 실제 공급관계 참고 1건·기존 5_2~5_5 시범 처리
+- 기능 **`00b2549631d7a3a1daa12e6bb5c4fcd2b5efe5fd`** 원격 main SHA 일치. 실제 공식 기업 발표 19단어 인용1·양사 SEC CIK 참조2를 별도 SSD 참고/PIN(Mac)에 보관해 기존 반도체 관계→파급→분류→그래프 코드로 **후보1건** 시범 처리. 실제18:40 KST exit0, 입력8파일 SHA동일, **87 PASS/0 FAIL**/compile/Public PASS, 수집기/API·AI/사람라벨·공식게시0/EraLeader 무접근. **23/36**.
+- 다음은 NEXT_TASK 마지막 확보자료의 운영입력·실제 검수 인수. `logs/public_relation_reference_live_check.json`에 비공개 실제 reference_file/pin_file 기록. 2023년 과거 참고를 오늘 신규사건·원문전체·사람검수로 가장하지 않는다. 공개 참고는 수집 허가가 아니며 공식 outbox는 여전히 거절한다. 이미 찾은 동일 관계·검색·SHA/검수도구 반복개발 금지. V1 미완료를 허위로 승격하지 않는다.

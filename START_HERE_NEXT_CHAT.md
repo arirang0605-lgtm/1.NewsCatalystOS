@@ -189,3 +189,7 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 인계 — 5_2 공식 원본 기업명/공시 제목/Form 선별
 - 기능 SHA `18144a5fa77fcfd6e1b5824956f1a7e0ca134e90` GitHub main 동일: `official_filing_context.py`로 기존 DART/SEC SHA-PIT 확인된 첫 캡처 raw 메타를 v2 관측목록과 문서별 이중 SHA join. `build_official_review_queue.py --with-pinned-issuer-context`에 기업명/제출 유형/공시 제목 필터 추가. **실제 DART100+SEC1001건** 연결, SEC Apple 10-Q 33개, DART `계약` 1개(실제로 주식 양수도, 반도체 공급계약 아님). `109 PASS/0 FAIL`, 컴파일/Public PASS. 이전 v1 IDs-only 구조 그대로 유지.
 - **현재 23/36(63.9%)**, 실반도체 공급 관계 공식문서 본문+사람 검토 **0건**. 다음은 `NEXT_TASK.md` 맨 아래 원문 실관계 증거 확보 이후 기존 5_2→5_5 read-only 계약 연결과 6_5 자동 운영 실거래일 누적. EraLeader 코드/DB/Git·DART/SEC/KRX API 새 수집 금지, 사용자 기존 미추적 도면/개인 자료 보존. 사용 예 `docs/5_2_PINNED_FILING_SCREENING.md`.
+
+## 2026-10-14 | 최신 인계 — 실제 승인 RSS 39건을 2_6/3_6 블라인드 gold 후보로 동결
+- 기능 Git SHA `06316752f700deafa0eeaeadcbcf5a10d6073968` `origin/main` 확인. `live_gold_samples.py`/`scripts/run_gold_review.py`: Mac 개인 승인 2종 RSS의 **완료 ACK6 / 고유 제목39**를 SHA/PIT/원장 검증→T5DATA 비공개 `output/gold_review/gold_batch_fc787263...`에 기존 판정 freeze + 블라인드 검토 큐 저장→별도 Mac 내부 SHA PIN 고정→빈 리뷰어 답안지 2개(owner-only) 생성. 실제 `evaluate`=human labeled0/pending39/additional-to-500=461, precision/recall N/A, 출시 false. **78 PASS/0 FAIL**, compile/Public PASS, 실원본 기사/AI/API/EraLeader 쓰기0.
+- 기본 완료 **23/36 (63.9%) 유지**. 다음은 `NEXT_TASK.md` 최신 2_6/3_6 인적 독립 실정답 취합·신규 승인 실데이터 500 건 누적, 5_2 실공식 반도체 고객/공급 증거 인계, 6_5 실제 자동 운영 5거래일 실증. USER 미추적 파일/기존 작동 코드/Git 원본 보존, 합성 정답을 실측 완료로 승격 금지. 상세 사용법 `docs/2_6-3_6_LIVE_GOLD_REVIEW.md`.

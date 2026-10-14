@@ -218,3 +218,8 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 인계 — 4_1 OpenAI Responses 실HTTP 유료승인 게이트 코드
 - 기능 `9c0e5b9462e2c9870ca0f7a17c8875588c99d0a3`: 기존 4_1/4_6 공통 계약·월 5만원 예약 원장에 OpenAI Responses HTTPS(JSON Schema, store false, usage검증, 리다이렉트/재시도 금지, PIT 사용시각 응답후)를 추가. **44 PASS/0 FAIL**·컴파일/공개검수 PASS, **키 환경변수 미설정·실호출0·실청구0**, 별도 승인 없이 자동 유료 호출하지 말 것. 실제 계정/모델·정확도·요금 연결 전 4_1 미완료. 완료 **23/36(63.9%) 유지**.
 - 최신 `NEXT_TASK.md` 하단에서 실제 반도체 5_2 허용 공식 공급사–고객사 원문/2인 gold 검수(56후보/실정답0)/6_5 후속 실제 운영일/AI 실호출 사용자 승인 순으로 CONTINUE. EraLeader 원본·코드/DB/Git·중복 DART/SEC/KRX 수집 금지, 사용자 미추적 도면 유지, 임의 V1 릴리스 태그 불가.
+
+
+## 2026-10-14 | 최신 인계 — 전체 검수 묶음 2_6·3_6 정확도 통합
+- 기능 `9fcfe7ab237348518edf4b69e0f27b9d044f5848`: 두 개의 실제 RSS 동결 gold 배치(39+17=56개 고유 후보)에서 Mac 독립 pin·T5DATA 예측/검수파일·두 사람 답안지를 재검증하고 TP/FP·중요사건 정확도 합산하는 `run_gold_review.py aggregate` 구현. 관련 **44 PASS/0 FAIL**·컴파일/Public 검사 PASS, 실제 인적 합의 0/56, precision/recall N/A/릴리스 false. 전체 **23/36(63.9%) 유지**.
+- 다음은 `NEXT_TASK.md` 최신 하단 2_6/3_6 사용자 승인 독립 검수자 실라벨·후속 실제 RSS 444 고유 후보 확보, 5_2 실공식 반도체 공급사 고객사 문서·기업ID 검증, 4_1 유료 API 승인 조건, 6_5 5거래일 누적. EraLeader 원본/코드/DB/Git 변경/중복 공시 수집 금지, 6_6 tag 보류.

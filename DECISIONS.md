@@ -70,3 +70,6 @@ D-039 (NC-2_6-3_6-APPEND-REAL-GOLD-2026-10-14): 실뉴스 gold 인수는 기존 
 
 
 D-040 (NC-4_1-RESPONSES-ADAPTER-2026-10-14): 4_1의 첫 실 HTTP 연결은 기존 `AIModel/AIRequest/run_ai_analysis` 공통 계약을 그대로 재사용하는 OpenAI Responses JSON Schema 어댑터로 제한한다. 유료 호출은 실제 운영자의 별도 `allow_paid=True`·Mac 내부 환경변수 자격증명·PIT 중요 신규 공식/허가 메타 입력·기존 4_6 월 예약 원장 선행 성공을 모두 요구한다. 본문 업로드·응답 서버 저장(store=false)·리다이렉트/자동 재시도/중복 청구 금지, usage 토큰 검증 후에만 결과 정산하며, 실패한 예약은 보수적으로 보류한다. AI 판단의 `available_at`은 호출 시작 전이 아니라 응답 검증 완료 이후로 기록한다. API 키/라이브 테스트 승인·실청구 검증 없으면 **4_1 미완료, 23/36 유지**. 다른 Gemini/Anthropic 코드를 대체하지 않으며 EraLeader 공시/API/DB/Git 공유 경계 변경 없음.
+
+
+D-041 (NC-2_6-3_6-CROSS-BATCH-AGGREGATE-2026-10-14): 2_6/3_6의 독립 정답셋은 단일 RSS 동결 배치가 아니라 기간 중 누적된 **여러 PIN 고정 배치 전체**를 대상으로 평가한다. 기존 `run_gold_review.py aggregate`는 Mac 독립 SHA pin·T5DATA 동결 예측/블라인드 검토표·두 검수 답안지를 모두 재검증하고, 중복 사례/유실 자료를 차단한 상태에서 TP/FP/FN/TN·실중요사건 수·정상탐지 수를 각각 합산해 95% precision/90% recall을 계산한다. 묶음별 백분율 평균이나 빈 라벨을 정답으로 취급하지 않는다. 실 인간 독립성·출처 다양성·과거 실시간 판정 인증/출시 태그는 별도 인수 전 false. 기존 56 실제 제목 후보의 2인 정답 0건, 부족 후보 444건이므로 **완료 23/36 유지**. 기존 EraLeader 데이터 및 API는 쓰지 않는다.

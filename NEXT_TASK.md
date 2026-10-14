@@ -279,3 +279,9 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - 기능 `9c0e5b9462e2c9870ca0f7a17c8875588c99d0a3`: `ai_openai_transport.py`가 기존 AI 공통 스키마/월 예산 4_6 결합, OpenAI Responses API `store=false`/무리다이렉트/무재시도/strict JSON+토큰 검증, 결과 종료 후 PIT 시각 처리. **44 PASS/0 FAIL**, 컴파일·Public 검수 PASS. `OPENAI_API_KEY` 미설정, 유료 실호출 0, 실공급자/요금·정답 측정 전 **4_1 미완료**. 실제 API 연결은 운영자가 유료 사용·모델/키를 승인하고 비공개 환경키가 준비된 경우에만 명시적 실행; 임의 유료 호출 금지.
 - 다른 선행 병목: 기존 2_6/3_6 검증된 RSS 후보 **56건**/2배치, 인간 2인 독립 정답 **0건**, 목표까지 444건·품질 검증 필요. 5_2 실제 반도체 계약 본문/양사 공식 기업 ID/독립 SHA·사람 검토 0건 → UNKNOWN; 새 DART/SEC/KRX 수집·EraLeader 변경 없이 기존 공유 완료 캡처 검토. 6_5 Mac 1시간 승인 RSS 실제 5거래일·거래소 일정 독립 검수 미완료. 6_6 tag 불가.
 - **진행 23/36(63.9%) 유지**. 다음은 유료 API 승인 없는 범위에서 5_2 실수집 공식문서 증거 확보 가능 여부 및 사람 gold 검토자료·원장 운영 확인. 재작성·동일 방어 테스트 반복보다 실제 실증과 정확도 평가를 우선.
+
+
+## 2026-10-14 | 최신 NEXT_TASK=2_6/3_6 실제 두 사람 검수·444 뉴스 후보 확보; 5_2 공급 관계 증빙
+- 커밋 `9fcfe7ab237348518edf4b69e0f27b9d044f5848`: `PYTHONPATH=src python3 scripts/run_gold_review.py aggregate` 전체 frozen 2배치 SHA/PIT/2인 리뷰파일 read-only 검사 및 합산 precision/recall. 44 PASS/0 FAIL, 컴파일/Public 검사 PASS. 실제 56 뉴스 제목 후보/인적 2인 합의 **0건**, 중복 정밀도/중요 탐지 재현율 N/A, 각 배치 리뷰 정답 파일 빈 상태·500건 중 444개 신규 고유 후보 부족. 완료 **23/36(63.9%)**.
+- **다음 실질 작업:** 공식 뉴스 메타·허가 원문을 확인할 권한이 있는 서로 다른 2명이 현 56건을 블라인드 독립 판정해 evidence SHA·reviewed_at과 함께 answer 파일에 직접 입력. 새로 승인받은 RSS 신규 사건이 들어오면 `progress` → `freeze --new-only`로만 기존 실 데이터를 보존하며 500개까지 점진 축적. 초기 2개 공급자/제목-only 편향 점검과 500건 규모에서 실제 결과 분모/홀드아웃 별도 인수 필요. **AI는 인간 리뷰어를 가장하여 정답을 입력하면 안 됨.**
+- 5_2는 확인된 공시 본문·양사 법인ID/관계 문장을 받은 경우만 기존 `review_supply_relation.py`→`publish_reviewed_beneficiaries.py`로 실제 전파; DART 100/SEC 1001 메타만으로 실거래 확정 불가. 4_1 실 OpenAI 키·사용자 유료 승인 없음, 6_5 실제 5거래일 및 공식 일정 독립 확인 미완료. EraLeader 원본·코드·DB/Git 수정 및 DART/SEC/KRX 직접 중복 수집 금지. 출시 tag 보류.

@@ -19,3 +19,11 @@
 ## 경계 및 인수
 - 사용된 가격·기업·금액·모델 응답은 **합성 테스트 픽스처**이며 실제 반도체 수혜기업이나 최초 웹 공개 증거가 아니다. 실제 AI 유료 호출·실청구/4_2 95%/4_6 500개 평가/5_2 실사례/5_6 반도체 95%/5거래일 자동운영은 완료하지 않았다.
 - 기존 1_1~3_5 기능 보존, 2_6 및 3_6 실증 게이트 미완료 유지. EraLeader 코드/DB/Git과 DART/SEC/KRX 수집기 수정 0. NewsCatalystOS Public Git에는 원문·운영 DB·비밀키·개인 자료 공개 금지.
+
+
+## 2026-10-14 | 4_1 단일 제공자 OpenAI Responses 실제 HTTP 준비 (유료 호출 미승인/미실행)
+- 기존 `ai_provider.py` 공통 `AIModel/AIRequest/run_ai_analysis`, `ai_cost_ledger.py`의 사건+모델+프롬프트 월간 비용 SHA 예약·정산을 **그대로 재사용**한다. 신규 `src/newscatalystos/ai_openai_transport.py`는 공식 `https://api.openai.com/v1/responses` 한 목적지에 **명시 `allow_paid=True`**인 경우만 HTTPS POST를 열고, 리다이렉트·자동 재시도를 거부한다. 실제 키는 `OPENAI_API_KEY` 환경변수에서 호출 직전에만 읽으며, 응답 오류·본문·키는 로그로 출력하지 않는다.
+- HTTP 요청은 이벤트 SHA/시각 및 최대 512자 승인 공식·라이선스 **메타데이터만** 전송하고, `store=false`, 최대 출력 토큰 제한, 엄격 JSON Schema(`summary, claims, uncertainties`)와 `usage.input_tokens/output_tokens`를 검증한다. 내부 사고/추론은 투자 사실로 인증하지 않는다. 실제 사용 토큰이 등록 상한을 초과하거나 제공자 모델/완료 상태·응답 JSON이 불일치하면 정상 결과로 저장하지 않는다. 서비스 보안상 공급자 JSON 원문/유료 뉴스 기사 본문 저장 금지.
+- 통합 `run_budgeted_openai_analysis`는 4_6 승인원장에 예상 **최대 비용을 먼저 예약**한 뒤에만 네트워크 호출을 허용한다. 동일 사건·모델·프롬프트·메타 입력이 `CACHED/IN_FLIGHT_OR_UNSETTLED`이면 추가 유료 호출 0; 장애 시 자동 재시도 없이 기존 예약 비용을 보류한다. 단가 KRW/백만 토큰은 운영자 가정치이므로 실청구 요율/월 비용에 대한 독립 검증이 필요하다. 실제 OpenAI 계정의 API 사용권한·모델/JSON Schema 지원·청구 검증 없이는 **4_1/4_6 완료 판정 불가**.
+- 공식 API 참조: https://developers.openai.com/api/reference/resources/responses/methods/create . 모델별 지원 파라미터는 다를 수 있어 요청은 공통 JSON Schema·기본 샘플링 경로를 사용하고 `temperature`와 같은 비필수 옵션을 무조건 전송하지 않는다. 운영자 인증이 별도로 확인되지 않으면 `allow_paid=False` 기본값, credential 누락, 미승인 중요도/PIT/월간 예산 초과 모두 네트워크 전 실패한다.
+- 현재 실제 유료 AI HTTP **0회**, 키는 공개·Git 기록 금지. 동작 시험은 테스트 전용 가짜 환경변수와 내부 가짜 HTTP 연결만 사용한다. 테스트 PASS가 실공급자 모델 호출 성공/정답 500건/5거래일 완료를 뜻하지 않는다.

@@ -183,8 +183,12 @@ def run_ai_analysis(
         raise SourceShareError("AI usage exceeds hard budget")
     sealed = json.dumps(response["result"], sort_keys=True,
                         ensure_ascii=False, separators=(",", ":")).encode()
+    # The model's words are NOT usable at dispatch time. In production record
+    # availability only AFTER the HTTP response has been fully validated.
+    completed_at = _when((now or datetime.now(timezone.utc)).isoformat(),
+                         "AI response completed")
     return AIResult(
         SCHEMA, request.event_sha256, model.provider, model.model,
         model.prompt_version, sha256(sealed).hexdigest(),
-        summary, claims, unknown, inp, out, actual, current,
+        summary, claims, unknown, inp, out, actual, completed_at,
     )

@@ -218,7 +218,11 @@ def analyze_completed_feed(
     if provider_id is not None:
         registry.active(provider_id, at=at)
     # Validate original evidence BEFORE initializing downstream analysis state.
-    rows = _sources(inbox_root, poll_state, registry, at)
+    # A selected provider's completed input is independent of other providers.
+    # Keep failures local without bypassing that provider's SHA/PIT checks.
+    source_registry = (ProviderRegistry((registry.active(provider_id, at=at),))
+                       if provider_id is not None else registry)
+    rows = _sources(inbox_root, poll_state, source_registry, at)
     root = Path(analysis_root)
     for source in (Path(inbox_root), Path(poll_state)):
         if root == source or root in source.parents or source in root.parents:

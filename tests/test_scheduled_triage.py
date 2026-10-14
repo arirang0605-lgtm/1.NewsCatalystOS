@@ -19,6 +19,7 @@ def options(tmp_path, names=None, dry_run=False):
         output_root=tmp_path / "output",
         inbox_root=tmp_path / "inbox",
         once=not dry_run, dry_run=dry_run,
+        skip_analysis=True,  # legacy collection-only behavior tested in this file
     )
 
 

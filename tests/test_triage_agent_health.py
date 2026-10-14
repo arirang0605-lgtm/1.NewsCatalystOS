@@ -186,3 +186,12 @@ def test_cli_missing_service_is_unhealthy_not_healthy(tmp_path):
         now=datetime.now(timezone.utc), runner=missing,
     )
     assert code == 4 and result["reasons"] == ["AGENT_NOT_LOADED"]
+
+
+def test_recovered_checkpoint_and_completed_analysis_is_a_healthy_tick(tmp_path):
+    recovered = {**PASS_LOG, "analysis_providers_completed": 2,
+                 "analysis_providers_failed": 0,
+                 "providers": [{"provider_id": name,
+                     "status": "RECOVERED_FROM_DURABLE_CHECKPOINT"}
+                     for name in V1_PROVIDERS]}
+    assert inspect(tmp_path, last_log=recovered)["status"] == "AGENT_HEALTHY_OBSERVED"

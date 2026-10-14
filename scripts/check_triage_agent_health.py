@@ -145,7 +145,8 @@ def evaluate_health(*, plist_data: bytes, project: Path, base: Path,
             or last_log.get("official_era_api_request_count") != 0
             or last_log.get("stored_article_body_count") != 0
             or any(p.get("status") not in
-                   {"FEED_METADATA_TRIAGE_READY", "NOT_DUE", "NO_PENDING_REPLAY"}
+                   {"FEED_METADATA_TRIAGE_READY", "RECOVERED_FROM_DURABLE_CHECKPOINT",
+                    "NOT_DUE", "NO_PENDING_REPLAY"}
                    for p in rows)):
         reasons.append("LAST_TICK_UNVERIFIED")
     if not reasons:

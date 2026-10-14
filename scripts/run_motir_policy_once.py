@@ -18,6 +18,7 @@ if str(PROJECT) not in sys.path:
 
 from scripts.run_feed_triage import _registry, evaluate as triage_once
 from scripts.run_gold_capture_once import capture as gold_once
+from scripts.run_scheduled_triage import _analyze_provider, evaluate_analysis
 from scripts.prepare_motir_source import ENDPOINT, SOURCE
 from newscatalystos.source_share import SourceShareError
 
@@ -43,15 +44,29 @@ def parser() -> argparse.ArgumentParser:
                    default=home / "motir_gold_review_workspace")
     p.add_argument("--lock-root", type=Path,
                    default=home / "state" / "motir_gold_lock")
+    p.add_argument("--analysis-root", type=Path,
+                   default=PROJECT / "output" / "feed_analysis" / "motir")
+    p.add_argument("--analysis-limit", type=int, default=100)
+    p.add_argument("--analysis-model-config", type=Path,
+                   help="existing cached model output only; no paid AI")
+    p.add_argument("--skip-analysis", action="store_true")
+    p.add_argument("--replay-only", action="store_true",
+                   help="use completed input and recovery checkpoints without source HTTP")
+    p.set_defaults(analysis_scope="motir")
     return p
 
 
 def run_once(opts: argparse.Namespace, *,
              registry_reader=_registry,
              feed_runner=triage_once,
-             gold_runner=gold_once) -> tuple[int, dict]:
+             gold_runner=gold_once,
+             analysis_runner=evaluate_analysis) -> tuple[int, dict]:
     """Do not conflate successful feed work and human gold verification."""
     try:
+        enabled = not getattr(opts, "skip_analysis", False)
+        limit = getattr(opts, "analysis_limit", 100)
+        if enabled and (type(limit) is not int or not 1 <= limit <= 100):
+            raise SourceShareError("invalid bounded analysis limit")
         source = registry_reader(opts.registry)
         approved = tuple(source.approved_ids(at=datetime.now(timezone.utc)))
         if approved != (SOURCE,):
@@ -76,9 +91,13 @@ def run_once(opts: argparse.Namespace, *,
             registry=opts.registry, provider_id=SOURCE, state=opts.state,
             dedup_state=opts.dedup_state,
             inbox_root=opts.inbox_root, output_root=opts.output_root,
-            replay_only=False,
+            replay_only=getattr(opts, "replay_only", False),
         )
-        feed_code, feed_status = feed_runner(tick)
+        try:
+            feed_code, feed_status = feed_runner(tick)
+        except (SourceShareError, OSError, ValueError) as exc:
+            feed_code, feed_status = 4, {"status": "DATA_UNAVAILABLE",
+                                        "error_type": type(exc).__name__}
         # A previously successful observation must still reach its blind
         # private gold queue, even if an hourly poll is NOT_DUE or fails.
         gold_opts = argparse.Namespace(
@@ -87,7 +106,20 @@ def run_once(opts: argparse.Namespace, *,
             pin_root=opts.pin_root, workspace_root=opts.workspace_root,
             lock_root=opts.lock_root, motir_policy_only=True,
         )
-        gold_code, gold_status = gold_runner(gold_opts)
+        try:
+            gold_code, gold_status = gold_runner(gold_opts)
+        except (SourceShareError, OSError, ValueError) as exc:
+            gold_code, gold_status = 4, {"status": "GOLD_CAPTURE_UNAVAILABLE",
+                                        "error_type": type(exc).__name__}
+        # Gold preparation is not a prerequisite for economic analysis.
+        # Both consume completed metadata; either failure remains explicit.
+        analysis_code, analysis = (0, {"status": "DISABLED"})
+        if enabled:
+            analysis_opts = argparse.Namespace(**vars(opts))
+            analysis_opts.analysis_scope = "motir"
+            if getattr(analysis_opts, "analysis_root", None) is None:
+                analysis_opts.analysis_root = Path(opts.output_root).parent / "feed_analysis" / "motir"
+            analysis_code, analysis = _analyze_provider(analysis_opts, SOURCE, analysis_runner)
         good_feed = (feed_code == 0 and feed_status.get("status") in {
             "FEED_METADATA_TRIAGE_READY", "RECOVERED_FROM_DURABLE_CHECKPOINT",
             "NOT_DUE", "NO_PENDING_REPLAY",
@@ -96,9 +128,10 @@ def run_once(opts: argparse.Namespace, *,
             "NEW_VERIFIED_RSS_CANDIDATES_FROZEN",
             "NO_NEW_VERIFIED_RSS_CANDIDATES",
         }
-        return (0 if good_feed and good_gold else 4), {
+        good_tick = good_feed and good_gold and analysis_code == 0
+        return (0 if good_tick else 4), {
             "status": ("MOTIR_SECTOR_SOURCE_AND_GOLD_READY"
-                       if good_feed and good_gold else "MOTIR_SECTOR_REQUIRES_REVIEW"),
+                       if good_tick else "MOTIR_SECTOR_REQUIRES_REVIEW"),
             "provider_id": SOURCE,
             "feed_status": feed_status.get("status", "DATA_UNAVAILABLE"),
             "feed_new_identities": feed_status.get("new_provider_ids", 0),
@@ -107,6 +140,7 @@ def run_once(opts: argparse.Namespace, *,
             "gold_status": gold_status.get("status", "DATA_UNAVAILABLE"),
             "newly_frozen_gold_candidates": gold_status.get("newly_frozen_cases", 0),
             "total_sector_gold_candidates": gold_status.get("total_pinned_unique_cases"),
+            "analysis_enabled": enabled, "analysis": analysis,
             "human_gold_labeled_cases": 0,
             "ai_calls": 0,
             "era_api_calls": 0,

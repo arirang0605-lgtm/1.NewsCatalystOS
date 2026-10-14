@@ -25,6 +25,7 @@ def config(tmp_path):
         pin_root=home / "pins" / "motir_gold",
         workspace_root=home / "motir_gold_review_workspace",
         lock_root=home / "state" / "motir_gold_lock",
+        skip_analysis=True,  # existing source/Gold-only tests
     )
 
 

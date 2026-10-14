@@ -55,13 +55,51 @@ PYTHONPATH=src python3 scripts/run_feed_analysis.py --scope motir --limit 100
 캐시된 결과를 읽을 수 있다. 요청한 AI가 실패하면 출처가 붙은 부분 결과를 저장하고
 종료코드4를 반환한다. 규칙 전용 실행의 성공을 AI 실사용으로 표시하지 않는다.
 
-## 이번 실행 증거
-- 실제 기존 메타데이터: core80 + motir10, 총90개 제목 버전 분석/결과 저장,
-  두 CLI exit0. 실제 반도체 용어가 정확히 일치한 제목 각1건, 유료 호출 대상0건.
-  원본6파일 SHA 동일, 새 출처 수집·유료AI·인적답안 생성0.
-- 합성 RSS + 가짜 HTTP 응답을 사용한 두 독립 Python 프로세스:
-  첫 실행 분석1/모의HTTP1, 두 번째 캐시1/모의HTTP0, 동일 AI 결과 SHA 보존.
-  `market_expectation=UNKNOWN`이어도 다른 근거가 충분한 정상 분석 경로를 확인했다.
-- 로그는 `logs/feed_analysis_live_check.json`, `logs/feed_analysis_process_smoke.json`,
-  `logs/feed_analysis_regression.log`에 비공개로 보존한다. 실제 AI 청구·정확도
-  500건·반도체 관계 성능·5거래일/최종 출시 인수의 증거는 아니다.
+## 기존 예약 실행과 자동 분석
+기존 `run_scheduled_triage.py`와 `run_motir_policy_once.py`가 수집/복구 완료 후
+같은 `run_feed_analysis.evaluate`를 호출해 결과를 저장한다. 새 수집기·감시 서비스·
+LaunchAgent를 만들지 않고 기존 실행명령/1시간 설정을 유지한다.
+
+- core는 선택한 제공자마다 최신 최대100개 제목 버전을 분석하고
+  `output/feed_analysis/core/`에 기존 파생 상태·결과를 저장한다.
+- MOTIR는 기존 별도 등록부·수집 DB·inbox·Gold를 유지하고
+  `output/feed_analysis/motir/`에 저장한다. Gold 준비 실패는 분석을 막지 않지만
+  원래 실패 상태를 숨기지 않는다.
+- 두 실행기 모두 규칙 분석이 기본이다. `--analysis-model-config`는 기존 모델
+  캐시를 읽는 용도이며 `allow_paid=False`로만 전달한다. 환경에 키가 있어도
+  이 예약 경로에서 새 유료 요청은 하지 않는다. 유료 수동 실행은 앞 절의 별도 승인 경로다.
+- `NOT_DUE`나 수집 실패 때에도 이전 완료 ACK가 있으면 분석할 수 있다. 수집 실패와
+  분석 실패를 별도로 기록하고, 어느 쪽이든 실패하면 종료코드4를 반환한다.
+  분석 오류로 성공한 ACK·수집 워터마크를 롤백하거나 RSS를 다시 요청하지 않는다.
+- 선택한 제공자의 분석은 다른 제공자의 손상된 triage 결과로 막지 않는다.
+  해당 제공자 자신의 SHA·PIT·현재 권한 검증은 그대로 수행한다.
+- `--skip-analysis`는 기존 수집/Gold 전용 동작이다. `--analysis-root`로 파생 위치,
+  `--analysis-limit 1..100`으로 제공자별 최근 버전 수를 설정할 수 있다.
+  초과 이력은 `has_more_results=true`로 표시하며 전체 역사 분석 완료로 세지 않는다.
+- 예약 stdout에는 상태·개수·비공개 결과 위치/SHA만 기록한다. 제목·AI 내용은
+  비공개 결과파일에 남고, 일반 운영 로그에 복제하지 않는다.
+
+이미 완료된 자료만으로 복구·분석하려면 다음을 사용한다. 새 RSS HTTP는 없다.
+```sh
+PYTHONPATH=src python3 scripts/run_scheduled_triage.py --replay-only \
+  --registry "$HOME/Library/Application Support/NewsCatalystOS/providers/authorized_sources.json" \
+  --provider-id mss-official-press --provider-id newswire-public-rss-it
+PYTHONPATH=src python3 scripts/run_motir_policy_once.py --replay-only
+```
+
+## 현재 검증 증거
+- 관련 **9개 테스트 파일 100 PASS/0 FAIL**. 합성 소스를 실제 수집·완료 ACK까지
+  처리한 후 같은 tick에서 결과를 저장했고, 재시도/캐시·제공자 실패 격리·dry-run·
+  기존 수집 전용 모드·MOTIR 분리 동작을 확인했다. 실제 유료AI·사람 정답이 아니다.
+- 실제 Mac 2026-10-14 20:40 KST: 기존 실행명령에 `--replay-only`를 지정한
+  별도 Python 프로세스에서 중기부23/뉴스와이어IT57/MOTIR10, 총90개 제목 버전의
+  규칙 결과3개를 저장하고 SHA 확인. core/motir 종료코드0, 누락/한도초과 없음.
+  등록부2·운영DB4·기존 LaunchAgent 설정3개, 총9파일 SHA 동일. RSS 신규 요청·
+  실제 AI·인적 라벨 추가0. 결과는 검토 후보이며 사건/수혜 확정이나 90개 독립 정답이 아니다.
+- 기존 서비스의 수동 kickstart 확인 요청은 도구 보안 차단으로 실행되지 않았다.
+  20:41 KST 읽기전용 로그 관찰에서는 아직 새 분석 필드가 없는 이전 정상 tick이었다.
+  **다음 자연 예약 tick의 새 분석 실행은 관찰 대기**이며 5거래일 인수로 세지 않는다.
+- 증거는 `logs/scheduled_analysis_regression.log`,
+  `logs/scheduled_analysis_live_check.json`,
+  `logs/scheduled_analysis_service_observation.json`에 비공개 보존한다.
+  앞선 AI 연결·캐시의 합성 별도 프로세스 증거는 `logs/feed_analysis_process_smoke.json`.

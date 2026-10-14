@@ -165,3 +165,16 @@ def test_progress_cli_works_without_mutating_gold_folders(tmp_path, monkeypatch)
     assert result["new_unfrozen_cases"] == 0
     assert (first.folder / "predictions.json").read_bytes() == contents_before
     assert run_gold_review.parser().parse_args(["progress"]).command == "progress"
+
+
+def test_progress_exposes_provider_concentration_without_claiming_semiconductor_fact(
+    tmp_path, monkeypatch,
+):
+    state, inbox, out, pins, batch = saved(tmp_path, monkeypatch)
+    result = gold.gold_freeze_progress(registry(), inbox, state, out, pins)
+    assert sum(result["by_current_approved_provider"].values()) == result[
+        "eligible_current_source_cases"]
+    assert sum(result["new_unfrozen_by_provider"].values()) == 0
+    assert isinstance(result["semiconductor_keyword_hints_not_verified_facts"], int)
+    assert result["independent_human_gold_labeled_cases"] == 0
+    assert result["release_gate_verified"] is False

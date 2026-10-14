@@ -115,6 +115,8 @@ def gold_freeze_progress(
     at = _when((now or datetime.now(timezone.utc)).isoformat(), "progress checked")
     frozen, batches = _prior_frozen_ids(out_root, pin_root, at)
     eligible = set()
+    by_provider: dict[str, set[str]] = {}
+    semiconductor_keyword_candidates: set[str] = set()
     for ack_time, _, item in _rows(registry, inbox, state, at):
         event = _must_sha(item["event_id"], "RSS event")
         title = _must_sha(item["title_sha256"], "RSS title SHA")
@@ -122,11 +124,25 @@ def gold_freeze_progress(
             raise SourceShareError("future RSS used for gold progress")
         case = sha256((item["provider_id"] + "\0" + event + "\0" + title).encode()).hexdigest()
         eligible.add(case)
+        by_provider.setdefault(item["provider_id"], set()).add(case)
+        if item["needs_human_review"] is True:
+            semiconductor_keyword_candidates.add(case)
     return {
         "status": "REAL_RSS_GOLD_FREEZE_PROGRESS_NOT_LABELED",
         "historical_sha_pinned_batches": len(batches),
         "distinct_sha_pinned_cases": len(frozen),
         "eligible_current_source_cases": len(eligible),
+        "by_current_approved_provider": {
+            provider: len(by_provider[provider])
+            for provider in sorted(by_provider)
+        },
+        "new_unfrozen_by_provider": {
+            provider: len(cases - frozen)
+            for provider, cases in sorted(by_provider.items())
+        },
+        "semiconductor_keyword_hints_not_verified_facts": len(
+            semiconductor_keyword_candidates
+        ),
         "new_unfrozen_cases": len(eligible - frozen),
         "unique_cases_if_frozen": len(frozen | eligible),
         "remaining_to_500_if_frozen": max(0, 500 - len(frozen | eligible)),

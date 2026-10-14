@@ -7,14 +7,18 @@ All inputs must be already authorized and kept in owner-only local folders.
 from __future__ import annotations
 
 from dataclasses import fields
+from hashlib import sha256
 from datetime import datetime, timezone
 from pathlib import Path
 import os
 import stat
 
 from .event_identity import CompanyBinding
+from .evidence_archive import read_archived_evidence
+from .provider_registry import ProviderRegistry
 from .official_relation_review import (
     MAX_DOCUMENT_BYTES, OfficialRelationReview, review_official_supply_relation,
+    PUBLISHER_RELATION_STATUS, _review_bound_document,
 )
 from .operational_observations import load_operational_observations
 from .source_share import SourceShareError, _json, _must_sha, _read_regular, _when
@@ -95,4 +99,74 @@ def read_official_relation_intake(
         observations, supplier, customer, review, document,
         trusted_document_sha256=document_pin,
         decision_at=completed, now=completed, consumer_observed_at=completed,
+    )
+
+
+PUBLISHER_SCHEMA = "newscatalyst.publisher_relation_intake.v1"
+
+
+def read_publisher_relation_intake(
+    archive_root: Path, archive_version: str, trusted_receipt_sha256: str,
+    private_review_json: Path, trusted_document_sha256: str,
+    registry: ProviderRegistry, *, now: datetime | None = None,
+) -> SupplyChainEdge:
+    """Use a licensed IR/government document, without inventing an SEC filing.
+
+    Existing immutable archive, explicit source permission and human review are
+    required. This function reads only; it never grants rights, downloads a
+    source, fills human answers, or promotes a transaction to verified status.
+    External publisher results have their own evidence status and graph schema.
+    """
+    # Import locally: human review helpers use the existing official intake.
+    from .human_review_entry import _existing_private_dir
+    root = _existing_private_dir(archive_root)
+    receipt_pin = _must_sha(trusted_receipt_sha256, "archive receipt pin")
+    document_pin = _must_sha(trusted_document_sha256, "publisher document pin")
+    if not isinstance(registry, ProviderRegistry):
+        raise SourceShareError("approved publisher registry required")
+    at = _when((now or datetime.now(timezone.utc)).isoformat(), "publisher intake started")
+    document, archived = read_archived_evidence(root, archive_version, now=at)
+    if (archived.content_scope != "LICENSED_SOURCE_BYTES"
+            or archived.receipt_sha256 != receipt_pin
+            or archived.payload_sha256 != document_pin):
+        raise SourceShareError("licensed document and independent archive pins required")
+    # Verify archive identity, not an unrelated filing/document reference.
+    key = sha256((archived.provider_id + "\0" + archived.document_id).encode()).hexdigest()
+    expected_version = sha256((key + "\0" + document_pin).encode()).hexdigest()
+    if expected_version != archived.version_id:
+        raise SourceShareError("publisher archive identity mismatch")
+    provider = registry.active(archived.provider_id, at=at)
+    if (provider.kind not in {"COMPANY_IR", "GOVERNMENT_POLICY"}
+            or provider.grant != "WRITTEN_LICENSE"
+            or provider.allow_full_text_storage is not True
+            or not provider.enabled_at(archived.first_verified_at)):
+        raise SourceShareError("publisher document storage permission missing or expired")
+    data = _json(_private_input(private_review_json, MAX_REVIEW_BYTES),
+                 "publisher document human review")
+    if (set(data) != {"schema", "review_origin", "relation_kind", "review", "supplier", "customer"}
+            or data["schema"] != PUBLISHER_SCHEMA
+            or data["review_origin"] != "HUMAN_OPERATOR"
+            or data["relation_kind"] not in {"REPORTED_DIRECT_TRANSACTION", "ANNOUNCED_SUPPLY_PLAN"}):
+        raise SourceShareError("explicit human publisher review required")
+    review = _record(data["review"], OfficialRelationReview,
+                     frozenset({"document_observed_at", "pin_observed_at", "reviewed_at"}))
+    supplier = _record(data["supplier"], CompanyBinding, frozenset({"observed_at"}))
+    customer = _record(data["customer"], CompanyBinding, frozenset({"observed_at"}))
+    if (not isinstance(review.reviewer_code, str)
+            or review.reviewer_code.startswith(("UNASSIGNED", "ASSISTANT", "SYNTHETIC"))
+            or (review.source_id, review.source_document_id, review.source_evidence_id,
+                review.source_receipt_sha256) !=
+               (archived.provider_id, archived.document_id, archived.version_id, receipt_pin)
+            or review.document_observed_at != archived.first_verified_at
+            or not archived.archived_at <= review.pin_observed_at <= review.reviewed_at):
+        raise SourceShareError("publisher human review does not match archived source")
+    completed = _when((now or datetime.now(timezone.utc)).isoformat(), "publisher intake completed")
+    # Rights may expire while the document is being read.
+    registry.active(archived.provider_id, at=completed)
+    return _review_bound_document(
+        archived, supplier, customer, review, document,
+        trusted_document_sha256=document_pin, decision=completed, current=completed,
+        consumer_observed_at=completed, source_evidence_id=archived.version_id,
+        source_available_at=max(archived.first_verified_at, archived.archived_at),
+        evidence_status=PUBLISHER_RELATION_STATUS, relation_kind=data["relation_kind"],
     )

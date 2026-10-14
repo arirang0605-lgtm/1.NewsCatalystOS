@@ -16,11 +16,14 @@ import json
 import re
 
 from .event_identity import CompanyBinding
-from .operational_observations import OperationalObservationSet
+from .evidence_archive import ArchivedEvidence
+from .operational_observations import OperationalObservation, OperationalObservationSet
 from .source_share import SourceShareError, _must_sha, _when
 from .supply_chain_graph import SupplyChainEdge, observed_supply_edge
 
 RELATION_STATUS = "OFFICIAL_DOCUMENT_REVIEWED_RELATION_NOT_TRANSACTION_VERIFIED"
+PUBLISHER_RELATION_STATUS = "LICENSED_PUBLISHER_DOCUMENT_REVIEWED_RELATION_NOT_TRANSACTION_VERIFIED"
+DOCUMENT_REVIEW_STATUSES = frozenset({RELATION_STATUS, PUBLISHER_RELATION_STATUS})
 _RELATION_TERMS = (
     "supply", "supplies", "supplied", "purchase", "purchased", "sold", "contract",
     "manufactures for", "manufactured for", "공급", "계약", "납품", "판매", "위탁생산",
@@ -96,6 +99,31 @@ def review_official_supply_relation(
             or _must_sha(review.source_receipt_sha256, "receipt")
             != source.receipt_sha256):
         raise SourceShareError("source evidence/receipt is not the pinned snapshot")
+    if (supplier.id_namespace != customer.id_namespace
+            or supplier.id_namespace != ("DART_CORP" if source.provider_id == "DART" else "SEC_CIK")):
+        raise SourceShareError("official source and both company ID namespaces mismatch")
+    return _review_bound_document(
+        source, supplier, customer, review, document_text,
+        trusted_document_sha256=trusted_document_sha256, decision=decision,
+        current=current, consumer_observed_at=consumer_observed_at,
+        source_evidence_id=source.evidence_id,
+        source_available_at=max(source.available_at, source.verified_at),
+        evidence_status=RELATION_STATUS,
+    )
+
+
+def _review_bound_document(
+    source: OperationalObservation | ArchivedEvidence,
+    supplier: CompanyBinding, customer: CompanyBinding,
+    review: OfficialRelationReview, document_text: bytes, *,
+    trusted_document_sha256: str, decision: datetime, current: datetime,
+    consumer_observed_at: datetime | None, source_evidence_id: str,
+    source_available_at: datetime, evidence_status: str,
+    relation_kind: str = "REPORTED_DIRECT_TRANSACTION",
+) -> SupplyChainEdge:
+    """Shared text/PIT review logic; callers keep their distinct source gates."""
+    if decision > current or evidence_status not in DOCUMENT_REVIEW_STATUSES:
+        raise SourceShareError("invalid document review context")
     expected = _must_sha(trusted_document_sha256, "trusted document pin")
     if (_must_sha(review.document_sha256, "document SHA") != expected
             or not isinstance(document_text, bytes)
@@ -117,7 +145,7 @@ def review_official_supply_relation(
         raise SourceShareError("relation evidence unavailable at decision")
     effective = max(reviewed, consumed)
     if (max(observed, pinned) > reviewed or reviewed > decision
-            or max(source.available_at, source.verified_at) > effective):
+            or source_available_at > effective):
         raise SourceShareError("document/pin/review unavailable at decision")
     if (supplier.validate() > reviewed or customer.validate() > reviewed):
         raise SourceShareError("review predates source or company mapping")
@@ -125,13 +153,12 @@ def review_official_supply_relation(
         r"[A-Z0-9_-]{3,32}", review.reviewer_code
     ):
         raise SourceShareError("operator reviewer code required")
-    if (supplier.id_namespace != customer.id_namespace
-            or supplier.id_namespace != ("DART_CORP" if source.provider_id == "DART" else "SEC_CIK")):
-        raise SourceShareError("official source and both company ID namespaces mismatch")
     names = (review.supplier_name, review.customer_name)
     statement = review.evidence_statement
     # A company named 'Supplier Alpha' or a negated contract mention must
     # never turn mere co-occurrence into a direct commercial relationship.
+    if not isinstance(statement, str):
+        raise SourceShareError("explicit supplier/customer transaction statement required")
     normalized = statement.casefold()
     relation_context = normalized
     for name in names:
@@ -151,11 +178,11 @@ def review_official_supply_relation(
         raise SourceShareError("explicit supplier/customer transaction statement required")
     edge = observed_supply_edge(
         source, supplier, customer, product_stage=review.product_stage,
-        relation_kind="REPORTED_DIRECT_TRANSACTION",
+        relation_kind=relation_kind,
         reviewed_at=effective, now=current,
     )
     review_metadata = {
-        "source_evidence_id":source.evidence_id,
+        "source_evidence_id":source_evidence_id,
         "document_sha256":expected,
         "pin_observed_at":pinned.isoformat(),
         "reviewed_at":reviewed.isoformat(),
@@ -173,7 +200,7 @@ def review_official_supply_relation(
     relation_sha = sha256((edge.edge_sha256 + ":" + proof_sha).encode()).hexdigest()
     return replace(
         edge, edge_sha256=relation_sha, evidence_sha256=expected,
-        evidence_status=RELATION_STATUS, available_at=effective,
+        evidence_status=evidence_status, available_at=effective,
         last_reviewed_at=effective,
         document_sha256=expected, review_proof_sha256=proof_sha,
     )

@@ -51,6 +51,9 @@ def classify_semiconductor_beneficiary(
     elif edge.relation_kind=="THEMATIC_ASSOCIATION":
         category="THEMATIC_ONLY"
         reason="Thematic relation is not a direct contract"
+    elif edge.relation_kind=="ANNOUNCED_SUPPLY_PLAN":
+        category="ANNOUNCED_SUPPLY_PLAN_UNVERIFIED"
+        reason="A future supply plan is not evidence of active shipments or realized revenue"
     elif impact.direction=="POSITIVE":
         category="POTENTIAL_BENEFICIARY_UNVERIFIED"
         reason="Reported direct link, hypothetical positive economic effect"

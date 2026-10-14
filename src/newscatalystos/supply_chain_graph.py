@@ -11,12 +11,14 @@ from datetime import datetime, timezone
 from hashlib import sha256
 
 from .event_identity import CompanyBinding
+from .evidence_archive import ArchivedEvidence
 from .operational_observations import OperationalObservation
 from .new_source_adapter import FeedObservation
 from .semiconductor_profile import STAGES
 from .source_share import SourceShareError, _when
 
-KINDS = frozenset({"REPORTED_DIRECT_TRANSACTION", "THEMATIC_ASSOCIATION"})
+KINDS = frozenset({"REPORTED_DIRECT_TRANSACTION", "THEMATIC_ASSOCIATION",
+                   "ANNOUNCED_SUPPLY_PLAN"})
 
 
 @dataclass(frozen=True)
@@ -51,7 +53,7 @@ class SupplyChainEdge:
 
 
 def observed_supply_edge(
-    source: OperationalObservation | FeedObservation,
+    source: OperationalObservation | FeedObservation | ArchivedEvidence,
     supplier: CompanyBinding, customer: CompanyBinding, *,
     product_stage: str, relation_kind: str,
     reviewed_at: datetime, now: datetime | None = None,
@@ -80,6 +82,14 @@ def observed_supply_edge(
         earliest=source.first_seen_at
         evidence_sha=source.event_id
         evidence_status="FEED_CLAIMED_RELATIONSHIP_UNVERIFIED"
+    elif isinstance(source, ArchivedEvidence):
+        # An authorized document archive is neither an RSS capture nor a filing.
+        if source.content_scope != "LICENSED_SOURCE_BYTES":
+            raise SourceShareError("licensed source document archive required")
+        source_id, doc, source_event = source.provider_id, source.document_id, source.version_id
+        earliest = max(source.first_verified_at, source.archived_at)
+        evidence_sha = source.payload_sha256
+        evidence_status = "ARCHIVED_PUBLISHER_DOCUMENT_RELATION_UNVERIFIED"
     else:
         raise SourceShareError("supported source-bound claim required")
     if any(x.source_id!=source_id or x.source_document_id!=doc for x in (supplier,customer)):
@@ -99,6 +109,9 @@ def observed_supply_edge(
         source_id+"\0"+doc+"\0"+source_event+"\0"+supplier.company_id+
         "\0"+customer.company_id+"\0"+product_stage+"\0"+relation_kind
     ).encode()).hexdigest()
+    if isinstance(source, ArchivedEvidence):
+        identifier = sha256((identifier + "\0" + supplier.id_namespace + "\0"
+                             + customer.id_namespace).encode()).hexdigest()
     return SupplyChainEdge(
         identifier,source_id,doc,source_event,
         supplier.id_namespace,supplier.company_id,

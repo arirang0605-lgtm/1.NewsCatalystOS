@@ -13,11 +13,14 @@ import json
 from .beneficiary_classification import BeneficiaryCandidate
 from .semiconductor_impact import SemiconductorTransmission
 from .semiconductor_profile import SemiconductorProfile, validate_profile
-from .official_relation_review import RELATION_STATUS
+from .official_relation_review import (
+    RELATION_STATUS, PUBLISHER_RELATION_STATUS, DOCUMENT_REVIEW_STATUSES,
+)
 from .supply_chain_graph import SupplyChainEdge
 from .source_share import SourceShareError, _must_sha, _when
 
 SCHEMA="newscatalyst.beneficiary_graph.v1"
+PUBLISHER_GRAPH_SCHEMA="newscatalyst.beneficiary_graph.v2"
 
 
 @dataclass(frozen=True)
@@ -55,12 +58,16 @@ def build_beneficiary_graph(
             raise SourceShareError("future or invalid graph relation")
         if edge.last_reviewed_at > at or edge.available_at > edge.last_reviewed_at:
             raise SourceShareError("relation review/PIT timing invalid")
-        if edge.relation_kind not in ("REPORTED_DIRECT_TRANSACTION", "THEMATIC_ASSOCIATION"):
+        if edge.relation_kind not in ("REPORTED_DIRECT_TRANSACTION", "THEMATIC_ASSOCIATION",
+                                      "ANNOUNCED_SUPPLY_PLAN"):
             raise SourceShareError("invalid relation kind")
         if (edge.evidence_status == RELATION_STATUS and
                 edge.relation_kind != "REPORTED_DIRECT_TRANSACTION"):
             raise SourceShareError("official document proof cannot certify a thematic relation")
-        if edge.evidence_status == RELATION_STATUS and (
+        if (edge.evidence_status == PUBLISHER_RELATION_STATUS and
+                edge.relation_kind not in {"REPORTED_DIRECT_TRANSACTION", "ANNOUNCED_SUPPLY_PLAN"}):
+            raise SourceShareError("publisher review requires explicit relation basis")
+        if edge.evidence_status in DOCUMENT_REVIEW_STATUSES and (
                 edge.document_sha256 is None or edge.review_proof_sha256 is None):
             raise SourceShareError("reviewed official relation missing document proof")
         if edge.verified_real_transaction:
@@ -98,20 +105,23 @@ def build_beneficiary_graph(
         })
         if edge.document_sha256 is not None or edge.review_proof_sha256 is not None:
             if (edge.document_sha256 is None or edge.review_proof_sha256 is None
-                    or edge.evidence_status != RELATION_STATUS
+                    or edge.evidence_status not in DOCUMENT_REVIEW_STATUSES
                     or edge.evidence_sha256 != edge.document_sha256
                     or candidate.available_at < edge.available_at):
                 raise SourceShareError("inconsistent official relation document proof")
             rendered[-1].update({
                 "document_sha256": _must_sha(edge.document_sha256, "document proof"),
                 "review_proof_sha256": _must_sha(edge.review_proof_sha256, "review proof"),
-                "relation_evidence_status": RELATION_STATUS,
+                "relation_evidence_status": edge.evidence_status,
             })
     rendered.sort(key=lambda x:x["relation_sha256"])
     if len({x["relation_sha256"] for x in rendered})!=len(rendered):
         raise SourceShareError("same relation cannot be counted twice")
+    schema = (PUBLISHER_GRAPH_SCHEMA if any(
+        edge.evidence_status == PUBLISHER_RELATION_STATUS
+        or edge.relation_kind == "ANNOUNCED_SUPPLY_PLAN" for edge in relations) else SCHEMA)
     data={
-        "schema":SCHEMA,"industry_id":"SEMICONDUCTOR",
+        "schema":schema,"industry_id":"SEMICONDUCTOR",
         "event_sha256":impact.event_sha256,
         "profile_sha256":profile.taxonomy_sha256,
         "decision_at":at.isoformat(),
@@ -121,6 +131,6 @@ def build_beneficiary_graph(
     }
     raw=(json.dumps(data,sort_keys=True,separators=(",",":"),ensure_ascii=False)+"\n").encode()
     return BeneficiaryGraph(
-        SCHEMA,impact.event_sha256,profile.taxonomy_sha256,at,len(rendered),
+        schema,impact.event_sha256,profile.taxonomy_sha256,at,len(rendered),
         raw,sha256(raw).hexdigest()
     )

@@ -327,3 +327,9 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - 기능 Git SHA `422622130871db7589766109c0119aad0d81de30`: 신규 `scripts/check_triage_agent_health.py`의 read-only launchd 운영 상태/승인 RSS 설정·사설 로그·중복 스케줄러·1시간 간격/오류코드/2시간15분 로그 노후화 진단. 기존 수집·분석 코드 변경/추가 GET 0. 장애·의심 설정은 exit 4, 정상은 exit 0; 5거래일 인증과 별개.
 - 변경 영향 6개 테스트파일 전체 **59 PASS/0 FAIL**, Python compileall PASS, git staged diff·기본 비밀패턴 검사 PASS. 실제 Mac **`runs=4`, last exit=0, 승인 제공자2/마지막 실로그 일치, `AGENT_HEALTHY_OBSERVED`, 검사 exit0**, 경쟁 `com.newscatalystos.incremental` 미기동. 무단 API/AI/EraLeader 호출·변경 0. 재부팅·절전/SSD분리 장기 복원 실증은 별도 조건.
 - 전체 **23/36(63.9%) 유지**. 인증된 거래소 거래일 0/5, 단일 2026-10-14 분석 ACK 모든소스 일자 1개, 실반도체 공급관계 공식 원문 0·독립 2인 gold0·실모델/라이선스 사용0. 다음 6_5 후속 실제 일자 누적, 5_2 허가 계약 증거/회사ID·2_6/3_6 실제 2인 검수 및 실 AI 승인 연결. 오프사이트/최종 tag 대기, EraLeader 읽기전용·사용자 미추적 파일 보존.
+
+
+## 2026-10-14 | 6_5 KRX 일정 독립 검토와 실분석 ACK 날짜 교차 보고 기능 (NC-6_5-REVIEWED-CALENDAR)
+- **기능 Git SHA `f2b454b7fdb4e8527224da1c20f42b9b0db26db3`**: `market_calendar_review.py` 신규. 실제 운영자가 별도 저장한 KRX 공식 일정 스냅샷과 SHA·검토자/실제 입수/검토 시각을 owner-only 폴더에서 offline 검증, 휴장일·중복·미래 리뷰/해시 불일치 차단. 기존 `operation_status`의 1_3 승인 RSS 실제 양소스 ACK 날짜와 정식 리뷰 날짜의 교집합을 `operator_reviewed_calendar_days`로 출력. 기존 기본 조회는 그대로 유지; 실증 자료가 없으면 0. **자체 일정 리뷰는 외부 거래소 인증 아님**으로 verified_exchange_trading_days=0/5일 출시 false 유지.
+- 범위 pytest **46 PASS/0 FAIL**, compileall·git diff --check·Public staged 보안 패턴/명시 5파일 검사 PASS. 실제 Mac RSS 운영 원장 읽기 전용 재조회: 승인 2곳·완료 ACK **10건**, 전체소스 `2026-10-14` 한 날짜·partial0/pending0, 독립 Mac↔T5DATA SSD 복원 true, 검토 공식 일정 파일 **미제공 → operator_reviewed_calendar_day_count=0**, 5거래일 인증 false/정식 출시 false. 외부 HTTP/AI/공식 API 새 호출 0, EraLeader 원본·Git 변경 0.
+- **완료 23/36(63.9%) 유지**. 다음: 실제 KRX 일정 출처 스냅샷·검토를 정상 확보한 경우 offline 대조 실행; 기존 1시간 Mac RSS 운영의 나머지 4개 실제 날짜 누적·누락/복원/신선도 점검; 반도체 5_2 허가된 공식 공급문서/회사 ID 확보 후 기존 파급·후속전달, 2_6/3_6 사람 2인 gold 검토 및 4단계 실제 AI 인수. 사용자 미추적 도면/기존 EraLeader 공유 원본 보존.

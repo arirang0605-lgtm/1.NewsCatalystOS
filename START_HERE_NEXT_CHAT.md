@@ -203,3 +203,8 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 개발 인계 — 6_5 Mac launchd 건강도 실제 점검
 - 기능 `422622130871db7589766109c0119aad0d81de30`: read-only `check_triage_agent_health.py`로 Mac 승인RSS 1시간 실행 횟수/종료/최근 JSON 및 중복 스케줄러·변조·오래된 로그 감시. 변경 영향 **59 PASS/0 FAIL**, compile·Public 검사 PASS. 실제 runs4/exit0/승인2/상태 `AGENT_HEALTHY_OBSERVED`. 실운영 전체 소스 2026-10-14 한 날짜, 공식 5거래일 0/5, **완료 23/36(63.9%) 유지**.
 - `NEXT_TASK.md` 최신 하단: 6_5 이후 실제 운영일 누적 및 출처별 ACK 검증, 5_2 실제 공식 반도체 거래관계·2_6/3_6 인적 라벨 확보. 다른 프로젝트 코드/Git/DB/수집기·사용자 미추적 자료 변경 금지. 36/36 태그와 AI/정확도 미검증 완료 판정 금지.
+
+
+## 2026-10-14 | 최신 인계 — 6_5 운영자 검토 KRX 일정·실제 RSS ACK 대조
+- 기능 Git SHA `f2b454b7fdb4e8527224da1c20f42b9b0db26db3`, 합성 포함 영향범위 **46 PASS/0 FAIL**·컴파일/Public 검사 PASS. KRX 개인 합법 출처 스냅샷 owner-only+SHA+검토 시점이 실제로 준비된 경우만 운영 RSS 승인 2소스 실 ACK와 날짜 교집합 `operator_reviewed_calendar_days` 출력. 현재 실공식 일정 리뷰 미제공으로 실제 operator-reviewed 0, 5거래일/출시 false 유지.
+- Mac 실원장 실제 ACK10/2026-10-14 양 소스 완료 1일/미처리0/물리 분리 SSD 복원 true. **완료 23/36(63.9%)**, `NEXT_TASK.md` 최신 하단에서 6_5 추가 실제 날짜/실 KRX 일정 + 5_2 공식 반도체 계약 증빙/2_6·3_6 사람 라벨부터 CONTINUE. 기존 프로젝트 코드·EraLeader·Git·DB·원본 및 사용자 미추적 도면 보존.

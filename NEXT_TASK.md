@@ -261,3 +261,9 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - 기능 `422622130871db7589766109c0119aad0d81de30`: `PYTHONPATH=src python3 scripts/check_triage_agent_health.py`를 통한 Mac RSS launchd 실사용 안전 진단. 승인 소스/설정/실서비스/최근 stdout 비교·설정변조·간격오류·중복 schedule/노후 로그 fail-closed. 변경 영향 **59 PASS/0 FAIL**, compile/Public 검사 PASS. 실제 runs4/exit0/승인 2/최근 로그/건강상태 exit0; 이는 5거래일 완료를 의미하지 않음.
 - **다음:** Mac 운영 `scripts/check_feed_operations.py`(날짜별 양 소스 실제 ACK, pending/물리 SHA 복원) 및 신규 건강진단을 후속 실제 거래일에 점검. 실거래소 휴장 일정 증빙 확인 후에만 실제 5거래일 인수. 현재 관측일 2026-10-14 단 1개, 출처 정상 2개, 추가 4개 실제 날짜 미도래. 인공 생성으로 날짜/수혜 실증 대체 금지.
 - 5_2 공식 반도체 고객·공급 계약본문/양사 공식 ID+별도 SHA/PIT·독립 사람검수가 확보되면 **기존** 5_2→5_5 CLI로 실물 1건 소비; 자료 없으면 UNKNOWN. 2_6/3_6 기존 RSS 39건 검수자 2명 실제 답변0(500까지 461부족), 4단계 AI 실모델 승인 없음, 최종 출시 6_6 보류. **23/36(63.9%)**, 전체 기획 범위와 비공개/EraLeader 안전 준수.
+
+
+## 2026-10-14 | 최신 NEXT_TASK=6_5 실제 거래일 5개 누적, 공식 반도체 5_2 원문/2_6·3_6 인적 검토
+- `f2b454b7fdb4e8527224da1c20f42b9b0db26db3`: KRX 거래일 operator-reviewed 일정 폴더를 `scripts/check_feed_operations.py --calendar-review-dir <Mac-private-folder>`로 *선택적으로* 대조, 실제 양승인 제공자 완료 ACK를 소급하거나 기존 RSS 워터마크에 쓰지 않음. 잘못된 원본·SHA/미검토 일정 오류 차단. **46 PASS/0 FAIL**, compile/Public 검사 PASS. 현재 사설 실제 공식 일정 리뷰 **입수0** → 검토된 거래일0/출시 false. 승인 RSS 2/실분석 ACK10, 실제 모든소스 완료 날짜 2026-10-14 한 날짜, 별도 물리 복원 true.
+- **다음 핵심 외부 실증:** 실제 KRX 공식 2026 거래일 일정의 합법적 개인 근거 파일/운영 검토가 있을 때 SHA·시각을 입력해 기존 승인 RSS ACK 날짜와 대조. Mac 기존 1시간 RSS launchd로 **추가 4개의 실제 거래일** 관측이 필요, 달력상 날짜/공휴·휴장·소스 정상/오류·DR을 확인. 과거 날짜/데이터 임의 생성 금지. `verified_exchange_trading_days`와 5일 완료 플래그는 독립 실증 전 0/false.
+- 5_2 실제 공식 반도체 고객사·공급사 본문+양사 공식 식별자·SHA/PIT/사람 검수 미확보 → UNKNOWN. 2_6/3_6 독립 인적 gold 0(39건 블라인드 대기), AI 실공급자/반도체 수혜 정확도/6_6 최종 출시 인수 미완료. **23/36(63.9%)**. EraLeader Git·코드·DB/API 수집 변경 절대 금지, 기존 사설 자료 보존.

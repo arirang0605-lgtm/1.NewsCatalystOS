@@ -61,3 +61,6 @@ D-036 (NC-2_6-3_6-REAL-RSS-GOLD-FREEZE-2026-10-14): 2_6 중복 precision·3_6 �
 
 
 D-037 (NC-6_5-RSS-LAUNCHD-HEALTH-2026-10-14): 승인 RSS Mac 1시간 launchd 운영 인수 보조 지표는 읽기전용 별도 검사기로 점검한다. owner-only 원본 plist/실제 launchctl label/간격/last exit/runs/최근 stdout JSON·승인 제공자 2개·다른 중복 agent를 대조하고, 로그가 2시간15분 이상 갱신되지 않으면 경고한다. 서비스가 시간 사이 `not running`인 것은 정상. 검사기는 새 GET/수집·API·AI/DB쓰기·launchctl 동작 변경 없이 status/사유만 반환하며 `AGENT_HEALTHY_OBSERVED`는 5거래일/데이터 정확도/최종 릴리스 인증이 아니다. **23/36 유지**.
+
+
+D-038 (NC-6_5-REVIEWED-KRX-SESSION-2026-10-14): 6_5 운영 인수에서 단순 월~금 후보와 실제 거래소 날짜를 구별한다. 운영자가 별도 허가 경로로 취득·보관한 KRX 공식 일정의 사유화된 source_snapshot + SHA256과 owner-only 검토파일(reviewed_at/reviewer_id/session_dates)을 read-only로 확인하고 실제 승인 RSS 양소스 ACK 완료 날짜에 한해서 `operator_reviewed_calendar_days`를 보고한다. 사람이 입력한 거래일 목록·자체 SHA는 외부 기관의 독립 검증이 아니므로 `verified_exchange_trading_days=0`, `five_trading_day_operation_certified=false`, `v1_release_ready=false` 유지. 수집/매매/공식 DART·SEC·KRX API 호출/ EraLeader 변경 금지. 실제 일정 증빙 없이 과거 성공일을 소급 생성 금지. **23/36 유지**.

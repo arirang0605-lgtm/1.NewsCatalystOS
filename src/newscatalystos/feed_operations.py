@@ -19,6 +19,7 @@ from .feed_recovery import (
 from .provider_registry import ProviderRegistry
 from .physical_recovery import ALLOWED
 from .physical_recovery_pin import checked_local_recovery_sources
+from .market_calendar_review import CalendarReview
 from .source_share import SourceShareError, _json, _read_regular, _when
 
 ACK_FILENAME = re.compile(r"[0-9a-f]{64}\.json\Z")
@@ -29,6 +30,7 @@ def operation_status(
     now: datetime | None = None,
     physical_pin_root: Path | None = None,
     backup_root: Path | None = None,
+    calendar_review: CalendarReview | None = None,
 ) -> dict:
     """Report actual completed source/day coverage, not a release approval."""
     at = _when((now or datetime.now(timezone.utc)).isoformat(), "now")
@@ -76,6 +78,14 @@ def operation_status(
                                  if set(authorized) <= providers and authorized))
     weekday_candidates = tuple(day for day in fully_covered
                                if datetime.fromisoformat(day).weekday() < 5)
+    if calendar_review is not None and not isinstance(calendar_review, CalendarReview):
+        raise SourceShareError("validated calendar review required")
+    if calendar_review is not None and calendar_review.reviewed_at > at:
+        raise SourceShareError("calendar reviewed after operation check")
+    # A private human-reviewed snapshot is informative, not independently
+    # authenticated exchange session evidence and never a release gate.
+    calendar_matched = sorted(set(fully_covered).intersection(
+        calendar_review.session_dates if calendar_review else frozenset()))
     # For each actually observed day, expose missing approved feeds for operator
     # follow-up. Repeated hourly ACKs never multiply day/source coverage.
     daily_coverage = [
@@ -101,6 +111,9 @@ def operation_status(
         "partial_source_days": partial_days,
         "weekday_candidate_days": list(weekday_candidates),
         "weekday_candidate_count": len(weekday_candidates),
+        "operator_reviewed_calendar_days": calendar_matched,
+        "operator_reviewed_calendar_day_count": len(calendar_matched),
+        "market_calendar_review_provided": calendar_review is not None,
         "pending_recovery_checkpoints": pending,
         "verified_exchange_trading_days": 0,
         "five_trading_day_operation_certified": False,

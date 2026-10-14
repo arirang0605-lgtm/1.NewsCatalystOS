@@ -13,6 +13,7 @@ from pathlib import Path
 import stat
 
 from newscatalystos.feed_operations import operation_status
+from newscatalystos.market_calendar_review import load_calendar_review
 from newscatalystos.provider_registry import MAX_BYTES, parse_provider_registry
 from newscatalystos.source_share import SourceShareError, _read_regular
 
@@ -27,6 +28,8 @@ def parser() -> argparse.ArgumentParser:
                    default=base / "pins" / "physical_recovery")
     p.add_argument("--backup-root", type=Path,
                    default=Path(__file__).resolve().parent.parent / ".local_backups")
+    p.add_argument("--calendar-review-dir", type=Path, default=None,
+                   help="optional offline owner-reviewed XKRX source snapshot; not release certification")
     return p
 
 
@@ -46,10 +49,13 @@ def _registry(path: Path):
 def main(argv: list[str] | None = None) -> int:
     opts = parser().parse_args(argv)
     try:
+        calendar = (load_calendar_review(opts.calendar_review_dir)
+                    if opts.calendar_review_dir is not None else None)
         report = operation_status(_registry(opts.registry),
                                   opts.inbox_root, opts.state,
                                   physical_pin_root=opts.physical_pin_root,
-                                  backup_root=opts.backup_root)
+                                  backup_root=opts.backup_root,
+                                  calendar_review=calendar)
         code = 0
     except (SourceShareError, OSError, ValueError) as exc:
         code, report = 4, {"status": "OPERATIONS_EVIDENCE_UNAVAILABLE",

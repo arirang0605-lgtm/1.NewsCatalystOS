@@ -40,3 +40,11 @@ PYTHONPATH=src python3 scripts/check_feed_operations.py
 ## 2026-10-14 | 실제 장치 복원 상태의 운영 점검 연동
 - `check_feed_operations.py`은 운영자에게 보고할 때 **새로운 백업을 매번 만들지 않고**, 이미 Mac 내부 다른 디스크에 보관된 2개 SHA PIN과 T5DATA 외장 SSD의 각 snapshot/manifest를 다시 **읽기 전용** 검증한다. `independent_physical_recovery_verified`는 RSS 원장·중복 인덱스 **두 상태 DB 모두**의 PIN/manifest/snapshot SHA가 일치할 때만 `true`; 하나라도 없으면 `false`, 일부라도 변조되면 오류/출시 차단한다.
 - Mac 실제 조회에서 `independent_physical_recovery_verified=true`, `local_recovery_source_count=2`, `offsite_backup_verified=false`, `five_trading_day_operation_certified=false`, `v1_release_ready=false`, 운영 ACK 2개/단일 날짜 기록 1개를 확인했다. 복원 실증 자체는 `check_physical_recovery.py --verify-pin`로 별도로 실제 PASS한 증거를 사용한다. 물리 복구 상태 반영은 6_5 전체 완료나 6_6 릴리스 승인으로 자동 연결되지 않는다.
+
+
+## 2026-10-14 | 6_5 거래소 일정과 실제 ACK 날짜 대조 (선택적 수동 검수)
+- 신규 `market_calendar_review.py`는 **거래소 거래일을 자동 생성하지 않습니다.** 소유자가 적법하게 보존한 실제 KRX 일정 출처 파일을 Mac 내부 개인 디렉터리의 `source_snapshot`(0600)으로 보관하고, 아래 형식 `review.json`(0600)을 작성해 서로 SHA가 일치할 때만 읽습니다. 폴더 권한 0700. 저장 파일은 GitHub에 업로드하지 않습니다.
+- `review.json` 필수 필드: `schema="newscatalyst.market_calendar_review.v1"`, `exchange="XKRX"`, `source_url`(공식 krx.co.kr HTTPS 링크), `source_sha256`(실제 source_snapshot SHA256), `source_first_observed_at`(UTC ISO-8601), `reviewer_id`(실제 운영 검토자 코드), `reviewed_at`(UTC ISO-8601), `session_dates`(검토된 거래일 배열; YYYY-MM-DD). 검토/입수 시각은 실제 기록하고 과거로 소급 조작하지 않습니다.
+- 운영 확인: `PYTHONPATH=src python3 scripts/check_feed_operations.py --calendar-review-dir "$HOME/Library/Application Support/NewsCatalystOS/market_calendar/reviewed_krx"`. 검수 자료가 없으면 기존 명령을 그대로 사용해 `operator_reviewed_calendar_day_count=0`으로 기록합니다. 출처 파일 또는 검토자/시각/권한/일자/해시 불일치 시 **exit 4**. 공식 일정 수집·재수집 및 실제 API 호출은 발생하지 않습니다.
+- 보고된 `operator_reviewed_calendar_days`는 **ACK로 양쪽 승인 소스가 실제 완료한 날과, 운영자가 검토한 KRX 일정이 교집합인 날짜**입니다. 검토 일정에 미래 날짜가 있어도 과거 성공 ACK를 만들 수 없고, 별도 외부 검증/실시간 거래소 확인이 없으므로 `verified_exchange_trading_days=0`, `five_trading_day_operation_certified=false`, `v1_release_ready=false`는 유지합니다. 매매 실행·성과 검증을 뜻하지 않습니다.
+- 6_5 최종 실사용 인수 시에는 5개 별도 실제 거래일의 기존 1_3~3_5 성공 ACK/복원 무결성, 소스별 누락, 공휴·휴장 및 운영 로그를 사람이 함께 검토합니다. 이번 기능은 완료 수를 증가시키지 않습니다.

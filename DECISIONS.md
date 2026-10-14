@@ -79,3 +79,6 @@ D-042 (NC-2_6-3_6-HUMAN-ENTRY-2026-10-14): 실제 2인 독립 뉴스 검수는 �
 
 
 D-043 (NC-2_6-3_6-GUIDED-HUMAN-REVIEW-2026-10-14): 기존 실제 뉴스 PIN 동결·Mac 개인 검수자 A/B 슬롯·`record_review_once`을 보존하며, 직접 출처를 확인한 **실제 사람만** 터미널에서 뉴스 1건의 중복/중요 사건 여부와 근거를 입력할 수 있도록 `review_news_interactive.py` 단발 대화형 흐름을 추가한다. 답변 기본값/자동 정답/AI 판정 금지, 직접 확인·최종 작성 확인 없이는 답안지 변경 없음. 개인 근거파일은 0600으로 새로 생성 후 기존 SHA/PIT/불변 리뷰 이력을 사용한다. 골드 후보 출처별 비중은 기존 승인 RSS SHA 관측 자료로만 산출하고 키워드 힌트를 검증된 경제사건/계약/수혜로 인증하지 않는다. 사용자 미추적 자료·EraLeader 원본/DB/Git/공식 API 수집기 무변경. 완료 **23/36** 유지.
+
+
+D-044 (NC-2_6-3_6-REVIEW-CRASH-RECOVERY-2026-10-14): 실사용 2인 검수 제출 시 기존 원자적 답안 교체 직전 Mac/SSD 장애가 발생해 로컬 SHA 영수증만 남고 답안이 갱신되지 않는 상태를 복구한다. 사용자가 이미 직접 작성·확정한 제출만 `review_history/<case>.before.json`, `<case>.proposed.json`, `<case>.receipt.json` 및 owner-only 근거 메모·Mac 별도 SHA PIN 고정 배치를 검증한 후 `run_gold_review.py review-recover` 명시 실행으로 잔여 교체한다. 원래/제안 SHA가 정확히 일치해야 하며 다른 케이스·검수자 변경·검토시각 소급·재입력 자동 생성 금지. 로컬 SHA 영수증은 외부 서명 공증이 아니며 두 사람 독립성/정답 정확도 인증도 아니다. 완료 단계 **23/36 유지**; 기존 프로젝트·EraLeader 원본 불변.

@@ -296,3 +296,8 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 ## 2026-10-14 | 최신 NEXT_TASK=실제 2인 검수/반도체 5_2 증거·6_5 5거래일
 - 기능 `329fc01f10f387beb5526fa8b45dfd40fdd7e47f`(기능 커밋): 실제 승인 RSS **9개 신규** 동결으로 **65개**(3 SHA PIN 배치), 소스별 중기부23/뉴스와이어IT42, 반도체 제목 키워드 힌트1(사실 승인 아님). Mac A/B 빈 검수자 공간 생성. `review_news_interactive.py --batch-sha256 <SHA> --slot UNASSIGNED_A --reviewer-code REVIEWER_A`는 검수자 **본인이** 출처·중복·중요 여부·근거·확정을 입력할 때만 기존 `record_review_once`에 개별 판정 제출. 55 PASS/0 FAIL·컴파일/Public 검사 PASS. 실제 두 사람 정답 **0**, 500 후보까지 **435건 부족**, 완료 **23/36(63.9%)**.
 - **다음 실제 필수:** 독립된 뉴스 검수자 두 명이 허가 출처를 직접 열어보고 이 CLI를 각각 운용한 뒤 `run_gold_review.py aggregate`에서 2인 합의·의견충돌·precision/recall을 계측. AI가 사람을 가장하거나 임의 근거를 자동 작성 금지. 초기 2개 출처 편중을 해소하려면 새 제공자의 적법한 이용허가 확인 후 등록; DART/SEC/KRX는 EraLeader 검증 완료 스냅샷만 읽기전용 공유. 5_2 실반도체 고객사·공급사 공시 원문/공식 기업식별자 2개 없으면 실거래 UNKNOWN 유지. 6_5 추가 4개 실제 거래일 관찰/공식 일정, 4_1 실제 키·승인 AI 비용 검증 대기. 인수조건 미충족이므로 6_6 V1 릴리스 tag 금지.
+
+
+## 2026-10-14 | 최신 NEXT_TASK=실인적 gold 검수/5_2 공식 관계/6_5 운영일 실증
+- 기능 `9bc3564944d8f336c787844e06fb5a65a253a3c0`: 실제 2인 검수 저장이 장애로 중단돼도 인간이 이미 확정한 답안 원본·제안·SHA 영수증을 개인 `review_history`에서 검증하여 **명시적 복구만** 허용. `PYTHONPATH=src python3 scripts/run_gold_review.py review-recover --expected-sha256 <기존SHA> --reviewer-slot UNASSIGNED_A --case-sha256 <기존 사건SHA>`는 특정 케이스만 복구; 답안 없음/영수증 없음/근거·SHA 변경 시 거절. 62 PASS/0 FAIL, 컴파일/Public 검사 PASS. 새 인간 정답을 만들지 않으며 실제 라벨 0/65, 현재 정밀도·재현율 N/A, 500까지 고유 435건 부족. 6_5 RSS 운영 10월14일 한 날짜만 증명, 출시 불가.
+- **다음 작업 우선순위**: 실제 승인·독립 인간 2인의 65건 블라인드 검토 입력 및 `aggregate` 실측; 허가된 새 데이터 출처의 진짜 신규 사건 축적과 5_2 반도체 고객–공급사 문서 원문+양사 공식 기업 ID/PIT/운영자 증거; Mac 1시간 RSS 5개 실제 거래일 ACK와 공식 휴장 대조. AI 실호출은 사용자 승인/비공개 키·정식 요율 확인 전 금지. EraLeader DART·SEC·KRX/PIT/SHA 스냅샷 읽기전용, EraLeader Git·코드·DB 변경 금지. **23/36(63.9%)**, 6_6 태그 보류.

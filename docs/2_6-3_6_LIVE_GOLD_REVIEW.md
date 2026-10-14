@@ -47,3 +47,12 @@ PYTHONPATH=src python3 scripts/run_gold_review.py evaluate \
   PYTHONPATH=src python3 scripts/run_gold_review.py freeze --new-only
   ```
 - 이번 56건은 **실제 승인 RSS 고유 검수 후보**, 독립 검수 완료 56건/투자재료 검증 56건이 아니다. 새로운 동결시각은 해당 시점의 판단이며 과거 예측 성능을 주장하지 않는다. 사용자 승인 별도 2인 실제 검토·500건 확보/소스 다양성·문서 실제 근거가 아직 필요. 더 많은 합성 검증으로 2_6·3_6 단계를 완료 처리하지 않는다. 5_2 실제 공식 반도체 계약·AI 실비용·6_5 5거래일·6_6 출시 조건도 그대로 미완료, **23/36** 유지.
+
+
+## 2026-10-14 | 전체 배치의 실제 2인 검수 결과 통합 평가
+
+- `PYTHONPATH=src python3 scripts/run_gold_review.py aggregate` — Mac과 T5DATA의 **모든 기존 PIN 고정 배치**를 읽기 전용 조회하고, 동일한 배치 ID 하위 두 검수 파일(`UNASSIGNED_A/answers.json` 및 `UNASSIGNED_B/answers.json`)을 개별 검증한 뒤 전체 합계를 산출한다. 새 RSS GET/AI 호출/원본·답안지 수정은 하지 않는다.
+- 각 배치마다 SHA/PIT·완료 공표/블라인드 검수표와 두 검수자 답안지를 기존 `evaluate_live_gold_reviews`로 검증한다. 한 배치라도 중복 사례/독립 MAC PIN 누락/답안지 삭제·오류면 전체 집계를 중단한다. 실제 사람이 합의한 건수만 정확도에 반영하고 불일치/미검수는 별도 집계한다.
+- 중복 precision은 **전체 배치 true_positive / (전체 true_positive + false_positive)**, 중요 사건 recall은 **전체 탐지 중요 건수 / 전체 실제 중요 건수**이다. 배치별 퍼센트의 단순평균은 사용하지 않는다. 평가 입력이 0이면 해당 비율은 `null`을 표시한다.
+- 실제 Mac에서 기존 39건 + 17건의 두 배치·사용자가 작성한 두 쌍의 빈 검수 양식을 합산해 **표본 56, 2인 합의 0, 미검수 56, precision/recall N/A, 목표 500까지 후보 444건/인적 합의 500건 부족** 결과 확인. 이 결과는 실측 정답을 생성하거나 과거 시점의 실시간 예측 성능을 증명하지 않는다.
+- `mathematical_threshold_met_on_supplied_labels`이 향후 true가 되더라도 검수자 독립성, 실제 사건 원문 근거·소스 다양성·검증된 과거 예측 성과를 자동 인증하지 않으며, `reviewer_independence_certified=false`, `source_diversity_certified=false`, `prospective_live_accuracy_certified=false`, `release_gate_verified=false`는 별도 최종 인수까지 유지한다. 2_6·3_6을 합성 라벨 테스트로 완료 처리하지 않는다.

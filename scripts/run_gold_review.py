@@ -21,6 +21,7 @@ from scripts.run_feed_triage import _registry, default_state
 from newscatalystos.live_gold_samples import (
     freeze_real_gold_review_cases, evaluate_live_gold_reviews,
     prepare_blank_human_review_sheets, gold_freeze_progress,
+    summarize_all_gold_reviews,
 )
 from newscatalystos.source_share import SourceShareError
 
@@ -47,6 +48,9 @@ def parser() -> argparse.ArgumentParser:
     drafts.add_argument("--pin-file",type=Path,required=True)
     drafts.add_argument("--workspace-root",type=Path,
                        default=base/"gold_review_workspace")
+    portfolio=commands.add_parser("aggregate",help="read-only verified all-batch metrics")
+    portfolio.add_argument("--workspace-root",type=Path,
+                           default=base/"gold_review_workspace")
     read=commands.add_parser("evaluate",help="preview evidence-linked label metrics")
     read.add_argument("--batch-folder",type=Path,required=True)
     read.add_argument("--expected-sha256",required=True)
@@ -61,6 +65,10 @@ def evaluate(opts: argparse.Namespace) -> tuple[int,dict]:
             return 0, gold_freeze_progress(
                 _registry(opts.registry), opts.inbox_root, opts.state,
                 opts.out_root, opts.pin_root,
+            )
+        if opts.command=="aggregate":
+            return 0, summarize_all_gold_reviews(
+                opts.out_root, opts.pin_root, opts.workspace_root,
             )
         if opts.command=="freeze":
             registry=_registry(opts.registry)

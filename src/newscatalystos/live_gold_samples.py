@@ -440,8 +440,35 @@ def evaluate_live_gold_reviews(
     report=prepare_gold_review_metrics(
         predictions,reviews,decision_at=at,now=at,
     )
+    # Keep additive raw numerators/denominators so multiple immutable batches
+    # can be scored as one cohort, rather than averaging their percentages.
+    review_pairs: dict[str, list[HumanGoldReview]] = {}
+    for label in reviews:
+        review_pairs.setdefault(label.case_sha256, []).append(label)
+    verified_important = {
+        case_id for case_id, labels in review_pairs.items()
+        if len(labels) == 2
+        and labels[0].true_duplicate == labels[1].true_duplicate
+        and labels[0].important_event == labels[1].important_event
+        and labels[0].important_event
+    }
+    detected_important = sum(
+        1 for prediction in predictions
+        if prediction.case_sha256 in verified_important
+        and prediction.predicted_important and not prediction.predicted_excluded
+    )
+    duplication = report.duplicate_evaluation
     return {
         "status": "REAL_SOURCE_REVIEW_METRICS_PREVIEW_NOT_CERTIFIED",
+        "duplicate_tp": duplication.true_positive if duplication else 0,
+        "duplicate_fp": duplication.false_positive if duplication else 0,
+        "duplicate_fn": duplication.false_negative if duplication else 0,
+        "duplicate_tn": duplication.true_negative if duplication else 0,
+        "labeled_important_case_count": len(verified_important),
+        "detected_important_case_count": detected_important,
+        "important_excluded_case_count": (
+            len(duplication.important_missed_case_ids) if duplication else 0
+        ),
         "sample_count":len(predictions),
         "reviewed_by_two_agreeing_humans":report.agreed_cases,
         "missing_or_partial_human_case_count":len(report.missing_case_ids),
@@ -510,3 +537,84 @@ def prepare_blank_human_review_sheets(
         shutil.rmtree(batch)
         raise
     return tuple(paths)
+
+
+def summarize_all_gold_reviews(
+    out_root: Path, pin_root: Path, workspace_root: Path, *,
+    now: datetime | None = None,
+) -> dict:
+    """Read-only multi-batch 2_6/3_6 metrics from frozen cases and actual answers.
+
+    This is a *candidate* metric preview; reviewer independence, source
+    diversity and real-time historical accuracy still need outside review.
+    An absent workspace is not silently relabeled as a reviewed case.
+    """
+    at = _when((now or datetime.now(timezone.utc)).isoformat(), "gold portfolio checked")
+    frozen_ids, digests = _prior_frozen_ids(out_root, pin_root, at)
+    workspace = Path(workspace_root)
+    if (not workspace.is_absolute() or not workspace.is_dir()
+            or workspace.is_symlink() or ".." in workspace.parts):
+        raise SourceShareError("private reviewer workspace unavailable")
+    _private_root(workspace)
+    if not digests:
+        raise SourceShareError("no independently pinned live gold batches")
+    sums = {
+        "sample_count": 0,
+        "reviewed_by_two_agreeing_humans": 0,
+        "missing_or_partial_human_case_count": 0,
+        "disputed_case_count": 0,
+        "duplicate_tp": 0, "duplicate_fp": 0,
+        "duplicate_fn": 0, "duplicate_tn": 0,
+        "labeled_important_case_count": 0,
+        "detected_important_case_count": 0,
+        "important_excluded_case_count": 0,
+    }
+    for digest in digests:
+        name = "gold_batch_" + digest
+        reviews = tuple(
+            workspace / name / code / "answers.json"
+            for code in ("UNASSIGNED_A", "UNASSIGNED_B")
+        )
+        item = evaluate_live_gold_reviews(
+            Path(out_root) / name, out_root, digest,
+            Path(pin_root) / (name + ".pin.json"), pin_root,
+            reviews, now=at,
+        )
+        for field in sums:
+            sums[field] += item[field]
+    if sums["sample_count"] != len(frozen_ids):
+        raise SourceShareError("multi-batch case total differs from SHA-pinned unique cases")
+    tp, fp = sums["duplicate_tp"], sums["duplicate_fp"]
+    material, detected = (
+        sums["labeled_important_case_count"],
+        sums["detected_important_case_count"],
+    )
+    precision = tp / (tp + fp) if tp + fp else None
+    recall = detected / material if material else None
+    math_ready = (
+        sums["sample_count"] >= 500
+        and sums["reviewed_by_two_agreeing_humans"] >= 500
+        and sums["missing_or_partial_human_case_count"] == 0
+        and sums["disputed_case_count"] == 0
+        and precision is not None and precision >= .95
+        and recall is not None and recall >= .90
+        and sums["important_excluded_case_count"] == 0
+    )
+    return {
+        "status": "ALL_BATCH_GOLD_REVIEW_METRICS_PREVIEW_NOT_CERTIFIED",
+        "sha_pinned_batch_count": len(digests),
+        **sums,
+        "required_independent_gold_case_count": 500,
+        "additional_frozen_cases_required": max(0, 500 - sums["sample_count"]),
+        "additional_agreed_human_cases_required": max(
+            0, 500 - sums["reviewed_by_two_agreeing_humans"]),
+        "duplicate_precision": precision,
+        "important_event_recall": recall,
+        "mathematical_threshold_met_on_supplied_labels": math_ready,
+        "reviewer_independence_certified": False,
+        "source_diversity_certified": False,
+        "prospective_live_accuracy_certified": False,
+        "release_gate_verified": False,
+        "ai_calls": 0,
+        "new_provider_requests": 0,
+    }

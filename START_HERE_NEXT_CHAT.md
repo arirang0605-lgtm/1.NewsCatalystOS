@@ -269,3 +269,8 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 인계 — 실제 공급관계 참고 1건·기존 5_2~5_5 시범 처리
 - 기능 **`00b2549631d7a3a1daa12e6bb5c4fcd2b5efe5fd`** 원격 main SHA 일치. 실제 공식 기업 발표 19단어 인용1·양사 SEC CIK 참조2를 별도 SSD 참고/PIN(Mac)에 보관해 기존 반도체 관계→파급→분류→그래프 코드로 **후보1건** 시범 처리. 실제18:40 KST exit0, 입력8파일 SHA동일, **87 PASS/0 FAIL**/compile/Public PASS, 수집기/API·AI/사람라벨·공식게시0/EraLeader 무접근. **23/36**.
 - 다음은 NEXT_TASK 마지막 확보자료의 운영입력·실제 검수 인수. `logs/public_relation_reference_live_check.json`에 비공개 실제 reference_file/pin_file 기록. 2023년 과거 참고를 오늘 신규사건·원문전체·사람검수로 가장하지 않는다. 공개 참고는 수집 허가가 아니며 공식 outbox는 여전히 거절한다. 이미 찾은 동일 관계·검색·SHA/검수도구 반복개발 금지. V1 미완료를 허위로 승격하지 않는다.
+
+
+## 2026-10-14 | 최신 인계 — 기업발표 원문 입력·미래 공급계획 분리
+- 기능 **`7a39d31e936ada5e1d50fe8b10e4846e74c44b8f`** origin/main push·SHA 일치. 기존 공식 intake 외에 허가된 IR/정부 `ArchivedEvidence` 입력을 지원, 사람검토·원문/영수증SHA/PIT·양사ID 재사용. 계획은 `ANNOUNCED_SUPPLY_PLAN`, 그래프 v2로 구분, 기존 공시 v1 및 기존 outbox 거절 경계 보존. **158 PASS/0 FAIL**, compile/공개검수 PASS, 실제 원문인수/사람라벨0·입력8파일 SHA불변·EraLeader 무접근. **23/36**.
+- **다음은 NEXT_TASK 마지막 5_5 graph v2 게시·소비 구현**. 기존 `reviewed_beneficiary_delivery`·CLI를 확장하고 v1을 유지한다. publisher 입력·참고 조사·Gold 도구를 재개발하지 않는다. 실제 권한·원문/인적검수와 500정답·실AI·5거래일·6_6은 별도 미완료. 상세 `docs/5_2_PUBLISHER_DOCUMENT_INTAKE.md`.

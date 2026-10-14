@@ -335,3 +335,9 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - **이미 확보한 실제 자료 위치:** `logs/public_relation_reference_live_check.json`의 reference_file/pin_file을 읽고, 필요 시 `scripts/inspect_public_relation_reference.py`로 해당 한 건만 재개한다. SSD `output/public_relation_references`의 짧은 인용은 전체 기사/공시 원문이 아니며 `source_reported_date=2023-11-30`, 현재 수혜/새로운 경제사건 아님. 문서 `docs/5_2_PUBLIC_RELATION_REFERENCE.md` 참고. 더 이상 '실제 관계 참고자료를 아직 찾지 못했다'고 보고하지 않는다.
 - **남은 실제 인수:** 허용된 운영 입력 출처와 실제 운영자 검토를 확보해 기존 공식 relation intake/게시 조건을 충족하는 경로로 연결한다. 지금 자료는 ASSISTANT_SOURCE_RESEARCH_NOT_HUMAN_REVIEW·SHORT_CITATION_ONLY_NOT_COLLECTION_PERMISSION이며 자동 수집원 등록/인적 정답/공식 게시/외부 소비 인수에 사용하지 않는다. 해당 기업 발표를 기존 다른 SEC 공시의 본문으로 위장하거나 원문 SHA·사람 검수시각을 생성하지 않는다. 증빙이 추가되기 전 참고 어댑터·SHA 방어·검수 편의 기능 반복 확장 금지.
 - 2_6/3_6은 기존 실제 사람 답안이 있을 때만 평가, 4_1 실유료키/모델 승인은 별도, 6_5 실제 운영일 누적/6_6 최종 인수 보류. EraLeader 원본/코드/DB/Git 및 공식 수집기 불변, 미추적 사용자 자료 보존. 다음 실제 증거 없는 완료 수/릴리스 태그 승격 금지.
+
+
+## 2026-10-14 | 최신 NEXT_CODE=5_5 기업발표·공급계획 graph v2의 명시적 게시·소비
+- 직전 기능 **`7a39d31e936ada5e1d50fe8b10e4846e74c44b8f`** origin/main SHA 일치. 기존 아카이브·검수·회사 ID·공급망을 재사용하는 publisher 원문 입력 추가, `ANNOUNCED_SUPPLY_PLAN` 별도 분류, 공식 공시와 다른 출처임을 graph v2에 명시. **158 PASS/0 FAIL(12파일)**/compile·공개검수 통과. 실제 원문 인수0, 사람검수0, 원본8파일 SHA 불변. 현재3 제공자의 전체 원문 보관권한0이므로 기확보 짧은 참고를 승인 원문으로 바꾸지 않는다.
+- **다음 구현 한 작업:** `reviewed_beneficiary_delivery.py` 및 기존 게시/소비 CLI에 기업발표 v2를 명시적으로 구분해 지원한다. v1 기본 경로와 공식문서 검증은 유지하고, 실제 `read_publisher_relation_intake` 결과에서만 v2 producer를 구성한다. 계획관계/문서검수/실거래·실수혜 미인증을 원자 게시·후속 읽기까지 보존한다. 소비자가 v1/v2를 혼동하지 않도록 버전 검사·출처/양사 네임스페이스/사용가능시각을 검증하되 새로운 프레임워크는 만들지 않는다. 실제 EraLeader 파일·Git 수정/외부 자동 전송은 금지.
+- 이 코딩 작업은 실제 사람 검수나 새 라이선스가 오기 전 합성 자료로 구현·검증할 수 있으나 실제 5_2/5_5 인수 완료로 세지 않는다. 이미 준비한 publisher 입력/검색·Gold 편의 기능 반복 확장 금지. 실자료·검수 도착 시 기존 입력을 사용하고, API 유료승인·5거래일·6_6 인수 조건도 그대로 유지한다. **23/36**, v1.0 태그 보류.

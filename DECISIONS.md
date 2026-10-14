@@ -100,3 +100,6 @@ D-049 (NC-SEARCH-GOLD-EXACT-CASE-2026-10-14): 기존 통합 검색의 provider/e
 
 
 D-050 (NC-PUBLIC-RELATION-REFERENCE-2026-10-14): 실제 공개 발표의 짧은 참고 인용·SEC 양사 식별자 참조를 확보한 경우, 기존 5_2~5_5 코드의 **reference-only 시범 경로**에서 관계 구조를 확인할 수 있다. 이는 사용자 승인 정책 변경이나 새 수집원/인적검수 인증이 아니라 기존 미검증 관계 타입의 명시적인 활용이다. 전체 공시 원문/공식 수신본과 다른 참고자료를 결합하지 않고, 보조자 조사 메모를 실제 인간답안으로 입력하지 않는다. `collection_enabled=false`, `historical_reference_only=true`, `official_review_gate_satisfied=false`, `eligible_for_delivery=false`를 고정하고 원래 공식 게시 게이트를 유지한다. 실제 관계 참고1건이 확보됐으므로 같은 자료 찾기·검수 편의 재개발 대신 승인된 운영입력/실검수 인수를 진행한다. 완료23/36·단일 반도체·EraLeader 불변·Public 비밀보호 유지.
+
+
+D-051 (NC-PUBLISHER-DOCUMENT-INTAKE-2026-10-14, 구현 기록): V1.0 원래 범위의 기업 IR·정부 자료를 DART/SEC 공시로 위장하지 않도록 기존 원문 아카이브를 직접 입력하는 출처형을 추가했다. 원문 보관 허가와 실제 인간 검수 조건은 변경하지 않았으며 사용자 새 승인·법적 허가를 생성한 것이 아니다. 검수자가 명시한 미래 공급계획은 ANNOUNCED_SUPPLY_PLAN으로 구분하고 실제 이행·실현매출/수혜를 인증하지 않는다. 새 출처/계획 그래프는 v2, 기존 공시는 v1, 기존 v1 outbox는 v2를 계속 거절한다. 다음 5_5에서 기존 게시·소비 경로의 명시적 버전 지원을 구현한다. 기능 `7a39d31e936ada5e1d50fe8b10e4846e74c44b8f` 원격 확인, 158테스트 PASS는 합성 허가·검수 코드시험이며 실제 인수0/23/36 유지. EraLeader·기존 서비스·비공개 운영자료 불변.

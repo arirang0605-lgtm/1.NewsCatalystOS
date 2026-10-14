@@ -67,3 +67,6 @@ D-038 (NC-6_5-REVIEWED-KRX-SESSION-2026-10-14): 6_5 운영 인수에서 단순 �
 
 
 D-039 (NC-2_6-3_6-APPEND-REAL-GOLD-2026-10-14): 실뉴스 gold 인수는 기존 비공개 `gold_batch_<SHA>` 및 2인 검수 답안지를 **절대 덮어쓰지 않고** 증분 배치를 별도 고정한다. `run_gold_review.py freeze --new-only`는 모든 종전 배치의 Mac 독립 SHA PIN/예측/검토표/게시 증명을 확인하고 승인 RSS 완료 ACK의 공급자+문서사건 ID+제목버전 SHA가 이전과 중복되지 않는 것만 새 원자 배치로 게시한다. 기존 배치 중 변조/독립 pin 누락/상호 중복 발견 시 fail-closed. `progress`는 기존 골드와 현재 승인 RSS를 **네트워크 호출·상태 쓰기 없이** 대조하며, 사람이 라벨하지 않은 제목은 정답셋으로 계산하지 않는다. 금번 실제 새 17건/기존 39건 = 고유 후보 56건, **인적 검수 0건**, 전체 500건/품질·독립성 게이트 미완료. 실서비스·EraLeader API/DB/Git 미변경, 전체 23/36 유지.
+
+
+D-040 (NC-4_1-RESPONSES-ADAPTER-2026-10-14): 4_1의 첫 실 HTTP 연결은 기존 `AIModel/AIRequest/run_ai_analysis` 공통 계약을 그대로 재사용하는 OpenAI Responses JSON Schema 어댑터로 제한한다. 유료 호출은 실제 운영자의 별도 `allow_paid=True`·Mac 내부 환경변수 자격증명·PIT 중요 신규 공식/허가 메타 입력·기존 4_6 월 예약 원장 선행 성공을 모두 요구한다. 본문 업로드·응답 서버 저장(store=false)·리다이렉트/자동 재시도/중복 청구 금지, usage 토큰 검증 후에만 결과 정산하며, 실패한 예약은 보수적으로 보류한다. AI 판단의 `available_at`은 호출 시작 전이 아니라 응답 검증 완료 이후로 기록한다. API 키/라이브 테스트 승인·실청구 검증 없으면 **4_1 미완료, 23/36 유지**. 다른 Gemini/Anthropic 코드를 대체하지 않으며 EraLeader 공시/API/DB/Git 공유 경계 변경 없음.

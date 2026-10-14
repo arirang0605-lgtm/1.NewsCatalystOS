@@ -1,9 +1,8 @@
 # START HERE — NewsCatalystOS 현재 재개점
 
 경로 `/Volumes/T5DATA/1.NewsCatalystOS`. AGENTS.md → PROJECT_STATE.md → DECISIONS.md → NEXT_TASK.md 순서와 실제 Git을 확인한다.
-RSS 분석 결과의 별도 읽기전용 소비 기능은 코드 SHA `748d705f8045ccaa37be1d368ca1204fc7f42612`에 구현·커밋·origin/main push 완료. 기존 producer/예약 분석 코드는 유지한다.
-소비·분석·캐시 관련 재검증 54 PASS/0 FAIL(2026-10-14). 이전 스키마 fixture 결함은 producer 검증을 약화하지 않고 수정했다.
-실제 기저장 core80/MOTIR10 제목 분석 결과를 별도 프로세스 2개가 90건 원형 보존·SHA 무변경으로 읽은 증거는 `logs/feed_consumer_live_check.json`.
-운영 CLI는 `scripts/consume_feed_analysis.py`, 간단 실행법은 `docs/3_1-4_6_FEED_ANALYSIS_PIPELINE.md`. 비공개 결과 파일과 producer SHA로 선택하며 네트워크/유료AI/DB 쓰기 0.
-기존 인수23/36 유지. 실관계 증거·인적 정답·승인 실AI·5실거래일/출시 등은 분리하여 NEXT_TASK.md 참조. 새 자료 없는 대기 항목 반복 점검 금지.
+최신 미완료 독립 기능에서 `CONTRACT_TERMINATION` 제목 기반 취소·해지 사건 후보를 신규 계약과 별도 판정하도록 기존 RSS 분석 경로를 개선했다. 코드 SHA `12b4066e64a3c5424873651683b9242ef51c6f75`; 규칙 `rss-title-economic-v2`.
+변경 영향 7개 테스트파일 **93 PASS/0 FAIL** (2026-10-15); 원형 보고서 게시→별도 소비, 기존 PIT 이력·예약 분석/AI·캐시 유지. 실제 해지 사례 검증은 아직 없다.
+기존 읽기전용 소비(`748d705`), 실제 메타90건 소비·SHA 불변(2026-10-14, `logs/feed_consumer_live_check.json`)은 보존. AI 실비용 승인 없이 새 호출하지 않음.
+기존 인수23/36 유지. NEXT_TASK.md의 5_2 공식 관계 실증은 실제 문서/인적 검토 증거 입수 시 재개하며, 새 증거 없이 같은 차단 점검 반복 금지.
 사용자 미커밋 `AGENTS.md`·`DECISIONS.md`·마스터 지침·미추적 그림/파일은 보존하고 임의 stage하지 않는다.

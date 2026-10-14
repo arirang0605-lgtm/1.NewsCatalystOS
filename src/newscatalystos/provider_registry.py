@@ -15,7 +15,7 @@ from .source_share import SourceShareError, _json, _must_id, _when
 
 SCHEMA = "newscatalyst.provider_registry.v1"
 TYPES = frozenset({"GOVERNMENT_POLICY", "COMPANY_IR", "LICENSED_NEWS", "SNS_TIP"})
-METHODS = frozenset({"RSS", "JSON_API"})
+METHODS = frozenset({"RSS", "JSON_API", "RSS_POST"})
 GRANTS = frozenset({"OFFICIAL_TERMS_REVIEWED", "WRITTEN_LICENSE", "NOT_REVIEWED"})
 RESERVED = frozenset({
     "dart-disclosures", "sec-submissions", "sec-companyfacts",
@@ -130,6 +130,13 @@ def parse_provider_registry(data: bytes, *, now: datetime | None = None) -> Prov
         if kind not in TYPES or method not in METHODS or grant not in GRANTS:
             raise SourceShareError("invalid provider category/rights")
         endpoint = _safe_https_endpoint(row["endpoint"])
+        if method == "RSS_POST" and (
+            kind != "GOVERNMENT_POLICY"
+            or endpoint != "https://www.motir.go.kr/kor/article/ATCL3f49a5a8c/rss"
+        ):
+            # The ministry publicly advertises this exact no-body form POST
+            # feed. No other endpoint may silently gain POST capability.
+            raise SourceShareError("RSS_POST allowed only for reviewed ministry feed")
         permission = row["rights_reference"]
         if permission is not None and (not isinstance(permission, str)
                 or not 0 < len(permission) <= 512):

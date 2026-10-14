@@ -38,6 +38,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--pin-root", type=Path, default=base / "pins" / "live_gold")
     p.add_argument("--workspace-root", type=Path, default=base / "gold_review_workspace")
     p.add_argument("--lock-root", type=Path, default=base / "state")
+    p.add_argument("--motir-policy-only", action="store_true",
+                   help="separate authorized MOTIR sector registry, never mix with V1 RSS")
     return p
 
 
@@ -97,8 +99,15 @@ def capture(opts: argparse.Namespace, *, now: datetime | None = None,
     try:
         checked = _when((now or datetime.now(timezone.utc)).isoformat(), "gold capture start")
         registry = registry_reader(opts.registry)
-        if set(registry.approved_ids(at=checked)) != set(V1_PROVIDERS):
-            raise SourceShareError("exact two approved V1 RSS sources required")
+        sector_mode = getattr(opts, "motir_policy_only", False)
+        expected = (("motir-official-press",) if sector_mode else V1_PROVIDERS)
+        if set(registry.approved_ids(at=checked)) != set(expected):
+            raise SourceShareError("only exact pre-approved RSS sources allowed")
+        if sector_mode:
+            selected = registry.active("motir-official-press", at=checked)
+            if (selected.method != "RSS_POST"
+                    or selected.kind != "GOVERNMENT_POLICY"):
+                raise SourceShareError("MOTIR sector capture requires official RSS POST")
         lock_fd = _lock(opts.lock_root)
         snapshot = gold_freeze_progress(
             registry, opts.inbox_root, opts.state, opts.out_root, opts.pin_root,

@@ -52,7 +52,7 @@ def parse_authorized_feed(
     if not isinstance(feed, bytes) or not 0 < len(feed) <= MAX_FEED_BYTES:
         raise SourceShareError("feed missing or too large")
     results: list[tuple[str, str, str]] = []
-    if provider.method == "RSS":
+    if provider.method in ("RSS", "RSS_POST"):
         # Do not allow DTD/entity expansion, external references or XML fetches.
         upper = feed.upper()
         if b"<!DOCTYPE" in upper or b"<!ENTITY" in upper:

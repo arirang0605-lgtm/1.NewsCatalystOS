@@ -64,8 +64,14 @@ def fetch_authorized_once(
             or not 0 < timeout_seconds <= MAX_TIMEOUT_SECONDS):
         raise SourceShareError("invalid bounded feed timeout")
     getter = opener if opener is not None else _default_opener()
+    # Existing providers remain GET. The official MOTIR press RSS form
+    # explicitly submits an empty POST; the registry restricts this method
+    # to its exact approved HTTPS endpoint so unrelated hosts never receive
+    # an unplanned POST or any credentials.
+    post = provider.method == "RSS_POST"
     request = Request(
-        endpoint, method="GET",
+        endpoint, data=b"" if post else None,
+        method="POST" if post else "GET",
         headers={"Accept": "application/rss+xml,application/xml,text/xml,application/json",
                  "User-Agent": "NewsCatalystOS/1.0 (authorized metadata feed reader)"},
     )
@@ -75,7 +81,7 @@ def fetch_authorized_once(
                 raise SourceShareError("official feed HTTP response not successful")
             if response.geturl() != endpoint:
                 raise SourceShareError("feed redirected to an unapproved endpoint")
-            expected = RSS_MEDIA if provider.method == "RSS" else JSON_MEDIA
+            expected = RSS_MEDIA if provider.method in ("RSS", "RSS_POST") else JSON_MEDIA
             mime = response.headers.get("Content-Type", "").split(";", 1)[0].lower().strip()
             if mime not in expected:
                 raise SourceShareError("unapproved feed content type")

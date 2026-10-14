@@ -103,3 +103,18 @@ PYTHONPATH=src python3 scripts/run_motir_policy_once.py --replay-only
   `logs/scheduled_analysis_live_check.json`,
   `logs/scheduled_analysis_service_observation.json`에 비공개 보존한다.
   앞선 AI 연결·캐시의 합성 별도 프로세스 증거는 `logs/feed_analysis_process_smoke.json`.
+
+## 저장된 분석 결과의 별도 읽기전용 소비 (2026-10-14)
+기존 `run_feed_analysis.py` 또는 예약 실행의 **비공개 결과 경로와 당시 기록된 producer `report_sha256`**를 운영자가 별도 소비자에 전달한다. SHA를 파일 내용에서 새로 계산하여 신뢰값으로 대체하지 않는다. 기존 수집기·AI·DB에 다시 연결할 필요가 없다.
+```sh
+cd /Volumes/T5DATA/1.NewsCatalystOS
+# 아래 값은 실제 이전 생산자 결과의 private_report_file/report_sha256에서 지정한다.
+REPORT_FILE="/absolute/private/reports/feed_analysis_<SHA>.json"
+REPORTS_ROOT="/absolute/private/reports"
+PRODUCER_SHA="<producer_report_sha256>"
+PYTHONPATH=src python3 scripts/consume_feed_analysis.py \
+  --report-file "$REPORT_FILE" --reports-root "$REPORTS_ROOT" \
+  --expected-sha256 "$PRODUCER_SHA" --limit 20
+```
+필요하면 `--provider-id`, `--event-id`, `--title-sha256`(event ID 필수), `--offset`, `--limit`로 조회한다. 반환값에는 원래 출처/분석 시각·불확실성이 유지되고 `consumer_available_at`은 **현재 소비 시각**이며 과거 PIT 소급 인수 증거가 아니다. 잘못된 SHA/미지원 보고서/미래 시각 등은 종료코드4로 실패하고 원문 내용을 오류에 노출하지 않는다. CLI 출력은 비공개 분석 메타데이터이므로 공개 로그/Git에 저장하지 않는다.
+- 코드 SHA `748d705f8045ccaa37be1d368ca1204fc7f42612` origin/main 반영, 관련 소비·분석·캐시 54 PASS/0 FAIL. 기존 실제 core80/MOTIR10 결과의 별도 프로세스 조회 2건 exit0, 항목90건 원본동일·보고서 SHA 불변은 `logs/feed_consumer_live_check.json`에 비공개 기록. 실제 AI/인적 정답/최종 출시 인수를 대체하지 않는다.

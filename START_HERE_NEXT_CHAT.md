@@ -193,3 +193,8 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 인계 — 실제 승인 RSS 39건을 2_6/3_6 블라인드 gold 후보로 동결
 - 기능 Git SHA `06316752f700deafa0eeaeadcbcf5a10d6073968` `origin/main` 확인. `live_gold_samples.py`/`scripts/run_gold_review.py`: Mac 개인 승인 2종 RSS의 **완료 ACK6 / 고유 제목39**를 SHA/PIT/원장 검증→T5DATA 비공개 `output/gold_review/gold_batch_fc787263...`에 기존 판정 freeze + 블라인드 검토 큐 저장→별도 Mac 내부 SHA PIN 고정→빈 리뷰어 답안지 2개(owner-only) 생성. 실제 `evaluate`=human labeled0/pending39/additional-to-500=461, precision/recall N/A, 출시 false. **78 PASS/0 FAIL**, compile/Public PASS, 실원본 기사/AI/API/EraLeader 쓰기0.
 - 기본 완료 **23/36 (63.9%) 유지**. 다음은 `NEXT_TASK.md` 최신 2_6/3_6 인적 독립 실정답 취합·신규 승인 실데이터 500 건 누적, 5_2 실공식 반도체 고객/공급 증거 인계, 6_5 실제 자동 운영 5거래일 실증. USER 미추적 파일/기존 작동 코드/Git 원본 보존, 합성 정답을 실측 완료로 승격 금지. 상세 사용법 `docs/2_6-3_6_LIVE_GOLD_REVIEW.md`.
+
+
+## 2026-10-14 | 최신 인계 — 6_5 운영 누락 출처 조회 실용 보완
+- 기능 `6c62ac38ee3f4ec28245c509d1b198c8f2f08ee6`: 날짜별 승인 RSS 성공/미완료 출처 표시, 중복 ACK를 운영일로 추가하지 않음. 관련 **22 PASS/0 FAIL**/compile/diff PASS, 실제 Mac RSS 2소스·ACK8·2026-10-14 1일만 출처 전체 완료, partial0/pending0/SSD 독립 물리 복원 true, 5거래일 인증 false.
+- 전체 **23/36(63.9%)** 유지. `NEXT_TASK.md` 맨 아래 6_5 후속 거래일 실제 누적과 5_2 실제 공식 반도체 관계·2_6/3_6 독립 리뷰를 따를 것. EraLeader 변경/공식 공시 재수집/사용자 미추적 도면 변경 금지, 실 AI·반도체 계약·5거래일/릴리스 자동인증 금지.

@@ -314,3 +314,10 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - **실제 Mac 실행:** 기존 승인 중기부/뉴스와이어 IT RSS 개인 **완료 ACK 6건**을 검증해 **실제 39개 중복 없는 제목 버전**을 T5DATA private `output/gold_review/gold_batch_fc787263.../`에 원자 저장. 같은 SHA의 **독립 Mac 내부 디스크 개인 핀** 작성 후, 두 인적 검토용 **정답 없는** `gold_review_workspace/.../UNASSIGNED_A` 및 `UNASSIGNED_B` 빈 답안지(0600/0700) 생성. `evaluate` 실결과 **sample_count=39 / human-reviewed=0 / missing=39 / 500건까지 추가 461 / 중복 precision=N/A / 중요 사건 recall=N/A / release_gate=false**. 실제 과거 보도시점의 동시 예측·독립 인간 라벨/시장 성과 검증을 소급 주장하지 않음. Mac과 T5DATA 로컬 SHA 일치만 확인했으며 제3자 공증 아님.
 - **영향범위 pytest `78 PASS/0 FAIL`**, Python compileall·git diff --check·명시 4개 Public stage/비밀 패턴 및 .gitignore PASS. 원본 1_3 운영 DB·EraLeader 원본/코드/DB/Git 수정 0. 리포트 `docs/2_6-3_6_LIVE_GOLD_REVIEW.md`, blank 리뷰어 코드에 라벨 기입 시 차단, 실제 운영자 서로 다른 검수 코드/독립 증거 확보 후에만 기존 `gold_review_intake`에 metric 집계 허용. 검수자 코드만으로 실제 사람 독립성을 인증하지 않고 release gate는 항상 false.
 - **전체 23/36(63.9%) 유지**: 2_6·3_6 정확도/재현율 실제 독립 500건 gold 인수 미완료, 5_2 실공식 고객-공급 계약 원문/검수0, 4단계 실모델, 5_6 공급망 독립 gold, 6_5 5거래일/오프사이트 백업 및 6_6 릴리스 미완료. 다음은 실제 2인 라벨 작업 및 새로운 승인 실 RSS 사례를 500 이상 추가로 누적(합성 무증거 금지), 공식 반도체 거래 본문/회사 ID 2개 확보 시 기존 5_2~5_5 소비 연결.
+
+
+## 2026-10-14 | 6_5 승인 RSS 날짜별 누락 소스 운영 감시 (NC-6_5-DAILY-COVERAGE)
+- 기능 commit `6c62ac38ee3f4ec28245c509d1b198c8f2f08ee6`: 기존 `operation_status`에 `daily_source_coverage`(날짜/완료 제공자/누락 제공자), `partial_source_days` 보고 추가. 승인 소스 전부 완료된 날짜만 기존 `days_with_all_sources`로 인정; 같은 날 1시간 중복 ACK는 운영일 1개로 유지. 원본 기사/비밀/운영 DB 공개 및 추가 API 수집 없음.
+- 변경 영향 테스트 `tests/test_feed_operations.py`, `tests/test_feed_recovery.py`, `tests/test_physical_recovery_pin.py` **22 PASS / 0 FAIL**; `compileall`, `git diff --check` PASS. 원격 검증 예정인 코드 SHA와 상태 문서 SHA는 분리하여 기록.
+- 실제 Mac read-only `scripts/check_feed_operations.py`: 승인 2곳, 완료 ACK **8건**, 2026-10-14 양 소스 모두 정상/누락 0, pending 0, Mac↔SSD 별도 물리 DR PASS. 실제 승인 운영일 증거 1일; **검증된 거래소 세션 0/5, 출시 false**. 오프사이트와 5거래일 미실증, 5_2 실제 공식 반도체 양사 공급계약·인적 gold·실 AI 인수 미완료.
+- **완료 23/36 (63.9%) 유지**. 다음: launchd 실제 후속 거래일 출처별 ACK 누적·장애 대응, 승인 공식 반도체 공급관계 본문 1건 확보 및 기존 5_2→5_5 연결, 2_6·3_6 이중 인적 검수 실정답 확대. EraLeader 읽기 전용, 정상 사용자 미추적 문서 보존.

@@ -249,3 +249,9 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - 기능 Git SHA `06316752f700deafa0eeaeadcbcf5a10d6073968` origin/main 확인. 1_3 승인 RSS 완료 영수증 **6건/고유 실제 제목 39건**을 검증해 비공개 정답 선행예측 파일과 블라인드 제목·링크 검토목록을 원자 저장하고, **서로 다른 디스크 Mac 독립 SHA PIN**을 보관하는 `run_gold_review.py freeze` 구현. Mac 실제 `draft`로 검수자 빈 답안지 2개 작성; **정답 입력 0건**, `evaluate` 결과 39 pending, 500 요구대비 461 부족, precision/recall N/A, gate false. 영향 **78 pytest PASS/0 FAIL**, compile/Public 검사 PASS. 문서 `docs/2_6-3_6_LIVE_GOLD_REVIEW.md`.
 - **다음 실질 작업:** 사용자 승인된 독립 검수자 2명이 실제 원본/메타 접근권한 범위에서 39개 사례를 각자 판정해 회사/소스와 독립된 근거 SHA 및 완료시각을 입력한다. 예약/자동 생성한 정답은 실제 인적 gold로 세지 않는다. 코드는 reviewer placeholder `UNASSIGNED`에 판정이 입력되면 거부한다. 500 케이스까지 추가 461건도 실제 허가/관측한 신규 헤드라인·공식 사례로 추후 채운다(39건 모두 라벨링되어도 해석상 소스·제목-only 편향과 독립성은 별도 검토).
 - 기존 5_2 실반도체 거래관계 공식 본문+양사 ID 확보 전 공급망 5_2~5_5 실출력0, 4단계 실제 AI API/유료 원문·500 정답 연구는 외부 승인 없으면 미완료. 6_5 launchd 1시간 승인 RSS 운영·실제 5개 거래일 누적은 계속, 6_6 릴리스 태그 금지. **23/36(63.9%)** 유지. EraLeader 원본·DB·Git 및 DART/SEC/KRX 수집기 쓰기/중복 호출 금지.
+
+
+## 2026-10-14 | 최신 NEXT_TASK=6_5 실제 5거래일 누적/5_2 공식 실관계·2_6/3_6 독립 검수
+- 기존 `check_feed_operations.py` 운영 인수 지표에 승인 제공자별 **날짜별 완료/누락**을 추가해 일부 제공자 실패를 5일 성공으로 오인하지 않도록 함. 기능 `6c62ac38ee3f4ec28245c509d1b198c8f2f08ee6`; 변경 영향 **22 PASS/0 FAIL**, 컴파일·Git diff PASS. 실제 Mac approved=2, ACK=8, `2026-10-14` 한 날짜에 승인 2소스 완료, partial0/pending0, 별도 SSD DR true, **5거래일 false/verified_exchange_trading_days=0**. 무단 새 공식 API/모델 호출 없음.
+- **다음 필수 외부 실증:** 예약된 기존 1시간 launchd 운용으로 **추가 4개 실제 거래일**을 기다려 각 날짜의 양소스 ACK·예외 로그/PIT·원장/물리 복원을 검증하며, 공휴일/휴장 구분은 독립적으로 점검. 5_2는 공식 반도체 고객–공급 계약의 허가 본문+공식 회사 ID 두 개+별도 SHA/관측시각+사람 검토 없이는 UNKNOWN. 2_6·3_6 현재 실 RSS 39건 리뷰어 2명 빈 양식·실답변0/500 부족 461. 인증·실 AI/골드·반도체 매출/5거래일 완료를 선언하지 말 것.
+- **완료 23/36 (63.9%)**. 6_6 릴리스 태그 보류, EraLeader 소스·DB·Git/수집기 수정 금지, 사용자 미추적 자료 보존. 운영 명령 `PYTHONPATH=src python3 scripts/check_feed_operations.py`.

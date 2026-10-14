@@ -1,22 +1,22 @@
 # PROJECT_STATE — NewsCatalystOS 현재 상태
 
-기준일 2026-10-14. 사용자 개발 원칙은 AGENTS.md. 과거 상태는 Git에 보존.
+기준일 2026-10-14. 사용자 운영 원칙 AGENTS.md, 과거 기록은 Git에 보존.
 
 ## 기능 구현·테스트
-- **완료 RSS 관측→경제변화 후보/부분 중요도→기존 예산 AI·캐시→결과 파일 연결 완료.** 기능 `7f4daaf146869aa25dc83e426440d0e88d70021a`, origin/main SHA 일치 확인.
-- 새 `feed_analysis.py`/`run_feed_analysis.py`가 기존 prior_fact_state/novelty_detection/impact_triage/fact_extraction/AI/비용원장/cache를 연결한다. 기존 수집·ACK·검색·Gold·공급망 v1/v2는 변경 없음.
-- 정확 출처 문자열과 후보·AI 미검증 해석 구분. 같은 문서 재발행/캐시 재사용, 금액 정정 버전 분리, 일부 미확인·AI 실패에도 출처 필드 보존. 제목 규칙의 점수/규모는 출력된 스크리닝 가정이지 인수 조건이 아니다.
-- T5에서 결과 게시 시 실제 하드링크 errno45를 발견·수정: 짧은 잠금+원자 rename으로 게시, 기존 결과 보존. 별도 두 Python 프로세스는 합성 RSS/가짜 HTTP로 첫 분석1/모의호출1, 재실행 캐시1/모의호출0·동일 결과 SHA.
-- 변경 영향 **10개 테스트 파일 103 PASS/0 FAIL**, compile/diff/Public 검사 PASS. 전체 회귀 아님. 로그 `logs/feed_analysis_regression.log`, `logs/feed_analysis_process_smoke.json`.
-- 기존 5_5 v1/v2 게시·별도 소비는 `b8dadb9`의 정상 기능을 그대로 보존.
+- **기존 core/MOTIR 예약 실행→완료 ACK→규칙 분석·기존 캐시→비공개 결과 저장 연결 완료.** 기능 `8342901fae4ef7f7a84baf561d769339f98009ff`, origin/main push·동일 SHA 확인.
+- 새 수집기/서비스 없이 `run_scheduled_triage.py`, `run_motir_policy_once.py`가 기존 분석 CLI 함수를 재사용. 파생 root는 core/motir 분리, 기본은 신규 유료AI 없는 규칙 분석. 모델 설정은 기존 캐시 읽기만 허용.
+- NOT_DUE·수집 실패에도 이전 완료 자료는 분석하되 원래 실패를 숨기지 않는다. 분석 오류는 성공 ACK/워터마크를 변경하지 않고 replay-only로 재처리한다. 다른 제공자의 손상 triage와 MOTIR Gold 준비 실패가 정상 분석을 막지 않는다.
+- 기존 수집 전용 `--skip-analysis`, 무HTTP `--replay-only`, 제공자별 최신최대100·한도초과 표시 지원. 정상 복구 ACK를 건강진단이 오판하던 상태를 바로잡았다. 추가 인수 조건은 없다.
+- 변경 영향 **9개 테스트파일 100 PASS/0 FAIL**, compile/diff/Public 검수 PASS. 합성 수집→ACK→분석 성공·저장 실패 복구·캐시 재사용·출처 격리/기존 모드 포함. 전체 회귀나 실제 AI 청구시험은 아님.
+- 증거: `logs/scheduled_analysis_regression.log`. 기존 RSS 분석 및 5_5 v1/v2 전달 기능은 보존.
 
 ## 실자료 검증
-- 20:11 KST 기존 승인 메타데이터 **core80 + motir10 = 90개 제목 버전**, 새 CLI 두 실행 exit0·비공개 결과 SHA 확인. 반도체 용어 정확 일치 필드를 가진 제목은 각1건.
-- 이 입력에서 AI 우선순위 조건을 충족한 반도체 신규 후보0. 실제 유료 호출/사람 라벨/새 RSS HTTP0. 90개를 독립 경제사건/인적 정답으로 세지 않는다.
-- 등록부2/운영DB4 총6개 원본 SHA 동일. 별도 파생 분석 state/report만 생성. 실제 증거 `logs/feed_analysis_live_check.json`. EraLeader 접근·변경0.
-- 실제 모델 사용·요금 승인/정답 평가·허가 원문 실증은 별도다. 같은 미승인 여부를 반복 확인하지 않는다.
+- **20:40 KST** 기존 명령을 replay-only 별도 Python 프로세스로 실행: 중기부23 + 뉴스와이어IT57 + MOTIR10 = **90개 제목 버전**, 결과3파일 저장·SHA 확인, 두 실행기 exit0/exit0. 신규 RSS 요청·유료AI·인적 라벨0.
+- 등록부2·운영DB4·기존 LaunchAgent 설정3 총 **9파일 SHA 동일**. 파생 분석결과 외 원본·EraLeader·다른 프로젝트 변경 없음. 제목 수를 독립 경제사건/정답 수로 세지 않는다.
+- 실증 로그 `logs/scheduled_analysis_live_check.json`; 결과 `output/feed_analysis/core/reports/`, `output/feed_analysis/motir/reports/` 비공개 보존.
 
 ## 운영·출시 인수와 다음 작업
-- 기존 단계 인수집계 **23/36** 유지. 이번 RSS 전체 처리 연결은 기능 완료이며 전체 제품의 실제 AI/성능 인수가 아니다.
-- 원래 500건 인적 평가·정확도·반도체 관계 평가·실AI 비용·실제5거래일·전체 회귀/릴리스는 별도 미완료. 추가 필수 검증 없음.
-- 다음: NEXT_TASK의 기존 예약 실행→RSS 분석→결과 저장 연결. 유료AI 미승인 중에도 규칙 분석은 가능하다.
+- 기존 1시간 서비스 설정/등록은 유지. 수동 kickstart 확인 요청은 도구 보안 차단으로 실행하지 못했다. 20:41 읽기전용 로그는 이전 정상 tick; **새 코드의 자연 예약 실행은 아직 미관찰**. 같은 명령 재시도·우회 금지, 다음 실제 실행 기록이 생길 때만 확인.
+- 관찰 기록 `logs/scheduled_analysis_service_observation.json`. 이 대기는 독립 결과 소비 기능 개발을 막지 않는다.
+- 기존 단계 인수 **23/36** 유지(전체 코드 구현률 아님). 원래 500건 평가·정확도/반도체 관계·실AI 비용·실제5거래일·전체 회귀/릴리스는 별도 인수. 새로운 검증 의무를 만들지 않는다.
+- 다음은 NEXT_TASK의 RSS 분석 결과→별도 읽기전용 소비. 기존 외부 입력/승인 상태 반복 점검 없이 진행한다.

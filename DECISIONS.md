@@ -85,3 +85,6 @@ D-044 (NC-2_6-3_6-REVIEW-CRASH-RECOVERY-2026-10-14): 실사용 2인 검수 제�
 
 
 D-045 (NC-2_6-3_6-PROSPECTIVE-GOLD-HOURLY-2026-10-14): 500개 인적 gold 목표에 필요한 향후 **실제 승인 RSS 최초 관측·동결 누적**은 기존 `com.newscatalystos.triage`와 별개의 macOS 사용자 LaunchAgent `com.newscatalystos.gold`가 3,600초마다 1회 수행한다. 새 프로그램 `run_gold_capture_once.py`는 현재 명시 승인 2개 RSS의 **이미 완료된** 1_3~3_5 SHA/PIT ACK만 검증하고, Mac owner-only 배타 파일 잠금 후 신규 고유 뉴스 제목 버전만 이전 `freeze_real_gold_review_cases(...incremental_only=True)`로 T5DATA 불변 동결 + 별도 물리 Mac SHA PIN 발행한다. A/B 빈 검수자 양식은 기존 `prepare_blank_human_review_sheets` 재사용; 중단 후 누락 **빈** 양식만 복구하고 기존 입력·손상 서류는 절대 덮어쓰기하지 않는다. 유료 AI/공식 API/RSS 새 호출·자동 인적 정답·매매·EraLeader 변경 0. 원본 RSS LaunchAgent 무수정, gold 서비스만 별도 bootout 가능. 동일한 과거 ACK를 반복 실행해도 운영일·인적 gold/과거 동시 예측 성능으로 과장 금지. 실제 2026-10-14 Mac `gold` runs1/last exit0, triage runs9/last exit0, PIN 4배치 실제 고유 70건/라벨0, **23/36 유지**.
+
+
+D-046 (NC-2_6-3_6-REAL-SCOPE-BIAS-2026-10-14): V1.0 반도체 단일 산업의 2_6/3_6 실검증은 500 RSS 제목 단순 누적만으로 합격시킬 수 없다. 이미 독립 Mac SHA PIN 고정된 모든 GoldBatch의 T5DATA 블라인드 메타/예측/PIT 및 기존 A/B 답안을 읽기 전용 확인해 출처별·제공역할별·제목 반도체 키워드 힌트/사람 합의 정답수를 `run_gold_review.py scope-audit`로 검사한다. 보도자료 배포자를 독립 취재원으로 계산하거나 키워드를 실제 경제사건·거래관계로 승격하지 않고 편중 경고를 보고한다. Mac 실제 70 제목후보 중 공식기관23/배포보도자료47, 반도체 제목 키워드1(1.4%), 사람 정답0. 신규 API/AI/DB 쓰기0, EraLeader 무변경, **23/36 유지**, V1.0 실측 완료 false.

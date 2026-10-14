@@ -243,3 +243,8 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 인계 — 승인 RSS gold 후보를 Mac 1시간 독립서비스로 자동 누적
 - 기능 `806d40b79f9d24a0d27b529240152ba166f17ac5` GitHub push 이후 원격 SHA 확인 필요: 기존 RSS LaunchAgent는 그대로 두고 신규 `com.newscatalystos.gold` 3,600초 user LaunchAgent를 Mac 개인 plist로 별도 활성화. 완료 ACK SHA/PIT → 오직 신규 고유 제목 후보 동결→T5DATA private GoldBatch+Mac 독립 물리 PIN→빈 2인 검수자 시트. 실제 Mac 4개 PIN 배치/뉴스 제목 후보 **70건(기존65+새5)**, 인적 2인 gold **0**, 500까지 **430건 부족**. 금 자동서비스 kickstart 1회 exit0/로그오류0, 기존 승인 RSS 1시간 runs9/exit0 무변경, 실제 5거래일 인수는 아직 한 날짜뿐. 변경 영향 **66 PASS/0 FAIL**, compile/Public 검사 PASS.
 - 전체 **23/36(63.9%) 유지**. `NEXT_TASK.md` 마지막 블록: 자동 gold 정상 장기간 유지·실제 A/B 독립 인간 라벨(현재0), 5_2 공식 반도체 고객사/공급사 근거 및 회사 ID 2개, 실 5거래일/휴장·4_1 승인 AI·6_6 별도. EraLeader 원본/Git/DB 및 공식 API 중복 수집 절대 금지. 원본 기존/사용자 미추적 문서 단계별 보존, 합성 리뷰/유료 AI 호출 무단 인증 금지.
+
+
+## 2026-10-14 | 최신 인계 — 실제 RSS 검증 gold의 반도체 표본 부족 명시
+- 기능 `ee2c0997a4896df01448f3d7a8ca385e9dc38f23`: 독립 PIN 4배치의 70 실제 RSS 제목 버전을 기존 A/B human 검수와 read-only 묶어 `run_gold_review.py scope-audit`에서 출처·반도체 제목 키워드 대표성 점검. **59 PASS/0 FAIL**/컴파일/Public PASS. 공식기관23/보도자료47, 반도체 키워드 **1/70(1.4%)** 힌트, 실 2인 합의0, 출시false, 진행 **23/36(63.9%)** 유지.
+- `NEXT_TASK.md` 하단 우선: 사람 2명 진짜 라벨, 허가된 반도체 전문 IR/공공정책/독립 소스 후보 확보(승인 전 새 RSS 등록/공식 API 중복 호출 금지), 5_2 양사 실공급관계 문서/ID 검증, 6_5 5개 실거래일, 4_1 승인 AI 실연동. T5DATA와 Mac 실사용 triage/gold 1시간 운영 유지, EraLeader 원본 코드/DB/Git·사용자 미추적 도면 보존, 6_6 태그 불가.

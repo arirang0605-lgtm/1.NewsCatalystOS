@@ -321,3 +321,9 @@ Git 저장소: 기존 폴더 내 main 안전 초기화·origin 연결, 기능 �
 - 변경 영향 테스트 `tests/test_feed_operations.py`, `tests/test_feed_recovery.py`, `tests/test_physical_recovery_pin.py` **22 PASS / 0 FAIL**; `compileall`, `git diff --check` PASS. 원격 검증 예정인 코드 SHA와 상태 문서 SHA는 분리하여 기록.
 - 실제 Mac read-only `scripts/check_feed_operations.py`: 승인 2곳, 완료 ACK **8건**, 2026-10-14 양 소스 모두 정상/누락 0, pending 0, Mac↔SSD 별도 물리 DR PASS. 실제 승인 운영일 증거 1일; **검증된 거래소 세션 0/5, 출시 false**. 오프사이트와 5거래일 미실증, 5_2 실제 공식 반도체 양사 공급계약·인적 gold·실 AI 인수 미완료.
 - **완료 23/36 (63.9%) 유지**. 다음: launchd 실제 후속 거래일 출처별 ACK 누적·장애 대응, 승인 공식 반도체 공급관계 본문 1건 확보 및 기존 5_2→5_5 연결, 2_6·3_6 이중 인적 검수 실정답 확대. EraLeader 읽기 전용, 정상 사용자 미추적 문서 보존.
+
+
+## 2026-10-14 | 6_5 macOS RSS 자동수집 실제 서비스 건강도 진단 (NC-6_5-AGENT-HEALTH)
+- 기능 Git SHA `422622130871db7589766109c0119aad0d81de30`: 신규 `scripts/check_triage_agent_health.py`의 read-only launchd 운영 상태/승인 RSS 설정·사설 로그·중복 스케줄러·1시간 간격/오류코드/2시간15분 로그 노후화 진단. 기존 수집·분석 코드 변경/추가 GET 0. 장애·의심 설정은 exit 4, 정상은 exit 0; 5거래일 인증과 별개.
+- 변경 영향 6개 테스트파일 전체 **59 PASS/0 FAIL**, Python compileall PASS, git staged diff·기본 비밀패턴 검사 PASS. 실제 Mac **`runs=4`, last exit=0, 승인 제공자2/마지막 실로그 일치, `AGENT_HEALTHY_OBSERVED`, 검사 exit0**, 경쟁 `com.newscatalystos.incremental` 미기동. 무단 API/AI/EraLeader 호출·변경 0. 재부팅·절전/SSD분리 장기 복원 실증은 별도 조건.
+- 전체 **23/36(63.9%) 유지**. 인증된 거래소 거래일 0/5, 단일 2026-10-14 분석 ACK 모든소스 일자 1개, 실반도체 공급관계 공식 원문 0·독립 2인 gold0·실모델/라이선스 사용0. 다음 6_5 후속 실제 일자 누적, 5_2 허가 계약 증거/회사ID·2_6/3_6 실제 2인 검수 및 실 AI 승인 연결. 오프사이트/최종 tag 대기, EraLeader 읽기전용·사용자 미추적 파일 보존.

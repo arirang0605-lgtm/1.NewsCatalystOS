@@ -255,3 +255,9 @@ V1.0 신규 기능 자동 추가 금지. 사용자가 다른 순서로 명시하
 - 기존 `check_feed_operations.py` 운영 인수 지표에 승인 제공자별 **날짜별 완료/누락**을 추가해 일부 제공자 실패를 5일 성공으로 오인하지 않도록 함. 기능 `6c62ac38ee3f4ec28245c509d1b198c8f2f08ee6`; 변경 영향 **22 PASS/0 FAIL**, 컴파일·Git diff PASS. 실제 Mac approved=2, ACK=8, `2026-10-14` 한 날짜에 승인 2소스 완료, partial0/pending0, 별도 SSD DR true, **5거래일 false/verified_exchange_trading_days=0**. 무단 새 공식 API/모델 호출 없음.
 - **다음 필수 외부 실증:** 예약된 기존 1시간 launchd 운용으로 **추가 4개 실제 거래일**을 기다려 각 날짜의 양소스 ACK·예외 로그/PIT·원장/물리 복원을 검증하며, 공휴일/휴장 구분은 독립적으로 점검. 5_2는 공식 반도체 고객–공급 계약의 허가 본문+공식 회사 ID 두 개+별도 SHA/관측시각+사람 검토 없이는 UNKNOWN. 2_6·3_6 현재 실 RSS 39건 리뷰어 2명 빈 양식·실답변0/500 부족 461. 인증·실 AI/골드·반도체 매출/5거래일 완료를 선언하지 말 것.
 - **완료 23/36 (63.9%)**. 6_6 릴리스 태그 보류, EraLeader 소스·DB·Git/수집기 수정 금지, 사용자 미추적 자료 보존. 운영 명령 `PYTHONPATH=src python3 scripts/check_feed_operations.py`.
+
+
+## 2026-10-14 | 최신: 6_5 실제 운영일 누적, 5_2 실공식 반도체 관계·2_6/3_6 골드 실제 입력
+- 기능 `422622130871db7589766109c0119aad0d81de30`: `PYTHONPATH=src python3 scripts/check_triage_agent_health.py`를 통한 Mac RSS launchd 실사용 안전 진단. 승인 소스/설정/실서비스/최근 stdout 비교·설정변조·간격오류·중복 schedule/노후 로그 fail-closed. 변경 영향 **59 PASS/0 FAIL**, compile/Public 검사 PASS. 실제 runs4/exit0/승인 2/최근 로그/건강상태 exit0; 이는 5거래일 완료를 의미하지 않음.
+- **다음:** Mac 운영 `scripts/check_feed_operations.py`(날짜별 양 소스 실제 ACK, pending/물리 SHA 복원) 및 신규 건강진단을 후속 실제 거래일에 점검. 실거래소 휴장 일정 증빙 확인 후에만 실제 5거래일 인수. 현재 관측일 2026-10-14 단 1개, 출처 정상 2개, 추가 4개 실제 날짜 미도래. 인공 생성으로 날짜/수혜 실증 대체 금지.
+- 5_2 공식 반도체 고객·공급 계약본문/양사 공식 ID+별도 SHA/PIT·독립 사람검수가 확보되면 **기존** 5_2→5_5 CLI로 실물 1건 소비; 자료 없으면 UNKNOWN. 2_6/3_6 기존 RSS 39건 검수자 2명 실제 답변0(500까지 461부족), 4단계 AI 실모델 승인 없음, 최종 출시 6_6 보류. **23/36(63.9%)**, 전체 기획 범위와 비공개/EraLeader 안전 준수.

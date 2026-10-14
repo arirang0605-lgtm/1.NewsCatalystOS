@@ -198,3 +198,8 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 ## 2026-10-14 | 최신 인계 — 6_5 운영 누락 출처 조회 실용 보완
 - 기능 `6c62ac38ee3f4ec28245c509d1b198c8f2f08ee6`: 날짜별 승인 RSS 성공/미완료 출처 표시, 중복 ACK를 운영일로 추가하지 않음. 관련 **22 PASS/0 FAIL**/compile/diff PASS, 실제 Mac RSS 2소스·ACK8·2026-10-14 1일만 출처 전체 완료, partial0/pending0/SSD 독립 물리 복원 true, 5거래일 인증 false.
 - 전체 **23/36(63.9%)** 유지. `NEXT_TASK.md` 맨 아래 6_5 후속 거래일 실제 누적과 5_2 실제 공식 반도체 관계·2_6/3_6 독립 리뷰를 따를 것. EraLeader 변경/공식 공시 재수집/사용자 미추적 도면 변경 금지, 실 AI·반도체 계약·5거래일/릴리스 자동인증 금지.
+
+
+## 2026-10-14 | 최신 개발 인계 — 6_5 Mac launchd 건강도 실제 점검
+- 기능 `422622130871db7589766109c0119aad0d81de30`: read-only `check_triage_agent_health.py`로 Mac 승인RSS 1시간 실행 횟수/종료/최근 JSON 및 중복 스케줄러·변조·오래된 로그 감시. 변경 영향 **59 PASS/0 FAIL**, compile·Public 검사 PASS. 실제 runs4/exit0/승인2/상태 `AGENT_HEALTHY_OBSERVED`. 실운영 전체 소스 2026-10-14 한 날짜, 공식 5거래일 0/5, **완료 23/36(63.9%) 유지**.
+- `NEXT_TASK.md` 최신 하단: 6_5 이후 실제 운영일 누적 및 출처별 ACK 검증, 5_2 실제 공식 반도체 거래관계·2_6/3_6 인적 라벨 확보. 다른 프로젝트 코드/Git/DB/수집기·사용자 미추적 자료 변경 금지. 36/36 태그와 AI/정확도 미검증 완료 판정 금지.

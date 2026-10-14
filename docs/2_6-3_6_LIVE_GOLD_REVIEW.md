@@ -135,3 +135,11 @@ PYTHONPATH=src python3 scripts/run_gold_review.py review-recover \
 - 실제 Mac 첫 수집 구간에는 추가 뉴스 제목 버전 **5개**를 별도 고정하여 누적 **70건(4개 pinned 배치; 중기부 23, 뉴스와이어 IT 47)**이 됐다. 정상 no-new 반복 실행은 추가 0, 빈 검수 공간 0, total70/remaining430/사람정답0/AI0/추가 RSS HTTP0을 반환했다. `launchctl kickstart gui/$(id -u)/com.newscatalystos.gold` 이후 실제 launchd `runs=1,last exit code=0`, stderr 0바이트, 개인 stdout의 같은 결과를 검증했다. 기존 triage `runs=9,last exit code=0`. 실제 완료 영수증20건이지만 모두 **10월14일 하루**, 거래소 실운영 5일 인수는 여전히 false.
 - 확인/중지: `PYTHONPATH=src python3 scripts/run_gold_capture_once.py`는 네트워크 사용 없이 즉시 한번 실행. `launchctl print gui/$(id -u)/com.newscatalystos.gold` 및 Mac `~/Library/Application Support/NewsCatalystOS/logs/gold_stdout.log`로 최근 상태 확인. 필요한 경우 `launchctl bootout gui/$(id -u)/com.newscatalystos.gold`로 **금 후보 자동 동결만 중지**할 수 있다(기존 RSS 수집은 유지). 자동 실행이 필요 없으면 plist는 사용자 승인하에 별도 보관·정리하며 자동 삭제하지 않는다.
 - **운영 범위**: 승인된 RSS 제목 버전 및 자동 동결 시각의 2~3단계 모델/룰 상태. 이는 **인간 독립 골드 라벨 70건, 공식 반도체 거래 70건, 과거 보도 시점 동시 예측 70건을 인증하지 않는다.** 500 후보까지 430건, 인간 2명 확인 골드 0건, 정확도/재현율 N/A, V1.0 출시 false. 새 뉴스는 1시간 서비스의 실제 동결시각 이후 사용 가능하며 과거 공개시각으로 소급하지 않는다.
+
+
+## 2026-10-14 | 반도체 V1.0 검증표본 편중 감시 (실데이터)
+
+- 새 읽기전용 `PYTHONPATH=src python3 scripts/run_gold_review.py scope-audit`는 **전체 기동작 PIN 고정 배치**의 Mac 독립 SHA와 T5DATA 예측·블라인드 문서, 검수자 A/B 답안지를 다시 검증한 후 **출처별·성격별·반도체 키워드 힌트별 실제 표본 구성만** 집계한다. 검사 결과 JSON에 기사 제목, 링크, 키, 인간 메모, 모델의 사전 예측은 출력하지 않는다. 새 RSS/DART/SEC/KRX/AI 호출·답안 쓰기·공개 업로드 모두 0.
+- **실제 Mac 결과(2026-10-14):** SHA 동결 4배치 / 고유 RSS 제목버전 **70건**, 중기부 공식기관 **23건**, 뉴스와이어 IT 배포 보도자료 **47건**. 반도체 제목에 기설정 키워드가 포함된 **검토 힌트 1건(1.4%)**, 다른 69건. 원본 RSS 첫 로컬 이용가능 날짜는 UTC 10월13~14일, 동결 PIN 날짜는 UTC 10월14일. 독립 사람 2명 동의 **0건**, 500개까지 고유 후보 추가 **430건**, 두 사람 합의 정답 추가 **500건**. `precision/recall` 인증 및 sector 적합도 인증 모두 false.
+- 보도자료가 다른 배포 경로를 통해 전송되어도 독립 취재기사로 간주하지 않는다. 정부 보도자료와 배포 보도자료로 편중된 표본 500건을 단순히 채우는 방식은 반도체 산업 성능의 독립 검증으로 충분하지 않다. `SEMICONDUCTOR_KEYWORD_COVERAGE_NOT_REPRESENTATIVE`, `PRESS_RELEASES_ARE_NOT_INDEPENDENT_JOURNALISM`, `TWO_HUMAN_GOLD_LABELS_INCOMPLETE` 등을 **검토 경고**로 표시한다. 키워드가 없다고 관련성이 확실히 없다는 것도 아니므로 제목 힌트를 골드 정답으로 취급하거나 자동 제외하지 않는다.
+- 다음에는 실제 허가된 반도체 기업 IR·정부 산업 정책·검증된 독립 취재 자료 등 **새 자료원 권한/라이선스를 먼저 확인**하고 추가 데이터를 확보해야 한다. 기존 EraLeader DART·SEC·KRX의 기게시 스냅샷은 계속 읽기전용이며 NewsCatalystOS의 중복 공식 수집기 신설 금지. V1.0 2_6/3_6 **실측 완료 판정은 보류**한다.

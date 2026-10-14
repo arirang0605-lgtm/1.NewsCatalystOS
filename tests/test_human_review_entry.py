@@ -163,3 +163,115 @@ def test_evidence_symlink_cannot_be_passed_as_manual_review(tmp_path, monkeypatc
         record_review_once(out, pins, work, batch.payload_sha256, "UNASSIGNED_A",
                            "REVIEWER_A", case, False, False, evidence)
     assert json.loads(a.read_bytes())["reviewer_code"] == "UNASSIGNED_A"
+
+
+def test_interrupted_after_durable_receipt_recovers_only_confirmed_human_answer(
+    tmp_path, monkeypatch,
+):
+    from newscatalystos import human_review_entry as entry
+    out, pins, batch, work, a, b = setup(tmp_path, monkeypatch)
+    case = list_review_cases(out, pins, work, batch.payload_sha256,
+                             "UNASSIGNED_A")["cases"][0]["case_sha256"]
+    evidence = note(a, case, "Actual review rationale in synthetic fixture after checking source.")
+    original_answer = a.read_bytes()
+    real_replace = entry.os.replace
+
+    def fail_before_replace(*_args, **_kwargs):
+        raise OSError("injected crash between durable receipt and replacement")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(entry.os, "replace", fail_before_replace)
+        with pytest.raises(OSError, match="injected crash"):
+            record_review_once(
+                out, pins, work, batch.payload_sha256,
+                "UNASSIGNED_A", "REVIEWER_A", case, True, False, evidence,
+            )
+    assert a.read_bytes() == original_answer
+    history = a.parent / "review_history"
+    assert (history / (case + ".before.json")).exists()
+    assert (history / (case + ".proposed.json")).exists()
+    assert (history / (case + ".receipt.json")).exists()
+    result = entry.recover_interrupted_review(
+        out, pins, work, batch.payload_sha256, "UNASSIGNED_A", case)
+    assert result["status"].startswith("INTERRUPTED_HUMAN_REVIEW_RECOVERED")
+    assert result["human_labels_added"] == 0
+    assert result["release_gate_verified"] is False
+    sheet = json.loads(a.read_bytes())
+    assert sheet["reviewer_code"] == "REVIEWER_A"
+    answer = next(x for x in sheet["labels"] if x["case_sha256"] == case)
+    assert answer["true_duplicate"] is True
+    assert answer["important_event"] is False
+    assert gold.evaluate_live_gold_reviews(
+        batch.folder, out, batch.payload_sha256, batch.pin_file, pins, (a,b),
+    )["reviewed_by_two_agreeing_humans"] == 0
+    again = entry.recover_interrupted_review(
+        out, pins, work, batch.payload_sha256, "UNASSIGNED_A", case)
+    assert again["status"] == "HUMAN_REVIEW_ALREADY_APPLIED_NO_REWRITE"
+    assert again["human_labels_added"] == 0
+
+
+@pytest.mark.parametrize("broken", ["proposal", "receipt", "evidence", "answers"])
+def test_recovery_rejects_tamper_or_concurrent_changes(tmp_path, monkeypatch, broken):
+    from newscatalystos import human_review_entry as entry
+    out, pins, batch, work, a, b = setup(tmp_path, monkeypatch)
+    case = list_review_cases(out,pins,work,batch.payload_sha256,
+                             "UNASSIGNED_A")["cases"][0]["case_sha256"]
+    evidence = note(a, case, "Human wrote a genuine independent explanation in the fixture.")
+    with monkeypatch.context() as patch:
+        patch.setattr(entry.os, "replace", lambda *_: (_ for _ in ()).throw(OSError("offline crash")))
+        with pytest.raises(OSError):
+            record_review_once(
+                out, pins, work, batch.payload_sha256,
+                "UNASSIGNED_A", "REVIEWER_A", case, False, True, evidence)
+    history = a.parent / "review_history"
+    if broken == "proposal":
+        (history / (case + ".proposed.json")).write_bytes(b'{"tampered":true}')
+    elif broken == "receipt":
+        (history / (case + ".receipt.json")).write_bytes(b'{"tampered":true}')
+    elif broken == "evidence":
+        evidence.write_bytes(evidence.read_bytes() + b" changed")
+    else:
+        body = json.loads(a.read_bytes())
+        body["reviewer_code"] = "REVIEWER_DIFFERENT"
+        a.write_text(json.dumps(body), encoding="utf-8")
+    current = a.read_bytes()
+    with pytest.raises(SourceShareError):
+        entry.recover_interrupted_review(
+            out, pins, work, batch.payload_sha256, "UNASSIGNED_A", case)
+    assert a.read_bytes() == current
+
+
+def test_no_prior_human_receipt_never_creates_review_on_recovery(tmp_path, monkeypatch):
+    from newscatalystos.human_review_entry import recover_interrupted_review
+    out, pins, batch, work, a, b = setup(tmp_path, monkeypatch)
+    case = list_review_cases(out, pins, work, batch.payload_sha256,
+                             "UNASSIGNED_A")["cases"][0]["case_sha256"]
+    original = a.read_bytes()
+    with pytest.raises(SourceShareError):
+        recover_interrupted_review(
+            out, pins, work, batch.payload_sha256, "UNASSIGNED_A", case)
+    assert a.read_bytes() == original
+
+
+def test_recovery_cli_explicit_case_not_automatic(tmp_path, monkeypatch):
+    from scripts.run_gold_review import parser, evaluate
+    from newscatalystos import human_review_entry as entry
+    out, pins, batch, work, a, b = setup(tmp_path, monkeypatch)
+    case = list_review_cases(out, pins, work, batch.payload_sha256,
+                             "UNASSIGNED_A")["cases"][0]["case_sha256"]
+    evidence = note(a, case, "Manually reviewed official source for crash simulation.")
+    with monkeypatch.context() as patch:
+        patch.setattr(entry.os, "replace", lambda *_: (_ for _ in ()).throw(OSError("crash")))
+        with pytest.raises(OSError):
+            record_review_once(
+                out, pins, work, batch.payload_sha256,
+                "UNASSIGNED_A", "REVIEWER_A", case, True, True, evidence)
+    arguments = parser().parse_args([
+        "--out-root", str(out), "--pin-root", str(pins),
+        "review-recover", "--workspace-root", str(work),
+        "--expected-sha256", batch.payload_sha256,
+        "--reviewer-slot", "UNASSIGNED_A", "--case-sha256", case,
+    ])
+    code, outcome = evaluate(arguments)
+    assert code == 0 and outcome["status"].startswith("INTERRUPTED_HUMAN")
+    assert outcome["release_gate_verified"] is False

@@ -6,6 +6,7 @@ before submitting a single decision. No RSS, DART, SEC, KRX or AI calls.
 """
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import datetime, timezone
 from hashlib import sha256
 import os
@@ -170,9 +171,11 @@ def record_review_once(
     receipt_dir = _private_root(directory / "review_history")
     original_path = receipt_dir / (case + ".before.json")
     receipt_path = receipt_dir / (case + ".receipt.json")
-    if original_path.exists() or receipt_path.exists():
+    proposal_path = receipt_dir / (case + ".proposed.json")
+    if original_path.exists() or receipt_path.exists() or proposal_path.exists():
         raise SourceShareError("existing review audit record; no overwrite")
     _write_new(original_path, old_body)
+    _write_new(proposal_path, next_body)
     _write_new(receipt_path, _encoded({
         "schema": "newscatalyst.human_review_entry.v1",
         "case_sha256": case, "source_sha256": predictions[case].source_sha256,
@@ -183,6 +186,12 @@ def record_review_once(
         "new_answers_sha256": sha256(next_body).hexdigest(),
         "human_independence_certified": False,
     }))
+    # All durable audit artifacts precede the mutable answers replacement.
+    audit_dir_fd = os.open(receipt_dir, os.O_RDONLY)
+    try:
+        os.fsync(audit_dir_fd)
+    finally:
+        os.close(audit_dir_fd)
     temp_path = None
     try:
         fd, name = tempfile.mkstemp(prefix=".review_pending_", dir=directory)
@@ -209,6 +218,124 @@ def record_review_once(
         "case_sha256": case,
         "reviewer_slot": slot,
         "reviewed_at": at.isoformat(),
+        "human_independence_certified": False,
+        "release_gate_verified": False,
+        "external_api_calls": 0,
+    }
+
+
+def recover_interrupted_review(
+    out_root: Path, pin_root: Path, workspace_root: Path,
+    digest: str, slot: str, case_sha256: str,
+    *, now: datetime | None = None,
+) -> dict:
+    """Finish a previously human-confirmed edit after a crash; no new labels.
+
+    Uses the durable pre-change document, SHA-bound proposed document, and
+    receipt created during the original HUMAN submission. Never guesses.
+    Any changed worksheet, missing receipt, or mismatched note fails closed.
+    """
+    at = _when((now or datetime.now(timezone.utc)).isoformat(), "review recovery")
+    case = _must_sha(case_sha256, "recover case SHA")
+    directory, answers, current, _, predictions, _, pinned = _verified_slot(
+        out_root, pin_root, workspace_root, digest, slot, at,
+    )
+    if case not in predictions:
+        raise SourceShareError("unknown pinned case recovery")
+    history = _existing_private_dir(directory / "review_history")
+    prefix = history / case
+    original = _read_once(Path(str(prefix) + ".before.json"), MAX_FILE)
+    proposed = _read_once(Path(str(prefix) + ".proposed.json"), MAX_FILE)
+    receipt = _json(_read_once(Path(str(prefix) + ".receipt.json"), 4096),
+                    "pending human review receipt")
+    if (set(receipt) != {
+            "schema", "case_sha256", "source_sha256", "reviewer_code",
+            "reviewed_at", "evidence_sha256", "prior_answers_sha256",
+            "new_answers_sha256", "human_independence_certified",
+        } or receipt["schema"] != "newscatalyst.human_review_entry.v1"
+            or receipt["case_sha256"] != case
+            or receipt["source_sha256"] != predictions[case].source_sha256
+            or receipt["human_independence_certified"] is not False
+            or sha256(original).hexdigest() != receipt["prior_answers_sha256"]
+            or sha256(proposed).hexdigest() != receipt["new_answers_sha256"]):
+        raise SourceShareError("human review recovery receipt or SHA mismatch")
+    reviewer = receipt["reviewer_code"]
+    if (not isinstance(reviewer, str)
+            or REVIEWER_PATTERN.fullmatch(reviewer) is None
+            or reviewer.startswith("UNASSIGNED")):
+        raise SourceShareError("human recovery reviewer not assigned")
+    reviewed = _when(receipt["reviewed_at"], "review submitted at")
+    if not pinned <= reviewed <= at:
+        raise SourceShareError("human review recovery has future/pre-pin timestamp")
+    note = _read_once(directory / ("evidence_" + case + ".txt"), MAX_NOTE_BYTES)
+    if (len(note) < 16 or sha256(note).hexdigest()
+            != _must_sha(receipt["evidence_sha256"], "review evidence SHA")):
+        raise SourceShareError("review evidence note was changed")
+    old_doc = _json(original, "prior review answers")
+    next_doc = _json(proposed, "proposed human answers")
+    if (set(old_doc) != {"schema", "reviewer_code", "labels"}
+            or old_doc["schema"] != BLIND_SCHEMA
+            or old_doc["reviewer_code"] not in (slot, reviewer)
+            or not isinstance(old_doc["labels"], list)
+            or not isinstance(next_doc.get("labels"), list)):
+        raise SourceShareError("invalid pre-review answers")
+    if next_doc.get("reviewer_code") != reviewer:
+        raise SourceShareError("proposal changed reviewer identity")
+    untouched = deepcopy(old_doc)
+    matching = [row for row in untouched["labels"]
+                if isinstance(row, dict) and row.get("case_sha256") == case]
+    proposed = [row for row in next_doc["labels"]
+                if isinstance(row, dict) and row.get("case_sha256") == case]
+    if len(matching) != 1 or len(proposed) != 1:
+        raise SourceShareError("review recovery case missing or duplicate")
+    if any(matching[0].get(field) is not None for field in (
+        "true_duplicate", "important_event", "review_evidence_sha256",
+        "reviewed_at",
+    )) or any(type(proposed[0].get(field)) is not bool
+               for field in ("true_duplicate", "important_event")):
+        raise SourceShareError("review recovery would replace existing label")
+    if (proposed[0].get("review_evidence_sha256") != receipt["evidence_sha256"]
+            or proposed[0].get("reviewed_at") != reviewed.isoformat()):
+        raise SourceShareError("review recovery proposal does not match receipt")
+    untouched["reviewer_code"] = reviewer
+    matching[0].update({
+        field: proposed[0][field]
+        for field in ("true_duplicate", "important_event",
+                      "review_evidence_sha256", "reviewed_at")
+    })
+    if next_doc != untouched:
+        raise SourceShareError("review proposal changes another case or field")
+    if sha256(current).hexdigest() == receipt["new_answers_sha256"]:
+        return {"status": "HUMAN_REVIEW_ALREADY_APPLIED_NO_REWRITE",
+                "case_sha256": case, "human_labels_added": 0,
+                "release_gate_verified": False}
+    if sha256(current).hexdigest() != receipt["prior_answers_sha256"]:
+        raise SourceShareError("review sheet changed since interrupted submission")
+    # Only one known, fully verified old->new state transition is allowed.
+    temp_path = None
+    try:
+        fd, name = tempfile.mkstemp(prefix=".recover_review_", dir=directory)
+        temp_path = Path(name)
+        os.fchmod(fd, 0o600)
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(_encoded(next_doc))
+            stream.flush()
+            os.fsync(stream.fileno())
+        if sha256(_read_once(answers, MAX_FILE)).hexdigest() != receipt["prior_answers_sha256"]:
+            raise SourceShareError("concurrent review update during recovery")
+        os.replace(temp_path, answers)
+        dirfd = os.open(directory, os.O_RDONLY)
+        try:
+            os.fsync(dirfd)
+        finally:
+            os.close(dirfd)
+    finally:
+        if temp_path is not None and temp_path.exists():
+            temp_path.unlink()
+    return {
+        "status": "INTERRUPTED_HUMAN_REVIEW_RECOVERED_FROM_SHA_LOCAL_RECEIPT",
+        "case_sha256": case, "human_labels_added": 0,
+        "reviewed_at": reviewed.isoformat(),
         "human_independence_certified": False,
         "release_gate_verified": False,
         "external_api_calls": 0,

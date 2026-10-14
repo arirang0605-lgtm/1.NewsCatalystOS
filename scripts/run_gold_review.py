@@ -23,7 +23,9 @@ from newscatalystos.live_gold_samples import (
     prepare_blank_human_review_sheets, gold_freeze_progress,
     summarize_all_gold_reviews,
 )
-from newscatalystos.human_review_entry import list_review_cases, record_review_once
+from newscatalystos.human_review_entry import (
+    list_review_cases, record_review_once, recover_interrupted_review,
+)
 from newscatalystos.source_share import SourceShareError
 
 
@@ -69,6 +71,12 @@ def parser() -> argparse.ArgumentParser:
     submit.add_argument("--evidence-file",required=True,type=Path)
     submit.add_argument("--confirm-human-review",action="store_true",required=True,
                         help="confirm real source examination, not auto-generated labels")
+    recover=commands.add_parser("review-recover",
+                                help="resume a fully SHA-pinned interrupted human submission")
+    recover.add_argument("--expected-sha256",required=True)
+    recover.add_argument("--reviewer-slot",required=True,choices=["UNASSIGNED_A","UNASSIGNED_B"])
+    recover.add_argument("--workspace-root",type=Path,default=base/"gold_review_workspace")
+    recover.add_argument("--case-sha256",required=True)
     read=commands.add_parser("evaluate",help="preview evidence-linked label metrics")
     read.add_argument("--batch-folder",type=Path,required=True)
     read.add_argument("--expected-sha256",required=True)
@@ -93,6 +101,11 @@ def evaluate(opts: argparse.Namespace) -> tuple[int,dict]:
                 opts.out_root, opts.pin_root, opts.workspace_root,
                 opts.expected_sha256, opts.reviewer_slot,
                 offset=opts.offset, limit=opts.limit,
+            )
+        if opts.command=="review-recover":
+            return 0, recover_interrupted_review(
+                opts.out_root, opts.pin_root, opts.workspace_root,
+                opts.expected_sha256, opts.reviewer_slot, opts.case_sha256,
             )
         if opts.command=="review-one":
             if opts.confirm_human_review is not True:

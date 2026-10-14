@@ -107,3 +107,21 @@ PYTHONPATH=src python3 scripts/review_news_interactive.py \
 ### 승인 출처별 후보 구성을 반드시 확인
 
 `run_gold_review.py progress`는 현재 승인 RSS를 중복 제거한 출처별 숫자(`by_current_approved_provider`), 다음 동결 대상 출처별 수(`new_unfrozen_by_provider`), 반도체 제목 키워드 **인적 검토 힌트** 수만 함께 표시한다. 실제 Mac 개인 원장의 2026-10-14 조회 결과는 중기부 RSS 23건, 뉴스와이어 IT RSS 42건, 총 고유 후보 65건, 새 미동결 0건, 반도체 관련 키워드 검토 힌트 1건이었다. **키워드 힌트 1건은 공식 공급계약·경제적 신규 사건의 검증 성공 1건을 뜻하지 않는다.** 두 출처의 편중된 제목만으로 반도체 공급망 성능 95%를 주장하지 않는다. 신규 출처는 사전 사용권한 승인이 없는 한 활성화하지 않는다.
+
+
+## 2026-10-14 | 검수 제출 중단 시 원본·SHA 이력 복구
+
+이미 사용 중인 `review-one` 및 대화형 검수는 원래의 원자적 답안 교체 직전에 이전 답안지(`<case>.before.json`)와 기존 로컬 영수증을 따로 남겼다. 맥북 절전·SSD 분리 등으로 교체가 중단되면 다음 검수를 진행할 수 없었다. 이를 해결하기 위해 **제출 직전의 완성 답안 문서(`<case>.proposed.json`)도 현재 Mac 개인 `review_history` 아래 0600으로 불변 보관**한다.
+
+실제 검수자 본인이 판정하고 승인했던 그 케이스만 안전하게 복구할 때:
+```sh
+cd /Volumes/T5DATA/1.NewsCatalystOS
+PYTHONPATH=src python3 scripts/run_gold_review.py review-recover \
+  --expected-sha256 "<기존 gold_batch SHA>" \
+  --reviewer-slot UNASSIGNED_A \
+  --case-sha256 "<복구할 이전 사람 확정 사건 SHA>"
+```
+
+복구는 Mac PIN 고정 GoldBatch·원래 답안지·완성 예정 답안지의 두 SHA와 영수증, 실제 검수자 코드/검수 시각(PIT), 검토 근거 메모의 SHA까지 검사한다. **원래 답안지 상태와 정확히 동일하거나 이미 목표 완성 상태일 때만** 실행할 수 있다. 다른 사례 변경·검토자 변경·영수증 누락·근거 변경·기존 답안지 변경을 감지하면 거절한다. 이미 적용한 리뷰를 다시 입력하거나 새로운 라벨을 생성하지 않고, 이전 인간 확인시각으로 보존한다. 근거의 신뢰성·두 사람의 독립성은 별도 실운영 검증 필요하다.
+
+이 기능은 새 사람을 가장하거나 라벨을 생성하지 않으며 새로운 DART/SEC/KRX/RSS/AI 호출도 하지 않는다. 현재 실제 뉴스 65건의 사람 검수 정답은 여전히 0건이다. 기존 사용자 파일과 EraLeader 데이터·코드는 변경하지 않았다.

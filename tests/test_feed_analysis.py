@@ -259,3 +259,64 @@ def test_publication_succeeds_on_filesystem_without_hard_links(tmp_path, monkeyp
     assert sha256(original).hexdigest() == digest
     assert publish_feed_analysis(report, dest.parent)[0] == dest
     assert dest.read_bytes() == original
+
+
+def test_explicit_contract_termination_is_reviewed_not_a_new_contract(tmp_path):
+    title = "글로벌 HBM 반도체 3년간 공급 계약 2000억원 해지"
+    info = setup(tmp_path, title)
+    report = run(info)  # no paid provider; original authorized metadata only
+    row = report["results"][0]
+    assert report["rule_version"] == "rss-title-economic-v2"
+    assert row["category_candidate"] == "CONTRACT_TERMINATION"
+    assert row["reported_termination_only"] and not row["reported_plan_only"]
+    assert row["ai_eligible"] and row["ai_status"] == "AWAITING_EXPLICIT_AI_AUTHORIZATION"
+    assert row["known_dimension_score_lower_bound"] >= 8
+    assert "2000억원" in row["source_amount_mentions"]
+    assert all(v["field"] != "CONTRACT_AMOUNT" for v in row["source_matched_fields"])
+    assert not row["verified_economic_fact"] and not row["verified_supply_transaction"]
+    assert not row["verified_beneficiary"] and row["revenue_estimate_krw"] is None
+    assert any("independent official confirmation" in s for s in row["uncertainties"])
+    assert report["source_fetch_calls"] == 0 and report["new_ai_results"] == 0
+
+
+def test_revision_from_supply_contract_to_termination_preserves_pit_and_delivery(tmp_path):
+    original = "글로벌 HBM 반도체 3년간 공급 계약 2000억원 체결"
+    cancelled = original.replace("체결", "해지")
+    info = setup(tmp_path, original)
+    first = run(info)
+    assert first["results"][0]["category_candidate"] == "NEW_CONTRACT"
+    collect(info[0], info[1], GOV, [("contract-1", cancelled, URL)],
+            at=NOW + timedelta(hours=1))
+    second = run(info)
+    row = second["results"][0]
+    assert row["category_candidate"] == "CONTRACT_TERMINATION"
+    assert row["novelty"] == "CHANGED_ECONOMIC_CLAIM_REVIEW"
+    assert row["analysis_event_sha256"] != first["results"][0]["analysis_event_sha256"]
+    assert row["source_available_at"] >= first["results"][0]["source_available_at"]
+    assert row["ai_status"] == "AWAITING_EXPLICIT_AI_AUTHORIZATION"
+    saved, digest = publish_feed_analysis(second, tmp_path / "reports")
+    from newscatalystos.feed_analysis_delivery import consume_feed_analysis
+    output = consume_feed_analysis(saved, saved.parent, digest)
+    assert output["results"][0] == row
+    assert output["source_fetch_calls"] == output["ai_calls"] == 0
+    assert not output["historical_decision_certified"]
+
+
+@pytest.mark.parametrize("title", [
+    "글로벌 HBM 반도체 3년간 공급 계약 2000억원 해지 부인",
+    "글로벌 HBM 반도체 3년간 공급 계약 2000억원 해지 루머",
+    "글로벌 HBM 반도체 3년간 공급 계약 2000억원 체결 후 취소",
+])
+def test_denied_rumored_or_contradictory_contract_termination_is_not_routed(tmp_path, title):
+    row = run(setup(tmp_path, title))["results"][0]
+    assert row["category_candidate"] is None
+    assert not row["ai_eligible"] and row["ai_status"] == "NOT_ELIGIBLE"
+    assert not row["reported_termination_only"] and not row["verified_economic_fact"]
+
+
+def test_english_supply_contract_termination_does_not_become_a_new_deal(tmp_path):
+    row = run(setup(tmp_path, "Global HBM semiconductor supply contract terminated"))["results"][0]
+    assert row["category_candidate"] == "CONTRACT_TERMINATION"
+    assert row["reported_termination_only"] and not row["verified_supply_transaction"]
+    assert row["source_amount_mentions"] == []
+    assert not row["ai_eligible"] and row["ai_status"] == "NOT_ELIGIBLE"

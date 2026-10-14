@@ -31,7 +31,7 @@ from .provider_registry import ProviderRegistry
 from .source_share import SourceShareError, _must_sha, _when
 
 SCHEMA = "newscatalyst.feed_economic_analysis.v1"
-RULE_VERSION = "rss-title-economic-v1"
+RULE_VERSION = "rss-title-economic-v2"  # explicit reported contract termination
 # Screening assumptions, NOT release criteria or a verified economic scale.
 MEDIUM_KRW = Decimal("1000000000")
 LARGE_KRW = Decimal("100000000000")
@@ -44,7 +44,13 @@ ACTION_RULES = (
     ("REGULATORY_APPROVAL", r"인허가.{0,15}승인|regulatory\s+approval"),
     ("NEW_FACILITY", r"신규.{0,15}공장.{0,15}(?:가동|착공)|new\s+fab.{0,20}(?:opens|construction)"),
 )
-NEGATED = re.compile(r"취소|철회|해지|무산|체결하지\s*않|계약\s*없|부인|not\s+(?:signed|awarded)|(?:no|not).{0,15}(?:supply|contract|deal)|cancelled|canceled|denies", re.I)
+NEGATED = re.compile(r"취소|철회|해지|무산|체결하지\s*않|계약\s*없|부인|not\s+(?:signed|awarded)|(?:no|not).{0,15}(?:supply|contract|deal)|cancelled|canceled|terminated|termination|denies", re.I)
+# An explicitly reported termination is a new reviewable claim, NOT a new deal.
+# Mixed signed/cancelled and mere denials remain ambiguous, with no category.
+TERMINATED_CONTRACT = re.compile(
+    r"(?:공급\s*계약|납품\s*계약|수주\s*계약|supply\s+(?:contract|agreement))"
+    r".{0,12}?(?:해지|취소|철회|terminat(?:ed|ion)|cancelled|canceled)", re.I)
+SIGNED_CONTRACT = re.compile(r"체결|수주\s*(?:완료|확정)|\b(?:signed|awarded)\b", re.I)
 PLANNED = re.compile(r"계획|예정|추진|검토|\b(?:plan\w*|will|proposed|potential)\b", re.I)
 GLOBAL = re.compile(r"전\s*세계|글로벌|\bglobal\b", re.I)
 INDUSTRY = re.compile(r"업계|산업\s*전반|\bindustry.wide\b", re.I)
@@ -76,7 +82,10 @@ def _subject(item: dict) -> str:
 
 def _category(title: str) -> str | None:
     if NEGATED.search(title):
-        return None  # cancellation/refutation is not a NEW contract
+        if (TERMINATED_CONTRACT.search(title) and not SIGNED_CONTRACT.search(title)
+                and not re.search(r"(?:부인|루머|광고|계약\s*없|체결하지\s*않|\bdenies\b|\bnot\s+signed\b|\brumou?r\b)", title, re.I)):
+            return "CONTRACT_TERMINATION"  # reported change; execution unverified
+        return None  # denials or conflicting claims are not a confirmed event
     matches = [kind for kind, pattern in ACTION_RULES if re.search(pattern, title, re.I)]
     return matches[0] if len(matches) == 1 else None
 
@@ -148,6 +157,7 @@ def _screen(item: dict, prior: PriorState, at: datetime) -> tuple[dict, FactInpu
         "novelty_scope": "CURRENT_LOCAL_HISTORY_SAME_PROVIDER_AND_DOCUMENT_URL",
         "already_recorded_source_version": bool(own),
         "reported_plan_only": bool(PLANNED.search(title)),
+        "reported_termination_only": category == "CONTRACT_TERMINATION",
         "dimensions": dimensions, "legacy_importance_priority": importance.priority,
         "complete_importance_score": importance.numeric_score,
         "known_dimension_score_lower_bound": known_score,
@@ -163,7 +173,9 @@ def _screen(item: dict, prior: PriorState, at: datetime) -> tuple[dict, FactInpu
         "uncertainties": ["Title metadata only; event date and full context unverified",
             "Local novelty does not prove a globally new economic event",
             "Scale/scope/recurrence are screening estimates, not verified economic effects",
-            "Supply relationships, realized revenue and market expectations are unverified"],
+            "Supply relationships, realized revenue and market expectations are unverified"]
+            + (["Reported cancellation/termination requires independent official confirmation"]
+               if category == "CONTRACT_TERMINATION" else []),
         "verified_economic_fact": False, "verified_supply_transaction": False,
         "verified_beneficiary": False, "revenue_estimate_krw": None,
     }

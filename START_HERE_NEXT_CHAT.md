@@ -259,3 +259,8 @@ GitHub Public 작업 재개 (NC-PUBLIC-REPO-2026-10-13): 원격 arirang0605-lgtm
 - **기능 `67b2bb28ccbdc2d0ffc9b438357e1c0df7b7372d` / origin main push·원격 SHA 확인 완료.** 기존 `search_news.py --scope all --query 반도체 --semiconductor-only`가 승인된 중기부/뉴스와이어IT/산업통상부의 별도 registry·DB·완료 ACK를 그대로 읽어 결과만 합친다. 신규 `federated_news_search.py`; 기존 검증 reader 및 SQLite read-only 연결 재사용. 정정 버전 보존·교차출처 동일 제목/URL은 미검증 힌트만, 손상 범위는 exit4 부분결과. 기존 core FTS 기본 동작 유지.
 - 실제 Mac 18:04 KST 제목 버전83(기존 범위73/산업부10), 반도체 후보2, 산업부 단독1, 기업14, HBM0; 추가 API/AI0·EraLeader 무접근. 운영 입력6파일 SHA 동일. 테스트 **100 PASS/0 FAIL**, compile/Public 검사 PASS. 전체 단계 **23/36(63.9%)**, 독립 경제사건/인적 gold83/5거래일·실AI 완료 주장은 금지.
 - 다음은 `NEXT_TASK.md` 맨 아래의 **통합 검색 반도체 후보 → 기존 PIN Gold 검수 사례/공식 근거 확인 연결**부터 CONTINUE. 기존 동결·A/B 검수의 블라인드 원칙·인적 정답만 인정하는 경계 유지, 새 프레임워크/중복수집/무단 유료호출 금지. 사용자 미추적 문서·도면/이미지와 EraLeader는 건드리지 않는다.
+
+
+## 2026-10-14 | 최신 인계 — 검색된 뉴스의 기존 PIN Gold·정확한 인간 검수 진입 완료
+- 기능 **`411d6118c0ef95e024e730ed0be66c1469ab4c07`** GitHub main 원격 SHA 일치. 기존 통합 검색 `--review-links --reviewer-slot UNASSIGNED_A/B`가 출처/event/title SHA를 기존 PIN Gold에 연결하고, `review_news_interactive.py --case-sha256`은 선택 사례만 검수한다. 예측/중복 힌트·다른 검수자 답변 비노출, 미동결/누락은 대기·부분 실패, 새 Gold/답안 자동 생성 금지.
+- 실제 Mac 18:24 KST 기수집 제목89/반도체후보2건, A/B 각각2개 정확한 사례 조회 PASS, 입력55파일 SHA 불변. **119 PASS/0 FAIL**, compile/Public PASS, 추가 HTTP/AI0·EraLeader 무접근. 완료 **23/36(63.9%) 유지**. 검색 편의 연결은 이제 완료됐으니 반복 확장하지 말고 `NEXT_TASK.md` 마지막 **5_2 실제 관계 본문·양사 ID 근거 확보/기존 인수 연결**부터 CONTINUE. 실인적 답안·AI 승인·5거래일·6_6 태그는 별도 미완료.

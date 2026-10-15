@@ -21,6 +21,7 @@ from newscatalystos.theme_emergence import ThemeStore, period_activity
 from newscatalystos.standard_delivery import build_theme_bundle
 from newscatalystos.article_company_identity import search_article_identities
 from newscatalystos.era_company_assessment import enrich_candidates
+from newscatalystos.theme_changes import compare_themes
 
 ASSETS = Path(__file__).resolve().parent / "dashboard_assets"
 
@@ -101,6 +102,15 @@ class Handler(BaseHTTPRequestHandler):
                         data['assessment_source_status']='UNAVAILABLE'
                     data['theme_activity']={row['theme_id']:period_activity(row,start) for row in data['themes']}
                     data['theme_activity_filter']=activity
+                    data['theme_changes']={}
+                    data['theme_changes_status']='NOT_STARTED' if start>now else 'READY'
+                    if self.server.documents and start<=now:
+                        try:
+                            comparison=compare_themes(ThemeStore(self.server.documents/'theme_history'),
+                                since=start,as_of=min(end,now),activity=activity,now=now)
+                            data['theme_changes']={r['theme_id']:r for r in comparison['ThemeChanges']}
+                        except (SourceShareError,OSError,ValueError,KeyError,TypeError,sqlite3.Error):
+                            data['theme_changes_status']='UNAVAILABLE'
                     data["theme_status"] = "READY"
                 except (SourceShareError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
                     data["themes"], data["theme_status"] = [], "UNAVAILABLE"
@@ -108,6 +118,19 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(200, data)
             except (SourceShareError, OSError, ValueError, KeyError, TypeError) as exc:
                 self._json(400, {"error": type(exc).__name__})
+            return
+        if url.path=='/api/theme-changes':
+            query=parse_qs(url.query)
+            try:
+                from newscatalystos.source_share import _when
+                now=datetime.now(timezone.utc)
+                root=self.server.documents/'theme_history' if self.server.documents else Path('/nonexistent-nc-themes')
+                data=compare_themes(ThemeStore(root),since=_when(query['since'][0],'period start'),
+                    as_of=_when(query['as_of'][0],'period end') if 'as_of' in query else now,
+                    query=query.get('q',[''])[0],activity=query.get('activity',['all'])[0],now=now)
+                self._json(200,data)
+            except (SourceShareError,OSError,ValueError,KeyError,TypeError,sqlite3.Error):
+                self._json(400,{'error':'invalid theme change query'})
             return
         if url.path in {"/api/themes", "/api/company-research"}:
             query = parse_qs(url.query)

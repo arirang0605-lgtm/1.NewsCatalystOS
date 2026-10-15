@@ -307,6 +307,31 @@ class ThemeStore:
             return sorted(selected,key=lambda row:(row['decision_at'],row['theme_id']),reverse=True)
         finally:db.close()
 
+    def period_versions(self, *, since, as_of, now=None):
+        """One consistent read: latest pre-period version plus in-period versions."""
+        start=_when(since.isoformat(),'period start')
+        end=_when(as_of.isoformat(),'period end')
+        present=_when((now or datetime.now(timezone.utc)).isoformat(),'now')
+        if start>end or end>present:raise SourceShareError('invalid theme comparison period')
+        path=self.root/'themes.sqlite3'
+        if not path.exists():return {}
+        if self.root.resolve()!=self.root or path.is_symlink():raise SourceShareError('unsafe theme store')
+        db=sqlite3.connect('file:'+quote(str(path))+'?mode=ro',uri=True)
+        try:
+            versions={}
+            for digest,theme_id,raw,decision in db.execute(
+                    'SELECT digest,theme_id,payload,decision_at FROM versions WHERE decision_at<=? ORDER BY decision_at,rowid',
+                    (end.isoformat(),)):
+                if sha256(raw).hexdigest()!=digest:raise SourceShareError('theme version SHA mismatch')
+                row=json.loads(raw)
+                if row['theme_id']!=theme_id or row['decision_at']!=decision:
+                    raise SourceShareError('theme version metadata mismatch')
+                group=versions.setdefault(theme_id,[])
+                if _when(decision,'version decision')<start:group[:]=[row]
+                else:group.append(row)
+            return versions
+        finally:db.close()
+
 
 def _snapshot(theme_id, rows, at, previous):
     events={}

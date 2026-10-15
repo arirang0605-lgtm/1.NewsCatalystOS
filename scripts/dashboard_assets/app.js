@@ -81,7 +81,7 @@ load();
 
 function renderThemes(term){
   const candidates=currentData.company_candidates||[];
-  const themes=(currentData.themes||[]).filter(x=>!term||(JSON.stringify(x)+" "+JSON.stringify(candidates.filter(c=>c.theme_id===x.theme_id))+" "+(x.source_refs||[]).map(r=>economicActionLabels[r.action]||r.action).join(" ")).toLocaleLowerCase().includes(term));
+  const themes=(currentData.themes||[]).filter(x=>!term||(JSON.stringify(x)+" "+JSON.stringify(currentData.theme_changes?.[x.theme_id]||{})+" "+JSON.stringify(candidates.filter(c=>c.theme_id===x.theme_id))+" "+(x.source_refs||[]).map(r=>economicActionLabels[r.action]||r.action).join(" ")).toLocaleLowerCase().includes(term));
   $("theme-total").textContent=themes.length+"개";$("themes").replaceChildren();
   if(!themes.length)$("themes").append(node("p","empty-small",currentData.theme_status==="UNAVAILABLE"?"테마 기록을 읽지 못했습니다. 뉴스 분석 기록은 계속 표시합니다.":"이 시점·검색 조건에 해당하는 테마 후보가 없습니다."));
   const labels={CANDIDATE:"관찰 후보",EMERGING:"형성 중",EXPANDING:"확산",WEAKENING:"약화",INVALIDATED:"무효",REACTIVATED:"재활성화"};
@@ -91,6 +91,7 @@ function renderThemes(term){
     const activity=currentData.theme_activity?.[theme.theme_id];
     if(activity==="new"||activity==="updated")meta.append(node("span","pill",activity==="new"?"기간 내 신규":"기간 내 갱신"));
     card.append(meta,node("h4","",theme.provisional_name),node("p","finding-detail","최초 발견: "+theme.first_detected_at),node("p","finding-detail","최근 근거: "+theme.last_evidence_at));
+    renderThemeChanges(card,currentData.theme_changes?.[theme.theme_id],labels);
     if(theme.topic_aliases?.length>1)card.append(node("p","finding-detail","같은 주제 표기: "+theme.topic_aliases.join(" · ")));
     const drivers={DEMAND_EXPANSION:"수요 확대",POLICY_ENABLEMENT:"정책 기반 확대",CAPACITY_EXPANSION:"생산능력 확대",SUPPLY_CONTRACTION:"공급 축소",UNKNOWN:"공통 원인 미확인"};
     card.append(node("p","finding-detail",theme.economic_driver==="UNKNOWN"?"명시된 공통 원인이 없어 개별 사건으로 관찰합니다.":"같은 주제에서 "+(drivers[theme.economic_driver]||theme.economic_driver)+"에 연결된 독립 행동 "+theme.scores.distinct_economic_events+"개를 묶었습니다. 원인 연결은 테마 가설입니다."));
@@ -152,6 +153,34 @@ function renderThemes(term){
     for(const item of theme.history)details.append(node("p","finding-detail",item.decision_at+" · "+(labels[item.status]||item.status)));
     card.append(details);$("themes").append(card);
   }
+}
+
+function renderThemeChanges(card,change,labels){
+  if(!change){if(currentData.theme_changes_status==="UNAVAILABLE")card.append(node("p","finding-detail","기간 변화 근거를 읽지 못했습니다. 저장 테마는 계속 표시합니다."));return}
+  const box=node("details","finding-detail");box.append(node("summary","","이 기간 달라진 근거"));
+  box.append(node("p","",change.before?"기간 직전: "+(labels[change.before.status]||change.before.status)+" → 기간 말: "+(labels[change.after.status]||change.after.status):"기간 시작 전 판본 없음 · 이 기간에 처음 관측"));
+  box.append(node("p","","기간 양끝 비교: 활성 독립 행동 "+(change.before?.scores.distinct_economic_events||0)+" → "+change.after.scores.distinct_economic_events+" · 추가 "+change.events.independent_actions_added+" · 제외 "+change.events.independent_actions_removed+" · 새 행동에 등장한 기업 "+change.companies.new_event_participant_count));
+  for(const reason of change.reasons)if(!change.status_transitions.some(step=>step.reasons.some(r=>r.code===reason.code)))box.append(node("p","",reason.text));
+  for(const [direction,events] of [["추가",change.events.added],["제외",change.events.removed]])for(const event of events){
+    const ref=event.supporting_source;
+    const text=direction+"된 사건: "+(ref?(ref.entity_ids.join(", ")||"기업 미식별")+" · "+ref.topic+" · "+(economicActionLabels[ref.action]||ref.action):"근거 설명 미확인")+(event.kind==="FOLLOWUP_OBSERVATION"?" · 기존 행동의 후속 보도":"");
+    if(ref){const link=node("a","source-link",text);link.href=ref.source_url;link.target="_blank";link.rel="noopener noreferrer";box.append(link)}else box.append(node("p","",text));
+  }
+  for(const item of change.companies.added)box.append(node("p","","기업 포함: "+item.entity_id+" · "+({NEW_EVENT_PARTICIPANT:"새 경제 행동의 당사자",SUPPLY_CONTEXT:"공급 관계 근거 추가",EXISTING_EVENT_COMPANY_CONTEXT:"기존 사건의 기업 식별 보완"}[item.kind]||item.kind)));
+  for(const item of change.companies.removed)box.append(node("p","","활성 근거에서 제외된 기업: "+item.entity_id));
+  for(const item of change.companies.identity_updates)box.append(node("p","","기업 식별 갱신: "+item.from_entity_id+" → "+item.to_entity_id+" · 기업 확산에 포함하지 않음"));
+  for(const step of change.status_transitions){
+    box.append(node("p","",step.decision_at+" · "+(labels[step.from_status]||"최초 관측")+" → "+(labels[step.to_status]||step.to_status)));
+    for(const reason of step.reasons)box.append(node("p","finding-detail",reason.text));
+  }
+  const polarities={SUPPORT:"추가 근거",CONTRADICT:"상충 근거",RETRACT:"철회·정정 근거"};
+  for(const ref of change.sources.added){
+    const link=node("a","source-link",(polarities[ref.polarity]||ref.polarity)+" · "+(ref.entity_ids.join(", ")||"기업 미식별")+" · "+(economicActionLabels[ref.action]||ref.action));
+    link.href=ref.source_url;link.target="_blank";link.rel="noopener noreferrer";box.append(link);
+    box.append(node("p","finding-detail","출처 가용: "+ref.source_available_at+" · 이 테마에 기록: "+ref.recorded_at+(ref.supersedes_event_id?" · 기존 사건을 대상으로 한 후속 근거":"")));
+  }
+  for(const ref of change.sources.removed){const link=node("a","source-link","비교 판본에서 제외된 출처");link.href=ref.source_url;link.target="_blank";link.rel="noopener noreferrer";box.append(link)}
+  card.append(box);
 }
 
 function renderCompanyIdentities(term){

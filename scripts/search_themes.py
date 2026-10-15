@@ -26,13 +26,23 @@ def main(argv=None):
     p.add_argument('--with-financials',action='store_true',help='return optional EraLeader financial context as company_research.v1')
     p.add_argument('--assessment-root',type=Path,default=Path.home()/'Library/Application Support/NewsCatalystOS/document_analysis/era_assessments')
     p.add_argument('--identity-root',type=Path,help='candidate identity receipts; defaults next to assessment cache')
+    p.add_argument('--changes',action='store_true',help='compare theme evidence before --since and at --as-of')
     args=p.parse_args(argv)
+    if args.changes and (not args.since or args.with_financials or args.company_candidates):
+        p.error('--changes requires --since and cannot be combined with company output modes')
     now=datetime.now(timezone.utc)
     at=_when(args.as_of,'as of') if args.as_of else now
-    themes=ThemeStore(args.root).search(as_of=at,query='' if args.with_financials else args.query,now=now,
-        since=_when(args.since,'period start') if args.since else None,activity=args.activity)
-    payload=build_theme_bundle(themes,decision_at=at,now=now,
-                               include_company_candidates=args.company_candidates or args.with_financials)
+    if args.changes:
+        from newscatalystos.theme_changes import compare_themes
+        from newscatalystos.theme_emergence import _bytes
+        comparison=compare_themes(ThemeStore(args.root),since=_when(args.since,'period start'),
+            as_of=at,query=args.query,activity=args.activity,now=now)
+        themes=comparison['ThemeChanges'];payload=_bytes(comparison)
+    else:
+        themes=ThemeStore(args.root).search(as_of=at,query='' if args.with_financials else args.query,now=now,
+            since=_when(args.since,'period start') if args.since else None,activity=args.activity)
+        payload=build_theme_bundle(themes,decision_at=at,now=now,
+                                   include_company_candidates=args.company_candidates or args.with_financials)
     if args.with_financials:
         from newscatalystos.era_company_assessment import enrich_candidates, canonical
         from newscatalystos.theme_company_identity import filter_research
@@ -42,7 +52,8 @@ def main(argv=None):
         payload=canonical(research)+b'\n'
     digest=sha256(payload).hexdigest()
     if args.export_root:
-        path=_private_root(args.export_root)/(('company_research_' if args.with_financials else 'theme_delivery_')+digest+'.json')
+        prefix='theme_changes_' if args.changes else 'company_research_' if args.with_financials else 'theme_delivery_'
+        path=_private_root(args.export_root)/(prefix+digest+'.json')
         try:_write_new(path,payload)
         except FileExistsError:
             if _read_once(path,2_000_000)!=payload:raise ValueError('theme publication conflict')

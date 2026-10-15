@@ -17,6 +17,7 @@
 3_4의 기존 `change_followup.assess_followup`을 재사용하여, 동일 제공자·사건·문서ID·URL에 **해지보다 먼저 관측된 명시적 계약 체결 제목**이 있을 경우 저장된 보고서의 `followup_change.status`를 `INVALIDATED_CANDIDATE`로 출력한다. 과거 계약 제목 버전 SHA·그 시점에 관측한 시각·기존 주장 SHA를 함께 연결하되 `prior_claim_verified=false`, `realization_confirmed=false`를 유지한다. 과거 계약 제목이 없거나 계획/루머/다른 문서만 있으면 `NO_PRIOR_EVENT_HOLD`이고, 일반 뉴스에는 `followup_change=null`이다. 기존 RSS·공시 수집, 유료 AI, 운영 DB, 외부 프로젝트로 쓰지 않는다.
 `rss-title-economic-v4`는 공급계약 **금액·규모의 명시적 감액 제목**을 `CONTRACT_REDUCTION`으로 분리한다. 같은 제공자·사건·문서 ID·URL에 앞서 관측된 계약 체결 제목이 있으면 기존 3_4 판정기로 `WEAKENED_CANDIDATE`를 출력하고 과거 제목 SHA·관측시각을 연결한다. 선행 계약 주장이 없거나 다른 문서에만 있으면 `NO_PRIOR_EVENT_HOLD`이며 AI 검토 대상에서도 제외한다. 계획·부인·루머·체결/해지 혼합 제목은 감액 후보로 분류하지 않는다. 제목의 금액은 감액 차액이나 실매출 손실로 해석하지 않아 규모는 `UNKNOWN`이다.
 `rss-title-economic-v4`는 공급·납품계약의 **명시적 납기·인도·공급 일정 연기/지연 제목**을 `CONTRACT_DELAY`로 분리한다. 같은 제공자·사건·문서 ID·URL에 먼저 관측된 계약 체결 제목이 있을 때만 3_4 `DATE_DELAYED`의 `WEAKENED_CANDIDATE`와 이전 제목 SHA·관측시각을 출력한다. 선행 주장이 없으면 `NO_PRIOR_EVENT_HOLD`이며 AI 대상에서 제외한다. 계획·루머·부인·체결/감액 혼합 제목은 지연 후보로 분류하지 않는다. 제목에 금액이 있더라도 지연 규모·실제 납품·매출 영향은 `UNKNOWN`이다. 저장된 비공개 보고서는 기존 읽기전용 소비자로 확인할 수 있다.
+`rss-title-economic-v5`는 단독 `수주` 표현을 신규 공급계약으로 분류하지 않는다. 누적 수주 실적 제목의 오탐을 막고, 명시적인 공급·납품 계약 또는 수주 계약·확정·체결 표현만 후보로 둔다.
 이는 신규 주장 후보와 이미 관측한 제목을 현재 분석 시점에 비교한 **부분 3_4 구현**이다. 실제 계약 이행·감액·취소의 공식 원문 증거 및 장애 제거 등 나머지 후속 사건은 별도 실증 대기다.
 
 ## 판단의 의미와 한계

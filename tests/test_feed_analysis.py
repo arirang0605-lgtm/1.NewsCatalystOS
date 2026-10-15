@@ -123,6 +123,20 @@ def test_partial_evidence_survives_missing_amount_and_unknown_dimensions(tmp_pat
     assert row["source_amount_mentions"] == [] and row["ai_analysis"] is None
 
 
+def test_cumulative_order_results_are_not_a_new_contract(tmp_path):
+    row = run(setup(tmp_path, "반도체 HBM 3분기 수주 및 매출 기록 달성"))["results"][0]
+    assert row["category_candidate"] is None
+    assert row["novelty"] == "UNCLASSIFIED_SOURCE_CLAIM"
+    assert not row["ai_eligible"]
+
+
+def test_explicit_order_contract_remains_reviewable(tmp_path):
+    row = run(setup(tmp_path, "반도체 HBM 장비 수주 계약 확정"))["results"][0]
+    assert row["category_candidate"] == "NEW_CONTRACT"
+    assert row["novelty"] == "NEW_FACT_CANDIDATE_NEEDS_EVIDENCE"
+    assert not row["verified_supply_transaction"]
+
+
 def test_future_plan_preserved_even_after_successful_ai(tmp_path, fake_key):
     info = setup(tmp_path, TITLE.replace("체결", "계획"))
     report = run(info, model=config(), allow_paid=True, opener=LocalOpener(packet()))
@@ -266,7 +280,7 @@ def test_explicit_contract_termination_is_reviewed_not_a_new_contract(tmp_path):
     info = setup(tmp_path, title)
     report = run(info)  # no paid provider; original authorized metadata only
     row = report["results"][0]
-    assert report["rule_version"] == "rss-title-economic-v4"
+    assert report["rule_version"] == "rss-title-economic-v5"
     assert row["category_candidate"] == "CONTRACT_TERMINATION"
     assert row["reported_termination_only"] and not row["reported_plan_only"]
     assert row["ai_eligible"] and row["ai_status"] == "AWAITING_EXPLICIT_AI_AUTHORIZATION"
@@ -397,7 +411,7 @@ def test_contract_reduction_links_prior_title_and_reaches_readonly_consumer(tmp_
     report = run(info)
     row = report["results"][0]
     change = row["followup_change"]
-    assert report["rule_version"] == "rss-title-economic-v4"
+    assert report["rule_version"] == "rss-title-economic-v5"
     assert row["category_candidate"] == "CONTRACT_REDUCTION"
     assert row["reported_reduction_only"] and not row["reported_termination_only"]
     assert row["dimensions"]["scale"] == "UNKNOWN"
@@ -449,7 +463,7 @@ def test_contract_delivery_delay_links_prior_claim_and_reaches_consumer(tmp_path
     report = run(info)
     row = report["results"][0]
     change = row["followup_change"]
-    assert report["rule_version"] == "rss-title-economic-v4"
+    assert report["rule_version"] == "rss-title-economic-v5"
     assert row["category_candidate"] == "CONTRACT_DELAY"
     assert row["reported_delay_only"] and not row["reported_termination_only"]
     assert row["dimensions"]["scale"] == "UNKNOWN"

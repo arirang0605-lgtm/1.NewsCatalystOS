@@ -33,13 +33,13 @@ from .provider_registry import ProviderRegistry
 from .source_share import SourceShareError, _must_sha, _when
 
 SCHEMA = "newscatalyst.feed_economic_analysis.v1"
-RULE_VERSION = "rss-title-economic-v4"  # explicit reported contract termination/reduction/delay
+RULE_VERSION = "rss-title-economic-v5"  # distinguish a new order from cumulative order results
 # Screening assumptions, NOT release criteria or a verified economic scale.
 MEDIUM_KRW = Decimal("1000000000")
 LARGE_KRW = Decimal("100000000000")
 HIGH_REVIEW_SCORE = 8  # same threshold as the existing importance triage
 ACTION_RULES = (
-    ("NEW_CONTRACT", r"(?:공급|납품)\s*계약.{0,30}(?:체결|수주|계획)|수주|(?:signs?|signed|awarded).{0,50}(?:supply|contract)|supply\s+contract"),
+    ("NEW_CONTRACT", r"(?:공급|납품)\s*계약.{0,30}(?:체결|수주|계획)|수주\s*(?:계약|확정|체결)|(?:signs?|signed|awarded).{0,50}(?:supply|contract)|supply\s+contract"),
     ("NEW_INVESTMENT", r"(?:설비|시설|공장|반도체).{0,40}투자.{0,20}(?:결정|발표|계획)|투자.{0,20}(?:결정|발표)|(?:announce|announced).{0,40}investment"),
     ("COMMERCIALIZATION", r"상용화|commercialization"),
     ("PRODUCT_LAUNCH", r"신제품.{0,20}출시|(?:launch|launches|launched).{0,30}(?:chip|memory|semiconductor)"),

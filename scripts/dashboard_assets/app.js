@@ -99,6 +99,7 @@ function renderThemes(term){
     const details=node("details",""),summary=node("summary","","근거와 상태 이력");details.append(summary);
     const actions=economicActionLabels;
     const phases=economicPhaseLabels;
+    for(const followup of theme.event_followups||[])details.append(node("p","finding-detail",followup.service_name+" · 계획 → 개시 보도 연결 · 독립 사건 1개 · 실제 실현·매출·수혜는 미확인"));
     for(const ref of theme.source_refs){const link=node("a","source-link",(ref.entity_ids?.join(", ")||"기업 미식별")+" · "+(ref.topic||theme.provisional_name)+" · "+(actions[ref.action]||ref.action)+" · "+(phases[ref.phase]||ref.phase)+" · "+(ref.content_scope==="RSS_TITLE_METADATA"?"제목 근거 · ":"")+ref.evidence_level);link.href=ref.source_url;link.target="_blank";link.rel="noopener noreferrer";details.append(link)}
     for(const item of theme.history)details.append(node("p","finding-detail",item.decision_at+" · "+(labels[item.status]||item.status)));
     card.append(details);$("themes").append(card);

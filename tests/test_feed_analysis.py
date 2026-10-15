@@ -341,7 +341,7 @@ def test_explicit_contract_termination_is_reviewed_not_a_new_contract(tmp_path):
     info = setup(tmp_path, title)
     report = run(info)  # no paid provider; original authorized metadata only
     row = report["results"][0]
-    assert report["rule_version"] == "rss-title-economic-v9"
+    assert report["rule_version"] == "rss-title-economic-v10"
     assert row["category_candidate"] == "CONTRACT_TERMINATION"
     assert row["reported_termination_only"] and not row["reported_plan_only"]
     assert row["ai_eligible"] and row["ai_status"] == "AI_DISABLED_BY_CONFIGURATION"
@@ -472,7 +472,7 @@ def test_contract_reduction_links_prior_title_and_reaches_readonly_consumer(tmp_
     report = run(info)
     row = report["results"][0]
     change = row["followup_change"]
-    assert report["rule_version"] == "rss-title-economic-v9"
+    assert report["rule_version"] == "rss-title-economic-v10"
     assert row["category_candidate"] == "CONTRACT_REDUCTION"
     assert row["reported_reduction_only"] and not row["reported_termination_only"]
     assert row["dimensions"]["scale"] == "UNKNOWN"
@@ -524,7 +524,7 @@ def test_contract_delivery_delay_links_prior_claim_and_reaches_consumer(tmp_path
     report = run(info)
     row = report["results"][0]
     change = row["followup_change"]
-    assert report["rule_version"] == "rss-title-economic-v9"
+    assert report["rule_version"] == "rss-title-economic-v10"
     assert row["category_candidate"] == "CONTRACT_DELAY"
     assert row["reported_delay_only"] and not row["reported_termination_only"]
     assert row["dimensions"]["scale"] == "UNKNOWN"

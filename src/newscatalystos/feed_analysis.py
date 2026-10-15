@@ -34,7 +34,7 @@ from .provider_registry import ProviderRegistry
 from .source_share import SourceShareError, _must_sha, _when
 
 SCHEMA = "newscatalyst.feed_economic_analysis.v1"
-RULE_VERSION = "rss-title-economic-v9"  # explicit unnamed service object/function
+RULE_VERSION = "rss-title-economic-v10"  # named service plan-to-start evidence
 # Screening assumptions, NOT release criteria or a verified economic scale.
 MEDIUM_KRW = Decimal("1000000000")
 LARGE_KRW = Decimal("100000000000")

@@ -205,6 +205,7 @@ def extract_economic_changes(text, *, company_names=()):
                      else business_phase if action == 'BUSINESS_START'
                      else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line) else 'SOURCE_REPORTED'),
             'entity_ids':companies,
+            **({'service_name':names[0]} if action=='BUSINESS_START' and len(names)==1 else {}),
             **({'original_entity_ids':original_companies} if companies!=original_companies else {}),
             'industry_tags':['SEMICONDUCTOR'] if re.search(r'반도체|HBM|DRAM|NAND|메모리|EUV|DUV|극자외선|심자외선',line,re.I) else [],
             'source_paragraph_sha256':sha256(paragraph.strip().encode()).hexdigest(),

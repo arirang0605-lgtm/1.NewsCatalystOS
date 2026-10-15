@@ -40,12 +40,15 @@ def _url(value):
 
 
 def validate_change(change):
-    if (not isinstance(change,dict) or set(change)-{'original_entity_ids'}!=CHANGE_KEYS
+    if (not isinstance(change,dict) or set(change)-{'original_entity_ids','service_name'}!=CHANGE_KEYS
             or not _text(change['topic'],80) or change['economic_driver'] not in DRIVERS
             or change['action'] not in ACTIONS or change['evidence_level'] not in QUALITIES
             or change['phase'] not in {'SOURCE_REPORTED','ADOPTED_NOT_YET_EFFECTIVE','PLANNED'}
             or change['verified_economic_effect'] is not False):
         raise SourceShareError('invalid source economic change')
+    if 'service_name' in change and (change['action']!='BUSINESS_START'
+            or not _text(change['service_name'],80)):
+        raise SourceShareError('invalid explicit service name')
     for field in ('entity_ids','industry_tags'):
         if (not isinstance(change[field],list) or len(change[field])>30
                 or any(not _text(x) for x in change[field])):
@@ -139,6 +142,50 @@ def resolved_entities(row):
     return sorted({mappings.get(name,name) for name in row['change']['entity_ids']})
 
 
+def _service_key(row):
+    """Exact source-named service and sole identified company, never similarity."""
+    change=row['change']
+    name=normalized(change.get('service_name',''))
+    entities=resolved_entities(row)
+    if (row['polarity']!='SUPPORT' or change['action']!='BUSINESS_START'
+            or change['evidence_level'] not in {'REPORTED','OFFICIAL_SOURCE'}
+            or not name or len(entities)!=1
+            or name in {normalized(x) for x in ('AI','인공지능','신규','맞춤','서비스',*KNOWN_TOPICS)}):
+        return None
+    return (name,tuple(entities),topic_key(change['topic']),change['economic_driver'],
+            tuple(sorted(change['industry_tags'])))
+
+
+def _service_pairs(rows):
+    blocked={r['supersedes_event_id'] or r['event_id'] for r in rows
+             if r['polarity'] in {'RETRACT','CONTRADICT'}}
+    groups={}
+    for row in rows:
+        key=_service_key(row)
+        if key is not None and row['event_id'] not in blocked:
+            group=groups.setdefault(key,{})
+            old=group.get(row['event_id'])
+            # A later republication cannot move the original plan after its
+            # start. Preserve the earliest availability within the same phase.
+            if (old is None or
+                    (old['change']['phase']==row['change']['phase'] and
+                     _when(row['source_available_at'],'source')<_when(old['source_available_at'],'source')) or
+                    (old['change']['phase']!=row['change']['phase'] and
+                     _when(row['source_available_at'],'source')>_when(old['source_available_at'],'source'))):
+                group[row['event_id']]=row
+    pairs=[]
+    for group in groups.values():
+        plans=[r for r in group.values() if r['change']['phase']=='PLANNED']
+        starts=[r for r in group.values() if r['change']['phase']=='SOURCE_REPORTED']
+        # Multiple plans/starts could be separate regions or versions. Without
+        # an explicit disambiguator retain each observation independently.
+        if (len(plans)==len(starts)==1 and plans[0]['event_id']!=starts[0]['event_id']
+                and _when(plans[0]['source_available_at'],'plan source') <
+                    _when(starts[0]['source_available_at'],'start source')):
+            pairs.append((plans[0],starts[0]))
+    return pairs
+
+
 def period_activity(theme, since):
     """Classify the selected PIT snapshot, never a future/latest live version."""
     if _when(theme['first_detected_at'],'theme first detection')>=since:return 'new'
@@ -178,8 +225,18 @@ class ThemeStore:
                                   (_relation['payload_sha256'],_bytes(_relation)))
                 if cursor.rowcount:
                     changed.update(x[0] for x in db.execute('SELECT DISTINCT theme_id FROM observations'))
+            stored=[(json.loads(raw),theme) for raw,theme in
+                    db.execute('SELECT payload,theme_id FROM observations ORDER BY recorded_at,rowid')]
+            assignments={row['event_id']:theme for row,theme in stored}
+            pairs=_service_pairs([row for row,_ in stored]+observations)
+            for plan,start in pairs:
+                plan_theme=assignments.get(plan['event_id'],_theme_id(plan))
+                # Existing theme IDs/history are never moved or overwritten.
+                if start['event_id'] not in assignments:
+                    assignments[start['event_id']]=plan_theme
             for row in observations:
-                raw=_bytes(row);digest=sha256(raw).hexdigest();theme_id=_theme_id(row)
+                raw=_bytes(row);digest=sha256(raw).hexdigest()
+                theme_id=assignments.get(row['event_id'],_theme_id(row))
                 cursor=db.execute('INSERT OR IGNORE INTO observations VALUES(?,?,?,?)',
                                   (digest,theme_id,raw,at.isoformat()))
                 if cursor.rowcount:
@@ -189,7 +246,7 @@ class ThemeStore:
             # targets in this same transaction. Bad corrections roll back together.
             for row in observations:
                 if row['supersedes_event_id']:
-                    candidates=db.execute('SELECT payload FROM observations WHERE theme_id=?',(_theme_id(row),))
+                    candidates=db.execute('SELECT payload FROM observations WHERE theme_id=?',(assignments.get(row['event_id'],_theme_id(row)),))
                     if not any(json.loads(x[0])['event_id']==row['supersedes_event_id'] for x in candidates):
                         raise SourceShareError('correction target is not a known same-theme event')
             results=[]
@@ -267,11 +324,24 @@ def _snapshot(theme_id, rows, at, previous):
         if row['polarity']=='RETRACT':invalid.add(target)
         if row['polarity']=='CONTRADICT':conflicts.add(target or row['event_id'])
     active=[r for key,r in events.items() if key not in invalid and r['polarity']=='SUPPORT']
+    active_by_id={r['event_id']:r for r in active}
+    pairs=_service_pairs([r for r,_ in rows if r['event_id'] in active_by_id
+        and r['event_id'] not in conflicts
+        and r['change']['phase']==active_by_id[r['event_id']]['change']['phase']
+        and _service_key(r)==_service_key(active_by_id[r['event_id']])])
+    followups=[{'planned_event_id':plan['event_id'],'realization_event_id':start['event_id'],
+        'service_name':start['change']['service_name'],'entity_ids':resolved_entities(start),
+        'status':'SOURCE_REPORTED_REALIZATION','is_realization_confirmed':False,
+        'decision_at':at.isoformat(),
+        'evidence_sha256':[plan['change']['source_paragraph_sha256'],start['change']['source_paragraph_sha256']]}
+        for plan,start in pairs]
+    realized_plans={plan['event_id'] for plan,_ in pairs}
+    independent=[r for r in active if r['event_id'] not in realized_plans]
     entities=sorted({e for row in active for e in resolved_entities(row)})
     industries=sorted({e for row in active for e in row['change']['industry_tags']})
     sources=sorted({r['origin_reference'] for r in active})
     # Counts show distinct claim origins, not a false claim of independent verification.
-    reliable=[r for r in active if r['change']['evidence_level'] in {'OFFICIAL_SOURCE','REPORTED'}]
+    reliable=[r for r in independent if r['change']['evidence_level'] in {'OFFICIAL_SOURCE','REPORTED'}]
     reliable_entities={e for r in reliable for e in resolved_entities(r)}
     if not active and invalid:state='INVALIDATED'
     elif conflicts or invalid:state='WEAKENING'
@@ -294,10 +364,11 @@ def _snapshot(theme_id, rows, at, previous):
            **({'company_mappings':row['company_mappings']} if 'company_mappings' in row else {}),
            **({'source_binding':row['source_binding']} if 'source_binding' in row else {}),
            **({'content_scope':row['content_scope']} if 'content_scope' in row else {}),
+           **({'service_name':row['change']['service_name']} if 'service_name' in row['change'] else {}),
            'phase':row['change']['phase'],'polarity':row['polarity'],
            'supersedes_event_id':row['supersedes_event_id']} for row,seen in rows]
     history=(previous['history'][:] if previous else [])
-    history.append({'status':state,'decision_at':at.isoformat(),'event_count':len(active)})
+    history.append({'status':state,'decision_at':at.isoformat(),'event_count':len(independent)})
     return {'schema_version':SCHEMA,'theme_id':theme_id,
         'provisional_name':(previous['provisional_name'] if previous else first['topic']+' · '+DRIVERS[first['economic_driver']]),
         'parent_theme_id':('taxonomy:semiconductor' if topic_key(first['topic']) in {'hbm','dram','nand','euv','duv'} else None),
@@ -312,9 +383,10 @@ def _snapshot(theme_id, rows, at, previous):
             'event_ids':sorted(r['event_id'] for r in active if e in resolved_entities(r)),
             'revenue_contribution':None} for e in entities],
         'source_refs':refs,'history':history,
-        'scores':{'distinct_economic_events':len(active),'distinct_claim_origins':len(sources),
+        **({'event_followups':followups} if followups else {}),
+        'scores':{'distinct_economic_events':len(independent),'distinct_claim_origins':len(sources),
                   'company_breadth':len(entities),'industry_breadth':len(industries),
-                  'official_events':sum(r['change']['evidence_level']=='OFFICIAL_SOURCE' for r in active)},
+                  'official_events':sum(r['change']['evidence_level']=='OFFICIAL_SOURCE' for r in independent)},
         'source_freshness':{'as_of':at.isoformat(),'last_evidence_at':max(r['source_available_at'] for r,_ in rows)},
         'verified_vs_inferred':'THEME_HYPOTHESIS','verified_beneficiary_count':0,
         'conflicting_event_ids':sorted(conflicts),'invalidated_event_ids':sorted(invalid)}

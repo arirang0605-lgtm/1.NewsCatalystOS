@@ -209,6 +209,29 @@ def build_theme_bundle(themes: list[dict], *, decision_at: datetime, now=None) -
         for entry in row['history']:
             if _when(entry['decision_at'],'history')>row_at:
                 raise SourceShareError('future theme history')
+        for link in row.get('event_followups',[]):
+            if (link.get('status')!='SOURCE_REPORTED_REALIZATION'
+                    or link.get('is_realization_confirmed') is not False
+                    or not _when(link['decision_at'],'followup decision')<=row_at):
+                raise SourceShareError('invalid service realization claim')
+            plans=[ref for ref in row['source_refs'] if ref['event_id']==link.get('planned_event_id')
+                   and ref['event_id'] in row['event_ids'] and ref['phase']=='PLANNED']
+            starts=[ref for ref in row['source_refs'] if ref['event_id']==link.get('realization_event_id')
+                    and ref['event_id'] in row['event_ids'] and ref['phase']=='SOURCE_REPORTED']
+            from .theme_emergence import _service_pairs
+            def observation(ref):
+                return {'event_id':ref['event_id'],'polarity':ref['polarity'],
+                    'supersedes_event_id':ref['supersedes_event_id'],
+                    'source_available_at':ref['source_available_at'],
+                    'change':{**ref,'source_paragraph_sha256':ref['evidence_sha256']}}
+            if not any(_service_pairs([observation(plan),observation(start)])
+                       and link.get('service_name')==start.get('service_name')
+                       and link.get('entity_ids')==start['entity_ids']
+                       and link.get('evidence_sha256')==[plan['evidence_sha256'],start['evidence_sha256']]
+                       and max(_when(plan['recorded_at'],'plan recorded'),_when(start['recorded_at'],'start recorded'))
+                           <=_when(link['decision_at'],'followup decision')
+                       for plan in plans for start in starts):
+                raise SourceShareError('service followup must retain both source claims')
         validate_theme_relations(row,at)
         allowed={'THEMATIC_ONLY','SOURCE_BACKED_CONTEXT'} if row['schema_version']==RELATION_SCHEMA else {'THEMATIC_ONLY'}
         if any(link.get('relation_kind') not in allowed or link.get('revenue_contribution') is not None

@@ -17,7 +17,7 @@ if str(PROJECT / "src") not in sys.path:
 
 from newscatalystos.research_dashboard import KST, NoteStore, build_period, scan_saved_analysis
 from newscatalystos.source_share import SourceShareError
-from newscatalystos.theme_emergence import ThemeStore
+from newscatalystos.theme_emergence import ThemeStore, period_activity
 from newscatalystos.standard_delivery import build_theme_bundle
 from newscatalystos.article_company_identity import search_article_identities
 
@@ -70,7 +70,10 @@ class Handler(BaseHTTPRequestHandler):
                 records, source_info = scan_saved_analysis(self.server.reports, document_root=self.server.documents)
                 data = build_period(records, self.server.notes.read(), view, selected,
                                     source_info=source_info)
+                activity=query.get('theme_activity',['all'])[0]
+                if activity not in {'all','changed','new','updated'}:raise ValueError('invalid theme activity')
                 now = datetime.now(timezone.utc)
+                start = datetime.fromisoformat(data['start']).replace(tzinfo=KST)
                 end = datetime.fromisoformat(data["end"]).replace(tzinfo=KST) + timedelta(days=1) - timedelta(microseconds=1)
                 try:
                     data['company_identities']=(search_article_identities(self.server.documents/'company_identity',
@@ -81,8 +84,11 @@ class Handler(BaseHTTPRequestHandler):
                     data['company_identity_status']='UNAVAILABLE'
                 try:
                     data["themes"] = (ThemeStore(self.server.documents / "theme_history").search(
-                        as_of=min(end, now), now=now) if self.server.documents else [])
+                        as_of=min(end, now), now=now, since=min(start,now), activity=activity)
+                        if self.server.documents and (activity=='all' or start<=now) else [])
                     build_theme_bundle(data["themes"], decision_at=min(end, now), now=now)
+                    data['theme_activity']={row['theme_id']:period_activity(row,start) for row in data['themes']}
+                    data['theme_activity_filter']=activity
                     data["theme_status"] = "READY"
                 except (SourceShareError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
                     data["themes"], data["theme_status"] = [], "UNAVAILABLE"
@@ -97,7 +103,9 @@ class Handler(BaseHTTPRequestHandler):
                 now = datetime.now(timezone.utc)
                 at = _when(query["as_of"][0], "as of") if "as_of" in query else now
                 themes = (ThemeStore(self.server.documents / "theme_history").search(
-                    as_of=at, query=query.get("q", [""])[0], now=now) if self.server.documents else [])
+                    as_of=at, query=query.get("q", [""])[0], now=now,
+                    since=_when(query['since'][0],'period start') if 'since' in query else None,
+                    activity=query.get('activity',['all'])[0]) if self.server.documents else [])
                 self._send(200, build_theme_bundle(themes, decision_at=at, now=now),
                            "application/json; charset=utf-8")
             except (SourceShareError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):

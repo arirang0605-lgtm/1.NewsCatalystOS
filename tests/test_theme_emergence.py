@@ -330,3 +330,57 @@ def test_unpriced_early_investment_reaches_theme_without_ai_call(tmp_path):
     assert theme['entity_ids']==['새빛소재'] and theme['status']=='CANDIDATE'
     assert theme['verified_beneficiary_count']==0
     assert not list(root.rglob('ai_costs.sqlite3'))
+
+
+def test_period_new_updated_and_unchanged_use_selected_snapshot(tmp_path):
+    store=ThemeStore(tmp_path/'themes')
+    first=store.ingest([event(1,topic='EUV'),event(2,topic='HBM')],now=T)
+    start=T+timedelta(hours=1)
+    store.ingest([event(3,topic='EUV'),event(4,topic='DUV')],now=start)
+    later=T+timedelta(hours=2)
+    assert len(store.search(as_of=later,since=start,activity='changed',now=later))==2
+    assert store.search(as_of=later,since=start,activity='new',now=later)[0]['provisional_name'].startswith('DUV')
+    assert store.search(as_of=later,since=start,activity='updated',now=later)[0]['provisional_name'].startswith('EUV')
+    assert len(store.search(as_of=later,since=start,activity='all',now=later))==3
+    assert store.search(as_of=T,since=T,activity='updated',now=later)==[]
+    assert len(store.search(as_of=T,since=T,activity='new',now=later))==2
+    assert store.search(as_of=T,query='가상기업3',now=later)==[]
+    assert store.ingest([event(3,topic='EUV'),event(4,topic='DUV')],now=later)==[]
+    assert store.search(as_of=later,since=later,activity='changed',now=later)==[]
+    assert store.search(as_of=later,since=start,activity='updated',query='극자외선',now=later)
+    for kwargs in ({'activity':'new'},{'activity':'bad'},{'since':later,'as_of':T}):
+        with pytest.raises(SourceShareError):store.search(now=later,**kwargs)
+
+
+def test_period_api_and_cli_filter_themes_without_rewriting_history(tmp_path):
+    from scripts.open_research_dashboard import DashboardServer
+    from scripts.search_themes import main
+    from urllib.request import urlopen
+    from urllib.parse import urlencode
+    import threading
+    root=tmp_path/'documents';store=ThemeStore(root/'theme_history')
+    yesterday=T-timedelta(days=1)
+    old1=event(1,topic='EUV');old2=event(2,topic='HBM')
+    old1['source_available_at']=old2['source_available_at']=yesterday.isoformat()
+    store.ingest([old1,old2],now=yesterday)
+    store.ingest([event(3,topic='EUV'),event(4,topic='DUV')],now=T)
+    before=(root/'theme_history/themes.sqlite3').read_bytes()
+    server=DashboardServer(0,tmp_path/'reports',tmp_path/'notes',root)
+    thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+    try:
+        for mode,count in [('all',3),('changed',2),('new',1),('updated',1)]:
+            with urlopen(f'http://127.0.0.1:{server.server_port}/api/period?view=day&date=2026-10-15&theme_activity='+mode) as response:
+                data=json.load(response)
+            assert len(data['themes'])==count and data['theme_status']=='READY'
+            if mode=='new':assert set(data['theme_activity'].values())=={'new'}
+            if mode=='updated':assert set(data['theme_activity'].values())=={'updated'}
+        query=urlencode({'since':T.isoformat(),'activity':'updated','q':'극자외선'})
+        with urlopen(f'http://127.0.0.1:{server.server_port}/api/themes?'+query) as response:
+            assert len(json.load(response)['ThemeCandidates'])==1
+        # A future selected day has no new/updated candidates; other UI data remains valid.
+        with urlopen(f'http://127.0.0.1:{server.server_port}/api/period?view=day&date=2099-01-01&theme_activity=changed') as response:
+            assert json.load(response)['themes']==[]
+    finally:server.shutdown();server.server_close();thread.join(2)
+    assert main(['--root',str(root/'theme_history'),'--since',T.isoformat(),
+                 '--activity','updated','--query','극자외선','--export-root',str(tmp_path/'export')])==0
+    assert (root/'theme_history/themes.sqlite3').read_bytes()==before

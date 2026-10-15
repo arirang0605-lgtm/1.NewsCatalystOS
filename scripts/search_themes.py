@@ -19,11 +19,14 @@ def main(argv=None):
     p.add_argument('--root',type=Path,default=Path.home()/'Library/Application Support/NewsCatalystOS/document_analysis/theme_history')
     p.add_argument('--query',default='')
     p.add_argument('--as-of')
+    p.add_argument('--since',help='inclusive availability start, ISO timestamp with zone')
+    p.add_argument('--activity',choices=['all','changed','new','updated'],default='all')
     p.add_argument('--export-root',type=Path)
     args=p.parse_args(argv)
     now=datetime.now(timezone.utc)
     at=_when(args.as_of,'as of') if args.as_of else now
-    themes=ThemeStore(args.root).search(as_of=at,query=args.query,now=now)
+    themes=ThemeStore(args.root).search(as_of=at,query=args.query,now=now,
+        since=_when(args.since,'period start') if args.since else None,activity=args.activity)
     payload=build_theme_bundle(themes,decision_at=at,now=now)
     digest=sha256(payload).hexdigest()
     if args.export_root:

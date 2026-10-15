@@ -126,6 +126,13 @@ def resolved_entities(row):
     return sorted({mappings.get(name,name) for name in row['change']['entity_ids']})
 
 
+def period_activity(theme, since):
+    """Classify the selected PIT snapshot, never a future/latest live version."""
+    if _when(theme['first_detected_at'],'theme first detection')>=since:return 'new'
+    if _when(theme['decision_at'],'theme last update')>=since:return 'updated'
+    return 'unchanged'
+
+
 class ThemeStore:
     def __init__(self,root):
         self.root=Path(root)
@@ -199,11 +206,16 @@ class ThemeStore:
         relation=read_evidence(folder,out_root,expected_sha256,graph_version=graph_version,now=at)
         return self.ingest(observations or [],now=at,_relation=relation)
 
-    def search(self, *, as_of=None, query='', now=None):
+    def search(self, *, as_of=None, query='', now=None, since=None, activity='all'):
         at=_when((as_of or now or datetime.now(timezone.utc)).isoformat(),'as of')
         present=_when((now or datetime.now(timezone.utc)).isoformat(),'now')
         if at>present or not isinstance(query,str) or len(query)>200:
             raise SourceShareError('invalid theme query')
+        if activity not in {'all','changed','new','updated'}:
+            raise SourceShareError('invalid theme activity filter')
+        start=_when(since.isoformat(),'period start') if since is not None else None
+        if (activity!='all' and start is None) or (start is not None and start>at):
+            raise SourceShareError('valid theme period start required')
         path=self.root/'themes.sqlite3'
         if not path.exists():return []
         if self.root.resolve()!=self.root or path.is_symlink():
@@ -216,7 +228,11 @@ class ThemeStore:
             for raw, in rows:
                 row=json.loads(raw);latest[row['theme_id']]=row
             queries={normalized(query),topic_key(query)}
-            return [row for _,row in sorted(latest.items()) if any(q in normalized(json.dumps(row,ensure_ascii=False)) for q in queries)]
+            selected=[row for row in latest.values()
+                if (activity=='all' or period_activity(row,start) in ({'new','updated'} if activity=='changed' else {activity}))
+                and any(q in normalized(json.dumps(row,ensure_ascii=False)) for q in queries)]
+            # Show the most recently changed candidates first, stably on ties.
+            return sorted(selected,key=lambda row:(row['decision_at'],row['theme_id']),reverse=True)
         finally:db.close()
 
 

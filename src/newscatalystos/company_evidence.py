@@ -19,6 +19,7 @@ from .provider_registry import parse_provider_registry, permits_document_storage
 from .source_share import SourceShareError, _json, _when
 from .text_normalization import normalize_text
 from .theme_emergence import economic_observation
+from .contract_amount_history import contract_amount_history
 
 ERRORS=(SourceShareError,OSError,ValueError,TypeError,KeyError)
 REASONS={
@@ -218,6 +219,11 @@ def company_evidence(theme,entity,*,reports_root,document_root=None,feeds=(),job
                     if excerpt is None:item['status']='CLAUSE_UNRESOLVED';continue
                     item.update(status='READY',excerpt=excerpt,content_scope='LICENSED_ARTICLE_TEXT' if body else 'RSS_TITLE_METADATA',
                         excerpt_sha256=sha256(excerpt.encode()).hexdigest(),analysis_available_at=available,report_sha256=pin)
+                    if not body and change['action']=='CONTRACT':
+                        item['contract_amount_history']=contract_amount_history(row,ref,reports,at=at,
+                            read_source=lambda r,v:_rss_source(r,v,feeds,at,now))
+                        for revision in item['contract_amount_history']['changes']:
+                            revision['before_source'].update(analysis_available_at=available,report_sha256=pin)
                     break
                 if item['status']=='READY':break
         item['reason']=REASONS.get(item['status'],'원본 판본과 사건이 일치하는 근거입니다.')

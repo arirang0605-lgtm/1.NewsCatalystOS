@@ -7,6 +7,7 @@ function node(tag,cls,value){const x=document.createElement(tag);if(cls)x.classN
 function status(message,error=false){$("status").textContent=message;$("status").className=error?"error":""}
 function shift(amount){const [y,m,d]=state.date.split("-").map(Number),day=new Date(Date.UTC(y,m-1,d));if(state.view==="month")day.setUTCMonth(day.getUTCMonth()+amount);else day.setUTCDate(day.getUTCDate()+amount*(state.view==="week"?7:1));state.date=day.toISOString().slice(0,10);load()}
 function niceDate(value){return new Intl.DateTimeFormat("ko-KR",{year:"numeric",month:"long",day:"numeric",timeZone:"UTC"}).format(new Date(value+"T00:00:00Z"))}
+function amountText(value){const parts=String(value).split(".");parts[0]=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,",");return parts.join(".")}
 function showNotes(place,notes,empty){place.replaceChildren();if(!notes.length){place.append(node("p","empty-small",empty));return}for(const item of [...notes].reverse()){const box=node("div","note");box.append(node("span","note-date",item.period+" · "+item.view),node("p","",item.text));place.append(box)}}
 function categoryLabel(item){const labels={PRODUCT_LAUNCH:"제품 출시",BUSINESS_START:"사업·서비스 개시",NEW_CONTRACT:"신규 계약",NEW_INVESTMENT:"신규 투자",COMMERCIALIZATION:"상용화",REGULATORY_APPROVAL:"인허가",NEW_FACILITY:"신규 시설",CONTRACT_TERMINATION:"계약 종료",CONTRACT_REDUCTION:"계약 감액",CONTRACT_DELAY:"납기 지연"};const label=labels[item.category];return label?label+(item.reported_plan_only?" 계획 보도":" 보도"):(item.category||"분류 없음")}
 function renderItems(){
@@ -136,6 +137,25 @@ function renderThemes(term){
               box.append(node("p","",item.status==="READY"?item.excerpt:"N/A · "+item.reason));
               const a=node("a","source-link","해당 판본의 출처");a.href=item.source_url;a.target="_blank";a.rel="noopener noreferrer";box.append(a);
               box.append(node("p","","출처 가용: "+item.source_available_at+(item.analysis_available_at?" · 분석 가용: "+item.analysis_available_at:"")));
+              const history=item.contract_amount_history;
+              if(history){
+                const amounts=node("details","");amounts.append(node("summary","","보도 계약금액 변경 전후"));
+                amounts.append(node("p","","출처가 보도한 계약금액이며 실현 매출·이익·수혜를 뜻하지 않습니다."));
+                if(!history.changes.length)amounts.append(node("p","","N/A · "+history.reason));
+                for(const revision of history.changes){
+                  amounts.append(node("p","","이전 "+(revision.before_amount||"N/A")+" → 변경 후 "+(revision.after_amount||"N/A")));
+                  amounts.append(node("p","",revision.status==="READY"?"차액 "+amountText(revision.difference)+" 원 · 증감률 "+revision.percent_change+"%":"N/A · "+revision.reason));
+                  for(const [label,source] of [["이전",revision.before_source],["변경 후",revision.after_source]]){
+                    amounts.append(node("p","",label+" 보도: "+source.headline));
+                    const link=node("a","source-link",label+" 판본 출처");link.href=source.source_url;link.target="_blank";link.rel="noopener noreferrer";amounts.append(link);
+                    amounts.append(node("p","","출처 가용: "+source.source_available_at+" · 분석 가용: "+source.analysis_available_at));
+                    const proof=node("details","");proof.append(node("summary","",label+" 원본·분석 SHA"));
+                    for(const key of ["source_event_sha256","source_title_sha256","analysis_event_sha256","report_sha256"])proof.append(node("p","",key+": "+source[key]));
+                    amounts.append(proof);
+                  }
+                }
+                box.append(amounts);
+              }
               const hashes=node("details","");hashes.append(node("summary","","사건·원본 판본 SHA"));
               for(const [label,value] of [["사건 ID",item.event_id],["원본 제목/문단 SHA",item.evidence_sha256],["표시 구간 SHA",item.excerpt_sha256],["분석 보고서 SHA",item.report_sha256]])if(value)hashes.append(node("p","",label+": "+value));
               box.append(hashes);evidenceBody.append(box);

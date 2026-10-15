@@ -137,3 +137,73 @@ def test_identity_cards_http_and_bad_identity_do_not_block_news(tmp_path):
         with urlopen(url) as response: data=json.load(response)
         assert data['company_identity_status']=='UNAVAILABLE' and 'items' in data
     finally:server.shutdown();server.server_close();thread.join(2)
+
+
+def test_automatic_identity_cache_refresh_and_current_rights(tmp_path,monkeypatch):
+    from newscatalystos.article_company_identity import ensure_article_identity
+    from newscatalystos import official_filing_context as filing
+    from newscatalystos.provider_registry import ProviderRegistry
+    at,args,binding,ctx,_=setup(tmp_path)
+    rows=dict(ctx)
+    monkeypatch.setattr(filing,'read_pinned_filing_context',lambda *a,**k:rows)
+    root=tmp_path/'auto'
+    def run(registry=None):
+        return ensure_article_identity(args['archive_root'],binding,registry or args['article_registry'],
+            root,tmp_path,tmp_path/'report',tmp_path/'anchor')
+    first,status=run();assert status=='CREATED'
+    before={p.name:p.read_bytes() for p in root.glob('*.json')}
+    rows={k:replace(v,local_context_verified_at=datetime.now(timezone.utc)) for k,v in rows.items()}
+    cached,status=run();assert status=='CACHE_HIT' and cached==first
+    assert before=={p.name:p.read_bytes() for p in root.glob('*.json')}
+    rows={k:replace(v,issuer_code_observed='00000002',original_sha256='c'*64) for k,v in rows.items()}
+    revised,status=run();assert status=='CREATED'
+    assert revised['directory_sha256']!=first['directory_sha256']
+    assert revised['matches'][0]['entity_id']=='DART_CORP:00000002'
+    assert len(list(root.glob('*.json')))==2
+    assert search_article_identities(root,as_of=datetime.fromisoformat(first['decision_at']))==[first]
+    revoked=ProviderRegistry(tuple(replace(p,approved=False) for p in args['article_registry'].providers))
+    with pytest.raises(SourceShareError):run(revoked)
+    monkeypatch.setattr(filing,'read_pinned_filing_context',lambda *a,**k:(_ for _ in ()).throw(SourceShareError('bad pin')))
+    with pytest.raises(SourceShareError):run()
+
+
+def test_scheduler_generates_identity_before_analysis_and_recovers(tmp_path,monkeypatch):
+    from scripts import run_motir_policy_once as scheduler
+    from scripts.run_motir_document_analysis import evaluate
+    from newscatalystos import official_filing_context as filing
+    at,args,binding,ctx,_=setup(tmp_path)
+    monkeypatch.setattr(filing,'read_pinned_filing_context',lambda *a,**k:ctx)
+    root=tmp_path/'documents';registry=tmp_path/'registry.json'
+    registry.write_bytes(_registry_bytes(args['article_registry'].providers[0]));registry.chmod(0o600)
+    config=tmp_path/'company_identity.json'
+    config.write_text(json.dumps({k:str(tmp_path/k) for k in ('era_root','era_report','independent_anchor')}));config.chmod(0o600)
+    opts=Namespace(document_analysis_root=root,company_identity_config=config,
+        output_root=tmp_path/'output',replay_only=True,allow_paid_ai=True)
+    job={'binding_path':str(args['binding_path']),'binding_sha256':args['binding_sha256'],
+         'archive_root':str(args['archive_root']),'article_registry':str(registry)}
+    def tick():return scheduler._analyze_documents(opts,evaluate,[job])[1]['results'][0]
+    first=tick();assert first['exit_code']==0 and first['company_identity_generation']=='CREATED'
+    report=json.loads(Path(first['private_report_file']).read_text())
+    assert report['company_identity']['decision_at']<=report['analysis_available_at']
+    assert ThemeStore(root/'theme_history').search()[0]['entity_ids']==['DART_CORP:00000001']
+    second=tick();assert second['company_identity_generation']=='CACHE_HIT'
+    assert second['new_ai_results']==0 and second['theme_versions_created']==0
+    config.write_text('{}')
+    failed=tick();assert failed['exit_code']==0 and failed['company_identity_status']=='UNAVAILABLE'
+    assert 'company_identity' not in json.loads(Path(failed['private_report_file']).read_text())
+    config.write_text(json.dumps({k:str(tmp_path/k) for k in ('era_root','era_report','independent_anchor')}))
+    assert tick()['company_identity_generation']=='CACHE_HIT'
+
+
+def test_article_revision_gets_separate_automatic_identity(tmp_path,monkeypatch):
+    from newscatalystos.article_company_identity import ensure_article_identity
+    from newscatalystos import official_filing_context as filing
+    _,first,binding,ctx,_=setup(tmp_path/'first')
+    monkeypatch.setattr(filing,'read_pinned_filing_context',lambda *a,**k:ctx)
+    root=tmp_path/'identities'
+    original,_=ensure_article_identity(first['archive_root'],binding,first['article_registry'],root,tmp_path,tmp_path,tmp_path)
+    _,second=case(tmp_path/'second',body='가상반도체는 HBM 공급 계약을 취소했다. '*3)
+    other=consume_motir_article_binding(second['binding_path'],second['binding_sha256'])
+    revised,status=ensure_article_identity(second['archive_root'],other,second['article_registry'],root,tmp_path,tmp_path,tmp_path)
+    assert status=='CREATED' and revised['archive_version']!=original['archive_version']
+    assert len(search_article_identities(root))==2

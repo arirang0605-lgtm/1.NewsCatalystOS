@@ -22,7 +22,7 @@ from scripts.run_scheduled_triage import _analyze_provider, evaluate_analysis
 from scripts.prepare_motir_source import ENDPOINT, SOURCE
 from newscatalystos.source_share import SourceShareError, _json, _must_sha
 from newscatalystos.official_relation_intake import _private_input
-from scripts.run_motir_document_analysis import evaluate as evaluate_document
+from scripts.run_motir_document_analysis import evaluate as evaluate_document, DEFAULT_IDENTITY_CONFIG
 from newscatalystos.motir_document_collection import collect_motir_documents
 
 
@@ -53,6 +53,7 @@ def parser() -> argparse.ArgumentParser:
                    help="private registered binding/archive jobs; never collects article bodies")
     p.add_argument("--document-analysis-root", type=Path,
                    help="separate private document result/cache root")
+    p.add_argument("--company-identity-config", type=Path, default=DEFAULT_IDENTITY_CONFIG)
     p.add_argument("--document-model-config", type=Path,
                    help="licensed document model/token limits; defaults to the analysis model")
     p.add_argument("--skip-analysis", action="store_true")
@@ -102,7 +103,8 @@ def _analyze_documents(opts, runner, extra_jobs=()):
                 ai_ledger=getattr(opts, "analysis_ai_ledger", None),
                 allow_paid=(getattr(opts, "allow_paid_ai", False)
                             and not getattr(opts, "replay_only", False)),
-                analyze_existing=False)
+                analyze_existing=False,
+                company_identity_config=getattr(opts,"company_identity_config",DEFAULT_IDENTITY_CONFIG))
             code, result = runner(args)
             results.append({**result, "exit_code": code})
         except (SourceShareError, OSError, ValueError, TypeError, sqlite3.Error) as exc:

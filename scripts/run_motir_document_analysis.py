@@ -16,9 +16,27 @@ from newscatalystos.motir_document_analysis import analyze_motir_document, publi
 from newscatalystos.source_share import SourceShareError
 from newscatalystos.theme_emergence import ThemeStore, economic_observation
 from newscatalystos.motir_article_binding import consume_motir_article_binding
-from newscatalystos.article_company_identity import search_article_identities
+from newscatalystos.article_company_identity import search_article_identities, ensure_article_identity
+from newscatalystos.evidence_archive import _read_once
+from newscatalystos.source_share import _json
 from newscatalystos.source_share import _when
 from newscatalystos.economic_changes import normalized
+
+
+DEFAULT_IDENTITY_CONFIG = Path.home() / 'Library/Application Support/NewsCatalystOS/company_identity.json'
+
+
+def generate_identity(opts, binding, registry, *, now=None):
+    config=getattr(opts,'company_identity_config',None)
+    if config is None or not Path(config).exists():return None,'NOT_CONFIGURED'
+    settings=_json(_read_once(Path(config),8192),'company identity configuration')
+    if not isinstance(settings,dict) or set(settings)!={'era_root','era_report','independent_anchor'}:
+        raise SourceShareError('invalid company identity configuration')
+    paths={k:Path(v) for k,v in settings.items()}
+    if any(not p.is_absolute() or '..' in p.parts for p in paths.values()):
+        raise SourceShareError('absolute filing snapshot paths required')
+    return ensure_article_identity(opts.archive_root,binding,registry,
+        opts.analysis_root.parent/'company_identity',**paths,now=now)
 
 
 def parser():
@@ -28,6 +46,7 @@ def parser():
     p.add_argument("--archive-root", type=Path, required=True)
     p.add_argument("--article-registry", type=Path, required=True)
     p.add_argument("--analysis-root", type=Path, required=True)
+    p.add_argument("--company-identity-config", type=Path, default=DEFAULT_IDENTITY_CONFIG)
     p.add_argument("--model-config", type=Path)
     p.add_argument("--ai-ledger", type=Path)
     p.add_argument("--allow-paid", action="store_true")
@@ -37,21 +56,29 @@ def parser():
 
 def evaluate(opts, *, opener=None, now=None):
     try:
+        registry=_registry(opts.article_registry)
+        binding=consume_motir_article_binding(opts.binding_path,opts.binding_sha256,now=now)
+        identity=None
+        try:
+            identity,generation_status=generate_identity(opts,binding,registry,now=now)
+        except (SourceShareError,OSError,ValueError,TypeError,KeyError):
+            generation_status='UNAVAILABLE'
         report = analyze_motir_document(opts.binding_path, opts.binding_sha256,
-            opts.archive_root, _registry(opts.article_registry), opts.analysis_root,
+            opts.archive_root, registry, opts.analysis_root,
             model=read_model_config(opts.model_config), ai_ledger=opts.ai_ledger,
             allow_paid=opts.allow_paid, analyze_existing=opts.analyze_existing,
             opener=opener, now=now)
-        binding = consume_motir_article_binding(opts.binding_path, opts.binding_sha256, now=now)
         identity_status='NOT_AVAILABLE'
         try:
-            identities=search_article_identities(opts.analysis_root.parent/'company_identity',
-                as_of=_when(report['analysis_available_at'],'analysis time'))
-            identity=next((r for r in identities if r['archive_version']==binding['archive_version']
-                and r['document_sha256']==report['document_sha256'] and r['source_url']==report['source_url']),None)
+            if generation_status=='NOT_CONFIGURED':
+                identities=search_article_identities(opts.analysis_root.parent/'company_identity',
+                    as_of=_when(report['analysis_available_at'],'analysis time'))
+                identity=next((r for r in identities if r['archive_version']==binding['archive_version']
+                    and r['document_sha256']==report['document_sha256'] and r['source_url']==report['source_url']),None)
             if identity:
                 report['company_identity']=identity
                 identity_status='READY'
+            elif generation_status=='UNAVAILABLE':identity_status='UNAVAILABLE'
         except (SourceShareError,OSError,ValueError,TypeError,KeyError):
             identity=None
             identity_status='UNAVAILABLE'
@@ -73,7 +100,8 @@ def evaluate(opts, *, opener=None, now=None):
             "cache_hits", "source_fetch_calls", "verified_new_economic_event"
         )} | {"private_report_file": str(path), "report_sha256": digest,
               "economic_changes": len(observations), "theme_versions_created": len(themes),
-              "company_identity_status":identity_status}
+              "company_identity_status":identity_status,
+              "company_identity_generation":generation_status}
     except (SourceShareError, OSError, ValueError, TypeError, sqlite3.Error) as exc:
         return 4, {"status": "MOTIR_DOCUMENT_ANALYSIS_UNAVAILABLE",
                    "error_type": type(exc).__name__, "source_fetch_calls": 0}

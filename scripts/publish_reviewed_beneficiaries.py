@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 from pathlib import Path
 import sys
 
@@ -44,6 +45,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--out-root", type=Path,
                    default=Path(__file__).resolve().parent.parent /
                    "output" / "consumer_outbox")
+    p.add_argument("--theme-root", type=Path,
+                   help="Automatically connect the completed graph to this theme store")
     return p
 
 
@@ -73,7 +76,7 @@ def evaluate(args: argparse.Namespace) -> tuple[int, dict]:
         else:
             raise SourceShareError("unknown relation input kind")
         published = publish_reviewed_beneficiary_graph(delivery, args.out_root)
-        return 0, {
+        result = {
             "status": "PRIVATE_REVIEWED_CANDIDATE_DELIVERY_READY",
             "outbox_folder": str(published.folder),
             "payload_sha256": published.payload_sha256,
@@ -85,6 +88,18 @@ def evaluate(args: argparse.Namespace) -> tuple[int, dict]:
             "automatic_external_project_write": False,
             "network_calls": 0,
         }
+        if getattr(args,"theme_root",None) is not None:
+            from newscatalystos.theme_emergence import ThemeStore
+            try:
+                rows=ThemeStore(args.theme_root).ingest_supply_graph(
+                    published.folder,args.out_root,published.payload_sha256,
+                    graph_version="v2" if kind=="publisher" else "v1")
+                result.update(theme_link_status="REGISTERED",theme_versions_created=len(rows))
+            except (SourceShareError,ValueError,TypeError,OSError,sqlite3.Error):
+                # A separate destination failure cannot undo a completed publication.
+                # connect_theme_supply_chain retries this same pinned publication.
+                result.update(theme_link_status="UNAVAILABLE",theme_versions_created=0)
+        return 0,result
     except (SourceShareError, ValueError, TypeError, OSError) as exc:
         return 4, {
             "status": "REVIEWED_CANDIDATE_DATA_UNAVAILABLE",

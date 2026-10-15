@@ -16,6 +16,7 @@ from .incremental_ingest import _check_state_path
 from .source_share import SourceShareError, _when, _must_sha
 
 SCHEMA = 'newscatalyst.theme_candidate.v1'
+RELATION_SCHEMA = 'newscatalyst.theme_candidate.v2'
 QUALITIES = {'OFFICIAL_SOURCE','REPORTED','INFERRED','UNVERIFIED','UNKNOWN'}
 ACTIONS = {'POLICY_CHANGE','PRODUCTION_START','CAPACITY_ADDITION','SUPPLY_REDUCTION','CONTRACT','INVESTMENT'}
 KNOWN_TOPICS = {'hbm','dram','nand','반도체','액침냉각'}
@@ -58,7 +59,8 @@ def topic_key(topic):
 
 
 def economic_observation(change, *, origin_reference, source_url, source_id,
-                         source_available_at, polarity='SUPPORT', supersedes_event_id=None):
+                         source_available_at, polarity='SUPPORT', supersedes_event_id=None,
+                         source_binding=None):
     validate_change(change)
     if not _url(origin_reference) or not _url(source_url) or not _text(source_id):
         raise SourceShareError('explicit source and claim origin required')
@@ -71,14 +73,20 @@ def economic_observation(change, *, origin_reference, source_url, source_id,
     # Same release across any number of publishers remains one event.
     identity=[origin_reference,topic_key(change['topic']),change['economic_driver'],
               change['action'],sorted(set(change['entity_ids']))]
-    return {'event_id':sha256(_bytes(identity)).hexdigest(),'change':change,
+    result = {'event_id':sha256(_bytes(identity)).hexdigest(),'change':change,
             'origin_reference':origin_reference,'source_url':source_url,'source_id':source_id,
             'source_available_at':source_available_at,'polarity':polarity,
             'supersedes_event_id':supersedes_event_id}
+    if source_binding is not None:
+        if not isinstance(source_binding,dict) or set(source_binding)!={'source_event_sha256','document_sha256'}:
+            raise SourceShareError('invalid theme source binding')
+        for key,value in source_binding.items():_must_sha(value,key)
+        result['source_binding']=dict(source_binding)
+    return result
 
 
 def _validate_observation(row):
-    if not isinstance(row,dict) or set(row)!={'event_id','change','origin_reference','source_url',
+    if not isinstance(row,dict) or set(row)-{'source_binding'}!={'event_id','change','origin_reference','source_url',
             'source_id','source_available_at','polarity','supersedes_event_id'}:
         raise SourceShareError('economic observation contract required')
     rebuilt=economic_observation(row['change'],**{k:row[k] for k in row if k not in {'change','event_id'}})
@@ -96,7 +104,7 @@ class ThemeStore:
     def __init__(self,root):
         self.root=Path(root)
 
-    def ingest(self, observations, *, now=None):
+    def ingest(self, observations, *, now=None, _relation=None):
         at=_when((now or datetime.now(timezone.utc)).isoformat(),'theme decision')
         if not isinstance(observations,list) or len(observations)>1000:
             raise SourceShareError('bounded economic observations required')
@@ -109,12 +117,20 @@ class ThemeStore:
         with sqlite3.connect(str(path)) as db:
             db.execute('CREATE TABLE IF NOT EXISTS observations(digest TEXT PRIMARY KEY,theme_id TEXT,payload BLOB,recorded_at TEXT)')
             db.execute('CREATE TABLE IF NOT EXISTS versions(digest TEXT PRIMARY KEY,theme_id TEXT,payload BLOB,decision_at TEXT)')
+            db.execute('CREATE TABLE IF NOT EXISTS supply_graphs(digest TEXT PRIMARY KEY,payload BLOB)')
             db.commit()
             db.execute('BEGIN IMMEDIATE')
             latest=db.execute('SELECT max(decision_at) FROM versions').fetchone()[0]
             if latest and _when(latest,'last decision')>at:
                 raise SourceShareError('theme history cannot be backdated')
             changed=set()
+            if _relation is not None:
+                from .theme_supply_chain import validate_evidence
+                validate_evidence(_relation,at)
+                cursor=db.execute('INSERT OR IGNORE INTO supply_graphs VALUES(?,?)',
+                                  (_relation['payload_sha256'],_bytes(_relation)))
+                if cursor.rowcount:
+                    changed.update(x[0] for x in db.execute('SELECT DISTINCT theme_id FROM observations'))
             for row in observations:
                 raw=_bytes(row);digest=sha256(raw).hexdigest();theme_id=_theme_id(row)
                 cursor=db.execute('INSERT OR IGNORE INTO observations VALUES(?,?,?,?)',
@@ -128,16 +144,30 @@ class ThemeStore:
                     if not any(json.loads(x[0])['event_id']==row['supersedes_event_id'] for x in candidates):
                         raise SourceShareError('correction target is not a known same-theme event')
             results=[]
+            relations=[json.loads(x[0]) for x in db.execute('SELECT payload FROM supply_graphs ORDER BY digest')]
             for theme_id in sorted(changed):
                 rows=[(json.loads(raw),seen) for raw,seen in db.execute(
                     'SELECT payload,recorded_at FROM observations WHERE theme_id=? ORDER BY recorded_at,digest',(theme_id,))]
                 previous=db.execute('SELECT payload FROM versions WHERE theme_id=? ORDER BY decision_at DESC,rowid DESC LIMIT 1',(theme_id,)).fetchone()
                 previous=json.loads(previous[0]) if previous else None
                 result=_snapshot(theme_id,rows,at,previous)
+                from .theme_supply_chain import enrich_theme
+                enrich_theme(result,relations)
+                if previous and _relation is not None:
+                    # Unmatched publications do not create theme history noise.
+                    if result.get('supply_chain_evidence',[])==previous.get('supply_chain_evidence',[]):
+                        continue
                 raw=_bytes(result);digest=sha256(raw).hexdigest()
                 db.execute('INSERT INTO versions VALUES(?,?,?,?)',(digest,theme_id,raw,at.isoformat()))
                 results.append(result)
             return results
+
+    def ingest_supply_graph(self, folder, out_root, expected_sha256, *, graph_version='v2', now=None):
+        """Read a completed pinned graph and join matching existing/future events."""
+        from .theme_supply_chain import read_evidence
+        at=now or datetime.now(timezone.utc)
+        relation=read_evidence(folder,out_root,expected_sha256,graph_version=graph_version,now=at)
+        return self.ingest([],now=at,_relation=relation)
 
     def search(self, *, as_of=None, query='', now=None):
         at=_when((as_of or now or datetime.now(timezone.utc)).isoformat(),'as of')
@@ -199,6 +229,8 @@ def _snapshot(theme_id, rows, at, previous):
            'source_available_at':row['source_available_at'],'recorded_at':seen,
            'evidence_sha256':row['change']['source_paragraph_sha256'],
            'evidence_level':row['change']['evidence_level'],'action':row['change']['action'],
+           'entity_ids':row['change']['entity_ids'],'industry_tags':row['change']['industry_tags'],
+           **({'source_binding':row['source_binding']} if 'source_binding' in row else {}),
            'phase':row['change']['phase'],'polarity':row['polarity'],
            'supersedes_event_id':row['supersedes_event_id']} for row,seen in rows]
     history=(previous['history'][:] if previous else [])

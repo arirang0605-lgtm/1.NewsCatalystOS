@@ -15,6 +15,7 @@ from scripts.run_feed_analysis import read_model_config
 from newscatalystos.motir_document_analysis import analyze_motir_document, publish_motir_document_analysis
 from newscatalystos.source_share import SourceShareError
 from newscatalystos.theme_emergence import ThemeStore, economic_observation
+from newscatalystos.motir_article_binding import consume_motir_article_binding
 
 
 def parser():
@@ -39,9 +40,12 @@ def evaluate(opts, *, opener=None, now=None):
             allow_paid=opts.allow_paid, analyze_existing=opts.analyze_existing,
             opener=opener, now=now)
         path, digest = publish_motir_document_analysis(report, opts.analysis_root / "reports")
+        binding = consume_motir_article_binding(opts.binding_path, opts.binding_sha256, now=now)
         observations = [economic_observation(change,
             origin_reference=report["source_url"], source_url=report["source_url"],
-            source_id="motir-official-press", source_available_at=report["source_available_at"])
+            source_id="motir-official-press", source_available_at=report["source_available_at"],
+            source_binding={"source_event_sha256":binding["archive_version"],
+                            "document_sha256":report["document_sha256"]})
             for change in report.get("economic_changes", [])]
         themes = ThemeStore(opts.analysis_root.parent / "theme_history").ingest(observations, now=now) if observations else []
         failed = opts.allow_paid and (report["ai_eligible"] or opts.analyze_existing) and report["ai_status"] not in ("CACHE_HIT", "ANALYZED_UNVERIFIED")

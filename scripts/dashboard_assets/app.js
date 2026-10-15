@@ -69,7 +69,19 @@ function renderThemes(term){
     const card=node("article","finding"),meta=node("div","finding-meta");
     meta.append(node("span","pill",labels[theme.status]||theme.status),node("span","","독립 사건 "+theme.scores.distinct_economic_events+" · 기업 "+theme.scores.company_breadth));
     card.append(meta,node("h4","",theme.provisional_name),node("p","finding-detail","최초 발견: "+theme.first_detected_at),node("p","finding-detail","최근 근거: "+theme.last_evidence_at));
-    for(const company of theme.company_links)card.append(node("p","",company.entity_id+" · 테마 연관 · 수혜 미확정"));
+    const relationLabels={REPORTED_DIRECT_TRANSACTION:"출처에 보고된 직접 계약",ANNOUNCED_SUPPLY_PLAN:"공급 계획"};
+    const impactLabels={POTENTIAL_BENEFICIARY_UNVERIFIED:"잠재 수혜 (추론)",POTENTIAL_DAMAGE_UNVERIFIED:"잠재 피해 (추론)",ANNOUNCED_SUPPLY_PLAN_UNVERIFIED:"계획 단계 · 실현 미확인",UNKNOWN_RELATIONSHIP:"영향 경로 미확인",EFFECT_DIRECTION_UNKNOWN:"영향 방향 미확인",THEMATIC_ONLY:"단순 테마 연관"};
+    for(const company of theme.company_links){
+      card.append(node("p","",company.entity_id+" · "+(company.supply_chain_links?.length?"공급망 근거 연결":"테마 연관")+" · 수혜 미확정"));
+      for(const rel of company.supply_chain_links||[]){
+        const detail=node("div","finding-detail");
+        detail.append(node("p","",(relationLabels[rel.relation_kind]||rel.relation_kind)+" · "+rel.product_stage+" · "+(rel.role==="supplier"?"공급자 → 고객 ":"고객 ← 공급자 ")+rel.counterparty_id));
+        detail.append(node("p","",(impactLabels[rel.impact_category]||rel.impact_category)+" · 동일 문서·기업 근거 · 사건의 인과관계는 미확정"));
+        detail.append(node("p","","근거 가용: "+rel.source_available_at+" · 연결: "+rel.linked_at+(rel.conflicting_event_ids.length?" · 상충 보도 있음":"")));
+        for(const url of rel.source_urls){const link=node("a","source-link","관계 근거 원문");link.href=url;link.target="_blank";link.rel="noopener noreferrer";detail.append(link)}
+        card.append(detail);
+      }
+    }
     const details=node("details",""),summary=node("summary","","근거와 상태 이력");details.append(summary);
     for(const ref of theme.source_refs){const link=node("a","source-link",ref.action+" · "+ref.evidence_level+" · "+ref.phase);link.href=ref.source_url;link.target="_blank";link.rel="noopener noreferrer";details.append(link)}
     for(const item of theme.history)details.append(node("p","finding-detail",item.decision_at+" · "+(labels[item.status]||item.status)));

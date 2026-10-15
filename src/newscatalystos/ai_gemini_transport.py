@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 import re
+import subprocess
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
@@ -22,6 +23,8 @@ from .source_share import SourceShareError, _json, _must_sha, _when
 
 API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models/"
 MAX_RESPONSE = 64 * 1024
+KEYCHAIN_SERVICE = "NewsCatalystOS.Gemini.API"
+KEYCHAIN_ACCOUNT = "newscatalystos"
 MODEL_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}\Z")
 OUTPUT_SCHEMA = {
     "type": "object",
@@ -40,8 +43,25 @@ class _RejectRedirect(HTTPRedirectHandler):
         raise SourceShareError("AI redirect refused")
 
 
+def _keychain_api_key() -> str:
+    """Read only this project's login-keychain item; never log its bytes."""
+    try:
+        lookup = subprocess.run(
+            ["/usr/bin/security", "find-generic-password", "-w",
+             "-a", KEYCHAIN_ACCOUNT, "-s", KEYCHAIN_SERVICE],
+            capture_output=True, timeout=30, check=False,
+        )
+        if lookup.returncode != 0:
+            return ""
+        return lookup.stdout.decode("utf-8").rstrip("\r\n")
+    except (OSError, subprocess.TimeoutExpired, UnicodeDecodeError):
+        return ""
+
+
 def _require_api_key() -> str:
     key = os.environ.get("GEMINI_API_KEY", "")
+    if key == "":
+        key = _keychain_api_key()
     if not isinstance(key, str) or not 20 <= len(key) <= 256 or any(ch.isspace() for ch in key):
         raise SourceShareError("AI credential unavailable")
     return key
@@ -96,7 +116,7 @@ def _normal_response(raw: bytes, model: AIModel) -> dict:
 
 def gemini_generate_content_transport(
     model: AIModel, prompt: dict, *, allow_paid: bool = False,
-    opener=None, timeout_seconds: int = 15,
+    opener=None, timeout_seconds: int = 15, _credential: str | None = None,
 ) -> dict:
     """Single REST call. The private key is read only after all local checks."""
     if allow_paid is not True:
@@ -119,7 +139,9 @@ def gemini_generate_content_transport(
         raise SourceShareError("unsafe AI metadata request")
     _must_sha(prompt["event_sha256"], "AI event")
     _when(prompt["decision_at"], "AI decision timestamp")
-    key = _require_api_key()
+    key = _credential if _credential is not None else _require_api_key()
+    if not isinstance(key, str) or not 20 <= len(key) <= 256 or any(ch.isspace() for ch in key):
+        raise SourceShareError("AI credential unavailable")
     params = {
         "contents": [{"role": "user", "parts": [{
             "text": json.dumps(prompt, ensure_ascii=False, separators=(",", ":"))
@@ -169,7 +191,7 @@ def run_budgeted_gemini_analysis(
         raise SourceShareError("Gemini model required")
     model.validate()
     _endpoint(model)
-    _require_api_key()  # A missing key must not create a reservation.
+    credential = _require_api_key()  # A missing key must not create a reservation.
     reservation = reserve_ai_call(ledger_path, model, request, now=now)
     if reservation.status != "RESERVED":
         raise SourceShareError("AI invocation already reserved; never retry billed calls")
@@ -178,7 +200,8 @@ def run_budgeted_gemini_analysis(
         model, request, now=now,
         cost_already_spent_krw=previously_accounted,
         transport=lambda selected, payload: gemini_generate_content_transport(
-            selected, payload, allow_paid=True, opener=opener),
+            selected, payload, allow_paid=True, opener=opener,
+            _credential=credential),
     )
     settle_ai_call(ledger_path, reservation, result, now=now)
     return result

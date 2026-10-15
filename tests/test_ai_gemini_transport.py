@@ -86,10 +86,30 @@ def test_missing_key_or_authorization_never_reserves_or_calls(monkeypatch, tmp_p
     with pytest.raises(SourceShareError, match="explicit paid"):
         run_budgeted_gemini_analysis(model, req, ledger, opener=opener, now=NOW)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.setattr("newscatalystos.ai_gemini_transport._keychain_api_key", lambda: "")
     with pytest.raises(SourceShareError, match="credential unavailable"):
         run_budgeted_gemini_analysis(
             model, req, ledger, allow_paid=True, opener=opener, now=NOW)
     assert opener.calls == 0 and not ledger.exists()
+
+
+def test_keychain_fallback_reads_once_before_reservation(monkeypatch, tmp_path):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    lookups = []
+    synthetic = "synthetic-keychain-key-for-offline-tests"
+    def keychain_lookup():
+        lookups.append(True)
+        return synthetic
+    monkeypatch.setattr("newscatalystos.ai_gemini_transport._keychain_api_key", keychain_lookup)
+    model, req = config("GEMINI"), request()
+    ledger = tmp_path / "private" / "ai.sqlite3"
+    opener = LocalOpener(packet())
+    result = run_budgeted_gemini_analysis(
+        model, req, ledger, allow_paid=True, opener=opener, now=NOW)
+    assert result.provider == "GEMINI"
+    assert lookups == [True] and opener.calls == 1
+    assert opener.requests[0].get_header("X-goog-api-key") == synthetic
+    assert synthetic not in repr(result)
 
 
 def test_budget_reservation_and_duplicate_call(key, tmp_path):

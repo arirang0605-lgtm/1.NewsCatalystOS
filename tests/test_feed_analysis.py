@@ -266,7 +266,7 @@ def test_explicit_contract_termination_is_reviewed_not_a_new_contract(tmp_path):
     info = setup(tmp_path, title)
     report = run(info)  # no paid provider; original authorized metadata only
     row = report["results"][0]
-    assert report["rule_version"] == "rss-title-economic-v3"
+    assert report["rule_version"] == "rss-title-economic-v4"
     assert row["category_candidate"] == "CONTRACT_TERMINATION"
     assert row["reported_termination_only"] and not row["reported_plan_only"]
     assert row["ai_eligible"] and row["ai_status"] == "AWAITING_EXPLICIT_AI_AUTHORIZATION"
@@ -397,7 +397,7 @@ def test_contract_reduction_links_prior_title_and_reaches_readonly_consumer(tmp_
     report = run(info)
     row = report["results"][0]
     change = row["followup_change"]
-    assert report["rule_version"] == "rss-title-economic-v3"
+    assert report["rule_version"] == "rss-title-economic-v4"
     assert row["category_candidate"] == "CONTRACT_REDUCTION"
     assert row["reported_reduction_only"] and not row["reported_termination_only"]
     assert row["dimensions"]["scale"] == "UNKNOWN"
@@ -437,3 +437,63 @@ def test_ambiguous_contract_reduction_does_not_create_followup(tmp_path, suffix)
     assert row["category_candidate"] is None
     assert row["followup_change"] is None
     assert not row["verified_economic_fact"]
+
+
+def test_contract_delivery_delay_links_prior_claim_and_reaches_consumer(tmp_path):
+    original = "글로벌 HBM 반도체 3년간 공급 계약 2000억원 체결"
+    delayed = "글로벌 HBM 반도체 3년간 공급 계약 납기 지연"
+    info = setup(tmp_path, original)
+    first = run(info)["results"][0]
+    collect(info[0], info[1], GOV, [("contract-1", delayed, URL)],
+            at=NOW + timedelta(hours=1))
+    report = run(info)
+    row = report["results"][0]
+    change = row["followup_change"]
+    assert report["rule_version"] == "rss-title-economic-v4"
+    assert row["category_candidate"] == "CONTRACT_DELAY"
+    assert row["reported_delay_only"] and not row["reported_termination_only"]
+    assert row["dimensions"]["scale"] == "UNKNOWN"
+    assert change["change_kind"] == "DATE_DELAYED"
+    assert change["status"] == "WEAKENED_CANDIDATE"
+    assert change["prior_title_sha256"] == first["source_title_sha256"]
+    assert change["prior_available_at"] == first["source_available_at"]
+    assert change["available_at"] >= row["source_available_at"]
+    assert not change["prior_claim_verified"] and not change["realization_confirmed"]
+    assert not row["verified_economic_fact"] and not row["verified_supply_transaction"]
+    assert row["revenue_estimate_krw"] is None
+    saved, digest = publish_feed_analysis(report, tmp_path / "reports")
+    from newscatalystos.feed_analysis_delivery import consume_feed_analysis
+    consumed = consume_feed_analysis(saved, saved.parent, digest)
+    assert consumed["results"][0]["followup_change"] == change
+    assert consumed["ai_calls"] == consumed["source_fetch_calls"] == 0
+
+
+def test_delivery_delay_without_prior_is_held_and_not_sent_to_ai(tmp_path):
+    delayed = "글로벌 HBM 반도체 공급 계약 납기 지연"
+    row = run(setup(tmp_path, delayed))["results"][0]
+    assert row["category_candidate"] == "CONTRACT_DELAY"
+    assert row["followup_change"]["status"] == "NO_PRIOR_EVENT_HOLD"
+    assert row["followup_change"]["prior_fact_sha256"] is None
+    assert not row["ai_eligible"] and row["ai_status"] == "NOT_ELIGIBLE"
+
+
+@pytest.mark.parametrize("title", [
+    "HBM 반도체 공급 계약 납기 지연 루머",
+    "HBM 반도체 공급 계약 납기 지연 부인",
+    "HBM 반도체 공급 계약 납기 지연 예정",
+    "HBM 반도체 공급 계약 체결 후 납기 지연",
+    "HBM 반도체 공급 계약 금액 감액 및 납기 지연",
+])
+def test_ambiguous_delivery_delay_is_not_routed(tmp_path, title):
+    row = run(setup(tmp_path, title))["results"][0]
+    assert row["category_candidate"] is None
+    assert row["followup_change"] is None
+    assert not row["ai_eligible"] and not row["verified_economic_fact"]
+
+
+def test_english_delivery_delay_is_reported_without_confirming_delivery(tmp_path):
+    row = run(setup(tmp_path, "HBM semiconductor supply contract delivery delayed"))["results"][0]
+    assert row["category_candidate"] == "CONTRACT_DELAY"
+    assert row["reported_delay_only"]
+    assert row["followup_change"]["status"] == "NO_PRIOR_EVENT_HOLD"
+    assert not row["verified_supply_transaction"]

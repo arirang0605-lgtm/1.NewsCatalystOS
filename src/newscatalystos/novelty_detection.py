@@ -16,7 +16,7 @@ SCHEMA = "newscatalyst.novelty_detection.v1"
 CATEGORIES = frozenset({
     "NEW_CONTRACT", "NEW_INVESTMENT", "COMMERCIALIZATION", "PRODUCT_LAUNCH",
     "REGULATORY_APPROVAL", "NEW_CUSTOMER", "NEW_FACILITY",
-    "CONTRACT_TERMINATION", "CONTRACT_REDUCTION",  # reported reversals, unverified
+    "CONTRACT_TERMINATION", "CONTRACT_REDUCTION", "CONTRACT_DELAY",  # reported reversals, unverified
 })
 
 

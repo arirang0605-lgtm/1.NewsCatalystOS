@@ -34,16 +34,17 @@ def article_registry():
     return parse_provider_registry(json.dumps(data).encode())
 
 
-def setup(tmp_path, *, rss_url=ARTICLE):
+def setup(tmp_path, *, rss_url=ARTICLE, body=None):
     feed, article = feed_registry(), article_registry()
     workspace = setup_workspace(tmp_path, "motir", feed)
     observed = datetime.now(timezone.utc)
     folder, _ = collect(workspace, feed, "motir-official-press",
                         [(ARTICLE, TITLE, rss_url)], at=observed)
     item = json.loads((folder / "triage.json").read_bytes())["items"][0]
+    body = body or ("산업부는 기존 반도체 투자계획의 이행 상황을 점검했다. " * 4)
     html = (b'<input name="bbsSeqN" value="172295">'
             b'<div class="detail-cont mViewerContents"><p>'
-            + ("산업부는 기존 반도체 투자계획의 이행 상황을 점검했다. " * 4).encode()
+            + body.encode()
             + b'</p></div>')
     text = extract_motir_press_text(article.active(ID), html)
     archive_root = tmp_path / "article_archive"

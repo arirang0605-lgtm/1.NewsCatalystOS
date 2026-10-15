@@ -23,8 +23,8 @@ from .source_share import SourceShareError, _json, _must_sha, _when
 
 API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models/"
 MAX_RESPONSE = 64 * 1024
-KEYCHAIN_SERVICE = "NewsCatalystOS.Gemini.API"
-KEYCHAIN_ACCOUNT = "newscatalystos"
+KEYCHAIN_SERVICE = "newscatalystos"
+KEYCHAIN_ACCOUNT = "NewsCatalystOS.Gemini.API"
 MODEL_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}\Z")
 OUTPUT_SCHEMA = {
     "type": "object",

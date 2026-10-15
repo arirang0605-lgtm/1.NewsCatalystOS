@@ -57,7 +57,7 @@ PYTHONPATH=src python3 scripts/run_feed_analysis.py --scope motir --limit 100
 유료 실행은 **별도 승인 후** `--model-config /absolute/private/model.json --allow-paid`를
 추가한다. 설정은 기존 `AIModel` 필드만 포함한다. `provider`는 `OPENAI` 또는
 `GEMINI`를 고른다. Gemini는 호출 직전에 `GEMINI_API_KEY` 환경변수 또는
-macOS 로그인 키체인의 `NewsCatalystOS.Gemini.API`(계정 `newscatalystos`)를 사용한다.
+macOS 로그인 키체인의 항목 이름 `newscatalystos`(계정 `NewsCatalystOS.Gemini.API`)를 사용한다.
 키는 사용자가 키체인 암호 칸에 직접 입력한다. 키 값을 명령 인자·설정파일·터미널 출력·Git에 넣지 않는다.
 키체인 읽기에 OS 승인이 표시되면 사용자가 직접 허용한다. 코드에 현재 모델명·요금의
 임의 기본값은 없다.

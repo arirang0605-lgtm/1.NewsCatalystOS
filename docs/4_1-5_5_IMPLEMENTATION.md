@@ -30,6 +30,6 @@
 
 
 ## 2026-10-15 | Gemini API 경로 연결 (실호출 미실행)
-- 사용자 선택에 따라 `src/newscatalystos/ai_gemini_transport.py`가 Google Gemini `models/{model}:generateContent` REST 요청을 처리한다. Gemini 키는 호출 직전 `GEMINI_API_KEY` 환경변수 또는 macOS 로그인 키체인의 `NewsCatalystOS.Gemini.API`/`newscatalystos` 항목에서 읽는다. 키 값은 코드·설정파일·공개 Git·로그에 남기지 않는다. 키체인 접근 실패와 키 부재는 예약/HTTP 전 차단한다. 모델명은 비공개 `AIModel` 설정에서 고르고 URL 경로 문자를 제한한다. 공식 API 형식: https://ai.google.dev/api/generate-content 및 https://ai.google.dev/gemini-api/docs/generate-content/structured-output .
+- 사용자 선택에 따라 `src/newscatalystos/ai_gemini_transport.py`가 Google Gemini `models/{model}:generateContent` REST 요청을 처리한다. Gemini 키는 호출 직전 `GEMINI_API_KEY` 환경변수 또는 macOS 로그인 키체인의 항목 이름 `newscatalystos`/계정 `NewsCatalystOS.Gemini.API`에서 읽는다. 키 값은 코드·설정파일·공개 Git·로그에 남기지 않는다. 키체인 접근 실패와 키 부재는 예약/HTTP 전 차단한다. 모델명은 비공개 `AIModel` 설정에서 고르고 URL 경로 문자를 제한한다. 공식 API 형식: https://ai.google.dev/api/generate-content 및 https://ai.google.dev/gemini-api/docs/generate-content/structured-output .
 - 기존 중요 신규 사건/PIT/짧은 승인 메타데이터 선별, 4_6 월간 최대비용 예약·중복호출 방지, 모델별 캐시와 비공개 보고서·읽기전용 소비를 재사용한다. `allow_paid=True` 없이 HTTP를 열지 않고, 도구/검색 grounding·리다이렉트·자동 재시도를 사용하지 않는다. Gemini `usageMetadata.totalTokenCount - promptTokenCount`를 출력·사고 토큰의 보수적 사용량으로 잡아 정산한다.
-- 코드와 합성 응답의 연결 테스트는 통과했지만 2026-10-15 개발 프로세스에 `GEMINI_API_KEY`가 없어 실제 Gemini API 요청은 **0회**다. 모델별 사용권·현재 원화 환산 단가와 청구 형태는 운영자가 확인하여 비공개 `AIModel`에 입력해야 한다. 코드 연결 성공을 실호출 성공이나 운영 인수로 표시하지 않는다.
+- 2026-10-15 사용자가 Gemini 키를 macOS 키체인에 직접 입력했다. 항목 이름·계정의 존재만 키체인 UI와 `security` 종료코드 0으로 확인했으며 키 값은 읽거나 출력하지 않았다. 합성 응답 연결 테스트는 통과했지만 실제 Gemini API 요청은 **0회**다. 키 유효성, 모델별 사용권·현재 원화 환산 단가와 청구 형태는 확인되지 않았으며 운영자가 비공개 `AIModel`에 입력해야 한다. 코드 연결 성공을 실호출 성공이나 운영 인수로 표시하지 않는다.

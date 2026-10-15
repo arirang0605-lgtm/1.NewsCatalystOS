@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NewsCatalystOS · 조사 대시보드</title>
+  <link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script>
+</head>
+<body><div class="shell">
+<header class="topbar"><div class="brand"><span class="brand-mark">N</span>NewsCatalystOS</div><span class="local-badge">● 이 Mac에서만 열림</span></header>
+<main>
+<section class="hero"><div><p class="eyebrow">RESEARCH JOURNAL</p><h1>조사 대시보드</h1><p>저장된 조사 결과를 날짜별로 보고, 지난 기록을 함께 되짚습니다.</p></div><span>저장된 RSS 분석 기록</span></section>
+<section class="toolbar" aria-label="기간 선택"><div class="tabs" role="tablist"><button type="button" data-view="day" class="active">일간</button><button type="button" data-view="week">주간</button><button type="button" data-view="month">월간</button></div><div class="date-tools"><button id="previous" type="button" aria-label="이전 기간">‹</button><label>기준일 <input id="date" type="date"></label><button id="next" type="button" aria-label="다음 기간">›</button><button id="today" type="button">오늘</button></div></section>
+<div id="status" role="status"></div>
+<section class="period-heading"><div><p class="eyebrow" id="period-kind">DAILY VIEW</p><h2 id="period-title">불러오는 중</h2></div><span id="period-range"></span></section>
+<section class="metrics"><article><span>분석 기록</span><strong id="count-items">—</strong><small>중복 사건 제외</small></article><article><span>우선 검토</span><strong id="count-review">—</strong><small>규칙 기반 후보</small></article><article><span>근거 보류</span><strong id="count-held">—</strong><small>추가 확인 필요</small></article><article><span>AI 해석</span><strong id="count-ai">—</strong><small>미검증 분석 포함</small></article></section>
+<div class="main-grid"><div class="main-column">
+<section class="panel"><div class="panel-head"><div><p class="eyebrow">AUTO REVIEW</p><h3 id="feedback-title">자동 정리</h3></div><span class="tag">저장된 기록 기준</span></div><ul id="feedback" class="feedback"></ul><p class="fineprint">제목과 저장된 분석 상태의 변화입니다. 실제 계약·매출·수혜 또는 조사 성과를 확정하지 않습니다.</p></section>
+<section id="breakdown-panel" class="panel"><div class="panel-head"><div><p class="eyebrow">PERIOD REVIEW</p><h3 id="breakdown-title">기간별 기록</h3></div></div><div id="breakdown"></div></section>
+<section class="panel"><div class="panel-head"><div><p class="eyebrow">SAVED FINDINGS</p><h3>조사 기록</h3></div><span id="item-total" class="tag"></span></div><label class="filter-wrap"><span class="sr-only">조사 기록 검색</span><input id="item-filter" type="search" placeholder="제목·제공자 검색"></label><div id="items"></div><button id="more-items" type="button" hidden>더 보기</button></section>
+</div><aside class="side-column">
+<section class="panel"><div class="panel-head"><div><p class="eyebrow">MY NOTES</p><h3>직접 메모</h3></div></div><p class="section-copy">이 기간의 판단과 후속 확인 사항을 남기세요. 메모는 분석 원본을 바꾸지 않습니다.</p><form id="note-form"><label for="note-text" class="sr-only">메모 내용</label><textarea id="note-text" maxlength="2000" rows="5" placeholder="예: 내일 확인할 공시와 보류 이유를 기록하세요."></textarea><div class="note-actions"><span id="note-count">0 / 2000</span><button type="submit">메모 저장</button></div></form><div id="own-notes"></div></section>
+<section id="inherited-panel" class="panel"><div class="panel-head"><div><p class="eyebrow">FROM EARLIER PERIODS</p><h3 id="inherited-title">하위 기간 메모</h3></div></div><div id="inherited-notes"></div></section>
+<section class="source-note"><strong>자료 범위</strong><p>이미 저장된 비공개 RSS 분석 보고서를 읽습니다. 파일 해시 검사는 로컬 무결성 확인이며 독립적인 원문 진위 검증은 아닙니다.</p><p id="source-count"></p></section>
+</aside></div>
+</main><footer>NewsCatalystOS · 로컬 조사 기록 · 자동 거래 없음</footer>
+</div></body></html>

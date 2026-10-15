@@ -64,6 +64,7 @@ def evaluate(args: argparse.Namespace) -> tuple[int, dict]:
             delivery = prepare_publisher_beneficiary_graph(
                 args.archive_root, args.archive_version, args.archive_receipt_sha256,
                 args.review_json, args.document_sha256, _registry(args.registry), **options,
+                include_theme_events=getattr(args,"theme_root",None) is not None,
             )
         elif kind == "official":
             if (not all(getattr(args, key, None) for key in official_fields)
@@ -93,8 +94,10 @@ def evaluate(args: argparse.Namespace) -> tuple[int, dict]:
             try:
                 rows=ThemeStore(args.theme_root).ingest_supply_graph(
                     published.folder,args.out_root,published.payload_sha256,
-                    graph_version="v2" if kind=="publisher" else "v1")
-                result.update(theme_link_status="REGISTERED",theme_versions_created=len(rows))
+                    graph_version="v2" if kind=="publisher" else "v1",
+                    observations=list(delivery.economic_observations))
+                result.update(theme_link_status="REGISTERED",theme_versions_created=len(rows),
+                              theme_economic_events=len(delivery.economic_observations))
             except (SourceShareError,ValueError,TypeError,OSError,sqlite3.Error):
                 # A separate destination failure cannot undo a completed publication.
                 # connect_theme_supply_chain retries this same pinned publication.

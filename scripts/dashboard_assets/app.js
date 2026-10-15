@@ -72,7 +72,9 @@ function renderThemes(term){
     const relationLabels={REPORTED_DIRECT_TRANSACTION:"출처에 보고된 직접 계약",ANNOUNCED_SUPPLY_PLAN:"공급 계획"};
     const impactLabels={POTENTIAL_BENEFICIARY_UNVERIFIED:"잠재 수혜 (추론)",POTENTIAL_DAMAGE_UNVERIFIED:"잠재 피해 (추론)",ANNOUNCED_SUPPLY_PLAN_UNVERIFIED:"계획 단계 · 실현 미확인",UNKNOWN_RELATIONSHIP:"영향 경로 미확인",EFFECT_DIRECTION_UNKNOWN:"영향 방향 미확인",THEMATIC_ONLY:"단순 테마 연관"};
     for(const company of theme.company_links){
-      card.append(node("p","",company.entity_id+" · "+(company.supply_chain_links?.length?"공급망 근거 연결":"테마 연관")+" · 수혜 미확정"));
+      const names=[...new Set(theme.source_refs.filter(r=>theme.event_ids.includes(r.event_id)).flatMap(r=>r.company_mappings||[]).filter(m=>m.entity_id===company.entity_id).map(m=>m.source_name))];
+      const display=names.length?names.join(" / ")+" ("+company.entity_id+")":company.entity_id;
+      card.append(node("p","",display+" · "+(company.supply_chain_links?.length?"공급망 근거 연결":"테마 연관")+" · 수혜 미확정"));
       for(const rel of company.supply_chain_links||[]){
         const detail=node("div","finding-detail");
         detail.append(node("p","",(relationLabels[rel.relation_kind]||rel.relation_kind)+" · "+rel.product_stage+" · "+(rel.role==="supplier"?"공급자 → 고객 ":"고객 ← 공급자 ")+rel.counterparty_id));

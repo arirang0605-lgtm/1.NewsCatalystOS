@@ -44,6 +44,7 @@ class ReviewedDelivery:
     publication_sha256: str
     publisher_decision_at: datetime
     source_evidence_sha256: str
+    economic_observations: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -358,18 +359,19 @@ def prepare_publisher_beneficiary_graph(
     review_json: Path, trusted_document_sha256: str, registry: ProviderRegistry,
     *, trigger: str, direction: str = "UNKNOWN",
     evidence_note: str = "Impact direction unverified; independent sales proof missing",
-    now: datetime | None = None,
+    now: datetime | None = None, include_theme_events: bool = False,
 ) -> ReviewedDelivery:
     """Existing licensed publisher intake -> v2 graph, without a fictitious filing."""
     from dataclasses import replace
-    from .official_relation_intake import read_publisher_relation_intake
+    from .official_relation_intake import read_publisher_relation_context
     from .official_relation_review import PUBLISHER_RELATION_STATUS
     if direction not in DIRECTIONS:
         raise SourceShareError("unrecognized economic direction")
-    edge = read_publisher_relation_intake(
+    context = read_publisher_relation_context(
         archive_root, archive_version, trusted_receipt_sha256, review_json,
         trusted_document_sha256, registry, now=now,
     )
+    edge = context.edge
     checked = _when((now or datetime.now(timezone.utc)).isoformat(), "publisher graph prepared")
     provider = registry.active(edge.source_id, at=checked)
     if edge.evidence_status != PUBLISHER_RELATION_STATUS:
@@ -391,7 +393,9 @@ def prepare_publisher_beneficiary_graph(
                        separators=(",", ":"), allow_nan=False) + "\n").encode()
     graph = replace(graph, JSON_bytes=body, payload_sha256=sha256(body).hexdigest())
     _validate_reviewed_graph(data, checked, graph_version="v2")
-    return ReviewedDelivery(graph, graph.payload_sha256, checked, edge.source_event_sha256)
+    from .publisher_theme_events import observations_from_context
+    return ReviewedDelivery(graph, graph.payload_sha256, checked, edge.source_event_sha256,
+                            tuple(observations_from_context(context)) if include_theme_events else ())
 
 
 def _validate_publisher_edge(data: dict, edge: dict, decision: datetime) -> None:

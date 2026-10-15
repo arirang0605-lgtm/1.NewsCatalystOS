@@ -8,6 +8,7 @@ from hashlib import sha256
 import json
 from pathlib import Path
 import sqlite3
+import re
 from urllib.parse import urlsplit, quote
 
 from .economic_changes import DRIVERS, normalized
@@ -60,7 +61,7 @@ def topic_key(topic):
 
 def economic_observation(change, *, origin_reference, source_url, source_id,
                          source_available_at, polarity='SUPPORT', supersedes_event_id=None,
-                         source_binding=None):
+                         source_binding=None, company_mappings=None):
     validate_change(change)
     if not _url(origin_reference) or not _url(source_url) or not _text(source_id):
         raise SourceShareError('explicit source and claim origin required')
@@ -82,11 +83,25 @@ def economic_observation(change, *, origin_reference, source_url, source_id,
             raise SourceShareError('invalid theme source binding')
         for key,value in source_binding.items():_must_sha(value,key)
         result['source_binding']=dict(source_binding)
+    if company_mappings is not None:
+        if source_binding is None or not isinstance(company_mappings,list) or len(company_mappings)>30:
+            raise SourceShareError('document-bound company mappings required')
+        names=set()
+        for mapping in company_mappings:
+            if (not isinstance(mapping,dict) or set(mapping)!={'source_name','entity_id','evidence_sha256'}
+                    or mapping['source_name'] not in change['entity_ids']
+                    or mapping['source_name'] in names
+                    or not isinstance(mapping['entity_id'],str)
+                    or not re.fullmatch(r'(?:SEC_CIK:[0-9]{1,10}|DART_CORP:[0-9]{8}|KRX_STOCK:[0-9]{6})',mapping['entity_id'])):
+                raise SourceShareError('invalid or ambiguous company mapping')
+            _must_sha(mapping['evidence_sha256'],'company identity evidence')
+            names.add(mapping['source_name'])
+        result['company_mappings']=[dict(m) for m in company_mappings]
     return result
 
 
 def _validate_observation(row):
-    if not isinstance(row,dict) or set(row)-{'source_binding'}!={'event_id','change','origin_reference','source_url',
+    if not isinstance(row,dict) or set(row)-{'source_binding','company_mappings'}!={'event_id','change','origin_reference','source_url',
             'source_id','source_available_at','polarity','supersedes_event_id'}:
         raise SourceShareError('economic observation contract required')
     rebuilt=economic_observation(row['change'],**{k:row[k] for k in row if k not in {'change','event_id'}})
@@ -98,6 +113,11 @@ def _theme_id(row):
     key=[topic_key(c['topic']),c['economic_driver']]
     if c['economic_driver']=='UNKNOWN':key.append(row['origin_reference'])
     return sha256(_bytes(key)).hexdigest()
+
+
+def resolved_entities(row):
+    mappings={m['source_name']:m['entity_id'] for m in row.get('company_mappings',[])}
+    return sorted({mappings.get(name,name) for name in row['change']['entity_ids']})
 
 
 class ThemeStore:
@@ -124,6 +144,7 @@ class ThemeStore:
             if latest and _when(latest,'last decision')>at:
                 raise SourceShareError('theme history cannot be backdated')
             changed=set()
+            observation_changed=set()
             if _relation is not None:
                 from .theme_supply_chain import validate_evidence
                 validate_evidence(_relation,at)
@@ -135,7 +156,9 @@ class ThemeStore:
                 raw=_bytes(row);digest=sha256(raw).hexdigest();theme_id=_theme_id(row)
                 cursor=db.execute('INSERT OR IGNORE INTO observations VALUES(?,?,?,?)',
                                   (digest,theme_id,raw,at.isoformat()))
-                if cursor.rowcount:changed.add(theme_id)
+                if cursor.rowcount:
+                    changed.add(theme_id)
+                    observation_changed.add(theme_id)
             # Correction targets must already be known in this theme, including
             # targets in this same transaction. Bad corrections roll back together.
             for row in observations:
@@ -153,7 +176,7 @@ class ThemeStore:
                 result=_snapshot(theme_id,rows,at,previous)
                 from .theme_supply_chain import enrich_theme
                 enrich_theme(result,relations)
-                if previous and _relation is not None:
+                if previous and _relation is not None and theme_id not in observation_changed:
                     # Unmatched publications do not create theme history noise.
                     if result.get('supply_chain_evidence',[])==previous.get('supply_chain_evidence',[]):
                         continue
@@ -162,12 +185,13 @@ class ThemeStore:
                 results.append(result)
             return results
 
-    def ingest_supply_graph(self, folder, out_root, expected_sha256, *, graph_version='v2', now=None):
+    def ingest_supply_graph(self, folder, out_root, expected_sha256, *, graph_version='v2', now=None,
+                            observations=None):
         """Read a completed pinned graph and join matching existing/future events."""
         from .theme_supply_chain import read_evidence
         at=now or datetime.now(timezone.utc)
         relation=read_evidence(folder,out_root,expected_sha256,graph_version=graph_version,now=at)
-        return self.ingest([],now=at,_relation=relation)
+        return self.ingest(observations or [],now=at,_relation=relation)
 
     def search(self, *, as_of=None, query='', now=None):
         at=_when((as_of or now or datetime.now(timezone.utc)).isoformat(),'as of')
@@ -198,7 +222,8 @@ def _snapshot(theme_id, rows, at, previous):
     for row,seen in rows:
         if row['polarity']!='SUPPORT':continue
         old=events.get(row['event_id'])
-        if old is None or rank[row['change']['evidence_level']]>rank[old['change']['evidence_level']]:
+        quality=lambda r:(rank[r['change']['evidence_level']],len(r.get('company_mappings',[])))
+        if old is None or quality(row)>quality(old):
             events[row['event_id']]=row
     invalid=set()
     conflicts=set()
@@ -207,12 +232,12 @@ def _snapshot(theme_id, rows, at, previous):
         if row['polarity']=='RETRACT':invalid.add(target)
         if row['polarity']=='CONTRADICT':conflicts.add(target or row['event_id'])
     active=[r for key,r in events.items() if key not in invalid and r['polarity']=='SUPPORT']
-    entities=sorted({e for row in active for e in row['change']['entity_ids']})
+    entities=sorted({e for row in active for e in resolved_entities(row)})
     industries=sorted({e for row in active for e in row['change']['industry_tags']})
     sources=sorted({r['origin_reference'] for r in active})
     # Counts show distinct claim origins, not a false claim of independent verification.
     reliable=[r for r in active if r['change']['evidence_level'] in {'OFFICIAL_SOURCE','REPORTED'}]
-    reliable_entities={e for r in reliable for e in r['change']['entity_ids']}
+    reliable_entities={e for r in reliable for e in resolved_entities(r)}
     if not active and invalid:state='INVALIDATED'
     elif conflicts or invalid:state='WEAKENING'
     elif len(reliable)>=4 and len(reliable_entities)>=3 and len(industries)>=2:state='EXPANDING'
@@ -229,7 +254,8 @@ def _snapshot(theme_id, rows, at, previous):
            'source_available_at':row['source_available_at'],'recorded_at':seen,
            'evidence_sha256':row['change']['source_paragraph_sha256'],
            'evidence_level':row['change']['evidence_level'],'action':row['change']['action'],
-           'entity_ids':row['change']['entity_ids'],'industry_tags':row['change']['industry_tags'],
+           'entity_ids':resolved_entities(row),'industry_tags':row['change']['industry_tags'],
+           **({'company_mappings':row['company_mappings']} if 'company_mappings' in row else {}),
            **({'source_binding':row['source_binding']} if 'source_binding' in row else {}),
            'phase':row['change']['phase'],'polarity':row['polarity'],
            'supersedes_event_id':row['supersedes_event_id']} for row,seen in rows]
@@ -245,7 +271,7 @@ def _snapshot(theme_id, rows, at, previous):
         'decision_at':at.isoformat(),'event_ids':sorted(r['event_id'] for r in active),
         'entity_ids':entities,'industry_tags':industries,
         'company_links':[{'entity_id':e,'relation_kind':'THEMATIC_ONLY','evidence_level':'INFERRED',
-            'event_ids':sorted(r['event_id'] for r in active if e in r['change']['entity_ids']),
+            'event_ids':sorted(r['event_id'] for r in active if e in resolved_entities(r)),
             'revenue_contribution':None} for e in entities],
         'source_refs':refs,'history':history,
         'scores':{'distinct_economic_events':len(active),'distinct_claim_origins':len(sources),

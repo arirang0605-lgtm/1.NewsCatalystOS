@@ -6,7 +6,7 @@ All inputs must be already authorized and kept in owner-only local folders.
 """
 from __future__ import annotations
 
-from dataclasses import fields
+from dataclasses import fields, dataclass
 from hashlib import sha256
 from datetime import datetime, timezone
 from pathlib import Path
@@ -105,11 +105,25 @@ def read_official_relation_intake(
 PUBLISHER_SCHEMA = "newscatalyst.publisher_relation_intake.v2"
 
 
-def read_publisher_relation_intake(
+@dataclass(frozen=True)
+class PublisherRelationContext:
+    edge: SupplyChainEdge
+    document: bytes
+    source_url: str | None
+    review: OfficialRelationReview
+    supplier: CompanyBinding
+    customer: CompanyBinding
+
+
+def read_publisher_relation_intake(*args, **kwargs) -> SupplyChainEdge:
+    return read_publisher_relation_context(*args, **kwargs).edge
+
+
+def read_publisher_relation_context(
     archive_root: Path, archive_version: str, trusted_receipt_sha256: str,
     private_review_json: Path, trusted_document_sha256: str,
     registry: ProviderRegistry, *, now: datetime | None = None,
-) -> SupplyChainEdge:
+) -> PublisherRelationContext:
     """Use a licensed IR/government document, without inventing an SEC filing.
 
     Existing immutable archive, explicit source permission and source evidence are
@@ -160,10 +174,13 @@ def read_publisher_relation_intake(
     completed = _when((now or datetime.now(timezone.utc)).isoformat(), "publisher intake completed")
     # Rights may expire while the document is being read.
     registry.active(archived.provider_id, at=completed)
-    return _review_bound_document(
+    edge = _review_bound_document(
         archived, supplier, customer, review, document,
         trusted_document_sha256=document_pin, decision=completed, current=completed,
         consumer_observed_at=completed, source_evidence_id=archived.version_id,
         source_available_at=max(archived.first_verified_at, archived.archived_at),
         evidence_status=PUBLISHER_RELATION_STATUS, relation_kind=data["relation_kind"],
     )
+    # Return the same validated bytes and bindings; do not reread mutable input.
+    return PublisherRelationContext(edge,document,
+        provider.endpoint if provider.method=='DOCUMENT' else None,review,supplier,customer)

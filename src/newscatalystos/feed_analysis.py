@@ -33,7 +33,7 @@ from .provider_registry import ProviderRegistry
 from .source_share import SourceShareError, _must_sha, _when
 
 SCHEMA = "newscatalyst.feed_economic_analysis.v1"
-RULE_VERSION = "rss-title-economic-v5"  # distinguish a new order from cumulative order results
+RULE_VERSION = "rss-title-economic-v6"  # named launches without a semiconductor keyword
 # Screening assumptions, NOT release criteria or a verified economic scale.
 MEDIUM_KRW = Decimal("1000000000")
 LARGE_KRW = Decimal("100000000000")
@@ -65,6 +65,21 @@ GLOBAL = re.compile(r"전\s*세계|글로벌|\bglobal\b", re.I)
 INDUSTRY = re.compile(r"업계|산업\s*전반|\bindustry.wide\b", re.I)
 RECURRING = re.compile(r"(?:[2-9]|[1-9][0-9]+)\s*년간.{0,20}공급|장기\s*공급|multi.year\s+supply|recurring\s+supply", re.I)
 BLOCKED = frozenset({"BLOCK_AD_SPAM", "UNVERIFIED_RUMOR"})
+QUOTED_PRODUCT = re.compile(r'‘([^’\n]{2,80})’|“([^”\n]{2,80})”|「([^」\n]{2,80})」|"([^"\n]{2,80})"|\'([^\'\n]{2,80})\'')
+NAMED_LAUNCH = re.compile(r'^\s*(?:을|를)?\s*(?:(?:정식|공식|국내|글로벌)\s*)?출시(?=$|[\s,.!…·]|했|한|하|해)')
+LAUNCH_CONTEXT_ONLY = re.compile(
+    r'출시.{0,12}(?:기념|행사|간담회|설명회|세미나|축하|앞두|앞둔|이후|한\s*지|하지\s*않|하지\s*못)'
+    r'|출시\s*경쟁|미출시|출시.{0,10}사실\s*무근')
+
+
+def _launch_products(title: str) -> list[str]:
+    """Exact quoted names directly attached to a launch claim, not inferred topics."""
+    if LAUNCH_CONTEXT_ONLY.search(title):
+        return []
+    return list(dict.fromkeys(next(x for x in match.groups() if x is not None).strip()
+        for match in QUOTED_PRODUCT.finditer(title)
+        if NAMED_LAUNCH.match(title[match.end():])
+        and any(x and x.strip() for x in match.groups())))[:10]
 
 
 def _stamp(now: datetime | None) -> datetime:
@@ -107,6 +122,10 @@ def _category(title: str) -> str | None:
             return "CONTRACT_TERMINATION"  # reported change; execution unverified
         return None  # denials or conflicting claims are not a confirmed event
     matches = [kind for kind, pattern in ACTION_RULES if re.search(pattern, title, re.I)]
+    if _launch_products(title) and "PRODUCT_LAUNCH" not in matches:
+        matches.append("PRODUCT_LAUNCH")
+    if LAUNCH_CONTEXT_ONLY.search(title):
+        matches = [kind for kind in matches if kind != "PRODUCT_LAUNCH"]
     return matches[0] if len(matches) == 1 else None
 
 
@@ -132,16 +151,19 @@ def _screen(item: dict, prior: PriorState, at: datetime) -> tuple[dict, FactInpu
     category = _category(title)
     permitted = item["claim_classification"] not in BLOCKED
     terms = _matched_terms(title)
+    products = _launch_products(title) if category == "PRODUCT_LAUNCH" else []
     proposals = []
     for term in terms:
         start = title.casefold().find(term.casefold())
         proposals.append(FactProposal("PRODUCT", title[start:start + len(term)], title))
+    proposals.extend(FactProposal("PRODUCT", product, title) for product in products
+                     if product.casefold() not in {term.casefold() for term in terms})
     amounts = [match.group().strip() for match in MONEY.finditer(title)]
     if category == "NEW_CONTRACT":
         proposals.extend(FactProposal("CONTRACT_AMOUNT", value, title) for value in amounts)
     extracted = verify_extracted_facts(event, title, proposals,
         observed_at=_when(item["available_at"], "source seen"), checked_at=at, now=at)
-    fact = _claim(item, at) if category and permitted and terms else None
+    fact = _claim(item, at) if category and permitted and (terms or products) else None
     own = [x for x in prior.facts if x.source_event_sha256 == event]
     baseline = PriorState(prior.reviewed_subject_id, at,
                           tuple(x for x in prior.facts if x.source_event_sha256 != event))

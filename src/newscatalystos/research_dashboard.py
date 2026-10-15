@@ -104,6 +104,8 @@ def scan_saved_analysis(root: Path, *, document_root: Path | None = None, now: d
                         "ai_uncertainties": (row.get("ai_analysis") or {}).get("uncertainties", []),
                         "uncertainty_count": len(row["uncertainties"]),
                         "reported_plan_only": row["reported_plan_only"],
+                        "source_products": list(dict.fromkeys(x["value"]
+                            for x in row["source_matched_fields"] if x["field"] == "PRODUCT")),
                         "report_sha256": match.group(1),
                         "evidence_status": "LOCAL_DIGEST_AND_SAVED_SCHEMA_CHECKED",
                     }

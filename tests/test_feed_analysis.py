@@ -123,6 +123,67 @@ def test_partial_evidence_survives_missing_amount_and_unknown_dimensions(tmp_pat
     assert row["source_amount_mentions"] == [] and row["ai_analysis"] is None
 
 
+@pytest.mark.parametrize("title,product", [
+    ("가상회사, 배터리 성능 강화 GPS 시계 ‘Trail 4’ 출시", "Trail 4"),
+    ("가상기업, 팀워크 돕는 ‘관계 번역기’ 정식 출시", "관계 번역기"),
+    ('가상기업, "새로운 엔진"을 공식 출시했다', "새로운 엔진"),
+    ("가상기업, 「신규 시스템」 국내 출시", "신규 시스템"),
+])
+def test_named_launch_without_known_sector_keyword_survives_to_dashboard(tmp_path, title, product):
+    from newscatalystos.feed_analysis_delivery import consume_feed_analysis
+    from newscatalystos.research_dashboard import scan_saved_analysis
+    info = setup(tmp_path, title)
+    original = fingerprint(info[0].inbox_root.parent)
+    opener = LocalOpener(packet())
+    report = run(info, model=config(), allow_paid=True, opener=opener)
+    row = report["results"][0]
+    assert row["category_candidate"] == "PRODUCT_LAUNCH"
+    assert row["novelty"] == "NEW_FACT_CANDIDATE_NEEDS_EVIDENCE"
+    assert [x["value"] for x in row["source_matched_fields"]] == [product]
+    assert not row["reported_plan_only"] and not row["verified_economic_fact"]
+    assert row["dimensions"]["scale"] == "UNKNOWN"
+    assert row["dimensions"]["affected_scope"] == "UNKNOWN"
+    assert not row["ai_eligible"] and opener.calls == report["new_ai_results"] == 0
+    root = tmp_path / "dashboard"
+    path, digest = publish_feed_analysis(report, root / "core" / "reports")
+    assert consume_feed_analysis(path, path.parent, digest)["results"] == report["results"]
+    items, counts = scan_saved_analysis(root)
+    assert counts["saved_reports_skipped"] == 0
+    assert len(items) == 1 and items[0]["source_products"] == [product]
+    assert items[0]["content_scope"] == "RSS_TITLE_METADATA"
+    again = run(info)["results"][0]
+    assert again["already_recorded_source_version"]
+    assert again["analysis_event_sha256"] == row["analysis_event_sha256"]
+    assert fingerprint(info[0].inbox_root.parent) == original
+
+
+@pytest.mark.parametrize("suffix", ["출시 예정", "출시 계획 발표"])
+def test_named_launch_plan_remains_a_plan(tmp_path, suffix):
+    row = run(setup(tmp_path, "가상회사, ‘차세대 플랫폼’ " + suffix))["results"][0]
+    assert row["category_candidate"] == "PRODUCT_LAUNCH"
+    assert row["reported_plan_only"] and not row["ai_eligible"]
+    assert not row["verified_economic_fact"]
+
+
+@pytest.mark.parametrize("title", [
+    "가상회사, ‘차세대 플랫폼’ 공개",
+    "가상회사, ‘차세대 플랫폼’ 개발 중",
+    "가상회사, ‘차세대 플랫폼’ 출시 기념 행사 개최",
+    "가상회사, ‘차세대 플랫폼’ 출시를 앞두고 설명회 개최",
+    "가상회사, ‘차세대 플랫폼’ 출시하지 않았다",
+    "가상회사, ‘차세대 플랫폼’ 출시 사실무근",
+    "가상회사, ‘차세대 플랫폼’ 출시 취소",
+    "가상회사, 신제품 HBM 출시 기념 세미나 개최",
+    "가상회사, ‘차세대 플랫폼’ 출시 이후 점유율 발표",
+    "가상회사, ‘신제품 전략’ 발표…신기술 출시 경쟁",
+])
+def test_launch_context_or_denial_is_not_a_new_launch(tmp_path, title):
+    row = run(setup(tmp_path, title))["results"][0]
+    assert row["category_candidate"] is None
+    assert row["novelty"] == "UNCLASSIFIED_SOURCE_CLAIM"
+    assert not row["ai_eligible"]
+
+
 def test_cumulative_order_results_are_not_a_new_contract(tmp_path):
     row = run(setup(tmp_path, "반도체 HBM 3분기 수주 및 매출 기록 달성"))["results"][0]
     assert row["category_candidate"] is None
@@ -280,7 +341,7 @@ def test_explicit_contract_termination_is_reviewed_not_a_new_contract(tmp_path):
     info = setup(tmp_path, title)
     report = run(info)  # no paid provider; original authorized metadata only
     row = report["results"][0]
-    assert report["rule_version"] == "rss-title-economic-v5"
+    assert report["rule_version"] == "rss-title-economic-v6"
     assert row["category_candidate"] == "CONTRACT_TERMINATION"
     assert row["reported_termination_only"] and not row["reported_plan_only"]
     assert row["ai_eligible"] and row["ai_status"] == "AI_DISABLED_BY_CONFIGURATION"
@@ -411,7 +472,7 @@ def test_contract_reduction_links_prior_title_and_reaches_readonly_consumer(tmp_
     report = run(info)
     row = report["results"][0]
     change = row["followup_change"]
-    assert report["rule_version"] == "rss-title-economic-v5"
+    assert report["rule_version"] == "rss-title-economic-v6"
     assert row["category_candidate"] == "CONTRACT_REDUCTION"
     assert row["reported_reduction_only"] and not row["reported_termination_only"]
     assert row["dimensions"]["scale"] == "UNKNOWN"
@@ -463,7 +524,7 @@ def test_contract_delivery_delay_links_prior_claim_and_reaches_consumer(tmp_path
     report = run(info)
     row = report["results"][0]
     change = row["followup_change"]
-    assert report["rule_version"] == "rss-title-economic-v5"
+    assert report["rule_version"] == "rss-title-economic-v6"
     assert row["category_candidate"] == "CONTRACT_DELAY"
     assert row["reported_delay_only"] and not row["reported_termination_only"]
     assert row["dimensions"]["scale"] == "UNKNOWN"

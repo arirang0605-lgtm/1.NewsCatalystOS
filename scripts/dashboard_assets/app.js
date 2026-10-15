@@ -6,10 +6,11 @@ function status(message,error=false){$("status").textContent=message;$("status")
 function shift(amount){const [y,m,d]=state.date.split("-").map(Number),day=new Date(Date.UTC(y,m-1,d));if(state.view==="month")day.setUTCMonth(day.getUTCMonth()+amount);else day.setUTCDate(day.getUTCDate()+amount*(state.view==="week"?7:1));state.date=day.toISOString().slice(0,10);load()}
 function niceDate(value){return new Intl.DateTimeFormat("ko-KR",{year:"numeric",month:"long",day:"numeric",timeZone:"UTC"}).format(new Date(value+"T00:00:00Z"))}
 function showNotes(place,notes,empty){place.replaceChildren();if(!notes.length){place.append(node("p","empty-small",empty));return}for(const item of [...notes].reverse()){const box=node("div","note");box.append(node("span","note-date",item.period+" · "+item.view),node("p","",item.text));place.append(box)}}
+function categoryLabel(item){const labels={PRODUCT_LAUNCH:"제품 출시",NEW_CONTRACT:"신규 계약",NEW_INVESTMENT:"신규 투자",COMMERCIALIZATION:"상용화",REGULATORY_APPROVAL:"인허가",NEW_FACILITY:"신규 시설",CONTRACT_TERMINATION:"계약 종료",CONTRACT_REDUCTION:"계약 감액",CONTRACT_DELAY:"납기 지연"};const label=labels[item.category];return label?label+(item.reported_plan_only?" 계획 보도":" 보도"):(item.category||"분류 없음")}
 function renderItems(){
   if(!currentData)return;
   const term=$("item-filter").value.trim().toLocaleLowerCase();
-  const matches=currentData.items.filter(x=>!term||(x.headline+" "+x.provider+" "+(x.category||"")+" "+JSON.stringify(x.economic_changes||[])+" "+JSON.stringify(x.company_identity||{})).toLocaleLowerCase().includes(term));
+  const matches=currentData.items.filter(x=>!term||(x.headline+" "+x.provider+" "+(x.category||"")+" "+categoryLabel(x)+" "+JSON.stringify(x.economic_changes||[])+" "+JSON.stringify(x.company_identity||{})).toLocaleLowerCase().includes(term));
   const visible=matches.slice(0,shown);
   $("item-total").textContent=visible.length+" / "+matches.length+"건";
   $("items").replaceChildren();
@@ -18,7 +19,8 @@ function renderItems(){
     const card=node("article","finding"),meta=node("div","finding-meta");
     meta.append(node("span","",item.day+" · "+item.provider),node("span","pill",["HIGH_REVIEW","HIGH_PRIORITY_CANDIDATE"].includes(item.priority)?"분석 우선":item.priority==="PARTIAL_EVIDENCE_ONLY"?"근거 보류":"분석 후보"));
     const ai={"NOT_ELIGIBLE":"AI 미사용","AWAITING_EXPLICIT_AI_AUTHORIZATION":"AI 설정 미활성","AI_DISABLED_BY_CONFIGURATION":"AI 설정 미활성","ANALYZED_UNVERIFIED":"AI 해석·미검증","CACHE_HIT":"기존 AI 해석"}[item.ai_status]||"AI 결과 없음";
-    card.append(meta,node("h4","",item.headline),node("p","finding-detail",[item.category||"분류 없음",ai,"미확인 "+item.uncertainty_count+"개"].join(" · ")));
+    card.append(meta,node("h4","",item.headline),node("p","finding-detail",[categoryLabel(item),ai,"미확인 "+item.uncertainty_count+"개"].join(" · ")));
+    if(item.source_products?.length)card.append(node("p","finding-detail","제목에 명시된 제품·기술: "+item.source_products.join(", ")));
     if(item.ai_summary){
       card.append(node("p","finding-detail",(item.analysis_purpose==="EXISTING_ARTICLE"?"기존 기사 AI 분석":"AI 분석")+" · "+(item.content_scope==="LICENSED_ARTICLE_TEXT"?"허가된 기사 본문 기준":"제목 기준")));
       card.append(node("p","",item.ai_summary));

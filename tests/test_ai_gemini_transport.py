@@ -3,13 +3,12 @@ from dataclasses import asdict
 from io import BytesIO
 import json
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
 from newscatalystos.ai_cost_ledger import reserve_ai_call
 from newscatalystos.ai_gemini_transport import (
-    API_ROOT, _keychain_api_key, _normal_response, gemini_generate_content_transport,
+    API_ROOT, _normal_response, gemini_generate_content_transport,
     run_budgeted_gemini_analysis,
 )
 from newscatalystos.feed_analysis_delivery import consume_feed_analysis
@@ -89,34 +88,21 @@ def test_missing_key_or_authorization_never_reserves_or_calls(monkeypatch, tmp_p
     with pytest.raises(SourceShareError, match="explicit paid"):
         run_budgeted_gemini_analysis(model, req, ledger, opener=opener, now=NOW)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    monkeypatch.setattr("newscatalystos.ai_gemini_transport._keychain_api_key", lambda: "")
+    monkeypatch.setattr("newscatalystos.ai_gemini_transport.read_private_api_key", lambda: "")
     with pytest.raises(SourceShareError, match="credential unavailable"):
         run_budgeted_gemini_analysis(
             model, req, ledger, allow_paid=True, opener=opener, now=NOW)
     assert opener.calls == 0 and not ledger.exists()
 
 
-def test_keychain_lookup_matches_saved_item_without_logging_value(monkeypatch):
-    calls = []
-    def fake_run(args, **kwargs):
-        calls.append((args, kwargs))
-        return SimpleNamespace(returncode=0, stdout=b"synthetic-keychain-key-for-offline-tests\n")
-    monkeypatch.setattr("newscatalystos.ai_gemini_transport.subprocess.run", fake_run)
-    assert _keychain_api_key() == "synthetic-keychain-key-for-offline-tests"
-    assert calls == [([
-        "/usr/bin/security", "find-generic-password", "-w",
-        "-a", "NewsCatalystOS.Gemini.API", "-s", "newscatalystos",
-    ], {"capture_output": True, "timeout": 30, "check": False})]
-
-
-def test_keychain_fallback_reads_once_before_reservation(monkeypatch, tmp_path):
+def test_private_file_fallback_reads_once_before_reservation(monkeypatch, tmp_path):
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     lookups = []
-    synthetic = "synthetic-keychain-key-for-offline-tests"
-    def keychain_lookup():
+    synthetic = "synthetic-local-key-for-offline-tests"
+    def private_lookup():
         lookups.append(True)
         return synthetic
-    monkeypatch.setattr("newscatalystos.ai_gemini_transport._keychain_api_key", keychain_lookup)
+    monkeypatch.setattr("newscatalystos.ai_gemini_transport.read_private_api_key", private_lookup)
     model, req = config("GEMINI"), request()
     ledger = tmp_path / "private" / "ai.sqlite3"
     opener = LocalOpener(packet())

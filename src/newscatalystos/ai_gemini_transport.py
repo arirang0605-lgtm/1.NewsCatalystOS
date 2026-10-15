@@ -10,11 +10,11 @@ import json
 import os
 from pathlib import Path
 import re
-import subprocess
 from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .ai_cost_ledger import reserve_ai_call, settle_ai_call
+from .ai_gemini_credentials import read_private_api_key, valid_api_key
 from .ai_provider import (
     AIModel, AIRequest, AIResult, MAX_METADATA_CHARS, SCHEMA,
     _validate_result, run_ai_analysis,
@@ -23,8 +23,6 @@ from .source_share import SourceShareError, _json, _must_sha, _when
 
 API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models/"
 MAX_RESPONSE = 64 * 1024
-KEYCHAIN_SERVICE = "newscatalystos"
-KEYCHAIN_ACCOUNT = "NewsCatalystOS.Gemini.API"
 MODEL_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}\Z")
 OUTPUT_SCHEMA = {
     "type": "object",
@@ -43,26 +41,12 @@ class _RejectRedirect(HTTPRedirectHandler):
         raise SourceShareError("AI redirect refused")
 
 
-def _keychain_api_key() -> str:
-    """Read only this project's login-keychain item; never log its bytes."""
-    try:
-        lookup = subprocess.run(
-            ["/usr/bin/security", "find-generic-password", "-w",
-             "-a", KEYCHAIN_ACCOUNT, "-s", KEYCHAIN_SERVICE],
-            capture_output=True, timeout=30, check=False,
-        )
-        if lookup.returncode != 0:
-            return ""
-        return lookup.stdout.decode("utf-8").rstrip("\r\n")
-    except (OSError, subprocess.TimeoutExpired, UnicodeDecodeError):
-        return ""
-
-
 def _require_api_key() -> str:
+    """Read a validated environment override or owner-only local credential."""
     key = os.environ.get("GEMINI_API_KEY", "")
     if key == "":
-        key = _keychain_api_key()
-    if not isinstance(key, str) or not 20 <= len(key) <= 256 or any(ch.isspace() for ch in key):
+        key = read_private_api_key()
+    if not valid_api_key(key):
         raise SourceShareError("AI credential unavailable")
     return key
 

@@ -27,10 +27,11 @@ ASSETS = Path(__file__).resolve().parent / "dashboard_assets"
 
 
 class DashboardServer(ThreadingHTTPServer):
-    def __init__(self, port: int, reports: Path, notes: Path, documents: Path | None = None):
+    def __init__(self, port: int, reports: Path, notes: Path, documents: Path | None = None, *, evidence_base: Path | None = None):
         super().__init__(("127.0.0.1", port), Handler)
         self.reports = reports
         self.documents = documents
+        self.evidence_base = evidence_base
         self.notes = NoteStore(notes)
 
 
@@ -119,6 +120,27 @@ class Handler(BaseHTTPRequestHandler):
             except (SourceShareError, OSError, ValueError, KeyError, TypeError) as exc:
                 self._json(400, {"error": type(exc).__name__})
             return
+        if url.path=='/api/company-evidence':
+            query=parse_qs(url.query)
+            try:
+                from newscatalystos.source_share import _when, _must_sha
+                from newscatalystos.company_evidence import company_evidence, installed_sources
+                now=datetime.now(timezone.utc)
+                at=_when(query['as_of'][0],'as of') if 'as_of' in query else now
+                theme_id=_must_sha(query['theme_id'][0],'theme')
+                entity=query['entity_id'][0]
+                if not entity or len(entity)>120:raise ValueError('invalid company')
+                themes=ThemeStore(self.server.documents/'theme_history').search(as_of=at,now=now) if self.server.documents else []
+                theme=next((t for t in themes if t['theme_id']==theme_id
+                            and any(c['entity_id']==entity for c in t['company_links'])),None)
+                if theme is None:
+                    self._json(404,{'error':'theme/company unavailable as of query'});return
+                feeds,jobs=installed_sources(self.server.evidence_base)
+                self._json(200,company_evidence(theme,entity,reports_root=self.server.reports,
+                    document_root=self.server.documents,feeds=feeds,jobs=jobs,as_of=at,now=now))
+            except (SourceShareError,OSError,ValueError,KeyError,TypeError,sqlite3.Error):
+                self._json(400,{'error':'evidence unavailable for this query'})
+            return
         if url.path=='/api/theme-changes':
             query=parse_qs(url.query)
             try:
@@ -201,8 +223,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--document-reports-root", type=Path,
                         default=Path.home() / "Library/Application Support/NewsCatalystOS/document_analysis")
     parser.add_argument("--no-browser", action="store_true")
+    parser.add_argument("--evidence-base",type=Path,
+                        default=Path.home()/"Library/Application Support/NewsCatalystOS")
     options = parser.parse_args(argv)
-    server = DashboardServer(options.port, options.reports_root, options.notes_root, options.document_reports_root)
+    server = DashboardServer(options.port, options.reports_root, options.notes_root, options.document_reports_root,
+                             evidence_base=options.evidence_base)
     url = f"http://127.0.0.1:{server.server_port}/"
     print(f"NewsCatalystOS dashboard: {url}", flush=True)
     if not options.no_browser:

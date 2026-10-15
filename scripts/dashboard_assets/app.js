@@ -109,6 +109,31 @@ function renderThemes(term){
           reasons.append(node("p","",(kinds[basis.kind]||basis.kind)+" · "+basis.reason+(basis.phase?" · "+(economicPhaseLabels[basis.phase]||basis.phase):"")));
           for(const url of basis.source_urls||(basis.source_url?[basis.source_url]:[])){const a=node("a","source-link","포함 근거 원문");a.href=url;a.target="_blank";a.rel="noopener noreferrer";reasons.append(a)}
         }
+        const evidence=node("details","finding-detail");evidence.append(node("summary","","저장된 원인·행동 근거 문장"));
+        const evidenceBody=node("div","");evidence.append(evidenceBody);let evidenceLoaded=false;
+        evidence.addEventListener("toggle",async()=>{
+          if(!evidence.open||evidenceLoaded)return;evidenceLoaded=true;
+          evidenceBody.replaceChildren(node("p","","저장 근거를 읽고 있습니다."));
+          try{
+            const end=new Date(currentData.end+"T23:59:59.999+09:00");
+            const at=new Date(Math.min(end.getTime(),Date.now())).toISOString();
+            const params=new URLSearchParams({theme_id:theme.theme_id,entity_id:company.entity_id,as_of:at});
+            const response=await fetch("/api/company-evidence?"+params);
+            if(!response.ok)throw new Error("unavailable");
+            const result=await response.json();evidenceBody.replaceChildren();
+            if(!result.items.length)evidenceBody.append(node("p","","N/A · "+result.reason));
+            for(const item of result.items){
+              const box=node("div","finding-detail");
+              box.append(node("p","",(item.content_scope==="RSS_TITLE_METADATA"?"RSS 제목 범위":item.content_scope==="LICENSED_ARTICLE_TEXT"?"허가 본문 범위":"저장 근거")+" · "+(economicActionLabels[item.action]||item.action)+" · "+(economicPhaseLabels[item.phase]||item.phase)));
+              box.append(node("p","",item.status==="READY"?item.excerpt:"N/A · "+item.reason));
+              const a=node("a","source-link","해당 판본의 출처");a.href=item.source_url;a.target="_blank";a.rel="noopener noreferrer";box.append(a);
+              box.append(node("p","","출처 가용: "+item.source_available_at+(item.analysis_available_at?" · 분석 가용: "+item.analysis_available_at:"")));
+              const hashes=node("details","");hashes.append(node("summary","","사건·원본 판본 SHA"));
+              for(const [label,value] of [["사건 ID",item.event_id],["원본 제목/문단 SHA",item.evidence_sha256],["표시 구간 SHA",item.excerpt_sha256],["분석 보고서 SHA",item.report_sha256]])if(value)hashes.append(node("p","",label+": "+value));
+              box.append(hashes);evidenceBody.append(box);
+            }
+          }catch{evidenceBody.replaceChildren(node("p","","N/A · 저장 근거를 읽지 못했습니다. 다른 조사 결과는 계속 사용할 수 있습니다."));evidenceLoaded=false;}
+        });reasons.append(evidence);
         reasons.append(node("p","","보도된 제품·사업 주제: "+(candidate.business_context.source_topics.join(" · ")||"미확인")+" · 기업의 실제 사업 구성은 미확인"));
         if(!candidate.benefit_paths.length)reasons.append(node("p","","기업까지 이어지는 수혜 경로: 미확인"));
         for(const path of candidate.benefit_paths)reasons.append(node("p","","수혜 경로: "+path.product_stage+" · "+(impactLabels[path.category]||path.category)+" · 상대 기업 "+path.counterparty_id));

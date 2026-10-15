@@ -77,6 +77,8 @@ def test_transport_sends_metadata_json_without_tools_or_storage(key):
     assert body["store"] is False and "tools" not in body
     assert body["generationConfig"]["responseFormat"]["text"]["mimeType"] == "application/json"
     assert body["generationConfig"]["maxOutputTokens"] == model.max_output_tokens
+    assert "temperature" not in body["generationConfig"]
+    assert "candidateCount" not in body["generationConfig"]
     assert "HBM investment news" in body["contents"][0]["parts"][0]["text"]
 
 

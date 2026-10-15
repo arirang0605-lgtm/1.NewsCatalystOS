@@ -154,9 +154,7 @@ def gemini_generate_content_transport(
             "claims, and uncertainties; list missing evidence."
         )}]},
         "generationConfig": {
-            "temperature": model.temperature,
             "maxOutputTokens": model.max_output_tokens,
-            "candidateCount": 1,
             "responseFormat": {"text": {
                 "mimeType": "application/json", "schema": OUTPUT_SCHEMA}},
         },

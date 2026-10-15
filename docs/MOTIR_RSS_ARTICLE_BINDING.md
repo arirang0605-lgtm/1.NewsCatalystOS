@@ -23,3 +23,20 @@
 ## 호출
 
 `scripts/screen_motir_document.py`와 `scripts/consume_motir_document_screen.py`는 그 결합 영수증을 이용해 본문 선별 결과를 비공개 게시·검사한다.
+
+
+## 허가 본문 Gemini 분석 연결 — 2026-10-15
+
+`motir_document_analysis.py`와 `scripts/run_motir_document_analysis.py`가 결합 영수증→현재 본문 사용권→원문 SHA→본문 선별→기존 Gemini 비용 예약/정산→비공개 캐시/결과 게시를 연결한다. `LICENSED_ARTICLE_TEXT`와 별도 `newscatalyst.ai_document_analysis.v1`으로 제목 분석과 구분한다. 기존 제목 입력·결과·캐시는 유지한다. `consume_motir_document_analysis.py --path ... --expected-sha256 ...`는 네트워크나 캐시 쓰기 없이 저장 결과를 조회한다.
+
+- 자동 분석은 본문 규칙이 선정한 중요 신규 투자 후보에 적용한다. `--analyze-existing`은 지정된 기존 기사 1건 분석이며 신규 사건·실거래·수혜 확정 플래그는 false다.
+- 추출한 기사 텍스트 전체를 사용한다. 12,000자와 모델의 보수적 입력 예산을 넘으면 `DOCUMENT_INPUT_LIMIT_EXCEEDED`를 표시하고 유료 호출 전에 종료한다. 문맥을 임의로 잘라 보내지 않는다. 첨부파일·외부 링크 내용까지 읽었다고 주장하지 않는다.
+- 기사 본문 SHA, 원문 가용시각, 결합 SHA, 입력 SHA, 모델·프롬프트를 보존한다. 제목과 본문은 별도 분석 식별자이며 같은 입력은 캐시로 재사용한다. 불명확한 HTTP 실패의 비용 예약은 보존해 중복 청구를 막는다.
+- MOTIR 예약 실행의 `--document-jobs /비공개/jobs.json --document-model-config /비공개/model.json`이 등록된 본문을 최대 20건 처리한다. jobs 스키마는 `newscatalyst.motir_document_jobs.v1`, 각 항목은 `binding_path`, `binding_sha256`, `archive_root`, `article_registry`다. 사람 검수·건별 승인 없이 처리하며 하나의 오류는 다른 항목의 처리를 막지 않는다. `--replay-only`는 본문도 유료 호출하지 않는다.
+- 등록된 원문을 처리하는 기능이다. 새 RSS 기사의 허가 본문 자동 확보·아카이브·등록은 다음 구현 항목이다.
+
+### 실제 실행 증거
+
+기존 기사 172295의 추출 본문 1,411자(3,353바이트)를 같은 승인 Gemini 모델로 분석했다. 입력 1,335·출력 238토큰, 설정 단가 기준 예상 비용 **1.991원**. `EXISTING_ARTICLE`, 신규 경제 사건 false. 모델은 투자 이행 점검·인허가/기반시설 지원을 요약하고 실제 투자 집행은 미확인으로 표시했다. 동일 입력 재실행은 CACHE_HIT, 추가 생성 0건이다. 별도 프로세스에서 SHA 고정 결과 조회도 성공했다. 실제 비용 청구서 확인이나 산업 정확도 인증을 뜻하지 않는다.
+
+합성 응답을 이용한 관련 기존/신규 검사 170개 통과. 과거계획 자동 호출 제외, 본문 변경 시 캐시 분리, 접근권한 철회, 원문 SHA, 긴 입력의 호출 전 차단, 비용 중복 예약 방지, 예약 실행 및 replay 유료 호출 차단을 확인했다.

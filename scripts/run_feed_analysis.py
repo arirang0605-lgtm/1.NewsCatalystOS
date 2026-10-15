@@ -44,6 +44,17 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
+def read_model_config(path: Path | None) -> AIModel | None:
+    if path is None:
+        return None
+    data = _json(_private_input(path, 8192), "private AI model configuration")
+    if set(data) != {f.name for f in fields(AIModel)}:
+        raise SourceShareError("AI model fields must exclude credentials")
+    model = AIModel(**data)
+    model.validate()
+    return model
+
+
 def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, dict]:
     try:
         base = Path.home() / "Library/Application Support/NewsCatalystOS"
@@ -52,13 +63,7 @@ def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, d
         inbox = opts.inbox_root or base / "inbox" / (prefix + "feed_triage")
         state = opts.state or base / "state" / (prefix + "incremental_feeds.sqlite3")
         work = opts.analysis_root or PROJECT / "output" / "feed_analysis" / opts.scope
-        model = None
-        if opts.model_config:
-            data = _json(_private_input(opts.model_config, 8192), "private AI model configuration")
-            if set(data) != {f.name for f in fields(AIModel)}:
-                raise SourceShareError("AI model fields must exclude credentials")
-            model = AIModel(**data)
-            model.validate()
+        model = read_model_config(opts.model_config)
         report = analyze_completed_feed(_registry(registry_path), inbox, state, work,
             provider_id=opts.provider_id, event_id=opts.event_id,
             title_sha256=opts.title_sha256, limit=opts.limit, model=model,

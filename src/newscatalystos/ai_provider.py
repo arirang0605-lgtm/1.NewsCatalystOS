@@ -1,8 +1,9 @@
 """4_1 vendor-neutral AI contract; injected provider transport, NO implicit network.
 
-Only important new observations with verified PIT availability are eligible.
+Important new observations and explicitly selected existing articles are eligible.
 This module does not include an SDK, API endpoint, credentials, or content upload.
-A trusted operator must explicitly inject an authorized transport for a live call.
+An authorized transport is injected for live calls. Licensed documents use a
+separate schema and retain their own bounds; the original metadata schema is unchanged.
 """
 from __future__ import annotations
 
@@ -15,8 +16,10 @@ from typing import Callable, Protocol
 from .source_share import SourceShareError, _must_sha, _when
 
 SCHEMA = "newscatalyst.ai_analysis.v1"
+DOCUMENT_SCHEMA = "newscatalyst.ai_document_analysis.v1"
+MAX_DOCUMENT_CHARS = 12000
 PROVIDERS = frozenset({"OPENAI", "GEMINI", "ANTHROPIC"})
-ALLOW_KINDS = frozenset({"OFFICIAL_METADATA", "LICENSED_METADATA"})
+ALLOW_KINDS = frozenset({"OFFICIAL_METADATA", "LICENSED_METADATA", "LICENSED_DOCUMENT"})
 AI_CLASS = "UNVERIFIED_AI_INTERPRETATION_NOT_MARKET_FACT"
 OUTPUT_FIELDS = frozenset({"summary", "claims", "uncertainties"})
 MAX_METADATA_CHARS = 512
@@ -113,12 +116,13 @@ def _check_request(request: AIRequest, now: datetime) -> None:
         raise SourceShareError("invalid AI analysis purpose")
     if request.analysis_purpose == "NEW_EVENT" and (not request.important or not request.new_economic_event):
         raise SourceShareError("AI only for important novel events")
+    document = request.source_kind == "LICENSED_DOCUMENT"
+    limit = MAX_DOCUMENT_CHARS if document else MAX_METADATA_CHARS
     if (not isinstance(request.metadata, str)
-            or not 0 < len(request.metadata) <= MAX_METADATA_CHARS
-            or "\x00" in request.metadata or "\n" in request.metadata):
-        raise SourceShareError("unsafe or oversized metadata-only AI input")
-    # This is a metadata-only bridge; article body and credentials are never
-    # arguments to an SDK or an automatically-created HTTP connection.
+            or not 0 < len(request.metadata) <= limit
+            or "\x00" in request.metadata or (not document and "\n" in request.metadata)):
+        raise SourceShareError("unsafe or oversized document AI input" if document
+                               else "unsafe or oversized metadata-only AI input")
 
 
 def _validate_result(value: object) -> tuple[str, tuple[str, ...], tuple[str, ...]]:
@@ -166,9 +170,11 @@ def run_ai_analysis(
         raise SourceShareError("AI hard budget denied before network")
     if transport is None:
         raise SourceShareError("AI transport not configured, DATA_UNAVAILABLE")
+    document = request.source_kind == "LICENSED_DOCUMENT"
+    result_schema = DOCUMENT_SCHEMA if document else SCHEMA
     prompt = {
-        "schema": SCHEMA, "event_sha256": request.event_sha256,
-        "metadata": request.metadata, "source_kind": request.source_kind,
+        "schema": result_schema, "event_sha256": request.event_sha256,
+        ("document" if document else "metadata"): request.metadata, "source_kind": request.source_kind,
         "decision_at": request.decision_at.isoformat(),
         "require_uncertainty": True, "unverified_market_fact": True,
     }
@@ -200,7 +206,7 @@ def run_ai_analysis(
     completed_at = _when((now or datetime.now(timezone.utc)).isoformat(),
                          "AI response completed")
     return AIResult(
-        SCHEMA, request.event_sha256, model.provider, model.model,
+        result_schema, request.event_sha256, model.provider, model.model,
         model.prompt_version, sha256(sealed).hexdigest(),
         summary, claims, unknown, inp, out, actual, completed_at,
     )

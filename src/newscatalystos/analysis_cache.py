@@ -82,12 +82,12 @@ def _result_bytes(result: AIResult) -> bytes:
 
 
 def _decode(blob: bytes) -> AIResult:
-    from .ai_provider import AI_CLASS, SCHEMA as AI_SCHEMA
+    from .ai_provider import AI_CLASS, SCHEMA as AI_SCHEMA, DOCUMENT_SCHEMA
     if len(blob)>16000:
         raise SourceShareError("cache payload oversized")
     try:
         doc=json.loads(blob)
-        if doc["schema_version"]!=AI_SCHEMA or doc["classification"]!=AI_CLASS:
+        if doc["schema_version"] not in (AI_SCHEMA, DOCUMENT_SCHEMA) or doc["classification"]!=AI_CLASS:
             raise ValueError("nonstandard AI cache envelope")
         if doc["is_verified_market_fact"] is not False:
             raise ValueError("AI cannot self certify")

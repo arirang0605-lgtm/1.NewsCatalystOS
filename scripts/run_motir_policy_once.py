@@ -2,7 +2,7 @@
 
 Separate private source registry, SQLite and inbox.
 Existing two-source launchd, EraLeader and project V1.0 tasks are unchanged.
-AI uses the existing budgeted adapter when enabled; content is RSS title metadata.
+AI uses the existing budgeted adapter; registered licensed bodies run separately.
 """
 from __future__ import annotations
 
@@ -19,7 +19,9 @@ if str(PROJECT) not in sys.path:
 from scripts.run_feed_triage import _registry, evaluate as triage_once
 from scripts.run_scheduled_triage import _analyze_provider, evaluate_analysis
 from scripts.prepare_motir_source import ENDPOINT, SOURCE
-from newscatalystos.source_share import SourceShareError
+from newscatalystos.source_share import SourceShareError, _json, _must_sha
+from newscatalystos.official_relation_intake import _private_input
+from scripts.run_motir_document_analysis import evaluate as evaluate_document
 
 
 def parser() -> argparse.ArgumentParser:
@@ -43,6 +45,12 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--allow-paid-ai", action="store_true",
                    help="enable budgeted AI for eligible events on scheduled ticks")
     p.add_argument("--analysis-ai-ledger", type=Path, help="shared monthly AI cost ledger")
+    p.add_argument("--document-jobs", type=Path,
+                   help="private registered binding/archive jobs; never collects article bodies")
+    p.add_argument("--document-analysis-root", type=Path,
+                   help="separate private document result/cache root")
+    p.add_argument("--document-model-config", type=Path,
+                   help="licensed document model/token limits; defaults to the analysis model")
     p.add_argument("--skip-analysis", action="store_true")
     p.add_argument("--replay-only", action="store_true",
                    help="use completed input and recovery checkpoints without source HTTP")
@@ -50,10 +58,52 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
+def _analyze_documents(opts, runner):
+    jobs_path = getattr(opts, "document_jobs", None)
+    if jobs_path is None:
+        return 0, {"status": "NO_REGISTERED_DOCUMENTS", "results": []}
+    try:
+        jobs = _json(_private_input(jobs_path, 65536), "document jobs")
+        if (set(jobs) != {"schema", "jobs"} or jobs["schema"] != "newscatalyst.motir_document_jobs.v1"
+                or type(jobs["jobs"]) is not list or len(jobs["jobs"]) > 20):
+            raise SourceShareError("bounded document jobs required")
+    except (SourceShareError, OSError, ValueError, TypeError) as exc:
+        return 4, {"status": "DOCUMENT_JOBS_UNAVAILABLE", "error_type": type(exc).__name__, "results": []}
+    results = []
+    for job in jobs["jobs"]:
+        try:
+            if not isinstance(job, dict) or set(job) != {"binding_path", "binding_sha256", "archive_root", "article_registry"}:
+                raise SourceShareError("invalid document job")
+            pin = _must_sha(job["binding_sha256"], "document binding")
+            paths = {k: Path(job[k]) for k in ("binding_path", "archive_root", "article_registry")}
+            if any(not p.is_absolute() or ".." in p.parts for p in paths.values()):
+                raise SourceShareError("absolute document input paths required")
+            root = getattr(opts, "analysis_root", None) or Path(opts.output_root).parent / "feed_analysis/motir"
+            document_root = getattr(opts, "document_analysis_root", None) or Path(root) / "documents"
+            args = argparse.Namespace(**paths, binding_sha256=pin,
+                analysis_root=Path(document_root) / pin,
+                model_config=(getattr(opts, "document_model_config", None)
+                              or getattr(opts, "analysis_model_config", None)),
+                ai_ledger=getattr(opts, "analysis_ai_ledger", None),
+                allow_paid=(getattr(opts, "allow_paid_ai", False)
+                            and not getattr(opts, "replay_only", False)),
+                analyze_existing=False)
+            code, result = runner(args)
+            results.append({**result, "exit_code": code})
+        except (SourceShareError, OSError, ValueError, TypeError) as exc:
+            results.append({"status": "MOTIR_DOCUMENT_ANALYSIS_UNAVAILABLE",
+                            "exit_code": 4, "error_type": type(exc).__name__})
+    failures = sum(row["exit_code"] != 0 for row in results)
+    return (4 if failures else 0), {"status": "DOCUMENT_ANALYSIS_PARTIAL" if failures else "DOCUMENT_ANALYSIS_READY",
+        "results": results, "new_ai_results": sum(row.get("new_ai_results", 0) for row in results),
+        "cache_hits": sum(row.get("cache_hits", 0) for row in results)}
+
+
 def run_once(opts: argparse.Namespace, *,
              registry_reader=_registry,
              feed_runner=triage_once,
-             analysis_runner=evaluate_analysis) -> tuple[int, dict]:
+             analysis_runner=evaluate_analysis,
+             document_runner=evaluate_document) -> tuple[int, dict]:
     """Run source collection and automatic analysis."""
     try:
         enabled = not getattr(opts, "skip_analysis", False)
@@ -103,7 +153,10 @@ def run_once(opts: argparse.Namespace, *,
             "FEED_METADATA_TRIAGE_READY", "RECOVERED_FROM_DURABLE_CHECKPOINT",
             "NOT_DUE", "NO_PENDING_REPLAY",
         })
-        good_source_analysis = good_feed and analysis_code == 0
+        document_code, documents = (0, {"status": "DISABLED", "results": []})
+        if enabled:
+            document_code, documents = _analyze_documents(opts, document_runner)
+        good_source_analysis = good_feed and analysis_code == 0 and document_code == 0
         good_tick = good_source_analysis
         return (0 if good_tick else 4), {
             "status": ("MOTIR_SECTOR_SOURCE_ANALYSIS_READY" if good_tick
@@ -113,9 +166,9 @@ def run_once(opts: argparse.Namespace, *,
             "feed_new_identities": feed_status.get("new_provider_ids", 0),
             "semiconductor_keyword_candidates_hints": feed_status.get(
                 "semiconductor_keyword_candidates", 0),
-            "analysis_enabled": enabled, "analysis": analysis,
+            "analysis_enabled": enabled, "analysis": analysis, "documents": documents,
             "ai_calls": None if paid else 0,
-            "new_ai_results": analysis.get("new_ai_results", 0),
+            "new_ai_results": analysis.get("new_ai_results", 0) + documents.get("new_ai_results", 0),
             "era_api_calls": 0,
             "release_gate_verified": False,
         }

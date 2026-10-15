@@ -2,7 +2,7 @@
 
 Evidence-first economic news and disclosure analysis. V1.0 development is staged across 36 tasks (1_1–6_6); only the semiconductor industry is included for supply-chain validation.
 
-**Current status (2026-10-15):** Core input→processing→output code paths are implemented for **36/36 tasks**; the prior acceptance record is **23/36**. Real official relationship evidence, independent labels, authorized live AI, five trading days, and the final release remain pending. Code completion does not certify real-world accuracy or authorize trading. This repository does not collect or re-publish EraLeader private data.
+**Current status (2026-10-15):** Core code paths are implemented for **36/36 tasks**. Operational readiness now requires a successful real pipeline run, a live AI response with cost records, source linkage, a backup restore, passing regression tests and no unresolved critical incidents. Human news review is not required; five trading sessions are a post-start observation goal. External consumer integration and off-device backup are follow-ups. See [current operating policy](docs/V1_RELEASE_POLICY_2026-10-15.md). Actual live AI generation remains pending; changing the policy does not create execution evidence.
 
 ## Development checkpoints
 

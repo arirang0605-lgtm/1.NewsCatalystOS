@@ -237,7 +237,8 @@ def test_motir_completed_input_reaches_separate_analysis_even_if_gold_fails(tmp_
             raise OSError("synthetic unavailable Gold workspace")
         return 0, {"status": "NO_NEW_VERIFIED_RSS_CANDIDATES"}
     code, result = sector.run_once(params, gold_runner=gold_step)
-    assert code == (4 if gold_fails else 0)
+    assert code == 0
+    assert bool(result["research_warning"]) is gold_fails
     assert result["analysis"]["exit_code"] == 0
     path = Path(result["analysis"]["private_report_file"])
     report = json.loads(path.read_bytes())
@@ -257,3 +258,43 @@ def test_installed_entrypoints_default_to_separate_rules_only_analysis(tmp_path)
     assert core.analysis_model_config is motir.analysis_model_config is None
     assert motir.analysis_root.name == "motir"
     assert core.output_root / "feed_analysis" / "core" != motir.analysis_root
+
+
+def test_scheduled_ai_permission_persists_and_cache_avoids_repeat_call(tmp_path, fake_key):
+    source, _, _, _, work = setup(tmp_path)
+    model_dir = tmp_path / "models"
+    model_dir.mkdir(mode=0o700)
+    model_path = model_dir / "model.json"
+    model_path.write_text(json.dumps(asdict(config())))
+    model_path.chmod(0o600)
+    params = opts(source, work)
+    params.analysis_model_config = model_path
+    params.allow_paid_ai = True
+    opener = LocalOpener(packet())
+    def analyze(args):
+        return run_feed_analysis.evaluate(args, opener=opener)
+    for expected_calls in (1, 1):
+        code, result = scheduled.execute(params,
+            feed_runner=lambda _: (0, {"status": "NOT_DUE"}), analysis_runner=analyze)
+        assert code == 0 and opener.calls == expected_calls
+        assert result["analysis_mode"] == "BUDGETED_AI_AND_CACHE"
+        assert result["providers"][0]["analysis"]["paid_execution_requested"]
+    assert result["analysis_cache_hits"] == 1
+
+
+@pytest.mark.parametrize("operation", ["--dry-run", "--replay-only"])
+def test_paid_setting_never_charges_dry_run_or_recovery(tmp_path, operation, monkeypatch):
+    source, _, _, _, work = setup(tmp_path)
+    params = opts(source, work, operation=operation)
+    params.allow_paid_ai = True
+    monkeypatch.setattr(feed_analysis, "run_budgeted_openai_analysis", no_call)
+    code, result = scheduled.execute(params)
+    assert code == 0 and result["ai_call_count"] == 0
+
+
+def test_paid_schedule_requires_model_configuration_before_poll(tmp_path):
+    source, _, _, _, work = setup(tmp_path)
+    params = opts(source, work)
+    params.allow_paid_ai = True
+    code, result = scheduled.execute(params, feed_runner=no_call, analysis_runner=no_call)
+    assert code == 4 and result["status"] == "AI_MODEL_CONFIGURATION_REQUIRED"

@@ -195,3 +195,21 @@ def test_recovered_checkpoint_and_completed_analysis_is_a_healthy_tick(tmp_path)
                      "status": "RECOVERED_FROM_DURABLE_CHECKPOINT"}
                      for name in V1_PROVIDERS]}
     assert inspect(tmp_path, last_log=recovered)["status"] == "AGENT_HEALTHY_OBSERVED"
+
+
+def test_configured_paid_scheduler_is_not_reported_as_health_failure(tmp_path):
+    project, base, data = fixture(tmp_path)
+    spec = plistlib.loads(data)
+    spec['ProgramArguments'].extend([
+        '--analysis-model-config', str(base / 'models/gemini.json'), '--allow-paid-ai'])
+    log = dict(PASS_LOG, ai_call_count=None, analysis_mode='BUDGETED_AI_AND_CACHE',
+               analysis_providers_failed=0)
+    result = evaluate_health(plist_data=plistlib.dumps(spec), project=project, base=base,
+        launch_text=PRINT, duplicate_active=False, last_log=log,
+        log_mtime=NOW.timestamp(), now=NOW)
+    assert result['status'] == 'AGENT_HEALTHY_OBSERVED'
+    log['analysis_providers_failed'] = 1
+    result = evaluate_health(plist_data=plistlib.dumps(spec), project=project, base=base,
+        launch_text=PRINT, duplicate_active=False, last_log=log,
+        log_mtime=NOW.timestamp(), now=NOW)
+    assert 'LAST_TICK_UNVERIFIED' in result['reasons']

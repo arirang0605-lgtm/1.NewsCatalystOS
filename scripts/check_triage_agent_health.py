@@ -94,6 +94,7 @@ def evaluate_health(*, plist_data: bytes, project: Path, base: Path,
               "last_exit_code": None,
               "runs": 0, "log_age_seconds": None}
     reasons = result["reasons"]
+    paid_config = False
     try:
         spec = plistlib.loads(plist_data)
         args = spec["ProgramArguments"]
@@ -108,6 +109,13 @@ def evaluate_health(*, plist_data: bytes, project: Path, base: Path,
             base / "state" / "incremental_feeds.sqlite3",
             base / "state" / "triage_exact_index.sqlite3",
             base / "inbox" / "feed_triage", base / "logs")
+        tail = args[len(expected["ProgramArguments"]):]
+        if (len(tail) in (2, 3) and tail[0] == "--analysis-model-config"
+                and isinstance(tail[1], str) and Path(tail[1]).is_absolute()
+                and ".." not in Path(tail[1]).parts
+                and (len(tail) == 2 or tail[2] == "--allow-paid-ai")):
+            expected["ProgramArguments"].extend(tail)
+            paid_config = len(tail) == 3
         if spec != expected:
             reasons.append("AGENT_CONFIG_MISMATCH")
     except (KeyError, ValueError, TypeError, ExpatError,
@@ -141,7 +149,9 @@ def evaluate_health(*, plist_data: bytes, project: Path, base: Path,
             or last_log.get("providers_failed") != 0
             or sorted(actual_ids) != sorted(V1_PROVIDERS)
             or len(actual_ids) != len(V1_PROVIDERS)
-            or last_log.get("ai_call_count") != 0
+            or (not paid_config and last_log.get("ai_call_count") != 0)
+            or (paid_config and last_log.get("analysis_mode") != "BUDGETED_AI_AND_CACHE")
+            or last_log.get("analysis_providers_failed", 0) != 0
             or last_log.get("official_era_api_request_count") != 0
             or last_log.get("stored_article_body_count") != 0
             or any(p.get("status") not in

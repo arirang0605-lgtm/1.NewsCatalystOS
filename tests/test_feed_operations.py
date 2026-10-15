@@ -46,6 +46,10 @@ def test_completed_local_run_is_recorded_but_not_certified_market_day(tmp_path):
     state, inbox, output, receipt, ack, folder = completed(tmp_path)
     report = operation_status(registry(), inbox, state)
     assert report["approved_source_count"] == 1
+    assert report["status"] == "FEED_RUNS_RECORDED"
+    assert report["observation_blocks_operation"] is False
+    assert report["recorded_collection_days"] == 1
+    assert report["evidence_scope"] == "FEED_COLLECTION_ONLY"
     assert report["completed_triage_receipts"] == 1
     assert len(report["days_with_all_sources"]) == 1
     assert report["daily_source_coverage"] == [{

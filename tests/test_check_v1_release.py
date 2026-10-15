@@ -10,7 +10,8 @@ def test_release_report_lists_missing_required_real_validation(capsys):
     assert report["done"]==2
     assert report["total"]==36
     assert "6_6" in report["missing_task_ids"]
-    assert "FIVE_TRADING_SESSIONS_NOT_VERIFIED" in report["release_blockers"]
+    assert "FIVE_TRADING_SESSIONS_OBSERVATION_PENDING" in report["follow_ups"]
+    assert "REAL_AI_PROVIDER_CALLS_NOT_VERIFIED" in report["release_blockers"]
     assert report["v1_git_tag_authorized"] is False
 
 

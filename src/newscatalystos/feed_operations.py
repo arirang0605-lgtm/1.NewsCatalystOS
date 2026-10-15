@@ -102,8 +102,11 @@ def operation_status(
         root, state, registry, name, now=at,
     )) for name in authorized)
     return {
-        "status": ("WEEKDAY_COVERAGE_RECORDED_NEEDS_EXCHANGE_DAY_REVIEW"
-                   if len(weekday_candidates) >= 5 else "OPERATIONS_IN_PROGRESS"),
+        "status": ("FEED_RECOVERY_PENDING" if pending else
+                   "FEED_RUNS_RECORDED" if fully_covered else "OPERATIONS_IN_PROGRESS"),
+        "observation_blocks_operation": False,
+        "recorded_collection_days": len(fully_covered),
+        "evidence_scope": "FEED_COLLECTION_ONLY",
         "approved_source_count": len(authorized),
         "completed_triage_receipts": completed,
         "days_with_all_sources": list(fully_covered),

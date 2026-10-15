@@ -3,7 +3,7 @@
 Optional private Gold candidate capture is a separate research workflow.
 Separate private source registry, SQLite, inbox, gold workspace and PIN.
 Existing two-source launchd, EraLeader and project V1.0 tasks are unchanged.
-No AI calls or human labels; content remains official RSS title metadata.
+AI uses the existing budgeted adapter when enabled; content is RSS title metadata.
 """
 from __future__ import annotations
 
@@ -49,7 +49,9 @@ def parser() -> argparse.ArgumentParser:
                    default=PROJECT / "output" / "feed_analysis" / "motir")
     p.add_argument("--analysis-limit", type=int, default=100)
     p.add_argument("--analysis-model-config", type=Path,
-                   help="existing cached model output only; no paid AI")
+                   help="model and accounting configuration for cache or authorized AI")
+    p.add_argument("--allow-paid-ai", action="store_true",
+                   help="enable budgeted AI for eligible events on scheduled ticks")
     p.add_argument("--skip-analysis", action="store_true")
     p.add_argument("--capture-gold", action="store_true",
                    help="optional research candidate capture; no news review or release gate")
@@ -67,6 +69,10 @@ def run_once(opts: argparse.Namespace, *,
     """Treat source analysis and optional Gold research as separate outcomes."""
     try:
         enabled = not getattr(opts, "skip_analysis", False)
+        paid = (enabled and getattr(opts, "allow_paid_ai", False)
+                and not getattr(opts, "replay_only", False))
+        if paid and getattr(opts, "analysis_model_config", None) is None:
+            raise SourceShareError("AI model configuration required")
         limit = getattr(opts, "analysis_limit", 100)
         if enabled and (type(limit) is not int or not 1 <= limit <= 100):
             raise SourceShareError("invalid bounded analysis limit")
@@ -136,11 +142,10 @@ def run_once(opts: argparse.Namespace, *,
             "NO_NEW_VERIFIED_RSS_CANDIDATES",
         }
         good_source_analysis = good_feed and analysis_code == 0
-        good_tick = good_source_analysis and good_gold
+        good_tick = good_source_analysis
         return (0 if good_tick else 4), {
             "status": ("MOTIR_SECTOR_SOURCE_ANALYSIS_READY" if good_tick
-                       else "MOTIR_SECTOR_GOLD_CAPTURE_UNAVAILABLE"
-                       if good_source_analysis else "MOTIR_SECTOR_SOURCE_OR_ANALYSIS_UNAVAILABLE"),
+                       else "MOTIR_SECTOR_SOURCE_OR_ANALYSIS_UNAVAILABLE"),
             "provider_id": SOURCE,
             "feed_status": feed_status.get("status", "DATA_UNAVAILABLE"),
             "feed_new_identities": feed_status.get("new_provider_ids", 0),
@@ -148,11 +153,13 @@ def run_once(opts: argparse.Namespace, *,
                 "semiconductor_keyword_review", 0),
             "gold_status": gold_status.get("status", "DATA_UNAVAILABLE"),
             "gold_capture_requested": capture_gold,
+            "research_warning": None if good_gold else "OPTIONAL_GOLD_CAPTURE_FAILED",
             "newly_frozen_gold_candidates": gold_status.get("newly_frozen_cases", 0),
             "total_sector_gold_candidates": gold_status.get("total_pinned_unique_cases"),
             "analysis_enabled": enabled, "analysis": analysis,
             "human_gold_labeled_cases": 0,
-            "ai_calls": 0,
+            "ai_calls": None if paid else 0,
+            "new_ai_results": analysis.get("new_ai_results", 0),
             "era_api_calls": 0,
             "release_gate_verified": False,
         }

@@ -3,7 +3,8 @@
 Each invocation delegates to the existing rate-limited, PIT-safe 1_3->3_5
 triage and then the existing metadata analysis/report writer. The installed
 launchd command gains rules-only analysis without another collector or agent.
-Paid AI is never enabled here; a supplied model config permits cache reads only.
+Paid AI can be enabled once in the scheduler configuration with --allow-paid-ai;
+the existing eligibility, cache, credentials and cost ledger govern each call.
 """
 from __future__ import annotations
 
@@ -42,7 +43,9 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--analysis-limit", type=int, default=100,
                    help="latest bounded versions per selected source; reports show truncation")
     p.add_argument("--analysis-model-config", type=Path,
-                   help="optional existing model config for cached results ONLY; never paid AI")
+                   help="model and accounting configuration for cache or authorized AI")
+    p.add_argument("--allow-paid-ai", action="store_true",
+                   help="enable budgeted AI for eligible events on scheduled ticks")
     p.add_argument("--skip-analysis", action="store_true",
                    help="explicit legacy collection-only tick")
     operation = p.add_mutually_exclusive_group(required=True)
@@ -72,7 +75,9 @@ def _analyze_provider(opts: argparse.Namespace, name: str, runner) -> tuple[int,
         event_id=None, title_sha256=None,
         limit=getattr(opts, "analysis_limit", 100),
         model_config=getattr(opts, "analysis_model_config", None),
-        allow_paid=False,
+        allow_paid=(getattr(opts, "allow_paid_ai", False)
+                    and not getattr(opts, "replay_only", False)
+                    and not getattr(opts, "dry_run", False)),
     )
     try:
         code, detail = runner(params)
@@ -89,7 +94,9 @@ def _analyze_provider(opts: argparse.Namespace, name: str, runner) -> tuple[int,
             "new_ai_results": detail.get("new_ai_results", 0),
             "private_report_file": detail.get("private_report_file"),
             "report_sha256": detail.get("report_sha256"),
-            "paid_execution_requested": False,
+            "paid_execution_requested": params.allow_paid,
+            "ai_adapter_attempts": sum(bool(row.get("ai_adapter_attempted"))
+                                       for row in detail.get("results", [])),
             "source_fetch_calls": 0}
         if "error_type" in detail:
             summary["error_type"] = detail["error_type"]
@@ -98,7 +105,8 @@ def _analyze_provider(opts: argparse.Namespace, name: str, runner) -> tuple[int,
         return 4, {"status": "FEED_ANALYSIS_INPUT_UNAVAILABLE",
                    "exit_code": 4, "error_type": type(exc).__name__,
                    "analyzed_rows": 0, "cache_hits": 0,
-                   "paid_execution_requested": False, "source_fetch_calls": 0}
+                   "paid_execution_requested": params.allow_paid,
+                   "ai_adapter_attempts": None, "source_fetch_calls": 0}
 
 
 def execute(opts: argparse.Namespace, *, registry_reader=_registry,
@@ -116,6 +124,11 @@ def execute(opts: argparse.Namespace, *, registry_reader=_registry,
         return 4, {"status": "INVALID_EXPLICIT_PROVIDER_SELECTION",
                    "providers_checked": 0, "ai_call_count": 0}
     enabled = not getattr(opts, "skip_analysis", False)
+    paid = (enabled and getattr(opts, "allow_paid_ai", False)
+            and not opts.dry_run and not getattr(opts, "replay_only", False))
+    if paid and getattr(opts, "analysis_model_config", None) is None:
+        return 4, {"status": "AI_MODEL_CONFIGURATION_REQUIRED",
+                   "providers_checked": 0, "ai_call_count": 0}
     limit = getattr(opts, "analysis_limit", 100)
     if enabled and (type(limit) is not int or not 1 <= limit <= 100):
         return 4, {"status": "INVALID_ANALYSIS_LIMIT", "providers_checked": 0,
@@ -169,11 +182,17 @@ def execute(opts: argparse.Namespace, *, registry_reader=_registry,
         "providers_checked": len(selected), "providers_failed": failures,
         "providers": outcomes,
         "analysis_enabled": enabled,
-        "analysis_mode": "RULES_AND_EXISTING_CACHE_ONLY" if enabled else "DISABLED",
+        "analysis_mode": ("BUDGETED_AI_AND_CACHE" if paid else
+                          "RULES_AND_EXISTING_CACHE_ONLY" if enabled else "DISABLED"),
         "analysis_providers_completed": analysis_completed,
         "analysis_providers_failed": analysis_failures,
         "analyzed_rows": analysis_rows, "analysis_cache_hits": cache_hits,
-        "ai_call_count": 0, "stored_article_body_count": 0,
+        # Adapter attempts include budget/cache failures before HTTP. The cost
+        # ledger is the source for actual dispatch counts, not this summary.
+        "ai_call_count": None if paid else 0,
+        "new_ai_results": sum(x.get("analysis", {}).get("new_ai_results", 0)
+                              for x in outcomes),
+        "stored_article_body_count": 0,
         "official_era_api_request_count": 0,
     }
 

@@ -1,5 +1,7 @@
 # 6_5 승인 RSS 2종 실운영 정기 실행 — 2026-10-14
 
+> 현재 운영 기준은 [D-059](V1_RELEASE_POLICY_2026-10-15.md)이다. 아래는 당시 구현·실행 이력이며, 500건 검수·5거래일 사전 대기·독립 장치/릴리스 인증 조건은 현재 필수가 아니다. 예약 AI는 모델 설정과 `--allow-paid-ai`로 활성화할 수 있다.
+
 ## 실행 대상
 - macOS 사용자 `launchd` 라벨: `com.newscatalystos.triage`
 - Mac 비공개 로그인 에이전트: `~/Library/LaunchAgents/com.newscatalystos.triage.plist`
@@ -56,7 +58,9 @@ PYTHONPATH=src python3 scripts/check_triage_agent_health.py
 - 실제 2026-10-14 Mac 단발 검증: `runs=4`, `last_exit_code=0`, 승인 제공자 2개, `AGENT_HEALTHY_OBSERVED`, 외부 신규 API 0, 인수 운영일은 별도 1일 기록에 머문다. 기능은 자동 운영 완료를 인증하거나 V1.0 태그를 발급하지 않는다.
 
 
-## 2026-10-14 | 별도 gold 동결 LaunchAgent (수집 서비스는 불변)
+## 과거 이력: 2026-10-14 Gold 예약 등록 / 2026-10-15 비활성화
+
+현재 `com.newscatalystos.gold`는 사용자 운영규칙 간소화에 따라 disable·bootout 완료했다. 기존 연구 자료와 plist는 보존한다. 아래는 등록 당시 이력이다.
 
 - 기존 `com.newscatalystos.triage` RSS 2제공자 1시간 수집·분석/예산·PIT 서비스와 독립적으로 Mac 사용자 `com.newscatalystos.gold`를 새로 등록했다. `gold`는 **RSS HTTP를 호출하지 않으며**, 이미 완료된 SHA 검증 ACK·기수집 뉴스 메타에서 신규 동결 후보만 수집해 private T5DATA 골드/별도 Mac PIN·두 빈 검수자 시트를 생성한다. 실 AI 호출/사람 정답 자동 생성 없음.
 - 기존 RSS LaunchAgent plist·EraLeader 원본·DB·Git은 건드리지 않는다. 실제 신규 골드 agent의 첫 launchctl kickstart 실행 `runs=1`, `last exit code=0`, stdout 상태 `NO_NEW_VERIFIED_RSS_CANDIDATES`, stderr 0바이트. 기존 triage는 `runs=9`, `last exit code=0`. Mac 잠자기/SSD 분리·호출 충돌 시 해당 gold 동결만 안전 실패하며 진짜 출처별 인수 5거래일 완료 선언을 하지 않는다.

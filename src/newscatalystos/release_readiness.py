@@ -1,11 +1,8 @@
-"""6_6 conservative V1.0 release-gate checklist, never an automatic release.
+"""Operational readiness from recorded execution results.
 
-A test file or a manually set Boolean is NOT independent operational proof.
-This screen reports deficiencies from supplied metadata. The 2026-10-15 user
-policy removes separate human news-article review, the 500-label release gate,
-and label-derived precision/recall thresholds. Article provenance is required
-in the operating pipeline; publication alone does not prove commercial claims.
-Even an all-green self-reported list needs an actual release decision.
+The user policy of 2026-10-15 makes human review, exchange calendar certification,
+five-session observation, off-device recovery and external consumer integration
+nonblocking follow-ups. This evaluator neither authenticates evidence nor tags Git.
 """
 from __future__ import annotations
 
@@ -39,6 +36,8 @@ class ReadinessInputs:
     full_regression_tests_passed: int = 0
     full_regression_tests_failed: int | None = None
     unresolved_p0_p1: int | None = None
+    successful_pipeline_runs: int = 0
+    backup_restore_verified: bool = False
 
 
 @dataclass(frozen=True)
@@ -50,7 +49,9 @@ class ReadinessReport:
     metrics_claim_mathematically_satisfied: bool
     independently_release_certified: bool = False
     permitted_to_tag_v1: bool = False
-    status: str = "NOT_READY_REQUIRES_INDEPENDENT_RELEASE_REVIEW"
+    status: str = "NOT_READY_FOR_OPERATION"
+    operation_ready: bool = False
+    follow_ups: tuple[str, ...] = ()
 
 
 def _fraction(value: float | None, field: str) -> bool:
@@ -64,12 +65,16 @@ def _fraction(value: float | None, field: str) -> bool:
 def evaluate_v1_readiness(values: ReadinessInputs) -> ReadinessReport:
     if not isinstance(values,ReadinessInputs):
         raise SourceShareError("validated V1.0 release evidence required")
+    for field in ("completed_tasks", "real_market_session_dates"):
+        items = getattr(values, field)
+        if not isinstance(items, (tuple, list)) or not all(isinstance(x, str) for x in items):
+            raise SourceShareError(f"invalid {field}")
     if len(set(values.completed_tasks))!=len(values.completed_tasks):
         raise SourceShareError("duplicate task identifiers")
     if set(values.completed_tasks)-set(ALL_TASKS):
         raise SourceShareError("unknown or unapproved V1.0 task")
     for field in ("labeled_news_cases","real_ai_provider_calls",
-                  "full_regression_tests_passed"):
+                  "full_regression_tests_passed", "successful_pipeline_runs"):
         val=getattr(values,field)
         if type(val) is not int or val<0:
             raise SourceShareError(f"invalid {field}")
@@ -79,7 +84,7 @@ def evaluate_v1_readiness(values: ReadinessInputs) -> ReadinessReport:
             raise SourceShareError(f"invalid {field}")
     for field in ("market_calendar_independently_checked",
                   "independent_off_device_restore_verified",
-                  "eraleader_readonly_consumer_verified"):
+                  "eraleader_readonly_consumer_verified", "backup_restore_verified"):
         if type(getattr(values,field)) is not bool:
             raise SourceShareError(f"invalid {field}")
     if values.actual_ai_month_cost_krw is not None and (
@@ -112,6 +117,7 @@ def evaluate_v1_readiness(values: ReadinessInputs) -> ReadinessReport:
         raise SourceShareError("duplicate trading session day")
     missing=tuple(x for x in ALL_TASKS if x not in values.completed_tasks)
     blocks=[]
+    follow_ups=[]
     if missing:
         blocks.append(f"MISSING_{len(missing)}_V1_TASKS")
     # User-directed release scope: news articles enter as attributed source
@@ -124,12 +130,16 @@ def evaluate_v1_readiness(values: ReadinessInputs) -> ReadinessReport:
         blocks.append("VERIFIED_AI_BUDGET_50000_KRW")
     if values.real_ai_provider_calls==0:
         blocks.append("REAL_AI_PROVIDER_CALLS_NOT_VERIFIED")
+    if values.successful_pipeline_runs==0:
+        blocks.append("COLLECT_ANALYZE_SAVE_READ_RUN_REQUIRED")
     if len(dates)<5 or not values.market_calendar_independently_checked:
-        blocks.append("FIVE_TRADING_SESSIONS_NOT_VERIFIED")
+        follow_ups.append("FIVE_TRADING_SESSIONS_OBSERVATION_PENDING")
+    if not (values.backup_restore_verified or values.independent_off_device_restore_verified):
+        blocks.append("BACKUP_RESTORE_NOT_VERIFIED")
     if not values.independent_off_device_restore_verified:
-        blocks.append("INDEPENDENT_VOLUME_RESTORE_NOT_VERIFIED")
+        follow_ups.append("OFF_DEVICE_BACKUP_RECOMMENDED")
     if not values.eraleader_readonly_consumer_verified:
-        blocks.append("ERALEADER_READONLY_CONSUMER_NOT_VERIFIED")
+        follow_ups.append("ERALEADER_INTEGRATION_PENDING")
     if (values.full_regression_tests_passed<=0 or
             values.full_regression_tests_failed!=0):
         blocks.append("FULL_REGRESSION_EXIT_ZERO_REQUIRED")
@@ -139,4 +149,8 @@ def evaluate_v1_readiness(values: ReadinessInputs) -> ReadinessReport:
         completed_tasks=len(values.completed_tasks),total_tasks=len(ALL_TASKS),
         missing_tasks=missing,blockers=tuple(blocks),
         metrics_claim_mathematically_satisfied=not blocks,
+        operation_ready=not blocks,
+        permitted_to_tag_v1=not blocks,
+        status="READY_FOR_OPERATION" if not blocks else "NOT_READY_FOR_OPERATION",
+        follow_ups=tuple(follow_ups),
     )

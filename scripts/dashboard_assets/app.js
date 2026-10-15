@@ -112,6 +112,13 @@ function renderThemes(term){
         if(!candidate.benefit_paths.length)reasons.append(node("p","","기업까지 이어지는 수혜 경로: 미확인"));
         for(const path of candidate.benefit_paths)reasons.append(node("p","","수혜 경로: "+path.product_stage+" · "+(impactLabels[path.category]||path.category)+" · 상대 기업 "+path.counterparty_id));
         const financial=candidate.financial_assessment,assessment=financial?.value;
+        const identity=candidate.identity_context;
+        const identityLabels={MATCHED:"공식 명부의 정확한 이름으로 연결",NOT_IN_SNAPSHOT:"현재 공식 명부에 없는 기업",AMBIGUOUS:"공식 명부에 같은 이름의 기업이 여러 개 있음",NOT_RESOLVED_AS_OF:"조회 시점에 기업 식별 근거 없음",ALREADY_IDENTIFIED:"사건에 공식 기업 코드가 연결됨"};
+        if(identity){
+          reasons.append(node("p","","기업 식별: "+(identityLabels[identity.status]||"미확인")+(candidate.resolved_entity_id?" · "+candidate.resolved_entity_id:"")));
+          if(identity.decision_at)reasons.append(node("p","","식별 근거 확보: "+identity.decision_at));
+          for(const match of identity.matches||[])reasons.append(node("p","","명부 근거: "+match.issuer_name+" · "+match.source_id+" · "+match.filing_document_id));
+        }
         const missingLabels={IDENTITY_UNRESOLVED:"기업 코드 미확인",NOT_AVAILABLE_AS_OF:"조회 시점에 사용할 평가 없음",COMPANY_NOT_IN_SNAPSHOT:"평가 목록에 없는 기업",AMBIGUOUS_IDENTITY:"기업 코드 연결이 모호함",NOT_CONNECTED:"평가 미연결"};
         if(assessment){
           reasons.append(node("p","","EraLeader 재무 근거 · "+(assessment.annual_fiscal_year?assessment.annual_fiscal_year+"년":"재무기간 미확인")+" · 평가일 "+assessment.assessment_day+" · 시장자료 "+assessment.source_market_session));

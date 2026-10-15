@@ -105,9 +105,18 @@ def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, d
             base / "document_analysis/theme_history" if work.resolve() in standard_roots
             else work / "theme_history")
         themes = ThemeStore(theme_root).ingest(observations, now=now) if observations else []
+        identity_resolution={'status':'NOT_CONFIGURED'}
+        if identity_config is not None:
+            try:
+                from newscatalystos.theme_company_identity import resolve_stored_candidates
+                identity_resolution={'status':'READY',**resolve_stored_candidates(
+                    theme_root,identity_config,Path(theme_root).parent/'theme_company_identity',now=now)}
+            except (SourceShareError,OSError,ValueError,TypeError,KeyError,sqlite3.Error):
+                identity_resolution={'status':'UNAVAILABLE'}
         return (4 if opts.allow_paid and failures else 0), {
             **report, "private_report_file": str(path), "report_sha256": digest,
-            "economic_changes_count":len(observations), "theme_versions_created":len(themes)}
+            "economic_changes_count":len(observations), "theme_versions_created":len(themes),
+            "theme_identity_resolution":identity_resolution}
     except (SourceShareError, OSError, ValueError, TypeError, sqlite3.Error) as exc:
         return 4, {"status": "FEED_ANALYSIS_INPUT_UNAVAILABLE", "error_type": type(exc).__name__,
                    "source_fetch_calls": 0,

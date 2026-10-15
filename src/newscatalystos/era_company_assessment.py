@@ -133,10 +133,14 @@ def import_watch(era_root, manifest, expected_sha256, output_root, *, now=None):
     return {'status':'IMPORTED','receipt_sha256':digest,'rows':len(doc['review_queue'])}
 
 
-def enrich_candidates(candidates, root, *, as_of, now=None):
+def enrich_candidates(candidates, root, *, as_of, now=None, identity_root=None):
     present=_when((now or datetime.now(timezone.utc)).isoformat(),'now')
     at=_when(as_of.isoformat(),'research as of')
     if at>present:raise SourceShareError('future research query')
+    identity_skipped=0
+    if identity_root is not None:
+        from .theme_company_identity import resolve_candidates
+        candidates,identity_skipped=resolve_candidates(candidates,identity_root,as_of=at,now=present)
     reports,skipped=_reports(root,present)
     eligible=[x for x in reports if _when(x[0]['imported_at'],'import')<=at]
     # Select one coherent publication; do not silently fill missing new rows with old data.
@@ -145,7 +149,7 @@ def enrich_candidates(candidates, root, *, as_of, now=None):
     for candidate in results:
         if _when(candidate['decision_at'],'candidate decision')>at:
             raise SourceShareError('future company candidate')
-        entity=candidate['entity_id'];matches=[]
+        entity=(candidate.get('resolved_entity_id',candidate['entity_id']) if identity_root is not None else candidate['entity_id']);matches=[]
         identified=bool(re.fullmatch(r'(?:DART_CORP:[0-9]{8}|KRX_STOCK:[0-9]{6})',entity))
         if latest and identified:
             matches=[r for r in latest[1]['review_queue'] if entity in
@@ -165,4 +169,4 @@ def enrich_candidates(candidates, root, *, as_of, now=None):
             candidate['uncertainties'].append('EraLeader의 보관 재무 관측이며 현재 가격 매력·매출 기여·재무 안전성 확정은 아님')
     return {'schema':'newscatalyst.company_research.v1','decision_at':at.isoformat(),
             'CompanyCandidates':results,'assessment_source_status':'PARTIAL_UNAVAILABLE' if skipped else 'READY' if latest else 'NOT_AVAILABLE_AS_OF',
-            'assessment_receipts_skipped':skipped,'orders_enabled':False}
+            'assessment_receipts_skipped':skipped,'identity_receipts_skipped':identity_skipped,'orders_enabled':False}

@@ -92,7 +92,8 @@ class Handler(BaseHTTPRequestHandler):
                     data['company_candidates']=bundle['CompanyCandidates']
                     try:
                         research=enrich_candidates(data['company_candidates'],self.server.documents/'era_assessments',
-                                                   as_of=min(end,now),now=now) if self.server.documents else None
+                                                   as_of=min(end,now),now=now,
+                                                   identity_root=self.server.documents/'theme_company_identity') if self.server.documents else None
                         if research:
                             data['company_candidates']=research['CompanyCandidates']
                             data['assessment_source_status']=research['assessment_source_status']
@@ -115,7 +116,7 @@ class Handler(BaseHTTPRequestHandler):
                 now = datetime.now(timezone.utc)
                 at = _when(query["as_of"][0], "as of") if "as_of" in query else now
                 themes = (ThemeStore(self.server.documents / "theme_history").search(
-                    as_of=at, query=query.get("q", [""])[0], now=now,
+                    as_of=at, query='' if url.path=='/api/company-research' else query.get("q", [""])[0], now=now,
                     since=_when(query['since'][0],'period start') if 'since' in query else None,
                     activity=query.get('activity',['all'])[0]) if self.server.documents else [])
                 companies=query.get('company_candidates',['0'])[0]
@@ -124,7 +125,10 @@ class Handler(BaseHTTPRequestHandler):
                                            include_company_candidates=companies=='1' or url.path=='/api/company-research')
                 if url.path=='/api/company-research':
                     root=(self.server.documents/'era_assessments' if self.server.documents else Path('/nonexistent-nc-assessments'))
-                    research=enrich_candidates(json.loads(payload)['CompanyCandidates'],root,as_of=at,now=now)
+                    from newscatalystos.theme_company_identity import filter_research
+                    research=enrich_candidates(json.loads(payload)['CompanyCandidates'],root,as_of=at,now=now,
+                                               identity_root=root.parent/'theme_company_identity')
+                    filter_research(research,themes,query.get('q',[''])[0])
                     payload=json.dumps(research,ensure_ascii=False,allow_nan=False).encode()
                 self._send(200, payload,
                            "application/json; charset=utf-8")

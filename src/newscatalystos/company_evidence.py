@@ -8,7 +8,7 @@ from hashlib import sha256
 from pathlib import Path
 import re
 
-from .economic_changes import company_clauses, extract_economic_changes, mentions_name
+from .economic_changes import company_clauses, extract_economic_changes, mentions_name, explicit_topic_aliases
 from .evidence_archive import _read_once, read_archived_evidence
 from .feed_analysis_delivery import MAX_REPORT_BYTES, _validate_report
 from .feed_recovery import read_retry_checkpoint
@@ -95,6 +95,7 @@ def _reports(root,documents,now):
 
 
 def _change_matches(change,ref):
+    if change.get('topic_alias_evidence')!=ref.get('topic_alias_evidence'):return False
     if any(change.get(k)!=ref.get(k) for k in ('topic','action','phase','economic_driver')):return False
     if change['source_paragraph_sha256']!=ref['evidence_sha256']:return False
     event=economic_observation(change,origin_reference=ref['origin_reference'],source_url=ref['source_url'],
@@ -170,6 +171,9 @@ def _clause(text,change,entity,ref):
     matches=[]
     for sentence in re.split(r'(?<=[.!?。])\s+',text):
         for clause in company_clauses(sentence,change['entity_ids']):
+            if ('topic_alias_evidence' in change
+                    and change['topic_alias_evidence'] not in explicit_topic_aliases(clause)):
+                continue
             if not any(mentions_name(clause,n) for n in names):continue
             # Pure matching only: never persist a reinterpreted event or infer a subject.
             for found in extract_economic_changes(clause,company_names=change['entity_ids']):

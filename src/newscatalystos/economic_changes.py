@@ -120,6 +120,28 @@ def mentions_name(text,name):
         r'(?=$|[^\w]|(?:은|는|이|가|을|를|와|과|의|에|에게|에서|으로|로)(?=$|[^\w]))',normalized(text)))
 
 
+TECH_ALIAS_PAIR = re.compile(r'(?<![가-힣A-Za-z0-9])(?P<name>[가-힣]{2,40})\s*\((?P<abbreviation>[A-Z][A-Z0-9]{1,11})\)')
+
+
+def explicit_topic_aliases(text, company_names=()):
+    """Local literal definitions only; never a persistent global acronym map."""
+    pairs=list(TECH_ALIAS_PAIR.finditer(text));result=[]
+    known=lambda term:next((k for k,values in TOPIC_ALIASES.items()
+        if normalized(term) in {normalized(v) for v in values}),None)
+    for match in pairs:
+        name,short=match['name'],match['abbreviation']
+        if (name in {'기술','제품','회사','기업','서비스','사업','시장','산업','인공지능'}
+                or name in company_names or (COMPANIES.fullmatch(name) and name not in _NON_COMPANY_TERMS)):
+            continue
+        if (len({m['name'] for m in pairs if m['abbreviation']==short})!=1
+                or len({m['abbreviation'] for m in pairs if m['name']==name})!=1):continue
+        if (known(name) or known(short)) and known(name)!=known(short):continue
+        proof={'canonical_topic':known(name) or name,'abbreviation':short,
+               'source_expression':match.group(),'expression_sha256':sha256(match.group().encode()).hexdigest()}
+        if proof not in result:result.append(proof)
+    return result
+
+
 # Prefer the demand subject over incidental product mentions. Multiword unknown
 # terms must be quoted; unquoted unknown terms are a single explicit noun token.
 _GENERIC_DEMAND = {'시장','제품','상품','관련','전체','국내','글로벌','해외','고객','기업',
@@ -217,6 +239,12 @@ def extract_economic_changes(text, *, company_names=()):
         # Demand and economic action must be in the same sentence; unrelated
         # context elsewhere in the paragraph cannot supply the common cause.
         evidence_line=line
+        alias_proofs=explicit_topic_aliases(line,company_names)
+        # Resolve the paired noun in demand syntax, but retain a later bare
+        # acronym as the source topic so an existing event ID cannot change.
+        for proof in alias_proofs:
+            if proof['canonical_topic'] not in TOPIC_ALIASES:
+                line=line.replace(proof['source_expression'],proof['canonical_topic'])
         contraction_mentioned=bool(_CONTRACTION_MENTION.search(line))
         reduction_mentioned=contraction_mentioned or bool(re.search(r'감산',line))
         if reduction_mentioned and (re.search(r'전망|예상|우려',line)
@@ -253,6 +281,11 @@ def extract_economic_changes(text, *, company_names=()):
         topic=topic or (functions[0] if len(functions)==1 else None)
         if topic is None or action is None:
             continue
+        alias=next((p for p in alias_proofs if normalized(topic) in
+                    {normalized(p['canonical_topic']),normalized(p['abbreviation'])}),None)
+        if alias is None and any(normalized(topic) in {normalized(m['name']),normalized(m['abbreviation'])}
+                                for m in TECH_ALIAS_PAIR.finditer(evidence_line)):
+            continue  # Conflicting definitions, issuer names or reserved acronyms.
         if contraction and (action!='SUPPLY_REDUCTION' or not re.search(
                 r'반도체|HBM|DRAM|NAND|메모리|EUV|DUV|극자외선|심자외선',line,re.I)):
             continue
@@ -273,7 +306,7 @@ def extract_economic_changes(text, *, company_names=()):
             # Explicit source-named actors anchor separate clause events even
             # when their names came from the pinned directory, not a suffix rule.
             original_companies=companies[:]
-        key = (topic, driver, action, tuple(original_companies))
+        key = (alias['canonical_topic'] if alias else topic, driver, action, tuple(original_companies))
         if key in seen:
             continue
         seen.add(key)
@@ -284,6 +317,7 @@ def extract_economic_changes(text, *, company_names=()):
                      else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line)
                          or ((scoped or reduction_mentioned) and re.search(r'계획|추진|검토',line)) else 'SOURCE_REPORTED'),
             'entity_ids':companies,
+            **({'topic_alias_evidence':alias} if alias and alias['canonical_topic'] not in TOPIC_ALIASES else {}),
             **({'service_name':names[0]} if action=='BUSINESS_START' and len(names)==1 else {}),
             **({'original_entity_ids':original_companies} if companies!=original_companies else {}),
             'industry_tags':['SEMICONDUCTOR'] if re.search(r'반도체|HBM|DRAM|NAND|메모리|EUV|DUV|극자외선|심자외선',line,re.I) else [],

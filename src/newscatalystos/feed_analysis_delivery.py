@@ -114,6 +114,15 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
             raise SourceShareError("bounded title economic changes required")
         for change in changes:
             validate_change(change)
+            if 'topic_alias_evidence' in change:
+                import re
+                from .economic_changes import explicit_topic_aliases, company_clauses
+                actors=list({n for c in changes for n in c['entity_ids']})
+                proofs=[p for sentence in re.split(r'(?<=[.!?。])\s+',row['headline'])
+                        for clause in company_clauses(sentence,actors)
+                        for p in explicit_topic_aliases(clause,actors)]
+                if change['topic_alias_evidence'] not in proofs:
+                    raise SourceShareError('topic alias is not in the saved source title')
             if (change["source_paragraph_sha256"] != title
                     or change["evidence_level"] != "REPORTED"):
                 raise SourceShareError("economic change must retain title evidence scope")

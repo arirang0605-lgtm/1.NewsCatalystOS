@@ -11,7 +11,7 @@ import sqlite3
 import re
 from urllib.parse import urlsplit, quote
 
-from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized
+from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized, explicit_topic_aliases
 from .evidence_archive import _private_root
 from .incremental_ingest import _check_state_path
 from .source_share import SourceShareError, _when, _must_sha
@@ -39,8 +39,16 @@ def _url(value):
     return parsed.scheme=='https' and bool(parsed.hostname) and not parsed.username and not parsed.password
 
 
+def validate_alias_evidence(proof,topic):
+    if (not isinstance(proof,dict) or set(proof)!={'canonical_topic','abbreviation','source_expression','expression_sha256'}
+            or not _text(proof['source_expression'],100)
+            or proof not in explicit_topic_aliases(proof['source_expression'])
+            or normalized(topic) not in {normalized(proof['canonical_topic']),normalized(proof['abbreviation'])}):
+        raise SourceShareError('invalid explicit topic alias evidence')
+
+
 def validate_change(change):
-    if (not isinstance(change,dict) or set(change)-{'original_entity_ids','service_name','extraction_method'}!=CHANGE_KEYS
+    if (not isinstance(change,dict) or set(change)-{'original_entity_ids','service_name','extraction_method','topic_alias_evidence'}!=CHANGE_KEYS
             or not _text(change['topic'],80) or change['economic_driver'] not in DRIVERS
             or change['action'] not in ACTIONS or change['evidence_level'] not in QUALITIES
             or change['phase'] not in {'SOURCE_REPORTED','ADOPTED_NOT_YET_EFFECTIVE','PLANNED'}
@@ -61,6 +69,7 @@ def validate_change(change):
                 or any(not _text(x) or x not in change['entity_ids'] for x in original)):
             raise SourceShareError('invalid original economic entities')
     _must_sha(change['source_paragraph_sha256'],'economic evidence')
+    if 'topic_alias_evidence' in change:validate_alias_evidence(change['topic_alias_evidence'],change['topic'])
 
 
 def topic_key(topic):
@@ -132,7 +141,7 @@ def _validate_observation(row):
 
 def _theme_id(row):
     c=row['change']
-    key=[topic_key(c['topic']),c['economic_driver']]
+    key=[topic_key(c.get('topic_alias_evidence',{}).get('canonical_topic',c['topic'])),c['economic_driver']]
     if c['economic_driver']=='UNKNOWN':
         key.append(row['event_id'] if row.get('content_scope')=='RSS_TITLE_METADATA'
                    else row['origin_reference'])
@@ -381,6 +390,13 @@ def _snapshot(theme_id, rows, at, previous):
     elif previous and previous['status']=='REACTIVATED' and active and not conflicts and state=='WEAKENING':
         state='REACTIVATED'
     first=rows[0][0]['change']
+    display_topic=first.get('topic_alias_evidence',{}).get('canonical_topic',first['topic'])
+    aliases=next((list(aliases) for name,aliases in TOPIC_ALIASES.items()
+                  if topic_key(name)==topic_key(display_topic)),[display_topic])
+    for event in active:
+        proof=event['change'].get('topic_alias_evidence')
+        if proof and topic_key(proof['canonical_topic'])==topic_key(display_topic):
+            aliases.extend(n for n in (proof['canonical_topic'],proof['abbreviation']) if n not in aliases)
     refs=[{'event_id':row['event_id'],'origin_reference':row['origin_reference'],
            'source_url':row['source_url'],'source_id':row['source_id'],
            'source_available_at':row['source_available_at'],'recorded_at':seen,
@@ -393,15 +409,16 @@ def _snapshot(theme_id, rows, at, previous):
            **({'source_binding':row['source_binding']} if 'source_binding' in row else {}),
            **({'content_scope':row['content_scope']} if 'content_scope' in row else {}),
            **({'service_name':row['change']['service_name']} if 'service_name' in row['change'] else {}),
+           **({'topic_alias_evidence':row['change']['topic_alias_evidence']} if 'topic_alias_evidence' in row['change'] else {}),
            'phase':row['change']['phase'],'polarity':row['polarity'],
            'supersedes_event_id':row['supersedes_event_id']} for row,seen in rows]
     history=(previous['history'][:] if previous else [])
     history.append({'status':state,'decision_at':at.isoformat(),'event_count':len(independent)})
     return {'schema_version':SCHEMA,'theme_id':theme_id,
-        'provisional_name':(previous['provisional_name'] if previous else first['topic']+' · '+DRIVERS[first['economic_driver']]),
+        'provisional_name':(previous['provisional_name'] if previous else display_topic+' · '+DRIVERS[first['economic_driver']]),
         'parent_theme_id':('taxonomy:semiconductor' if topic_key(first['topic']) in {'hbm','dram','nand','euv','duv'} else None),
         'topic_classification':'KNOWN_TOPIC' if topic_key(first['topic']) in KNOWN_TOPICS else 'PROVISIONAL_TOPIC',
-        'topic_aliases':next((list(aliases) for name,aliases in TOPIC_ALIASES.items() if topic_key(name)==topic_key(first['topic'])),[first['topic']]),
+        'topic_aliases':aliases,
         'economic_driver':first['economic_driver'],'status':state,
         'first_detected_at':previous['first_detected_at'] if previous else at.isoformat(),
         'last_evidence_at':max(r['source_available_at'] for r,_ in rows),

@@ -23,16 +23,22 @@ def main(argv=None):
     p.add_argument('--activity',choices=['all','changed','new','updated'],default='all')
     p.add_argument('--export-root',type=Path)
     p.add_argument('--company-candidates',action='store_true',help='include source-grounded company reasons in v3 delivery')
+    p.add_argument('--with-financials',action='store_true',help='return optional EraLeader financial context as company_research.v1')
+    p.add_argument('--assessment-root',type=Path,default=Path.home()/'Library/Application Support/NewsCatalystOS/document_analysis/era_assessments')
     args=p.parse_args(argv)
     now=datetime.now(timezone.utc)
     at=_when(args.as_of,'as of') if args.as_of else now
     themes=ThemeStore(args.root).search(as_of=at,query=args.query,now=now,
         since=_when(args.since,'period start') if args.since else None,activity=args.activity)
     payload=build_theme_bundle(themes,decision_at=at,now=now,
-                               include_company_candidates=args.company_candidates)
+                               include_company_candidates=args.company_candidates or args.with_financials)
+    if args.with_financials:
+        from newscatalystos.era_company_assessment import enrich_candidates, canonical
+        research=enrich_candidates(json.loads(payload)['CompanyCandidates'],args.assessment_root,as_of=at,now=now)
+        payload=canonical(research)+b'\n'
     digest=sha256(payload).hexdigest()
     if args.export_root:
-        path=_private_root(args.export_root)/('theme_delivery_'+digest+'.json')
+        path=_private_root(args.export_root)/(('company_research_' if args.with_financials else 'theme_delivery_')+digest+'.json')
         try:_write_new(path,payload)
         except FileExistsError:
             if _read_once(path,2_000_000)!=payload:raise ValueError('theme publication conflict')

@@ -111,7 +111,20 @@ function renderThemes(term){
         reasons.append(node("p","","보도된 제품·사업 주제: "+(candidate.business_context.source_topics.join(" · ")||"미확인")+" · 기업의 실제 사업 구성은 미확인"));
         if(!candidate.benefit_paths.length)reasons.append(node("p","","기업까지 이어지는 수혜 경로: 미확인"));
         for(const path of candidate.benefit_paths)reasons.append(node("p","","수혜 경로: "+path.product_stage+" · "+(impactLabels[path.category]||path.category)+" · 상대 기업 "+path.counterparty_id));
-        reasons.append(node("p","","재무·현재 가격·투자 매력: 미평가"));
+        const financial=candidate.financial_assessment,assessment=financial?.value;
+        const missingLabels={IDENTITY_UNRESOLVED:"기업 코드 미확인",NOT_AVAILABLE_AS_OF:"조회 시점에 사용할 평가 없음",COMPANY_NOT_IN_SNAPSHOT:"평가 목록에 없는 기업",AMBIGUOUS_IDENTITY:"기업 코드 연결이 모호함",NOT_CONNECTED:"평가 미연결"};
+        if(assessment){
+          reasons.append(node("p","","EraLeader 재무 근거 · "+(assessment.annual_fiscal_year?assessment.annual_fiscal_year+"년":"재무기간 미확인")+" · 평가일 "+assessment.assessment_day+" · 시장자료 "+assessment.source_market_session));
+          reasons.append(node("p","","재무 위험 항목 "+assessment.financial_risk.assessed_items+" / "+assessment.financial_risk.possible_items+"개 확보 · "+(!assessment.financial_risk.assessed_items?"평가 자료 부족":assessment.financial_risk.signals.length?"위험 신호 있음":"확인 항목에서 위험 신호 미관측 · 안전 확정 아님")));
+          for(const [label,items] of [["긍정 관측",assessment.competitiveness.supporting],["약화 관측",assessment.competitiveness.weakening],["위험 신호",assessment.financial_risk.signals]])for(const item of items)reasons.append(node("p","",label+": "+item.reason));
+          for(const line of [...assessment.missing,...assessment.limitations])reasons.append(node("p","",line));
+          for(const source of Object.values(assessment.sources))if(source.fiscal_year){
+            reasons.append(node("p","","재무 출처: "+source.fiscal_year+"년 · "+source.currency+" · 연결재무 · 가용시각 "+source.available_at_utc));
+            if(/^[0-9]{14}$/.test(source.report_accession||"")){const a=node("a","source-link","DART 공시 근거");a.href="https://dart.fss.or.kr/dsaf001/main.do?rcpNo="+source.report_accession;a.target="_blank";a.rel="noopener noreferrer";reasons.append(a)}
+          }
+          reasons.append(node("p","","평가 게시: "+financial.published_at+" · 이 프로그램에서 확보: "+financial.imported_at));
+        }else reasons.append(node("p","","재무 근거: "+(missingLabels[financial?.status]||"미확인")));
+        reasons.append(node("p","","현재 가격·투자 매력: 미평가"));
         for(const uncertainty of candidate.uncertainties)reasons.append(node("p","",uncertainty));
         card.append(reasons);
       }

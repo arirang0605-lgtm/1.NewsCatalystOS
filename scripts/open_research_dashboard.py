@@ -20,6 +20,7 @@ from newscatalystos.source_share import SourceShareError
 from newscatalystos.theme_emergence import ThemeStore, period_activity
 from newscatalystos.standard_delivery import build_theme_bundle
 from newscatalystos.article_company_identity import search_article_identities
+from newscatalystos.era_company_assessment import enrich_candidates
 
 ASSETS = Path(__file__).resolve().parent / "dashboard_assets"
 
@@ -89,6 +90,14 @@ class Handler(BaseHTTPRequestHandler):
                     bundle=json.loads(build_theme_bundle(data["themes"], decision_at=min(end, now), now=now,
                                                          include_company_candidates=True))
                     data['company_candidates']=bundle['CompanyCandidates']
+                    try:
+                        research=enrich_candidates(data['company_candidates'],self.server.documents/'era_assessments',
+                                                   as_of=min(end,now),now=now) if self.server.documents else None
+                        if research:
+                            data['company_candidates']=research['CompanyCandidates']
+                            data['assessment_source_status']=research['assessment_source_status']
+                    except (SourceShareError,OSError,ValueError,TypeError,KeyError):
+                        data['assessment_source_status']='UNAVAILABLE'
                     data['theme_activity']={row['theme_id']:period_activity(row,start) for row in data['themes']}
                     data['theme_activity_filter']=activity
                     data["theme_status"] = "READY"
@@ -99,7 +108,7 @@ class Handler(BaseHTTPRequestHandler):
             except (SourceShareError, OSError, ValueError, KeyError, TypeError) as exc:
                 self._json(400, {"error": type(exc).__name__})
             return
-        if url.path == "/api/themes":
+        if url.path in {"/api/themes", "/api/company-research"}:
             query = parse_qs(url.query)
             try:
                 from newscatalystos.source_share import _when
@@ -111,8 +120,13 @@ class Handler(BaseHTTPRequestHandler):
                     activity=query.get('activity',['all'])[0]) if self.server.documents else [])
                 companies=query.get('company_candidates',['0'])[0]
                 if companies not in {'0','1'}:raise ValueError('invalid company candidate option')
-                self._send(200, build_theme_bundle(themes, decision_at=at, now=now,
-                                                  include_company_candidates=companies=='1'),
+                payload=build_theme_bundle(themes, decision_at=at, now=now,
+                                           include_company_candidates=companies=='1' or url.path=='/api/company-research')
+                if url.path=='/api/company-research':
+                    root=(self.server.documents/'era_assessments' if self.server.documents else Path('/nonexistent-nc-assessments'))
+                    research=enrich_candidates(json.loads(payload)['CompanyCandidates'],root,as_of=at,now=now)
+                    payload=json.dumps(research,ensure_ascii=False,allow_nan=False).encode()
+                self._send(200, payload,
                            "application/json; charset=utf-8")
             except (SourceShareError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
                 self._json(400, {"error": "invalid theme query"})

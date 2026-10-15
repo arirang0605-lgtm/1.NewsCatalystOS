@@ -25,7 +25,7 @@ from .analysis_cache import cache_analysis_once, get_cached_analysis, _result_by
 from .evidence_archive import _private_root, _write_new
 from .fact_extraction import FactProposal, MONEY, verify_extracted_facts
 from .feed_triage import _matched_terms
-from .economic_changes import extract_economic_changes, business_start_phase, business_start_names
+from .economic_changes import extract_economic_changes, business_start_phase, business_start_names, business_start_functions
 from .impact_triage import ImpactInputs, triage_importance, SCALE, SCOPE, REPEAT, NOVELTY
 from .news_search import read_completed_title_snapshots
 from .novelty_detection import detect_new_economic_claim
@@ -34,7 +34,7 @@ from .provider_registry import ProviderRegistry
 from .source_share import SourceShareError, _must_sha, _when
 
 SCHEMA = "newscatalyst.feed_economic_analysis.v1"
-RULE_VERSION = "rss-title-economic-v8"  # explicit service/business starts and plans
+RULE_VERSION = "rss-title-economic-v9"  # explicit unnamed service object/function
 # Screening assumptions, NOT release criteria or a verified economic scale.
 MEDIUM_KRW = Decimal("1000000000")
 LARGE_KRW = Decimal("100000000000")
@@ -158,7 +158,7 @@ def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=()) ->
     terms = _matched_terms(title)
     products = _launch_products(title) if category == "PRODUCT_LAUNCH" else []
     if category == "BUSINESS_START":
-        products = business_start_names(title)
+        products = business_start_names(title) or business_start_functions(title)
     proposals = []
     for term in terms:
         start = title.casefold().find(term.casefold())

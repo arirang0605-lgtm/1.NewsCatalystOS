@@ -59,6 +59,41 @@ def business_start_names(text):
     return result[:10]
 
 
+_SERVICE_FUNCTION = re.compile(r'(?:추천|검색|매칭|분석|검사|진단|번역|예약|배송|정산|결제|관리|모니터링)$')
+_SERVICE_GENERIC = {'AI', '인공지능', '기반', '맞춤', '맞춤형', '통합', '자동', '신규',
+                    '새', '새로운', '혁신', '혁신적', '혁신적인', '스마트', '디지털',
+                    '고객', '기업', '개인', '국내', '글로벌', '온라인', '실시간'}
+
+
+def business_start_functions(text):
+    """Exact service object + function, only when no service brand is named.
+
+    A purpose phrase is a source description, not evidence of shared demand.
+    Require a concrete object as well as the function; AI/matched/new alone
+    cannot become a theme. Do not carry context across sentences or clauses.
+    """
+    if business_start_phase(text) is None or business_start_names(text):
+        return []
+    result=[]
+    for action in re.finditer(BUSINESS_ACTION, text):
+        if not action.group().startswith('서비스'):
+            continue
+        prefix=re.split(r'[,，:;.!?。…\n]', text[:action.start()])[-1].strip()
+        # A technology qualifier is not the service's object or its company.
+        prefix=re.split(r'(?<!\w)(?:AI|인공지능)\s*기반\s+', prefix, flags=re.I)[-1]
+        words=prefix.split()
+        if (not 2 <= len(words) <= 8 or len(prefix)>80
+                or not re.fullmatch(r'[가-힣A-Za-z0-9/· -]+',prefix)
+                or not _SERVICE_FUNCTION.fullmatch(words[-1])
+                or any(re.search(r'(?:은|는|에서|에게|위해|따라)$',w) for w in words[:-1])
+                or not any(w.casefold() not in {x.casefold() for x in _SERVICE_GENERIC}
+                           for w in words[:-1])):
+            continue
+        if prefix not in result:
+            result.append(prefix)
+    return result[:10]
+
+
 ACTIONS = (
     ('POLICY_CHANGE', r'(?:개정안|개정령안|법안).{0,130}(?:의결|통과)|규제.{0,25}(?:폐지|완화)|허가.{0,20}(?:승인|취득)'),
     ('PRODUCTION_START', r'(?:양산|생산).{0,12}(?:시작|개시)|가동을?\s*시작'),
@@ -68,7 +103,7 @@ ACTIONS = (
     ('INVESTMENT', r'(?:신규|새로).{0,30}투자.{0,25}(?:결정|확정)|투자.{0,15}(?:결정|확정)'),
     ('BUSINESS_START', BUSINESS_ACTION),
 )
-UNCERTAIN = re.compile(r'검토\s*중|논의\s*중|가능성|가정|미확정|계획이\s*없|하지\s*않|사실이\s*아니|체결되지|취득하지|의결되지')
+UNCERTAIN = re.compile(r'검토\s*중|논의\s*중|가능성|(?<!\w)가정(?=$|[^\w]|하|한|해)|미확정|계획이\s*없|하지\s*않|사실이\s*아니|체결되지|취득하지|의결되지')
 PAST = re.compile(r'(?:지난해|작년|과거|기존|이미).{0,45}(?:의결|체결|시작|확대|결정)|지난\s*\d+월.{0,30}(?:체결|발표|결정)')
 COMPANIES = re.compile(r'삼성전자|SK하이닉스|ASML|TSMC|마이크론|[가-힣A-Za-z]{2,20}(?:전자|반도체|소재|장비)')
 
@@ -140,13 +175,14 @@ def extract_economic_changes(text, *, company_names=()):
         business_phase=business_start_phase(line)
         names=business_start_names(line) if business_phase else []
         demand=_demand_topic(line, company_names)
-        topic=demand or next((name for name,pattern in TOPICS
-            if re.search(pattern,evidence_line,re.I)),None) or (names[0] if len(names)==1 else None)
-        if topic is None:
-            continue
         action = next((name for name, pattern in ACTIONS if re.search(pattern, evidence_line, re.I)
                        and (name!='BUSINESS_START' or business_phase)), None)
-        if action is None:
+        functions=business_start_functions(line) if action=='BUSINESS_START' else []
+        topic=demand or next((name for name,pattern in TOPICS
+            if re.search(pattern,evidence_line,re.I)),None) or (names[0] if len(names)==1 else None)
+        # Existing named/known topics retain their event identity.
+        topic=topic or (functions[0] if len(functions)==1 else None)
+        if topic is None or action is None:
             continue
         driver = ('POLICY_ENABLEMENT' if action == 'POLICY_CHANGE' else
                   'SUPPLY_CONTRACTION' if action == 'SUPPLY_REDUCTION' else

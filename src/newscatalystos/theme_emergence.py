@@ -11,7 +11,7 @@ import sqlite3
 import re
 from urllib.parse import urlsplit, quote
 
-from .economic_changes import DRIVERS, normalized
+from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized
 from .evidence_archive import _private_root
 from .incremental_ingest import _check_state_path
 from .source_share import SourceShareError, _when, _must_sha
@@ -20,7 +20,7 @@ SCHEMA = 'newscatalyst.theme_candidate.v1'
 RELATION_SCHEMA = 'newscatalyst.theme_candidate.v2'
 QUALITIES = {'OFFICIAL_SOURCE','REPORTED','INFERRED','UNVERIFIED','UNKNOWN'}
 ACTIONS = {'POLICY_CHANGE','PRODUCTION_START','CAPACITY_ADDITION','SUPPLY_REDUCTION','CONTRACT','INVESTMENT'}
-KNOWN_TOPICS = {'hbm','dram','nand','반도체','액침냉각'}
+KNOWN_TOPICS = {'euv','duv','hbm','dram','nand','반도체','액침냉각'}
 CHANGE_KEYS = {'topic','economic_driver','action','phase','entity_ids','industry_tags',
                'source_paragraph_sha256','evidence_level','verified_economic_effect'}
 
@@ -40,7 +40,7 @@ def _url(value):
 
 
 def validate_change(change):
-    if (not isinstance(change,dict) or set(change)!=CHANGE_KEYS
+    if (not isinstance(change,dict) or set(change)-{'original_entity_ids'}!=CHANGE_KEYS
             or not _text(change['topic'],80) or change['economic_driver'] not in DRIVERS
             or change['action'] not in ACTIONS or change['evidence_level'] not in QUALITIES
             or change['phase'] not in {'SOURCE_REPORTED','ADOPTED_NOT_YET_EFFECTIVE','PLANNED'}
@@ -50,13 +50,19 @@ def validate_change(change):
         if (not isinstance(change[field],list) or len(change[field])>30
                 or any(not _text(x) for x in change[field])):
             raise SourceShareError('invalid economic entities/tags')
+    if 'original_entity_ids' in change:
+        original=change['original_entity_ids']
+        if (not isinstance(original,list) or len(original)>30
+                or any(not _text(x) or x not in change['entity_ids'] for x in original)):
+            raise SourceShareError('invalid original economic entities')
     _must_sha(change['source_paragraph_sha256'],'economic evidence')
 
 
 def topic_key(topic):
     key=normalized(topic)
-    return {'고대역폭 메모리':'hbm','고대역폭메모리':'hbm','immersion cooling':'액침냉각',
-            '액침 냉각':'액침냉각','디램':'dram','낸드':'nand','semiconductor':'반도체'}.get(key,key)
+    return next((normalized(name) for name,aliases in TOPIC_ALIASES.items()
+                 if key in {normalized(alias) for alias in aliases}),key)
+
 
 
 def economic_observation(change, *, origin_reference, source_url, source_id,
@@ -73,7 +79,7 @@ def economic_observation(change, *, origin_reference, source_url, source_id,
     source_available_at=_when(source_available_at,'source availability').isoformat()
     # Same release across any number of publishers remains one event.
     identity=[origin_reference,topic_key(change['topic']),change['economic_driver'],
-              change['action'],sorted(set(change['entity_ids']))]
+              change['action'],sorted(set(change.get('original_entity_ids',change['entity_ids'])))]
     result = {'event_id':sha256(_bytes(identity)).hexdigest(),'change':change,
             'origin_reference':origin_reference,'source_url':source_url,'source_id':source_id,
             'source_available_at':source_available_at,'polarity':polarity,
@@ -209,8 +215,8 @@ class ThemeStore:
             latest={}
             for raw, in rows:
                 row=json.loads(raw);latest[row['theme_id']]=row
-            q=normalized(query)
-            return [row for _,row in sorted(latest.items()) if not q or q in normalized(json.dumps(row,ensure_ascii=False))]
+            queries={normalized(query),topic_key(query)}
+            return [row for _,row in sorted(latest.items()) if any(q in normalized(json.dumps(row,ensure_ascii=False)) for q in queries)]
         finally:db.close()
 
 
@@ -222,7 +228,7 @@ def _snapshot(theme_id, rows, at, previous):
     for row,seen in rows:
         if row['polarity']!='SUPPORT':continue
         old=events.get(row['event_id'])
-        quality=lambda r:(rank[r['change']['evidence_level']],len(r.get('company_mappings',[])))
+        quality=lambda r:(rank[r['change']['evidence_level']],len(r.get('company_mappings',[])),len(r['change']['entity_ids']))
         if old is None or quality(row)>quality(old):
             events[row['event_id']]=row
     invalid=set()
@@ -264,8 +270,9 @@ def _snapshot(theme_id, rows, at, previous):
     history.append({'status':state,'decision_at':at.isoformat(),'event_count':len(active)})
     return {'schema_version':SCHEMA,'theme_id':theme_id,
         'provisional_name':(previous['provisional_name'] if previous else first['topic']+' · '+DRIVERS[first['economic_driver']]),
-        'parent_theme_id':('taxonomy:semiconductor' if topic_key(first['topic']) in {'hbm','dram','nand'} else None),
+        'parent_theme_id':('taxonomy:semiconductor' if topic_key(first['topic']) in {'hbm','dram','nand','euv','duv'} else None),
         'topic_classification':'KNOWN_TOPIC' if topic_key(first['topic']) in KNOWN_TOPICS else 'PROVISIONAL_TOPIC',
+        'topic_aliases':next((list(aliases) for name,aliases in TOPIC_ALIASES.items() if topic_key(name)==topic_key(first['topic'])),[first['topic']]),
         'economic_driver':first['economic_driver'],'status':state,
         'first_detected_at':previous['first_detected_at'] if previous else at.isoformat(),
         'last_evidence_at':max(r['source_available_at'] for r,_ in rows),

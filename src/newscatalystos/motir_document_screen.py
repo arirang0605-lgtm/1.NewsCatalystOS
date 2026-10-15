@@ -1,7 +1,7 @@
 """Conservative economic screen of a SHA-bound, licensed ministry article.
 
-The rule only routes a possible new investment for later AI analysis. A prior
-plan reported again in a current article remains a follow-up source claim.
+Concrete economic changes feed theme discovery independently of paid AI
+routing. A prior plan mentioned again remains a follow-up source claim.
 """
 from __future__ import annotations
 
@@ -20,7 +20,8 @@ from .provider_registry import MOTIR_PRESS_DOCUMENT
 from .source_share import SourceShareError, _json, _must_sha, _when
 
 LEGACY_SCHEMA = "newscatalyst.motir_document_economic_screen.v1"
-SCHEMA = "newscatalyst.motir_document_economic_screen.v2"
+PREVIOUS_SCHEMA = "newscatalyst.motir_document_economic_screen.v2"
+SCHEMA = "newscatalyst.motir_document_economic_screen.v3"
 STATUS = "SOURCE_DOCUMENT_SCREENED_NOT_FACT_VERIFIED"
 SECTOR = re.compile(r"반도체|파운드리|메모리\s*칩|첨단전략산업|semiconductor|chip\s+fab", re.I)
 INVESTMENT = re.compile(r"투자|investment|investing", re.I)
@@ -51,7 +52,7 @@ def _krw(mention: str) -> Decimal | None:
 
 def prepare_motir_document_screen(
     binding_path: Path, binding_sha256: str, archive_root: Path,
-    *, now: datetime | None = None,
+    *, now: datetime | None = None, company_names=(),
 ) -> bytes:
     at = _when((now or datetime.now(timezone.utc)).isoformat(), "screen time")
     binding_sha = _must_sha(binding_sha256, "article binding")
@@ -97,8 +98,9 @@ def prepare_motir_document_screen(
         })
         if len(findings) > MAX_FINDINGS:
             raise SourceShareError("too many monetary investment paragraphs")
-    changes = extract_economic_changes("\n".join(lines))
-    # Investment routing retains its monetary threshold and temporal checks.
+    changes = extract_economic_changes("\n".join(lines),company_names=company_names)
+    # Retain concrete changes for theme discovery regardless of amount.
+    # Only paid investment routing retains its monetary/temporal threshold.
     eligible_investments = {row["source_paragraph_sha256"] for row in findings
                             if row["possible_new_investment_for_ai"]}
     routed_changes = [row for row in changes if row["action"] != "INVESTMENT"
@@ -113,7 +115,7 @@ def prepare_motir_document_screen(
         "article_available_at": binding["binding_at"],
         "screened_at": at.isoformat(),
         "findings": findings,
-        "economic_changes": routed_changes,
+        "economic_changes": changes,
         "ai_routing_candidate": bool(routed_changes) or any(row["possible_new_investment_for_ai"] for row in findings),
         "ai_provider_calls": 0,
         "verified_new_economic_event": False,
@@ -156,9 +158,9 @@ def consume_motir_document_screen(path: Path, expected_sha256: str, *,
                 "ai_routing_candidate", "ai_provider_calls",
                 "verified_new_economic_event", "verified_real_transaction",
                 "verified_real_benefit"}
-    if data.get("schema") == SCHEMA:
+    if data.get("schema") in {SCHEMA, PREVIOUS_SCHEMA}:
         required.add("economic_changes")
-    if (set(data) != required or data["schema"] not in {SCHEMA, LEGACY_SCHEMA} or data["status"] != STATUS
+    if (set(data) != required or data["schema"] not in {SCHEMA, PREVIOUS_SCHEMA, LEGACY_SCHEMA} or data["status"] != STATUS
             or not isinstance(data["source_url"], str)
             or MOTIR_PRESS_DOCUMENT.fullmatch(data["source_url"]) is None
             or type(data["ai_provider_calls"]) is not int or data["ai_provider_calls"] != 0
@@ -197,7 +199,11 @@ def consume_motir_document_screen(path: Path, expected_sha256: str, *,
         raise SourceShareError("invalid economic changes")
     for change in changes:
         validate_change(change)
-    if data["ai_routing_candidate"] is not (bool(changes) or any(
+    routed=changes
+    if data['schema']==SCHEMA:
+        eligible={row['source_paragraph_sha256'] for row in data['findings'] if row['possible_new_investment_for_ai']}
+        routed=[c for c in changes if c['action']!='INVESTMENT' or c['source_paragraph_sha256'] in eligible]
+    if data["ai_routing_candidate"] is not (bool(routed) or any(
         row["possible_new_investment_for_ai"] for row in data["findings"]
     )):
         raise SourceShareError("document AI routing contradicts findings")

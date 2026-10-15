@@ -8,11 +8,20 @@ import re
 import unicodedata
 
 TOPICS = (
+    # Source-defined Korean/acronym pairs in licensed ministry article 171178.
+    ('EUV', r'\bEUV\b|극자외선'), ('DUV', r'\bDUV\b|심자외선'),
     ('HBM', r'\bHBM\b|고대역폭\s*메모리'),
     ('액침냉각', r'액침\s*냉각|immersion\s+cooling'),
     ('DRAM', r'\bDRAM\b|디램'), ('NAND', r'\bNAND\b|낸드'),
     ('반도체', r'반도체|semiconductor'),
 )
+TOPIC_ALIASES = {
+    'EUV': ('EUV','극자외선'), 'DUV': ('DUV','심자외선'),
+    'HBM': ('HBM','고대역폭 메모리','고대역폭메모리'),
+    'DRAM': ('DRAM','디램'), 'NAND': ('NAND','낸드'),
+    '액침냉각': ('액침냉각','액침 냉각','immersion cooling'),
+    '반도체': ('반도체','semiconductor'),
+}
 DRIVERS = {'POLICY_ENABLEMENT': '정책 기반 확대', 'DEMAND_EXPANSION': '수요 확대',
            'CAPACITY_EXPANSION': '생산능력 확대', 'SUPPLY_CONTRACTION': '공급 축소',
            'UNKNOWN': '공통 원인 미확인'}
@@ -31,6 +40,12 @@ COMPANIES = re.compile(r'삼성전자|SK하이닉스|ASML|TSMC|마이크론|[가
 
 def normalized(value):
     return ' '.join(unicodedata.normalize('NFKC', value).casefold().split())
+
+
+def mentions_name(text,name):
+    """Whole source names with Korean particles; no fuzzy identity guessing."""
+    return bool(re.search(r'(?<!\w)'+re.escape(normalized(name))+
+        r'(?=$|[^\w]|(?:은|는|이|가|을|를|와|과|의|에|에게|에서|으로|로)(?=$|[^\w]))',normalized(text)))
 
 
 # Prefer the demand subject over incidental product mentions. Multiword unknown
@@ -62,12 +77,15 @@ def _demand_topic(sentence):
     return next(iter(topics)) if len(topics)==1 else None
 
 
-def extract_economic_changes(text):
+def extract_economic_changes(text, *, company_names=()):
     """Return bounded source claims, including policy adoption before its effect.
 
     Corporate actions without an explicit common demand cause retain their own
     supply/capacity driver. A price-only article is not a capacity event.
     """
+    if (not isinstance(company_names,(list,tuple)) or len(company_names)>100
+            or any(not isinstance(n,str) or not n.strip() or len(n)>120 for n in company_names)):
+        raise ValueError('bounded source company names required')
     changes = []
     seen = set()
     units=((paragraph,sentence.strip()) for paragraph in text.splitlines()
@@ -93,15 +111,22 @@ def extract_economic_changes(text):
                   'CAPACITY_EXPANSION' if action in {'PRODUCTION_START','CAPACITY_ADDITION'}
                       or (action == 'INVESTMENT' and re.search(r'공장|생산|증설', line)) else 'UNKNOWN')
         companies = sorted(set(COMPANIES.findall(evidence_line)))
-        companies = [x for x in companies if x not in {'첨단반도체','대한민국반도체','한국반도체','산업소재','노광장비','첨단장비','반도체소재'}]
-        key = (topic, driver, action, tuple(companies))
+        companies = [x for x in companies if x not in {'첨단반도체','대한민국반도체','한국반도체','산업소재','노광장비','첨단장비','반도체소재'}][:30]
+        original_companies=companies[:]
+        for name in company_names:
+            if mentions_name(line,name) and not any(normalized(x)==normalized(name) for x in companies):
+                companies.append(name)
+        companies=sorted(set(companies[:30]))
+        key = (topic, driver, action, tuple(original_companies))
         if key in seen:
             continue
         seen.add(key)
         changes.append({'topic':topic, 'economic_driver':driver, 'action':action,
             'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
                      else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line) else 'SOURCE_REPORTED'),
-            'entity_ids':companies, 'industry_tags':['SEMICONDUCTOR'] if re.search(r'반도체|HBM|DRAM|NAND|메모리',line,re.I) else [],
+            'entity_ids':companies,
+            **({'original_entity_ids':original_companies} if companies!=original_companies else {}),
+            'industry_tags':['SEMICONDUCTOR'] if re.search(r'반도체|HBM|DRAM|NAND|메모리|EUV|DUV|극자외선|심자외선',line,re.I) else [],
             'source_paragraph_sha256':sha256(paragraph.strip().encode()).hexdigest(),
             'evidence_level':'OFFICIAL_SOURCE', 'verified_economic_effect':False})
         if len(changes) >= 30:

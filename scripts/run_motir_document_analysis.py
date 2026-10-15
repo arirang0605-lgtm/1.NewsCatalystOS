@@ -1,6 +1,7 @@
 """Analyze one licensed RSS-bound article; stdout contains status, never its text."""
 from __future__ import annotations
 import argparse
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 import sqlite3
@@ -19,7 +20,6 @@ from newscatalystos.motir_article_binding import consume_motir_article_binding
 from newscatalystos.article_company_identity import search_article_identities, ensure_article_identity
 from newscatalystos.evidence_archive import _read_once
 from newscatalystos.source_share import _json
-from newscatalystos.source_share import _when
 from newscatalystos.economic_changes import normalized
 
 
@@ -63,25 +63,25 @@ def evaluate(opts, *, opener=None, now=None):
             identity,generation_status=generate_identity(opts,binding,registry,now=now)
         except (SourceShareError,OSError,ValueError,TypeError,KeyError):
             generation_status='UNAVAILABLE'
-        report = analyze_motir_document(opts.binding_path, opts.binding_sha256,
-            opts.archive_root, registry, opts.analysis_root,
-            model=read_model_config(opts.model_config), ai_ledger=opts.ai_ledger,
-            allow_paid=opts.allow_paid, analyze_existing=opts.analyze_existing,
-            opener=opener, now=now)
         identity_status='NOT_AVAILABLE'
         try:
             if generation_status=='NOT_CONFIGURED':
                 identities=search_article_identities(opts.analysis_root.parent/'company_identity',
-                    as_of=_when(report['analysis_available_at'],'analysis time'))
+                    as_of=now or datetime.now(timezone.utc))
                 identity=next((r for r in identities if r['archive_version']==binding['archive_version']
-                    and r['document_sha256']==report['document_sha256'] and r['source_url']==report['source_url']),None)
+                    and r['document_sha256']==binding['document_sha256'] and r['source_url']==binding['source_url']),None)
             if identity:
-                report['company_identity']=identity
                 identity_status='READY'
             elif generation_status=='UNAVAILABLE':identity_status='UNAVAILABLE'
         except (SourceShareError,OSError,ValueError,TypeError,KeyError):
             identity=None
             identity_status='UNAVAILABLE'
+        report = analyze_motir_document(opts.binding_path, opts.binding_sha256,
+            opts.archive_root, registry, opts.analysis_root,
+            model=read_model_config(opts.model_config), ai_ledger=opts.ai_ledger,
+            allow_paid=opts.allow_paid, analyze_existing=opts.analyze_existing,
+            opener=opener, now=now, company_names=[r['source_name'] for r in (identity or {}).get('matches',[]) if len(r['source_name'])<=120])
+        if identity:report['company_identity']=identity
         path, digest = publish_motir_document_analysis(report, opts.analysis_root / "reports")
         mapped={normalized(r['source_name']):r for r in (identity or {}).get('matches',[])}
         observations = [economic_observation(change,

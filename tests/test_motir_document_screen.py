@@ -73,3 +73,22 @@ def test_consumer_rejects_resealed_false_ai_routing(tmp_path):
     path, digest = publish_motir_document_screen(payload, tmp_path / "altered")
     with pytest.raises(SourceShareError, match="contradicts"):
         consume_motir_document_screen(path, digest)
+
+
+@pytest.mark.parametrize('amount',['5억원',''])
+def test_small_or_unpriced_investment_is_stored_without_paid_routing(tmp_path,amount):
+    path,digest,data=screen_case(tmp_path,
+        f'가상전자는 HBM 수요 증가에 대응해 공장에 {amount} 신규 투자를 결정했다. '*3)
+    assert data['economic_changes'][0]['action']=='INVESTMENT'
+    assert data['ai_routing_candidate'] is False
+    assert consume_motir_document_screen(path,digest)==data
+
+
+def test_v2_screen_keeps_legacy_routing_semantics(tmp_path):
+    from hashlib import sha256
+    from newscatalystos.motir_document_screen import PREVIOUS_SCHEMA
+    path,digest,data=screen_case(tmp_path,'가상전자는 HBM 공급 계약을 체결했다. '*4)
+    data['schema']=PREVIOUS_SCHEMA
+    raw=(json.dumps(data,ensure_ascii=False,sort_keys=True,separators=(',',':'))+'\n').encode()
+    legacy=tmp_path/'legacy.json';legacy.write_bytes(raw);legacy.chmod(0o600)
+    assert consume_motir_document_screen(legacy,sha256(raw).hexdigest())['ai_routing_candidate'] is True

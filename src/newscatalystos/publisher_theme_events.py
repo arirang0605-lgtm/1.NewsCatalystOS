@@ -1,40 +1,33 @@
 """Licensed publisher text -> economic events -> source-scoped company IDs."""
 from copy import deepcopy
-from hashlib import sha256
-import re
 
-from .economic_changes import extract_economic_changes, normalized
+from .economic_changes import extract_economic_changes, normalized, mentions_name
 from .theme_emergence import economic_observation
 from .official_relation_intake import read_publisher_relation_context
-
-
-def mentions_name(text,name):
-    # Whole names only; Korean particles may follow a name. No fuzzy/acronym map.
-    return bool(re.search(r'(?<!\w)'+re.escape(normalized(name))+
-        r'(?=$|[^\w]|(?:은|는|이|가|을|를|와|과|의|에|에게|에서|으로|로)(?=$|[^\w]))',normalized(text)))
 
 
 def observations_from_context(context):
     if context.source_url is None:return []  # RSS feed URL is not an article URL.
     body=context.document.decode('utf-8')
-    lines={sha256(line.strip().encode()).hexdigest():line.strip() for line in body.splitlines() if line.strip()}
     names={}
     for role in ('supplier','customer'):
         name=getattr(context.review,role+'_name')
         binding=getattr(context,role)
         names.setdefault(normalized(name),[]).append((name,binding))
     result=[]
-    for original in extract_economic_changes(body):
-        change=deepcopy(original);line=lines[change['source_paragraph_sha256']]
+    for original in extract_economic_changes(body,company_names=[getattr(context.review,r+'_name') for r in ('supplier','customer') if len(getattr(context.review,r+'_name'))<=120]):
+        change=deepcopy(original)
+        # Publisher events already included bound names before this extension.
+        change.pop('original_entity_ids',None)
         mappings=[]
         for entries in names.values():
             # Keep ambiguous names unresolved instead of choosing a company.
             if len({(b.id_namespace,b.company_id) for _,b in entries})!=1:continue
             name,binding=entries[0]
-            if len(name)>120 or not mentions_name(line,name):continue
+            if len(name)>120:continue
             matched=[n for n in change['entity_ids'] if normalized(n)==normalized(name)]
-            source_name=matched[0] if len(matched)==1 else name
-            if source_name not in change['entity_ids']:change['entity_ids'].append(source_name)
+            if len(matched)!=1:continue
+            source_name=matched[0]
             mappings.append({'source_name':source_name,
                 'entity_id':binding.id_namespace+':'+binding.company_id,
                 'evidence_sha256':binding.evidence_sha256})

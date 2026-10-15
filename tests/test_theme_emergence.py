@@ -279,3 +279,54 @@ def test_raw_articles_find_one_new_theme_and_deliver_company_reasons(tmp_path):
         assert shown['source_refs']==later['source_refs']
         assert shown['verified_beneficiary_count']==0
     finally:server.shutdown();server.server_close();thread.join(2)
+
+
+def test_source_defined_lithography_terms_group_without_merging_euv_and_duv(tmp_path):
+    store=ThemeStore(tmp_path/'themes');rows=[]
+    for number,term in enumerate(['극자외선','EUV','심자외선','DUV']):
+        change=extract_economic_changes(f'가상전자는 {term} 수요 증가에 대응해 공급 계약을 체결했다.')[0]
+        rows.append(economic_observation(change,origin_reference=f'https://example.org/{number}',
+            source_url=f'https://example.org/{number}',source_id='synthetic',source_available_at=T.isoformat()))
+    result=store.ingest(rows,now=T)
+    assert len(result)==2 and all(len(r['event_ids'])==2 for r in result)
+    assert {r['provisional_name'] for r in result}=={'EUV · 수요 확대','DUV · 수요 확대'}
+    assert all(r['parent_theme_id']=='taxonomy:semiconductor' for r in result)
+    assert store.search(query='극자외선',now=T)==store.search(query='EUV',now=T)
+    assert store.search(query='심자외선',now=T)==store.search(query='DUV',now=T)
+    assert '극자외선' in store.search(query='EUV',now=T)[0]['topic_aliases']
+
+
+def test_filing_names_enrich_same_event_without_adding_an_event(tmp_path):
+    text='별빛공업은 HBM 수요 확대에 대응해 공급 계약을 체결했다. 다른회사도 행사에 참석했다.'
+    old=extract_economic_changes(text)[0]
+    new=extract_economic_changes(text,company_names=['별빛공업','다른회사'])[0]
+    assert old['entity_ids']==[] and new['entity_ids']==['별빛공업']
+    assert new['original_entity_ids']==[]
+    args=dict(origin_reference='https://example.org/1',source_url='https://example.org/1',
+              source_id='synthetic',source_available_at=T.isoformat())
+    first=economic_observation(old,**args);second=economic_observation(new,**args)
+    assert first['event_id']==second['event_id']
+    store=ThemeStore(tmp_path/'themes');before=store.ingest([first],now=T)[0]
+    after=store.ingest([second],now=T+timedelta(seconds=1))[0]
+    assert after['scores']['distinct_economic_events']==1 and after['entity_ids']==['별빛공업']
+    assert store.search(as_of=T,now=T+timedelta(seconds=1))==[before]
+    assert extract_economic_changes('별빛공업서비스는 HBM 공급 계약을 체결했다.',company_names=['별빛공업'])[0]['entity_ids']==[]
+
+
+def test_unpriced_early_investment_reaches_theme_without_ai_call(tmp_path):
+    from pathlib import Path
+    from scripts.run_motir_document_analysis import evaluate
+    from test_article_company_identity import opts_for
+    from test_motir_document_analysis import case
+    from newscatalystos.motir_document_collection import _registry_bytes
+    _,args=case(tmp_path/'source',body='새빛소재는 EUV 수요 확대에 대응해 신규 공장 투자를 결정했다. '*3)
+    registry=tmp_path/'registry.json'
+    registry.write_bytes(_registry_bytes(args['article_registry'].providers[0]));registry.chmod(0o600)
+    root=tmp_path/'documents'
+    code,result=evaluate(opts_for(args,root,registry))
+    assert code==0 and result['economic_changes']==1 and result['theme_versions_created']==1
+    assert result['ai_status']=='NOT_ELIGIBLE' and result['new_ai_results']==0
+    theme=ThemeStore(root/'theme_history').search(query='극자외선')[0]
+    assert theme['entity_ids']==['새빛소재'] and theme['status']=='CANDIDATE'
+    assert theme['verified_beneficiary_count']==0
+    assert not list(root.rglob('ai_costs.sqlite3'))

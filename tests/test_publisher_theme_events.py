@@ -107,3 +107,18 @@ def test_ambiguous_mapping_is_not_silently_selected(tmp_path,monkeypatch):
 def test_feed_endpoint_is_not_presented_as_article_source(tmp_path):
     info=inputs.fixture(tmp_path)
     assert events(info)==[]
+
+
+def test_unrelated_sentence_in_same_paragraph_cannot_supply_bound_companies(tmp_path,monkeypatch):
+    info=case(tmp_path/'source',monkeypatch,line='Alpha Devices는 Beta Systems에 장비를 공급한다. HBM 생산을 시작했다.')
+    row=events(info)[0]
+    assert row['change']['entity_ids']==[] and row['company_mappings']==[]
+
+
+def test_publisher_names_preserve_prior_event_identity(tmp_path,monkeypatch):
+    from hashlib import sha256
+    info=case(tmp_path/'source',monkeypatch)
+    row=events(info)[0]
+    expected=[row['origin_reference'],'hbm','UNKNOWN','CONTRACT',['Alpha Devices','Beta Systems']]
+    raw=(json.dumps(expected,ensure_ascii=False,sort_keys=True,separators=(',',':'))+'\n').encode()
+    assert row['event_id']==sha256(raw).hexdigest()

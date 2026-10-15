@@ -207,3 +207,27 @@ def test_article_revision_gets_separate_automatic_identity(tmp_path,monkeypatch)
     revised,status=ensure_article_identity(second['archive_root'],other,second['article_registry'],root,tmp_path,tmp_path,tmp_path)
     assert status=='CREATED' and revised['archive_version']!=original['archive_version']
     assert len(search_article_identities(root))==2
+
+
+def test_directory_name_without_company_suffix_reaches_actual_document_pipeline(tmp_path,monkeypatch):
+    from scripts.run_motir_document_analysis import evaluate
+    from newscatalystos import official_filing_context as filing
+    _,args=case(tmp_path/'source',body='별빛공업은 EUV 수요 증가에 대응해 공급 계약을 체결했다. '*3)
+    at=datetime.now(timezone.utc)
+    monkeypatch.setattr(filing,'read_pinned_filing_context',lambda *a,**k:{'one':context(at,'별빛공업')})
+    registry=tmp_path/'registry.json'
+    registry.write_bytes(_registry_bytes(args['article_registry'].providers[0]));registry.chmod(0o600)
+    opts=opts_for(args,tmp_path/'documents',registry)
+    code,old=evaluate(opts)
+    assert code==0
+    config=tmp_path/'identity.json'
+    config.write_text(json.dumps({k:str(tmp_path/k) for k in ('era_root','era_report','independent_anchor')}));config.chmod(0o600)
+    opts.company_identity_config=config
+    code,result=evaluate(opts)
+    assert code==0 and result['company_identity_generation']=='CREATED'
+    report=json.loads(Path(result['private_report_file']).read_text())
+    assert report['economic_changes'][0]['entity_ids']==['별빛공업']
+    theme=ThemeStore(tmp_path/'documents/theme_history').search()[0]
+    assert theme['entity_ids']==['DART_CORP:00000001']
+    assert theme['scores']['distinct_economic_events']==1
+    assert evaluate(opts)[1]['theme_versions_created']==0

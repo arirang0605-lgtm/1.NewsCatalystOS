@@ -38,7 +38,7 @@ def analyze_motir_document(
     article_registry: ProviderRegistry, analysis_root: Path, *,
     model: AIModel | None = None, ai_ledger: Path | None = None,
     allow_paid: bool = False, analyze_existing: bool = False,
-    opener=None, now: datetime | None = None,
+    opener=None, now: datetime | None = None, company_names=(),
 ) -> dict:
     at = _stamp(now)
     if type(allow_paid) is not bool or type(analyze_existing) is not bool:
@@ -57,7 +57,7 @@ def analyze_motir_document(
     # Recompute screening from the archive; a caller-provided eligibility bit is
     # never sufficient to dispatch paid analysis or to upgrade a prior plan.
     screen = _json(prepare_motir_document_screen(
-        binding_path, binding_sha256, archive_root, now=at), "document screen")
+        binding_path, binding_sha256, archive_root, now=at, company_names=company_names), "document screen")
     body, archived = read_archived_evidence(archive_root, binding["archive_version"], now=at)
     if (sha256(body).hexdigest() != binding["document_sha256"]
             or archived.receipt_sha256 != binding["archive_receipt_sha256"]):

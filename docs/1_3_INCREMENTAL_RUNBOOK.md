@@ -9,7 +9,7 @@
 ## 개인용 SQLite 원장
 - Mac 내부: `~/Library/Application Support/NewsCatalystOS/state/incremental_feeds.sqlite3`. 디렉터리 owner-only 0700, SQLite 파일 0600. NewsCatalystOS 전용이며 EraLeader 소스/DB/Git 쓰기 0건. `.gitignore`가 `*.sqlite3` 및 `output/` 차단.
 - 요청 예약은 SQLite `BEGIN IMMEDIATE`로 원자화. 같은 Mac의 병렬 재실행도 예산/호출 간격 확인 없이 두 번 요청하지 않는다.
-- 실패: `last_success_at`과 기존 seen ID는 보존한다. HTTP 429/일시적 5xx의 실패 횟수에 따라 60~3600초 지수 백오프 후 **다음 정기 실행**이 다시 시도한다(즉시 재시도 금지). HTTP 401/403은 중지 상태로 유지. 권한을 다시 확인한 **새로운** reviewed_at이 실제 차단 시각보다 늦을 때만 `--resume-after-review` 옵션으로 수동 해제.
+- 실패: `last_success_at`과 기존 seen ID는 보존한다. HTTP 429/일시적 5xx의 실패 횟수에 따라 60~3600초 지수 백오프 후 **다음 정기 실행**이 다시 시도한다(즉시 재시도 금지). HTTP 401/403은 중지 상태로 유지. 유효한 출처 설정의 갱신 시각(`reviewed_at`, 기존 필드명)이 차단 시각보다 늦으면 다음 예약 실행에서 자동 복구한다. 설정이 같거나 접근권한이 만료되면 해당 출처만 건너뛰며, 호출 한도·재시도 간격은 유지한다. 수동 해제 명령은 삭제했다.
 - 성공하더라도 수집주기 미도래·시간당 호출 예산 소진 시 `NOT_DUE`로 중단하고 네트워크 호출하지 않는다. 허용 소스 하나가 실패해도 다른 소스의 watermark/진행은 보호한다. 다운타임 동안 놓친 기사는 RSS 피드에 아직 남아 있는 만큼만 회복할 수 있고, 오래 전에 사라진 기사를 복원한다고 보장하지 않는다.
 
 ## Mac에서 단발 검증

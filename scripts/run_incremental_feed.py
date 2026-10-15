@@ -13,7 +13,7 @@ from pathlib import Path
 import stat
 
 from newscatalystos.incremental_ingest import (
-    incremental_poll, resume_after_rights_review,
+    incremental_poll,
 )
 from newscatalystos.provider_registry import MAX_BYTES, parse_provider_registry
 from newscatalystos.source_share import SourceShareError, _read_regular
@@ -31,8 +31,6 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--all-approved", action="store_true",
                    help="One attempt for each due approved provider")
     p.add_argument("--state", type=Path, default=default_state())
-    p.add_argument("--resume-after-review", action="store_true",
-                   help="Manually clear a 401/403 hold after a later rights review")
     return p
 
 
@@ -56,14 +54,6 @@ def run(args: argparse.Namespace) -> tuple[int, dict]:
         raise SourceShareError("select exactly one provider or --all-approved")
     registered = _registry(args.registry)
     now = datetime.now(timezone.utc)
-    if args.resume_after_review:
-        if args.all_approved or not args.provider_id:
-            raise SourceShareError("resume requires one named provider")
-        changed = resume_after_rights_review(
-            registered, args.provider_id, args.state, now=now
-        )
-        return 0, {"status": "REVIEW_RESUMED" if changed else "NO_BLOCK_TO_CLEAR",
-                   "provider_id": args.provider_id, "stored_article_body_count": 0}
     names = (registered.approved_ids(at=now) if args.all_approved
              else (args.provider_id,))
     results = []

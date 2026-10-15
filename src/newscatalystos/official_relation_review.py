@@ -66,7 +66,7 @@ def review_official_supply_relation(
     """Validate the complete metadata-to-document-to-review evidence chain.
 
     trusted_document_sha256 must originate from an independently kept,
-    operator-approved pin (never computed from document_text by the caller).
+    recorded source pin (never computed from document_text by the caller).
     Official filing metadata does NOT contain the text of supplier contracts;
     the extracted role assertion is separate and remains non-transactional.
     """

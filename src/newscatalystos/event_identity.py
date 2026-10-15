@@ -16,7 +16,7 @@ from .operational_observations import OperationalObservation
 from .source_share import SourceShareError, _must_sha, _when
 
 SCHEMA = "newscatalyst.normalized_event.v1"
-BINDING_STATUS = "OPERATOR_REVIEWED_MAPPING_NOT_ISSUER_ATTESTED"
+BINDING_STATUS = "SOURCE_LINKED_MAPPING_NOT_ISSUER_ATTESTED"
 REVISION_STATUS = "EXPLICIT_CORRECTION_REFERENCE_UNVERIFIED"
 ID_KINDS = frozenset({"SEC_CIK", "DART_CORP", "KRX_STOCK"})
 FULL_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.:/?&=%-]{0,511}\Z")
@@ -134,7 +134,7 @@ def normalize_observed_event(
 ) -> NormalizedEvent:
     """Build a conservative common record; never guess missing release/issuer.
 
-    The optional binding/revision records are operator-reviewed *metadata*
+    The optional binding/revision records are source-linked *metadata*
     observations, not proof of the original issuer's external publication.
     They cannot change an earlier decision retroactively.
     """

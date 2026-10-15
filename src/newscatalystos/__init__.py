@@ -22,7 +22,7 @@ from .provider_registry import Provider, ProviderRegistry, parse_provider_regist
 from .new_source_adapter import FeedObservation, parse_authorized_feed
 from .feed_transport import FeedTransportError, fetch_authorized_once
 from .incremental_ingest import (
-    IncrementalResult, incremental_poll, resume_after_rights_review,
+    IncrementalResult, incremental_poll,
     state_snapshot,
 )
 from .event_identity import (
@@ -80,7 +80,7 @@ __all__ = [
     "Provider", "ProviderRegistry", "parse_provider_registry",
     "FeedObservation", "parse_authorized_feed", "fetch_authorized_once",
     "FeedTransportError", "IncrementalResult", "incremental_poll",
-    "resume_after_rights_review", "state_snapshot",
+    "state_snapshot",
     "CompanyBinding", "RevisionEvidence", "NormalizedEvent",
     "normalize_observed_event", "ArchivedEvidence", "archive_evidence",
     "read_archived_evidence", "SourceQuality", "check_sources",

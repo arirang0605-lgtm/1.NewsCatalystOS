@@ -83,9 +83,9 @@ def test_reference_reuses_graph_but_never_enables_runtime_or_labels(tmp_path, mo
     assert report['historical_reference_only']
     for flag in ('eligible_for_delivery', 'collection_enabled', 'source_authenticity_certified',
                  'verified_real_transaction', 'verified_real_benefit', 'new_economic_event_verified',
-                 'official_review_gate_satisfied', 'release_gate_verified', 'runtime_databases_modified'):
+                 'source_evidence_complete', 'release_gate_verified', 'runtime_databases_modified'):
         assert report[flag] is False
-    assert report['human_labels_added'] == report['network_calls'] == report['ai_calls'] == 0
+    assert report['network_calls'] == report['ai_calls'] == 0
     graph = report['graph_preview']
     assert len(graph['edges']) == 1
     assert graph['edges'][0]['evidence_sha256'] == report['reference_sha256']

@@ -138,7 +138,7 @@ def test_exact_overlaps_do_not_merge_or_certify_independence(sample):
     assert not by_reason['EXACT_NORMALIZED_TITLE']['different_title_versions']
     assert len(by_reason['SHARED_CANONICAL_URL']['member_versions']) == 3
     assert by_reason['SHARED_CANONICAL_URL']['different_title_versions']
-    assert all(x['review_required'] and not x['same_economic_event_verified']
+    assert all(x['automatic_action'] == 'PRESERVE_SOURCE_VERSIONS' and not x['same_economic_event_verified']
                and not x['source_independence_verified'] for x in by_reason.values())
     again = search(sample[0])
     assert again['metadata_overlap_hints'] == result['metadata_overlap_hints']

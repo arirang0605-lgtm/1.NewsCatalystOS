@@ -1,6 +1,6 @@
 """Build a private macOS launchd *template*; never activate background jobs.
 
-Use the resulting private plist with launchctl only after operator review.
+Use the resulting private plist with launchctl under the configured source policy.
 No API secrets or network requests are stored or made here.
 """
 from __future__ import annotations

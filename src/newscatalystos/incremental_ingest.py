@@ -101,7 +101,8 @@ def _connect(path: Path) -> sqlite3.Connection:
         raise
 
 
-def _reserve(conn: sqlite3.Connection, name: str, at: datetime, hourly_limit: int) -> None:
+def _reserve(conn: sqlite3.Connection, name: str, at: datetime, hourly_limit: int,
+             configuration_checked_at: datetime | None = None) -> None:
     """Atomic lock/reserve BEFORE opening network; no simultaneous double fetch."""
     timestamp = at.isoformat()
     cutoff = (at - timedelta(hours=1)).isoformat()
@@ -117,7 +118,14 @@ def _reserve(conn: sqlite3.Connection, name: str, at: datetime, hourly_limit: in
         ).fetchone()
         last, next_allowed, blocked = record
         if blocked:
-            raise SourceShareError("provider blocked until operator reviews permission")
+            # A new valid source configuration can recover on the next tick.
+            # No reviewer, CLI approval, or elapsed-time-only permission bypass.
+            if (configuration_checked_at is None or last is None
+                    or configuration_checked_at <= _when(last, "last attempt")
+                    or configuration_checked_at > at):
+                raise SourceShareError("provider blocked: source access configuration unchanged")
+            conn.execute("UPDATE source_state SET blocked=0,failure_count=0 "
+                         "WHERE provider_id=?", (name,))
         if last is not None and _when(last, "last attempt") > at:
             raise SourceShareError("system clock moved before last request")
         count = conn.execute(
@@ -188,7 +196,7 @@ def incremental_poll(
     provider = registry.active(provider_id, at=observed)
     conn = _connect(database_path)
     try:
-        _reserve(conn, provider_id, observed, provider.hourly_limit)
+        _reserve(conn, provider_id, observed, provider.hourly_limit, provider.reviewed_at)
         reader = fetch_authorized_once if fetcher is None else fetcher
         try:
             rows = reader(registry, provider_id, at=now)
@@ -265,46 +273,5 @@ def state_snapshot(database_path: Path, provider_id: str) -> dict:
                 "last_attempt_at": row[0], "last_success_at": row[1],
                 "next_allowed_at": row[2], "failure_count": row[3],
                 "seen_count": count}
-    finally:
-        conn.close()
-
-
-def resume_after_rights_review(
-    registry: ProviderRegistry, provider_id: str, database_path: Path, *,
-    now: datetime | None = None,
-) -> bool:
-    """Explicitly unblock a 401/403 source only after a NEW rights review.
-
-    Not automatic: simply waiting or restarting never erases a permission
-    block. The operator must have renewed approved source metadata AFTER the
-    last blocked network attempt.
-    """
-    instant = _when((now or datetime.now(timezone.utc)).isoformat(), "now")
-    provider = registry.active(provider_id, at=instant)
-    conn = _connect(database_path)
-    try:
-        conn.execute("BEGIN IMMEDIATE")
-        try:
-            state = conn.execute(
-                "SELECT last_attempt_at,blocked FROM source_state WHERE provider_id=?",
-                (provider_id,),
-            ).fetchone()
-            if state is None or not state[1]:
-                conn.execute("COMMIT")
-                return False
-            if provider.reviewed_at is None or (
-                state[0] is not None and provider.reviewed_at <= _when(state[0], "last attempt")
-            ):
-                raise SourceShareError("fresh operator rights review required to unblock")
-            conn.execute(
-                "UPDATE source_state SET blocked=0,failure_count=0,next_allowed_at=? "
-                "WHERE provider_id=?",
-                (instant.isoformat(), provider_id),
-            )
-            conn.execute("COMMIT")
-            return True
-        except Exception:
-            conn.execute("ROLLBACK")
-            raise
     finally:
         conn.close()

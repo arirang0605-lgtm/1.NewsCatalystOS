@@ -380,7 +380,7 @@ def analyze_completed_feed(
             report.update(ai_status="CACHE_HIT", ai_analysis=json.loads(_result_bytes(cached.result)))
         elif (report["ai_eligible"] or analyze_existing) and not cache_unavailable:
             if not allow_paid:
-                report["ai_status"] = "AWAITING_EXPLICIT_AI_AUTHORIZATION"
+                report["ai_status"] = "AI_DISABLED_BY_CONFIGURATION"
             else:
                 request = AIRequest(report["analysis_event_sha256"], metadata,
                     "OFFICIAL_METADATA" if item["source_kind"] in ("OFFICIAL_AGENCY", "COMPANY_IR")

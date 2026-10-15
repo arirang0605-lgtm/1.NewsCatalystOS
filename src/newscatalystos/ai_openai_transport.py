@@ -159,7 +159,7 @@ def run_budgeted_openai_analysis(
     """One explicitly authorized invocation, under the EXISTING 4_6 ledger.
 
     Duplicate/unsettled reservations do not send requests. Any HTTP/JSON
-    failure leaves the reserved amount held until manually reviewed.
+    failure retains the reservation as an upper bound for budget accounting.
     """
     if allow_paid is not True:
         raise SourceShareError("explicit paid AI authorization required")

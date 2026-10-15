@@ -190,8 +190,7 @@ def test_clock_backstep_fails_before_new_network_call(tmp_path):
     assert calls == []
 
 
-def test_403_unblock_requires_new_operator_rights_review(tmp_path):
-    from newscatalystos.incremental_ingest import resume_after_rights_review
+def test_403_recovers_automatically_only_after_valid_configuration_change(tmp_path):
     path = state(tmp_path)
     basic = reg(hourly_limit=10000)
     blocked_at = NOW + timedelta(seconds=4)
@@ -199,20 +198,36 @@ def test_403_unblock_requires_new_operator_rights_review(tmp_path):
         raise FeedTransportError("provider HTTP status 403", http_code=403)
     with pytest.raises(FeedTransportError):
         incremental_poll(basic, NAME, path, now=blocked_at, fetcher=denied)
-    with pytest.raises(SourceShareError, match="fresh operator rights review"):
-        resume_after_rights_review(basic, NAME, path,
-                                   now=blocked_at + timedelta(days=1))
-    rechecked = ProviderRegistry((
+    calls = []
+    with pytest.raises(SourceShareError, match="configuration unchanged"):
+        incremental_poll(basic, NAME, path, now=blocked_at + timedelta(hours=2),
+                         fetcher=fetch((item(),), calls))
+    assert calls == []
+    reconfigured = ProviderRegistry((
         replace(basic.providers[0], reviewed_at=blocked_at + timedelta(hours=1)),
     ))
-    assert resume_after_rights_review(
-        rechecked, NAME, path, now=blocked_at + timedelta(hours=2)
-    )
+    later = blocked_at + timedelta(hours=2)
+    restored = incremental_poll(reconfigured, NAME, path, now=later,
+                                fetcher=fetch((item(later),), calls))
+    assert restored.new_count == 1 and len(calls) == 1
     assert state_snapshot(path, NAME)["status"] == "ACTIVE"
-    later = blocked_at + timedelta(hours=2, seconds=1)
-    restored = incremental_poll(rechecked, NAME, path, now=later,
-                                fetcher=fetch((item(later),), []))
-    assert restored.new_count == 1
+
+
+def test_automatic_access_recovery_preserves_cooldown(tmp_path):
+    path = state(tmp_path)
+    basic = reg(hourly_limit=10000)
+    def denied(*_args, **_kwargs):
+        raise FeedTransportError("provider HTTP status 403", http_code=403)
+    with pytest.raises(FeedTransportError):
+        incremental_poll(basic, NAME, path, now=NOW, fetcher=denied)
+    updated = ProviderRegistry((replace(basic.providers[0],
+                                      reviewed_at=NOW + timedelta(seconds=1)),))
+    calls = []
+    with pytest.raises(SourceShareError, match="backoff"):
+        incremental_poll(updated, NAME, path, now=NOW + timedelta(seconds=2),
+                         fetcher=fetch((item(),), calls))
+    assert calls == []
+    assert state_snapshot(path, NAME)["status"] == "PERMISSION_BLOCKED"
 
 
 def test_invalid_event_digest_rolls_back_success_state(tmp_path):

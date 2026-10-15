@@ -2,7 +2,7 @@
 
 Uses the same checkpoint/SHA/PIT checks as the existing title index, but does
 not combine source databases, gold labels, rights registries, or caches.
-Exact title/URL overlap is a review hint, never evidence of an independent
+Exact title/URL overlap is an automatic overlap signal, never evidence of an independent
 news event, a verified economic fact, or a confirmed supply relationship.
 """
 from __future__ import annotations
@@ -61,7 +61,7 @@ def _overlap_hints(rows: list[dict]) -> list[dict]:
             "member_versions": [dict(zip(
                 ("provider_id", "event_id", "title_sha256"), key)) for key in keys],
             "different_title_versions": len({r["headline"] for r in members}) > 1,
-            "review_required": True,
+            "automatic_action": "PRESERVE_SOURCE_VERSIONS",
             "same_economic_event_verified": False,
             "source_independence_verified": False,
         })

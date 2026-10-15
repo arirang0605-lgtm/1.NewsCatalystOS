@@ -90,22 +90,3 @@ def test_both_modes_or_no_modes_denied(monkeypatch, tmp_path):
     opt.all_approved = False
     with pytest.raises(SourceShareError, match="exactly one"):
         cli.run(opt)
-
-
-def test_resume_does_not_contact_provider_and_needs_single_selection(monkeypatch, tmp_path):
-    monkeypatch.setattr(cli, "_registry", lambda _: registry())
-    calls = []
-    def resume(reg, name, path, *, now):
-        calls.append((name, path))
-        return True
-    monkeypatch.setattr(cli, "resume_after_rights_review", resume)
-    monkeypatch.setattr(cli, "incremental_poll",
-                        lambda *_: (_ for _ in ()).throw(AssertionError("should not fetch")))
-    selection = args(tmp_path)
-    selection.resume_after_review = True
-    status, report = cli.run(selection)
-    assert status == 0 and report["status"] == "REVIEW_RESUMED"
-    assert len(calls) == 1
-    selection.all_approved = True
-    with pytest.raises(SourceShareError, match="exactly one|resume"):
-        cli.run(selection)

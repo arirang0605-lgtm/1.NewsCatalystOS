@@ -1,8 +1,8 @@
-"""1_2 add the explicitly reviewed ministry RSS form feed in a SEPARATE private registry.
+"""1_2 add the configured ministry RSS form feed in a SEPARATE private registry.
 
 This does NOT alter existing two-source registry or launchd jobs. The official
 press page advertises an RSS FORM POST, and states KOGL Type 1 (attribution).
-The operator must explicitly acknowledge reviewing rights; no full-text usage.
+Uses the existing metadata-only source policy; no full-text usage.
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ RIGHTS = "https://www.motir.go.kr/kor/article/ATCL3f49a5a8c"
 
 def create_document(now: datetime) -> bytes:
     if not isinstance(now, datetime) or now.utcoffset() is None:
-        raise SourceShareError("current rights review time required")
+        raise SourceShareError("current source configuration time required")
     document = {
         "schema": SCHEMA,
         "providers": [{
@@ -85,12 +85,9 @@ def main(argv: list[str] | None = None) -> int:
     base = Path.home() / "Library/Application Support/NewsCatalystOS/providers"
     p.add_argument("--out", type=Path, default=base / "motir_authorized_sources.json")
     p.add_argument("--write", action="store_true")
-    p.add_argument("--operator-reviewed-official-terms", action="store_true")
     opts = p.parse_args(argv)
     try:
         if opts.write:
-            if not opts.operator_reviewed_official_terms:
-                raise SourceShareError("explicit official terms review confirmation required")
             write_private_registry(opts.out)
         else:
             create_document(datetime.now(timezone.utc))

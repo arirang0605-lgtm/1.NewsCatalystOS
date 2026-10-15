@@ -67,7 +67,7 @@ def read_official_relation_intake(
     trusted_document_sha256: str, *,
     now: datetime | None = None,
 ) -> SupplyChainEdge:
-    """Join a completed research publication with an operator-approved document.
+    """Join a completed research publication with an source-linked document.
 
     Both expected SHA values must be acquired out of band; a mutable manifest
     or this document's computed digest is NOT proof of independent trust.
@@ -114,7 +114,7 @@ def read_publisher_relation_intake(
 
     Existing immutable archive, explicit source permission and source evidence are
     required. This function reads only; it never grants rights, downloads a
-    source, creates reviewer answers, or promotes a transaction to verified status.
+    source, promotes a transaction to verified status.
     External publisher results have their own evidence status and graph schema.
     """
     # Reuse the filesystem-only private directory validator.

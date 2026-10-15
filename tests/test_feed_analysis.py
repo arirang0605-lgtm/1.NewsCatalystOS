@@ -77,7 +77,7 @@ def test_complete_path_uses_source_evidence_budgeted_adapter_then_cache(tmp_path
 def test_rules_only_then_authorized_run_does_not_lose_pending_candidate(tmp_path, fake_key):
     info = setup(tmp_path)
     before = run(info)
-    assert before["results"][0]["ai_status"] == "AWAITING_EXPLICIT_AI_AUTHORIZATION"
+    assert before["results"][0]["ai_status"] == "AI_DISABLED_BY_CONFIGURATION"
     assert not (info[-1] / "ai_costs.sqlite3").exists()
     opener = LocalOpener(packet())
     after = run(info, model=config(), allow_paid=True, opener=opener)
@@ -283,7 +283,7 @@ def test_explicit_contract_termination_is_reviewed_not_a_new_contract(tmp_path):
     assert report["rule_version"] == "rss-title-economic-v5"
     assert row["category_candidate"] == "CONTRACT_TERMINATION"
     assert row["reported_termination_only"] and not row["reported_plan_only"]
-    assert row["ai_eligible"] and row["ai_status"] == "AWAITING_EXPLICIT_AI_AUTHORIZATION"
+    assert row["ai_eligible"] and row["ai_status"] == "AI_DISABLED_BY_CONFIGURATION"
     assert row["known_dimension_score_lower_bound"] >= 8
     assert "2000억원" in row["source_amount_mentions"]
     assert all(v["field"] != "CONTRACT_AMOUNT" for v in row["source_matched_fields"])
@@ -307,7 +307,7 @@ def test_revision_from_supply_contract_to_termination_preserves_pit_and_delivery
     assert row["novelty"] == "CHANGED_ECONOMIC_CLAIM_REVIEW"
     assert row["analysis_event_sha256"] != first["results"][0]["analysis_event_sha256"]
     assert row["source_available_at"] >= first["results"][0]["source_available_at"]
-    assert row["ai_status"] == "AWAITING_EXPLICIT_AI_AUTHORIZATION"
+    assert row["ai_status"] == "AI_DISABLED_BY_CONFIGURATION"
     saved, digest = publish_feed_analysis(second, tmp_path / "reports")
     from newscatalystos.feed_analysis_delivery import consume_feed_analysis
     output = consume_feed_analysis(saved, saved.parent, digest)
@@ -355,7 +355,7 @@ def test_contract_cancellation_followup_links_earlier_contract_only_as_candidate
     assert followup["available_at"] >= second["source_available_at"]
     assert not followup["prior_claim_verified"] and not followup["realization_confirmed"]
     assert not second["verified_supply_transaction"] and not second["verified_economic_fact"]
-    assert second["ai_status"] == "AWAITING_EXPLICIT_AI_AUTHORIZATION"
+    assert second["ai_status"] == "AI_DISABLED_BY_CONFIGURATION"
     report = run(info)
     saved, digest = publish_feed_analysis(report, tmp_path / "reports")
     from newscatalystos.feed_analysis_delivery import consume_feed_analysis

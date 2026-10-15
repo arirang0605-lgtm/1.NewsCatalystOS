@@ -69,7 +69,7 @@ def test_single_tick_collects_once_and_stores_analysis_after_committed_ack(tmp_p
     assert first["analysis_providers_failed"] == first["ai_call_count"] == 0
     stored = saved_report(first)
     row = stored["results"][0]
-    assert row["ai_status"] == "AWAITING_EXPLICIT_AI_AUTHORIZATION"
+    assert row["ai_status"] == "AI_DISABLED_BY_CONFIGURATION"
     assert row["source_matched_fields"] and row["verified_economic_fact"] is False
     ack = json.loads(next((source.inbox_root / "acked").glob("*.json")).read_bytes())
     assert ack["confirmed_at"] <= row["analysis_available_at"]

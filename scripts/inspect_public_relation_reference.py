@@ -17,7 +17,7 @@ def main(argv: list[str] | None = None) -> int:
     except (SourceShareError, OSError, ValueError, TypeError) as exc:
         print(json.dumps({'status': 'PUBLIC_REFERENCE_UNAVAILABLE',
                           'error_type': type(exc).__name__, 'eligible_for_delivery': False,
-                          'human_labels_added': 0, 'network_calls': 0, 'ai_calls': 0}))
+                          'network_calls': 0, 'ai_calls': 0}))
         return 4
     print(json.dumps(report, sort_keys=True, ensure_ascii=False))
     return 0

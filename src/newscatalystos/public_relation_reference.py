@@ -175,7 +175,7 @@ def inspect_public_relation_reference(
         'historical_reference_only': True, 'new_economic_event_verified': False,
         'source_authenticity_certified': False, 'verified_real_transaction': False,
         'verified_real_benefit': False, 'collection_enabled': False,
-        'official_review_gate_satisfied': False, 'eligible_for_delivery': False,
-        'human_labels_added': 0, 'network_calls': 0, 'ai_calls': 0,
+        'source_evidence_complete': False, 'eligible_for_delivery': False,
+        'network_calls': 0, 'ai_calls': 0,
         'runtime_databases_modified': False, 'release_gate_verified': False,
     }

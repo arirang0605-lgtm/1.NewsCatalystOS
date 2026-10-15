@@ -1,4 +1,4 @@
-"""One-time operator-reviewed official ministry source, NO existing RSS changes."""
+"""One-time configured official ministry source, NO existing RSS changes."""
 from datetime import datetime, timezone
 import os
 from pathlib import Path
@@ -56,12 +56,12 @@ def test_unprotected_dir_or_wrong_name_denied(tmp_path):
     assert list(safe.iterdir()) == []
 
 
-def test_no_operator_confirmation_means_no_registry_write(tmp_path):
+def test_dry_run_then_write_needs_no_reviewer_confirmation(tmp_path):
     private = tmp_path / "private"
     private.mkdir(mode=0o700)
     private.chmod(0o700)
     path = private / "motir_authorized_sources.json"
-    code = source.main(["--out", str(path), "--write"])
-    assert code == 4 and not path.exists()
     code = source.main(["--out", str(path)])
     assert code == 0 and not path.exists()
+    code = source.main(["--out", str(path), "--write"])
+    assert code == 0 and path.exists()

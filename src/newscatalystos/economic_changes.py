@@ -106,6 +106,7 @@ ACTIONS = (
 UNCERTAIN = re.compile(r'검토\s*중|논의\s*중|가능성|(?<!\w)가정(?=$|[^\w]|하|한|해)|미확정|계획이\s*없|하지\s*않|사실이\s*아니|체결되지|취득하지|의결되지')
 PAST = re.compile(r'(?:지난해|작년|과거|기존|이미).{0,45}(?:의결|체결|시작|확대|결정)|지난\s*\d+월.{0,30}(?:체결|발표|결정)')
 COMPANIES = re.compile(r'삼성전자|SK하이닉스|ASML|TSMC|마이크론|[가-힣A-Za-z]{2,20}(?:전자|반도체|소재|장비)')
+_NON_COMPANY_TERMS = {'첨단반도체','대한민국반도체','한국반도체','산업소재','노광장비','첨단장비','반도체소재'}
 
 
 def normalized(value):
@@ -127,18 +128,24 @@ _DEMAND = re.compile(
     r'(?<![가-힣A-Za-z0-9])(?P<topic>'+_DEMAND_TOPIC+
     r'|[「“\"\'][^」”\"\']{2,50}[」”\"\']|[가-힣A-Za-z][가-힣A-Za-z0-9-]{1,49}?)'
     r'\s*(?:의\s*)?수요(?:가)?\s*(?:증가|확대|급증)'
-    r'(?:에\s*(?:대응(?:해|하여)?|따라|힘입어)|로\s*인해)', re.I)
+    r'(?P<connector>에\s*(?:대응(?:해|하여)?|따라|힘입어|대비(?:해|하여))'
+    r'|(?:으)?로(?:\s*인해)?)(?=$|[\s,])', re.I)
+_DEMAND_DENIAL = re.compile(r'취소|철회|무산|부인|사실\s*무근|아니라|아닌|되지\s*않|하지\s*못|되지\s*못')
 
 
 def _demand_topic(sentence, company_names=()):
+    """Return the sole demand topic and its connector, preserving action scope."""
     matches=list(_DEMAND.finditer(sentence))
-    topics=set()
+    topics={}
     for match in matches:
         # A demand observation alone is not a new contract/production event.
         if not any(re.search(pattern,sentence[match.end():],re.I) for _,pattern in ACTIONS):
             continue
         term=match['topic'].strip('「」“”"\'').strip()
         if normalized(term) in {normalized(t) for t in _GENERIC_DEMAND}:continue
+        if (normalized(term) in {normalized(n) for n in company_names}
+                or (COMPANIES.fullmatch(term) and term not in _NON_COMPANY_TERMS)):
+            continue  # An issuer name is not an identified product-demand cause.
         # Do not pick just the last member of a coordinated demand subject.
         prefix=sentence[:match.start()].rstrip()
         # News titles commonly separate the actor from its action with a comma:
@@ -148,8 +155,8 @@ def _demand_topic(sentence, company_names=()):
             for name in (*company_names, *COMPANIES.findall(prefix))))
         if re.search(r'(?:및|와|과|또는|,)\s*$',prefix) and not actor_prefix:continue
         term=next((name for name,pattern in TOPICS if re.fullmatch(pattern,term,re.I)),term)
-        topics.add(term)
-    return next(iter(topics)) if len(topics)==1 else None
+        topics[term]=match
+    return next(iter(topics.items())) if len(topics)==1 else None
 
 
 def extract_economic_changes(text, *, company_names=()):
@@ -172,12 +179,19 @@ def extract_economic_changes(text, *, company_names=()):
         # Demand and economic action must be in the same sentence; unrelated
         # context elsewhere in the paragraph cannot supply the common cause.
         evidence_line=line
-        business_phase=business_start_phase(line)
-        names=business_start_names(line) if business_phase else []
-        demand=_demand_topic(line, company_names)
-        action = next((name for name, pattern in ACTIONS if re.search(pattern, evidence_line, re.I)
+        demand_matches=list(_DEMAND.finditer(line))
+        if demand_matches and _DEMAND_DENIAL.search(line):continue
+        cause=_demand_topic(line, company_names)
+        demand=cause[0] if cause else None
+        # A preceding, unrelated action cannot inherit a later demand cause.
+        action_text=line[cause[1].end():] if cause else line
+        business_phase=business_start_phase(action_text)
+        names=business_start_names(action_text) if business_phase else []
+        # Anticipatory demand is kept in the planned path, never realized demand.
+        demand_planned=bool(cause and '대비' in cause[1]['connector'])
+        action = next((name for name, pattern in ACTIONS if re.search(pattern, action_text, re.I)
                        and (name!='BUSINESS_START' or business_phase)), None)
-        functions=business_start_functions(line) if action=='BUSINESS_START' else []
+        functions=business_start_functions(action_text) if action=='BUSINESS_START' else []
         topic=demand or next((name for name,pattern in TOPICS
             if re.search(pattern,evidence_line,re.I)),None) or (names[0] if len(names)==1 else None)
         # Existing named/known topics retain their event identity.
@@ -190,7 +204,7 @@ def extract_economic_changes(text, *, company_names=()):
                   'CAPACITY_EXPANSION' if action in {'PRODUCTION_START','CAPACITY_ADDITION'}
                       or (action == 'INVESTMENT' and re.search(r'공장|생산|증설', line)) else 'UNKNOWN')
         companies = sorted(set(COMPANIES.findall(evidence_line)))
-        companies = [x for x in companies if x not in {'첨단반도체','대한민국반도체','한국반도체','산업소재','노광장비','첨단장비','반도체소재'}][:30]
+        companies = [x for x in companies if x not in _NON_COMPANY_TERMS][:30]
         original_companies=companies[:]
         for name in company_names:
             if mentions_name(line,name) and not any(normalized(x)==normalized(name) for x in companies):
@@ -202,6 +216,7 @@ def extract_economic_changes(text, *, company_names=()):
         seen.add(key)
         changes.append({'topic':topic, 'economic_driver':driver, 'action':action,
             'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
+                     else 'PLANNED' if demand_planned
                      else business_phase if action == 'BUSINESS_START'
                      else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line) else 'SOURCE_REPORTED'),
             'entity_ids':companies,

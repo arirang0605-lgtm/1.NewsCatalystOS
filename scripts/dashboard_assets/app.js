@@ -16,15 +16,16 @@ function renderItems(){
   if(!matches.length)$("items").append(node("p","empty",term?"검색 결과가 없습니다.":"이 기간에 저장된 분석 기록이 없습니다. 다른 날짜를 선택하거나 메모를 남길 수 있습니다."));
   for(const item of visible){
     const card=node("article","finding"),meta=node("div","finding-meta");
-    meta.append(node("span","",item.day+" · "+item.provider),node("span","pill",item.priority==="HIGH_REVIEW"?"우선 검토":item.priority==="PARTIAL_EVIDENCE_ONLY"?"근거 보류":"분석 후보"));
+    meta.append(node("span","",item.day+" · "+item.provider),node("span","pill",["HIGH_REVIEW","HIGH_PRIORITY_CANDIDATE"].includes(item.priority)?"분석 우선":item.priority==="PARTIAL_EVIDENCE_ONLY"?"근거 보류":"분석 후보"));
     const ai={"NOT_ELIGIBLE":"AI 미사용","AWAITING_EXPLICIT_AI_AUTHORIZATION":"AI 설정 미활성","AI_DISABLED_BY_CONFIGURATION":"AI 설정 미활성","ANALYZED_UNVERIFIED":"AI 해석·미검증","CACHE_HIT":"기존 AI 해석"}[item.ai_status]||"AI 결과 없음";
     card.append(meta,node("h4","",item.headline),node("p","finding-detail",[item.category||"분류 없음",ai,"미확인 "+item.uncertainty_count+"개"].join(" · ")));
     if(item.ai_summary){
-      card.append(node("p","finding-detail",item.analysis_purpose==="EXISTING_ARTICLE"?"기존 기사 AI 분석 · 제목 기준":"AI 분석 · 제목 기준"));
+      card.append(node("p","finding-detail",(item.analysis_purpose==="EXISTING_ARTICLE"?"기존 기사 AI 분석":"AI 분석")+" · "+(item.content_scope==="LICENSED_ARTICLE_TEXT"?"허가된 기사 본문 기준":"제목 기준")));
       card.append(node("p","",item.ai_summary));
       for(const claim of item.ai_claims||[])card.append(node("p","finding-detail","해석: "+claim));
       for(const unknown of item.ai_uncertainties||[])card.append(node("p","finding-detail","미확인: "+unknown));
     }
+    if(item.content_scope==="LICENSED_ARTICLE_TEXT")card.append(node("p","finding-detail","본문 확인: "+item.source_available_at+" · 첨부자료 제외"));
     const link=node("a","source-link","출처 열기 ↗");link.href=item.source_url;link.target="_blank";link.rel="noopener noreferrer";card.append(link);$("items").append(card)
   }
   $("more-items").hidden=visible.length>=matches.length;

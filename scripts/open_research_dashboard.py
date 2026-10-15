@@ -21,9 +21,10 @@ ASSETS = Path(__file__).resolve().parent / "dashboard_assets"
 
 
 class DashboardServer(ThreadingHTTPServer):
-    def __init__(self, port: int, reports: Path, notes: Path):
+    def __init__(self, port: int, reports: Path, notes: Path, documents: Path | None = None):
         super().__init__(("127.0.0.1", port), Handler)
         self.reports = reports
+        self.documents = documents
         self.notes = NoteStore(notes)
 
 
@@ -62,7 +63,7 @@ class Handler(BaseHTTPRequestHandler):
             view = query.get("view", ["day"])[0]
             selected = query.get("date", [datetime.now(KST).date().isoformat()])[0]
             try:
-                records, source_info = scan_saved_analysis(self.server.reports)
+                records, source_info = scan_saved_analysis(self.server.reports, document_root=self.server.documents)
                 data = build_period(records, self.server.notes.read(), view, selected,
                                     source_info=source_info)
                 self._json(200, data)
@@ -109,9 +110,11 @@ def main(argv: list[str] | None = None) -> int:
                         default=PROJECT / "output" / "feed_analysis")
     parser.add_argument("--notes-root", type=Path,
                         default=Path.home() / "Library/Application Support/NewsCatalystOS/dashboard")
+    parser.add_argument("--document-reports-root", type=Path,
+                        default=Path.home() / "Library/Application Support/NewsCatalystOS/document_analysis")
     parser.add_argument("--no-browser", action="store_true")
     options = parser.parse_args(argv)
-    server = DashboardServer(options.port, options.reports_root, options.notes_root)
+    server = DashboardServer(options.port, options.reports_root, options.notes_root, options.document_reports_root)
     url = f"http://127.0.0.1:{server.server_port}/"
     print(f"NewsCatalystOS dashboard: {url}", flush=True)
     if not options.no_browser:

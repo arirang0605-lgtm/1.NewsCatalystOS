@@ -11,6 +11,7 @@ import os
 import re
 
 from .feed_analysis_delivery import MAX_REPORT_BYTES, _validate_report
+from .motir_document_analysis import consume_motir_document_analysis
 from .official_relation_intake import _private_input
 from .source_share import SourceShareError, _json
 
@@ -48,7 +49,7 @@ def _bounds(view: str, selected: date) -> tuple[date, date]:
     return start, next_month - timedelta(days=1)
 
 
-def scan_saved_analysis(root: Path, *, now: datetime | None = None) -> tuple[list[dict], dict]:
+def scan_saved_analysis(root: Path, *, document_root: Path | None = None, now: datetime | None = None) -> tuple[list[dict], dict]:
     """Read existing core/MOTIR reports only; filename digest is local integrity, not producer attestation."""
     now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     records: dict[tuple[str, str], dict] = {}
@@ -85,6 +86,8 @@ def scan_saved_analysis(root: Path, *, now: datetime | None = None) -> tuple[lis
                     key = (scope, row["analysis_event_sha256"])
                     item = {
                         "scope": scope, "event_id": row["analysis_event_sha256"],
+                        "source_event_sha256": row["source_event_sha256"],
+                        "content_scope": "RSS_TITLE_METADATA",
                         "day": observed.astimezone(KST).date().isoformat(),
                         "available_at": observed.isoformat(),
                         "analysis_available_at": available.isoformat(),
@@ -120,6 +123,12 @@ def scan_saved_analysis(root: Path, *, now: datetime | None = None) -> tuple[lis
                         records[key]["day"] = first_day
             except (SourceShareError, OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
                 skipped += 1
+    if document_root is not None:
+        body_records, body_info = scan_saved_documents(document_root, list(records.values()), now=now)
+        for row in body_records:
+            records[("motir_document", row["event_id"])] = row
+        seen_reports += body_info["saved_reports_seen"]
+        skipped += body_info["saved_reports_skipped"]
     return list(records.values()), {
         "saved_reports_seen": seen_reports, "saved_reports_skipped": skipped,
         "unique_analysis_versions": len(records),
@@ -127,11 +136,65 @@ def scan_saved_analysis(root: Path, *, now: datetime | None = None) -> tuple[lis
     }
 
 
+def scan_saved_documents(root: Path, headlines: list[dict], *, now: datetime) -> tuple[list[dict], dict]:
+    records = {}
+    seen = skipped = 0
+    root = Path(root)
+    if not root.exists():
+        return [], {"saved_reports_seen": 0, "saved_reports_skipped": 0}
+    if root.is_symlink() or root.resolve() != root or not root.is_dir():
+        raise SourceShareError("unsafe document dashboard root")
+    titles = {row.get("source_event_sha256"): row["headline"] for row in headlines}
+    for folder in sorted(root.iterdir()):
+        if re.fullmatch(r"[0-9a-f]{64}", folder.name) is None or folder.is_symlink():
+            continue
+        reports = folder / "reports"
+        if reports.is_symlink() or not reports.is_dir():
+            continue
+        for path in sorted(reports.iterdir()):
+            match = re.fullmatch(r"motir_document_analysis_([0-9a-f]{64})\.json", path.name)
+            if match is None:
+                continue
+            seen += 1
+            if seen > MAX_REPORTS:
+                raise SourceShareError("too many document analysis reports")
+            try:
+                data = consume_motir_document_analysis(path, match.group(1), now=now)
+                ai = data.get("ai_analysis") or {}
+                available = _instant(data["analysis_available_at"])
+                row = {"scope": "motir_document", "event_id": data["analysis_event_sha256"],
+                    "source_event_sha256": data["source_event_sha256"],
+                    "content_scope": data["content_scope"],
+                    "day": available.astimezone(KST).date().isoformat(), "available_at": available.isoformat(),
+                    "analysis_available_at": available.isoformat(), "source_available_at": data["source_available_at"],
+                    "headline": titles.get(data["source_event_sha256"]) or "산업부 보도자료 본문 · " + data["source_url"].split("/")[-2],
+                    "provider": "motir-official-press", "source_url": data["source_url"], "source_kind": "OFFICIAL_AGENCY",
+                    "category": "LICENSED_ARTICLE_ANALYSIS", "priority": "HIGH_PRIORITY_CANDIDATE" if data["ai_eligible"] else "PARTIAL_EVIDENCE_ONLY",
+                    "ai_status": data["ai_status"], "analysis_purpose": data["analysis_purpose"],
+                    "ai_summary": ai.get("summary"), "ai_claims": ai.get("claims", []),
+                    "ai_uncertainties": ai.get("uncertainties", []), "uncertainty_count": len(ai.get("uncertainties", [])),
+                    "reported_plan_only": any(x["category"] == "PRIOR_INVESTMENT_PLAN_MONITORING" for x in data["screen_findings"]),
+                    "report_sha256": match.group(1), "document_sha256": data["document_sha256"],
+                    "evidence_status": "LOCAL_DIGEST_AND_SAVED_SCHEMA_CHECKED"}
+                key = row["event_id"]
+                old = records.get(key)
+                if old is None:
+                    records[key] = row
+                else:
+                    first_day = min(old["day"], row["day"])
+                    if (bool(row["ai_summary"]), row["available_at"]) > (bool(old["ai_summary"]), old["available_at"]):
+                        records[key] = row
+                    records[key]["day"] = first_day
+            except (SourceShareError, OSError, ValueError, TypeError, KeyError):
+                skipped += 1
+    return list(records.values()), {"saved_reports_seen": seen, "saved_reports_skipped": skipped}
+
+
 def _count(items: list[dict]) -> dict:
     priorities = Counter(x["priority"] for x in items)
     return {
         "items": len(items),
-        "review": priorities.get("HIGH_REVIEW", 0),
+        "review": priorities.get("HIGH_REVIEW", 0) + priorities.get("HIGH_PRIORITY_CANDIDATE", 0),
         "held": sum(x["priority"] == "PARTIAL_EVIDENCE_ONLY" for x in items),
         "ai_analyzed": sum(x["ai_status"] in ("ANALYZED_UNVERIFIED", "CACHE_HIT") for x in items),
         "uncertainties": sum(x["uncertainty_count"] for x in items),
@@ -173,7 +236,7 @@ def build_period(records: list[dict], notes: list[dict], view: str, selected: st
                  and x["period"] in child_keys]
     feedback = []
     if view == "day":
-        feedback.append(f"분석 기록 {counts['items']}건, 검토 우선 {counts['review']}건, 근거 보류 {counts['held']}건.")
+        feedback.append(f"분석 기록 {counts['items']}건, 분석 우선 {counts['review']}건, 근거 보류 {counts['held']}건.")
     else:
         active = sum(c["items"] > 0 for c in children)
         unit = "일" if view == "week" else "주"

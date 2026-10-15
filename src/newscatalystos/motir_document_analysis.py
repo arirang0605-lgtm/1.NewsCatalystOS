@@ -17,7 +17,7 @@ from .analysis_cache import cache_analysis_once, get_cached_analysis, _result_by
 from .evidence_archive import _private_root, _read_once, _write_new, read_archived_evidence
 from .motir_article_binding import consume_motir_article_binding
 from .motir_document_screen import prepare_motir_document_screen
-from .provider_registry import ProviderRegistry, permits_document_storage
+from .provider_registry import ProviderRegistry, permits_document_storage, MOTIR_PRESS_DOCUMENT
 from .source_share import SourceShareError, _json, _must_sha, _when
 
 SCHEMA = "newscatalyst.motir_document_analysis.v1"
@@ -161,6 +161,8 @@ def consume_motir_document_analysis(path: Path, expected_sha256: str, *, now=Non
     if (report.get("schema") != SCHEMA or report.get("status") != "MOTIR_DOCUMENT_ANALYSIS_READY"
             or report.get("content_scope") != "LICENSED_ARTICLE_TEXT"
             or report.get("article_text_truncated") is not False
+            or not isinstance(report.get("source_url"), str)
+            or MOTIR_PRESS_DOCUMENT.fullmatch(report["source_url"]) is None
             or any(report.get(k) is not False for k in (
                 "verified_new_economic_event", "verified_real_transaction", "verified_real_benefit"))
             or not _when(report["source_available_at"], "source available")

@@ -330,6 +330,7 @@ def analyze_completed_feed(
     model: AIModel | None = None, allow_paid: bool = False,
     analyze_existing: bool = False, ai_ledger: Path | None = None,
     opener=None, now: datetime | None = None, company_identity_config: Path | None = None,
+    semantic_ai: bool = False, semantic_call_limit: int = 3,
 ) -> dict:
     """Reuse committed sources and separate analysis state; paid execution is opt-in.
 
@@ -337,6 +338,9 @@ def analyze_completed_feed(
     Failed AI leaves source-backed fields visible and its cost reservation held.
     """
     at = _stamp(now)
+    if type(semantic_ai) is not bool or type(semantic_call_limit) is not int or not 0<=semantic_call_limit<=10:
+        raise SourceShareError("invalid bounded semantic analysis options")
+    semantic_calls=0
     if type(analyze_existing) is not bool or (analyze_existing and
             (not provider_id or not event_id or not title_sha256 or limit != 1 or model is None)):
         raise SourceShareError("existing article analysis requires one exact source version and model")
@@ -451,7 +455,7 @@ def analyze_completed_feed(
                 report["ai_status"] = "AI_CACHE_UNAVAILABLE"
         if cached is not None:
             report.update(ai_status="CACHE_HIT", ai_analysis=json.loads(_result_bytes(cached.result)))
-        elif (report["ai_eligible"] or analyze_existing) and not cache_unavailable:
+        elif (report["ai_eligible"] or analyze_existing) and not cache_unavailable and not semantic_ai:
             if not allow_paid:
                 report["ai_status"] = "AI_DISABLED_BY_CONFIGURATION"
             else:
@@ -481,6 +485,21 @@ def analyze_completed_feed(
                     report.update(ai_status=reason)
                     if hasattr(exc, "http_status"):
                         report["ai_http_status"] = exc.http_status
+        if semantic_ai and item["claim_classification"] not in BLOCKED:
+            from .news_semantics import analyze_title, changes_from_events, merge_changes
+            may_call=allow_paid and semantic_calls<semantic_call_limit
+            try:
+                semantic,called=analyze_title(report,model,cache,ledger,
+                    allow_paid=may_call,now=_stamp(now),opener=opener,clock=now)
+                semantic_calls+=int(called)
+                report["semantic_analysis"]=semantic
+                if semantic["status"] in {"ANALYZED","CACHE_HIT"}:
+                    report["economic_changes"]=merge_changes(report["economic_changes"],
+                        changes_from_events(semantic["events"],item["title_sha256"]))
+            except (SourceShareError,OSError,ValueError,TypeError,sqlite3.Error):
+                # An uncertain billed failure retains its existing ledger reservation.
+                semantic_calls+=int(may_call)
+                report["semantic_analysis"]={"status":"UNAVAILABLE"}
         report["analysis_available_at"] = _stamp(now).isoformat()
         reports.append(report)
     return {"schema": SCHEMA, "status": "FEED_ECONOMIC_ANALYSIS_READY",
@@ -493,7 +512,7 @@ def analyze_completed_feed(
         "ai_eligible_candidates": sum(x["ai_eligible"] for x in reports),
         "new_ai_results": sum(x["ai_status"] == "ANALYZED_UNVERIFIED" for x in reports),
         "cache_hits": sum(x["ai_status"] == "CACHE_HIT" for x in reports),
-        "source_fetch_calls": 0,
+        "source_fetch_calls": 0, "semantic_ai_attempts":semantic_calls,
         "source_inputs_modified": False, "article_body_included": False,
         "verified_economic_facts": 0, "market_action": None,
         "release_gate_verified": False}

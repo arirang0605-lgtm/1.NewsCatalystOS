@@ -107,6 +107,7 @@ def scan_saved_analysis(root: Path, *, document_root: Path | None = None, now: d
                         "source_products": list(dict.fromkeys(x["value"]
                             for x in row["source_matched_fields"] if x["field"] == "PRODUCT")),
                         "economic_changes": row.get("economic_changes", []),
+                        "semantic_analysis": row.get("semantic_analysis"),
                         "company_identity": row.get("company_identity"),
                         "company_identity_status": row.get("company_identity_status", "NOT_CONFIGURED"),
                         "report_sha256": match.group(1),
@@ -119,12 +120,15 @@ def scan_saved_analysis(root: Path, *, document_root: Path | None = None, now: d
                         records[key] = item
                     else:
                         first_day = min(old["day"], item["day"])
-                        # Keep the later AI result visible even if an earlier
-                        # rules-only report, or another rules tick, also exists.
-                        old_rank = (bool(old.get("ai_summary")), old["available_at"])
-                        new_rank = (bool(item.get("ai_summary")), item["available_at"])
-                        if new_rank > old_rank:
-                            records[key] = item
+                        # Show current event interpretation, while retaining a
+                        # prior summary with its own report provenance.
+                        records[key] = max((old,item),key=lambda r:r["available_at"])
+                        ai_owner=max((old,item),key=lambda r:(bool(r.get("ai_summary")),r.get("ai_summary_available_at",r["available_at"])))
+                        if ai_owner.get("ai_summary"):
+                            for field in ("ai_summary","ai_claims","ai_uncertainties","ai_status","analysis_purpose"):
+                                records[key][field]=ai_owner[field]
+                            records[key]["ai_summary_available_at"]=ai_owner.get("ai_summary_available_at",ai_owner["available_at"])
+                            records[key]["ai_summary_report_sha256"]=ai_owner.get("ai_summary_report_sha256",ai_owner["report_sha256"])
                         records[key]["day"] = first_day
                         # AI selection must not hide newer directory enrichment.
                         # Retain its own report/time, rather than backdating it to AI.

@@ -40,12 +40,14 @@ def _url(value):
 
 
 def validate_change(change):
-    if (not isinstance(change,dict) or set(change)-{'original_entity_ids','service_name'}!=CHANGE_KEYS
+    if (not isinstance(change,dict) or set(change)-{'original_entity_ids','service_name','extraction_method'}!=CHANGE_KEYS
             or not _text(change['topic'],80) or change['economic_driver'] not in DRIVERS
             or change['action'] not in ACTIONS or change['evidence_level'] not in QUALITIES
             or change['phase'] not in {'SOURCE_REPORTED','ADOPTED_NOT_YET_EFFECTIVE','PLANNED'}
             or change['verified_economic_effect'] is not False):
         raise SourceShareError('invalid source economic change')
+    if 'extraction_method' in change and change['extraction_method']!='AI_SOURCE_SPAN_MATCHED':
+        raise SourceShareError('unsupported economic extraction method')
     if 'service_name' in change and (change['action']!='BUSINESS_START'
             or not _text(change['service_name'],80)):
         raise SourceShareError('invalid explicit service name')
@@ -359,6 +361,7 @@ def _snapshot(theme_id, rows, at, previous):
            'source_available_at':row['source_available_at'],'recorded_at':seen,
            'evidence_sha256':row['change']['source_paragraph_sha256'],
            'evidence_level':row['change']['evidence_level'],'action':row['change']['action'],
+           **({'extraction_method':row['change']['extraction_method']} if 'extraction_method' in row['change'] else {}),
            'topic':row['change']['topic'],'economic_driver':row['change']['economic_driver'],
            'entity_ids':resolved_entities(row),'industry_tags':row['change']['industry_tags'],
            **({'company_mappings':row['company_mappings']} if 'company_mappings' in row else {}),

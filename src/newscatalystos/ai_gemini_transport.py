@@ -135,6 +135,9 @@ def gemini_generate_content_transport(
     key = _credential if _credential is not None else _require_api_key()
     if not isinstance(key, str) or not 20 <= len(key) <= 256 or any(ch.isspace() for ch in key):
         raise SourceShareError("AI credential unavailable")
+    # Versioned semantic extraction reuses the same credentials, HTTP contract,
+    # accounting and cache envelope as existing summaries.
+    from .news_semantics import PROMPT_VERSION, INSTRUCTIONS
     params = {
         "contents": [{"role": "user", "parts": [{
             "text": json.dumps(prompt, ensure_ascii=False, separators=(",", ":"))
@@ -156,6 +159,8 @@ def gemini_generate_content_transport(
         },
         "store": False,
     }
+    if model.prompt_version == PROMPT_VERSION:
+        params['systemInstruction'] = {'parts': [{'text': INSTRUCTIONS}]}
     request = Request(
         endpoint, data=json.dumps(params, ensure_ascii=False).encode("utf-8"),
         headers={"x-goog-api-key": key, "Content-Type": "application/json"},

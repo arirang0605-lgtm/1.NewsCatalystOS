@@ -47,6 +47,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--allow-paid-ai", action="store_true",
                    help="enable budgeted AI for eligible events on scheduled ticks")
     p.add_argument("--analysis-ai-ledger", type=Path, help="shared monthly AI cost ledger")
+    p.add_argument("--semantic-ai", action="store_true")
+    p.add_argument("--semantic-call-limit", type=int, default=3)
     p.add_argument("--analysis-theme-root", type=Path, help="existing private economic theme store")
     p.add_argument("--skip-analysis", action="store_true",
                    help="explicit legacy collection-only tick")
@@ -79,6 +81,8 @@ def _analyze_provider(opts: argparse.Namespace, name: str, runner) -> tuple[int,
         model_config=getattr(opts, "analysis_model_config", None),
         ai_ledger=getattr(opts, "analysis_ai_ledger", None),
         theme_root=getattr(opts, "analysis_theme_root", None),
+        semantic_ai=getattr(opts,"semantic_ai",False),
+        semantic_call_limit=getattr(opts,"semantic_call_limit",3),
         company_identity_config=getattr(opts, "company_identity_config", None),
         allow_paid=(getattr(opts, "allow_paid_ai", False)
                     and not getattr(opts, "replay_only", False)
@@ -90,7 +94,7 @@ def _analyze_provider(opts: argparse.Namespace, name: str, runner) -> tuple[int,
         good = code == 0 and state in {
             "FEED_ECONOMIC_ANALYSIS_READY", "NO_COMPLETED_FEED_INPUT"}
         # Metadata/AI content stays in the private report, never launchd stdout.
-        summary = {"status": state, "exit_code": 0 if good else 4,
+        summary = {"semantic_ai_attempts":detail.get("semantic_ai_attempts",0), "status": state, "exit_code": 0 if good else 4,
             "analyzed_rows": len(detail.get("results", [])),
             "source_versions_checked": detail.get("source_versions_checked", 0),
             "has_more_results": detail.get("has_more_results", False),

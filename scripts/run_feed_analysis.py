@@ -27,6 +27,8 @@ from newscatalystos.theme_emergence import ThemeStore, economic_observation
 
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--semantic-ai", action="store_true", help="extract source-bounded events with existing Gemini; cache works without --allow-paid")
+    p.add_argument("--semantic-call-limit", type=int, default=3)
     p.add_argument("--scope", choices=("core", "motir"), default="core")
     p.add_argument("--registry", type=Path)
     p.add_argument("--inbox-root", type=Path)
@@ -78,9 +80,12 @@ def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, d
             title_sha256=opts.title_sha256, limit=opts.limit, model=model,
             allow_paid=opts.allow_paid, opener=opener, now=now,
             analyze_existing=getattr(opts, "analyze_existing", False),
-            ai_ledger=getattr(opts, "ai_ledger", None), company_identity_config=identity_config)
+            ai_ledger=getattr(opts, "ai_ledger", None), company_identity_config=identity_config, semantic_ai=getattr(opts,"semantic_ai",False),
+            semantic_call_limit=getattr(opts,"semantic_call_limit",3))
         failures = sum((row["ai_eligible"] or row.get("analysis_purpose") == "EXISTING_ARTICLE") and row["ai_status"] not in
                        ("ANALYZED_UNVERIFIED", "CACHE_HIT") for row in report["results"])
+        if getattr(opts,"semantic_ai",False):
+            failures=sum(r.get("semantic_analysis",{}).get("status") in {"UNAVAILABLE","MODEL_UNAVAILABLE","UNSUPPORTED_PROPOSAL"} for r in report["results"])
         report["paid_execution_requested"] = opts.allow_paid
         report["requested_ai_complete"] = failures == 0 if opts.allow_paid else None
         path, digest = publish_feed_analysis(report, work / "reports")

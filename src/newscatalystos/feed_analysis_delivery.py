@@ -106,6 +106,9 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
         if "company_identity" in row:
             from .feed_company_identity import validate_feed_identity
             validate_feed_identity(row["company_identity"], row, at=analyzed_at)
+        if "semantic_analysis" in row:
+            from .news_semantics import validate_saved
+            validate_saved(row, analyzed_at)
         changes = row.get("economic_changes", [])
         if not isinstance(changes, list) or len(changes) > 30:
             raise SourceShareError("bounded title economic changes required")

@@ -221,6 +221,7 @@ def test_motir_completed_input_reaches_separate_analysis_even_if_gold_fails(tmp_
     from test_federated_news_search import collect, write_registry
     from newscatalystos.federated_news_search import TitleSearchWorkspace
     params = sector_options(tmp_path)
+    params.capture_gold = True
     params.skip_analysis = False
     params.replay_only = True
     params.analysis_root = tmp_path / "sector_analysis"
@@ -252,6 +253,7 @@ def test_installed_entrypoints_default_to_separate_rules_only_analysis(tmp_path)
         "--once", "--registry", str(tmp_path / "reg.json"), "--provider-id", GOV])
     motir = motir_parser().parse_args([])
     assert not core.skip_analysis and not motir.skip_analysis
+    assert motir.capture_gold is False
     assert core.analysis_model_config is motir.analysis_model_config is None
     assert motir.analysis_root.name == "motir"
     assert core.output_root / "feed_analysis" / "core" != motir.analysis_root

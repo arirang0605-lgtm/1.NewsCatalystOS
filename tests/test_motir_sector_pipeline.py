@@ -31,6 +31,7 @@ def config(tmp_path):
 
 def test_explicit_motir_sector_uses_existing_feed_then_gold_without_mixing_source(tmp_path):
     opts = config(tmp_path)
+    opts.capture_gold = True
     records = []
     def fake_feed(args):
         records.append(("feed", args.provider_id, args.inbox_root))
@@ -54,6 +55,7 @@ def test_explicit_motir_sector_uses_existing_feed_then_gold_without_mixing_sourc
 
 def test_failing_feed_still_attempts_safe_completed_gold_replay(tmp_path):
     opts = config(tmp_path)
+    opts.capture_gold = True
     called=[]
     def fake_gold(args):
         called.append(True)
@@ -65,8 +67,23 @@ def test_failing_feed_still_attempts_safe_completed_gold_replay(tmp_path):
         gold_runner=fake_gold,
     )
     assert code == 4 and called
-    assert output["status"] == "MOTIR_SECTOR_REQUIRES_REVIEW"
+    assert output["status"] == "MOTIR_SECTOR_SOURCE_OR_ANALYSIS_UNAVAILABLE"
     assert output["release_gate_verified"] is False
+
+
+def test_default_news_analysis_does_not_call_gold_capture(tmp_path):
+    opts = config(tmp_path)
+    def forbidden_gold(_):
+        raise AssertionError("Gold research must be opt-in")
+    code, output = sector.run_once(
+        opts, registry_reader=lambda _: official(),
+        feed_runner=lambda _: (0, {"status": "NOT_DUE"}),
+        gold_runner=forbidden_gold,
+    )
+    assert code == 0
+    assert output["status"] == "MOTIR_SECTOR_SOURCE_ANALYSIS_READY"
+    assert output["gold_status"] == "DISABLED_BY_V1_POLICY"
+    assert output["gold_capture_requested"] is False
 
 
 def test_wrong_issuer_or_rights_fails_before_feed_network(tmp_path):

@@ -1,5 +1,6 @@
-"""One scheduled sector-policy tick: authorized MOTIR POST -> existing RSS triage -> private gold.
+"""One scheduled sector-policy tick: authorized MOTIR POST -> RSS triage -> analysis.
 
+Optional private Gold candidate capture is a separate research workflow.
 Separate private source registry, SQLite, inbox, gold workspace and PIN.
 Existing two-source launchd, EraLeader and project V1.0 tasks are unchanged.
 No AI calls or human labels; content remains official RSS title metadata.
@@ -50,6 +51,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--analysis-model-config", type=Path,
                    help="existing cached model output only; no paid AI")
     p.add_argument("--skip-analysis", action="store_true")
+    p.add_argument("--capture-gold", action="store_true",
+                   help="optional research candidate capture; no news review or release gate")
     p.add_argument("--replay-only", action="store_true",
                    help="use completed input and recovery checkpoints without source HTTP")
     p.set_defaults(analysis_scope="motir")
@@ -61,7 +64,7 @@ def run_once(opts: argparse.Namespace, *,
              feed_runner=triage_once,
              gold_runner=gold_once,
              analysis_runner=evaluate_analysis) -> tuple[int, dict]:
-    """Do not conflate successful feed work and human gold verification."""
+    """Treat source analysis and optional Gold research as separate outcomes."""
     try:
         enabled = not getattr(opts, "skip_analysis", False)
         limit = getattr(opts, "analysis_limit", 100)
@@ -77,14 +80,17 @@ def run_once(opts: argparse.Namespace, *,
                 or provider.endpoint != ENDPOINT
                 or provider.allow_full_text_storage):
             raise SourceShareError("sector source rights or exact endpoint unsupported")
+        capture_gold = getattr(opts, "capture_gold", False)
         paths = (opts.registry, opts.state, opts.dedup_state, opts.inbox_root,
-                 opts.output_root, opts.gold_root, opts.pin_root,
-                 opts.workspace_root, opts.lock_root)
+                 opts.output_root)
+        if capture_gold:
+            paths += (opts.gold_root, opts.pin_root, opts.workspace_root,
+                      opts.lock_root)
         if (not all(Path(p).is_absolute() and ".." not in Path(p).parts
                     and all(part.casefold() != "eraleader" for part in Path(p).parts)
                     for p in paths)
-                or opts.gold_root == opts.output_root
-                or opts.gold_root == opts.inbox_root
+                or (capture_gold and (opts.gold_root == opts.output_root
+                                      or opts.gold_root == opts.inbox_root))
                 or opts.state == opts.dedup_state):
             raise SourceShareError("isolated private sector paths required")
         tick = argparse.Namespace(
@@ -98,21 +104,21 @@ def run_once(opts: argparse.Namespace, *,
         except (SourceShareError, OSError, ValueError) as exc:
             feed_code, feed_status = 4, {"status": "DATA_UNAVAILABLE",
                                         "error_type": type(exc).__name__}
-        # A previously successful observation must still reach its blind
-        # private gold queue, even if an hourly poll is NOT_DUE or fails.
-        gold_opts = argparse.Namespace(
-            registry=opts.registry, inbox_root=opts.inbox_root,
-            state=opts.state, out_root=opts.gold_root,
-            pin_root=opts.pin_root, workspace_root=opts.workspace_root,
-            lock_root=opts.lock_root, motir_policy_only=True,
-        )
-        try:
-            gold_code, gold_status = gold_runner(gold_opts)
-        except (SourceShareError, OSError, ValueError) as exc:
-            gold_code, gold_status = 4, {"status": "GOLD_CAPTURE_UNAVAILABLE",
-                                        "error_type": type(exc).__name__}
-        # Gold preparation is not a prerequisite for economic analysis.
-        # Both consume completed metadata; either failure remains explicit.
+        gold_code, gold_status = 0, {"status": "DISABLED_BY_V1_POLICY"}
+        if capture_gold:
+            # Research may replay an earlier completed ACK even when polling is
+            # NOT_DUE. It never controls the article-analysis result.
+            gold_opts = argparse.Namespace(
+                registry=opts.registry, inbox_root=opts.inbox_root,
+                state=opts.state, out_root=opts.gold_root,
+                pin_root=opts.pin_root, workspace_root=opts.workspace_root,
+                lock_root=opts.lock_root, motir_policy_only=True,
+            )
+            try:
+                gold_code, gold_status = gold_runner(gold_opts)
+            except (SourceShareError, OSError, ValueError) as exc:
+                gold_code, gold_status = 4, {"status": "GOLD_CAPTURE_UNAVAILABLE",
+                                            "error_type": type(exc).__name__}
         analysis_code, analysis = (0, {"status": "DISABLED"})
         if enabled:
             analysis_opts = argparse.Namespace(**vars(opts))
@@ -125,19 +131,23 @@ def run_once(opts: argparse.Namespace, *,
             "NOT_DUE", "NO_PENDING_REPLAY",
         })
         good_gold = gold_code == 0 and gold_status.get("status") in {
+            "DISABLED_BY_V1_POLICY",
             "NEW_VERIFIED_RSS_CANDIDATES_FROZEN",
             "NO_NEW_VERIFIED_RSS_CANDIDATES",
         }
-        good_tick = good_feed and good_gold and analysis_code == 0
+        good_source_analysis = good_feed and analysis_code == 0
+        good_tick = good_source_analysis and good_gold
         return (0 if good_tick else 4), {
-            "status": ("MOTIR_SECTOR_SOURCE_AND_GOLD_READY"
-                       if good_tick else "MOTIR_SECTOR_REQUIRES_REVIEW"),
+            "status": ("MOTIR_SECTOR_SOURCE_ANALYSIS_READY" if good_tick
+                       else "MOTIR_SECTOR_GOLD_CAPTURE_UNAVAILABLE"
+                       if good_source_analysis else "MOTIR_SECTOR_SOURCE_OR_ANALYSIS_UNAVAILABLE"),
             "provider_id": SOURCE,
             "feed_status": feed_status.get("status", "DATA_UNAVAILABLE"),
             "feed_new_identities": feed_status.get("new_provider_ids", 0),
             "semiconductor_keyword_review_hints": feed_status.get(
                 "semiconductor_keyword_review", 0),
             "gold_status": gold_status.get("status", "DATA_UNAVAILABLE"),
+            "gold_capture_requested": capture_gold,
             "newly_frozen_gold_candidates": gold_status.get("newly_frozen_cases", 0),
             "total_sector_gold_candidates": gold_status.get("total_pinned_unique_cases"),
             "analysis_enabled": enabled, "analysis": analysis,

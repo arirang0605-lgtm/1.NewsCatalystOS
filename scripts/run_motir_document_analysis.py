@@ -51,6 +51,7 @@ def parser():
     p.add_argument("--ai-ledger", type=Path)
     p.add_argument("--allow-paid", action="store_true")
     p.add_argument("--analyze-existing", action="store_true")
+    p.add_argument("--semantic-ai", action="store_true")
     return p
 
 
@@ -80,6 +81,7 @@ def evaluate(opts, *, opener=None, now=None):
             opts.archive_root, registry, opts.analysis_root,
             model=read_model_config(opts.model_config), ai_ledger=opts.ai_ledger,
             allow_paid=opts.allow_paid, analyze_existing=opts.analyze_existing,
+            semantic_ai=getattr(opts, 'semantic_ai', False),
             opener=opener, now=now, company_names=[r['source_name'] for r in (identity or {}).get('matches',[]) if len(r['source_name'])<=120])
         if identity:report['company_identity']=identity
         path, digest = publish_motir_document_analysis(report, opts.analysis_root / "reports")
@@ -97,7 +99,7 @@ def evaluate(opts, *, opener=None, now=None):
         failed = opts.allow_paid and (report["ai_eligible"] or opts.analyze_existing) and report["ai_status"] not in ("CACHE_HIT", "ANALYZED_UNVERIFIED")
         return (4 if failed else 0), {k: report[k] for k in (
             "status", "content_scope", "ai_status", "ai_eligible", "new_ai_results",
-            "cache_hits", "source_fetch_calls", "verified_new_economic_event"
+            "cache_hits", "source_fetch_calls", "verified_new_economic_event", "ai_adapter_attempted"
         )} | {"private_report_file": str(path), "report_sha256": digest,
               "economic_changes": len(observations), "theme_versions_created": len(themes),
               "company_identity_status":identity_status,

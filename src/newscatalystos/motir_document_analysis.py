@@ -6,6 +6,7 @@ extracted press text is sent only after current document rights and SHA checks.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from dataclasses import replace
 from hashlib import sha256
 import json
 from pathlib import Path
@@ -38,15 +39,18 @@ def analyze_motir_document(
     article_registry: ProviderRegistry, analysis_root: Path, *,
     model: AIModel | None = None, ai_ledger: Path | None = None,
     allow_paid: bool = False, analyze_existing: bool = False,
-    opener=None, now: datetime | None = None, company_names=(),
+    opener=None, now: datetime | None = None, company_names=(), semantic_ai: bool = False,
 ) -> dict:
     at = _stamp(now)
-    if type(allow_paid) is not bool or type(analyze_existing) is not bool:
+    if type(allow_paid) is not bool or type(analyze_existing) is not bool or type(semantic_ai) is not bool:
         raise SourceShareError("boolean document execution policy required")
     if model is not None:
         model.validate()
         if model.provider != "GEMINI":
             raise SourceShareError("licensed document adapter requires Gemini")
+        if semantic_ai:
+            from .news_semantics import DOCUMENT_PROMPT_VERSION
+            model = replace(model, prompt_version=DOCUMENT_PROMPT_VERSION)
     elif allow_paid or analyze_existing:
         raise SourceShareError("configured document model required")
     binding = consume_motir_article_binding(binding_path, binding_sha256, now=at)
@@ -65,7 +69,10 @@ def analyze_motir_document(
     text = body.decode("utf-8")
     purpose = "EXISTING_ARTICLE" if analyze_existing else "NEW_EVENT"
     content_data = {"article_text": text, "source_url": binding["source_url"],
-        "analysis_purpose": purpose, "screen_findings": screen["findings"],
+        # Extraction describes this source, regardless of manual existing-article
+        # or scheduled routing. Keep its cache input stable across those routes.
+        "analysis_purpose": "EXISTING_ARTICLE" if semantic_ai else purpose,
+        "screen_findings": screen["findings"],
         "verified_new_economic_event": False}
     if screen.get("economic_changes"):
         content_data["economic_changes"] = screen["economic_changes"]
@@ -137,6 +144,9 @@ def analyze_motir_document(
                     "AI_BUDGET_UNAVAILABLE" if "budget" in message else
                     "AI_ALREADY_RESERVED_OR_RESULT_UNAVAILABLE" if "already reserved" in message else
                     "AI_PROVIDER_OR_CACHE_UNAVAILABLE")
+    if semantic_ai:
+        from .news_semantics import attach_document_semantics
+        attach_document_semantics(report, text)
     report["analysis_available_at"] = _stamp(now).isoformat()
     return report
 
@@ -195,4 +205,7 @@ def consume_motir_document_analysis(path: Path, expected_sha256: str, *, now=Non
                 or decoded.event_sha256 != report["analysis_event_sha256"]
                 or decoded.available_at > _when(report["analysis_available_at"], "analysis available")):
             raise SourceShareError("document analysis result identity mismatch")
+    if 'semantic_analysis' in report:
+        from .news_semantics import validate_document_semantics
+        validate_document_semantics(report)
     return report

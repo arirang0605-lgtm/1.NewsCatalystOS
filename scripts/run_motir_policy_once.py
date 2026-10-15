@@ -86,6 +86,7 @@ def _analyze_documents(opts, runner, extra_jobs=()):
         return 0, {"status": "NO_REGISTERED_DOCUMENTS", "results": []}
     results = [manifest_error] if manifest_error else []
     seen = set()
+    semantic_attempts = 0
     for job in jobs["jobs"]:
         try:
             if not isinstance(job, dict) or set(job) != {"binding_path", "binding_sha256", "archive_root", "article_registry"}:
@@ -105,10 +106,14 @@ def _analyze_documents(opts, runner, extra_jobs=()):
                               or getattr(opts, "analysis_model_config", None)),
                 ai_ledger=getattr(opts, "analysis_ai_ledger", None),
                 allow_paid=(getattr(opts, "allow_paid_ai", False)
-                            and not getattr(opts, "replay_only", False)),
+                            and not getattr(opts, "replay_only", False)
+                            and (not getattr(opts, 'semantic_ai', False)
+                                 or semantic_attempts < getattr(opts, 'semantic_call_limit', 1))),
                 analyze_existing=False,
+                semantic_ai=getattr(opts, 'semantic_ai', False),
                 company_identity_config=getattr(opts,"company_identity_config",DEFAULT_IDENTITY_CONFIG))
             code, result = runner(args)
+            semantic_attempts += int(result.get('ai_adapter_attempted', False))
             results.append({**result, "exit_code": code})
         except (SourceShareError, OSError, ValueError, TypeError, sqlite3.Error) as exc:
             results.append({"status": "MOTIR_DOCUMENT_ANALYSIS_UNAVAILABLE",

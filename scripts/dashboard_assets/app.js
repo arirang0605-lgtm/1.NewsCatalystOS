@@ -31,12 +31,14 @@ function renderItems(){
     }
     for(const match of item.company_identity?.matches||[])card.append(node("p","finding-detail","기업 식별: "+match.source_name+" · "+match.entity_id+" (공시 명부 이름 일치 · 거래·수혜 확정 아님)"));
     if(item.semantic_analysis?.analysis){
-      card.append(node("p","finding-detail","AI 사건 해석 · 제목 근거 대조 · 독립 사실 확인 아님"));
-      card.append(node("p","",item.semantic_analysis.analysis.summary));
+      const evidenceScope=item.content_scope==="LICENSED_ARTICLE_TEXT"?"본문":"제목";
+      card.append(node("p","finding-detail","AI 사건 해석 · "+evidenceScope+" 근거 대조 · 독립 사실 확인 아님"));
+      if(item.ai_summary!==item.semantic_analysis.analysis.summary)card.append(node("p","",item.semantic_analysis.analysis.summary));
+      if(item.bound_title)card.append(node("p","finding-detail","연결된 기사 제목: "+item.bound_title));
       card.append(node("p","finding-detail","의미 분석 시각: "+item.semantic_analysis.analysis.available_at));
       for(const event of item.semantic_analysis.events||[]){
         card.append(node("p","finding-detail","주체: "+(event.actors.join(", ")||"미확인")+" · "+(economicActionLabels[event.action]||event.action)+" · "+(economicPhaseLabels[event.phase]||event.phase)));
-        card.append(node("p","finding-detail","제목 근거: "+event.quote));
+        card.append(node("p","finding-detail",evidenceScope+" 근거: "+event.quote));
         card.append(node("p","finding-detail",event.cause_quote?"원인 근거: "+event.cause_quote:"명시된 공통 원인 없음 · 개별 관찰"));
       }
     }

@@ -60,7 +60,7 @@ _DEMAND = re.compile(
     r'(?:에\s*(?:대응(?:해|하여)?|따라|힘입어)|로\s*인해)', re.I)
 
 
-def _demand_topic(sentence):
+def _demand_topic(sentence, company_names=()):
     matches=list(_DEMAND.finditer(sentence))
     topics=set()
     for match in matches:
@@ -71,7 +71,12 @@ def _demand_topic(sentence):
         if normalized(term) in {normalized(t) for t in _GENERIC_DEMAND}:continue
         # Do not pick just the last member of a coordinated demand subject.
         prefix=sentence[:match.start()].rstrip()
-        if re.search(r'(?:및|와|과|또는|,)\s*$',prefix):continue
+        # News titles commonly separate the actor from its action with a comma:
+        # "회사명, 신기술 수요 증가에 대응해 ..." is not a topic list.
+        actor_prefix = (prefix.endswith(',') and any(
+            normalized(prefix[:-1].strip()) == normalized(name)
+            for name in (*company_names, *COMPANIES.findall(prefix))))
+        if re.search(r'(?:및|와|과|또는|,)\s*$',prefix) and not actor_prefix:continue
         term=next((name for name,pattern in TOPICS if re.fullmatch(pattern,term,re.I)),term)
         topics.add(term)
     return next(iter(topics)) if len(topics)==1 else None
@@ -97,7 +102,7 @@ def extract_economic_changes(text, *, company_names=()):
         # Demand and economic action must be in the same sentence; unrelated
         # context elsewhere in the paragraph cannot supply the common cause.
         evidence_line=line
-        demand=_demand_topic(line)
+        demand=_demand_topic(line, company_names)
         topic=demand or next((name for name,pattern in TOPICS
             if re.search(pattern,evidence_line,re.I)),None)
         if topic is None:

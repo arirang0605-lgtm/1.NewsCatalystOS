@@ -25,6 +25,7 @@ from .analysis_cache import cache_analysis_once, get_cached_analysis, _result_by
 from .evidence_archive import _private_root, _write_new
 from .fact_extraction import FactProposal, MONEY, verify_extracted_facts
 from .feed_triage import _matched_terms
+from .economic_changes import extract_economic_changes
 from .impact_triage import ImpactInputs, triage_importance, SCALE, SCOPE, REPEAT, NOVELTY
 from .news_search import read_completed_title_snapshots
 from .novelty_detection import detect_new_economic_claim
@@ -33,7 +34,7 @@ from .provider_registry import ProviderRegistry
 from .source_share import SourceShareError, _must_sha, _when
 
 SCHEMA = "newscatalyst.feed_economic_analysis.v1"
-RULE_VERSION = "rss-title-economic-v6"  # named launches without a semiconductor keyword
+RULE_VERSION = "rss-title-economic-v7"  # title-grounded economic changes for theme discovery
 # Screening assumptions, NOT release criteria or a verified economic scale.
 MEDIUM_KRW = Decimal("1000000000")
 LARGE_KRW = Decimal("100000000000")
@@ -188,6 +189,13 @@ def _screen(item: dict, prior: PriorState, at: datetime) -> tuple[dict, FactInpu
         ("scale", SCALE), ("affected_scope", SCOPE), ("repeatability", REPEAT), ("novelty", NOVELTY)))
     eligible = bool(fact and known_score >= HIGH_REVIEW_SCORE and novelty_dim in
                     ("NEW_FACT_CANDIDATE", "MATERIAL_REVISION"))
+    changes = (extract_economic_changes(title) if permitted and not
+               (NEGATED.search(title) or UNCERTAIN_CHANGE.search(title)) else [])
+    for change in changes:
+        change["evidence_level"] = "REPORTED"
+        change["source_paragraph_sha256"] = item["title_sha256"]
+        if PLANNED.search(title):
+            change["phase"] = "PLANNED"
     report = {
         "analysis_event_sha256": event, "source_event_sha256": item["event_id"],
         "source_title_sha256": item["title_sha256"], "provider_id": item["provider_id"],
@@ -211,6 +219,7 @@ def _screen(item: dict, prior: PriorState, at: datetime) -> tuple[dict, FactInpu
         "routing_priority": "HIGH_PRIORITY_CANDIDATE" if eligible else "PARTIAL_EVIDENCE_ONLY",
         "routing_rule_version": RULE_VERSION,
         "source_amount_mentions": amounts,
+        "economic_changes": changes,
         "source_matched_fields": [{"field": v.field, "value": v.value,
             "evidence_quote_sha256": v.evidence_quote_sha256, "status": v.status}
             for v in extracted.supported],

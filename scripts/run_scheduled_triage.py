@@ -47,6 +47,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--allow-paid-ai", action="store_true",
                    help="enable budgeted AI for eligible events on scheduled ticks")
     p.add_argument("--analysis-ai-ledger", type=Path, help="shared monthly AI cost ledger")
+    p.add_argument("--analysis-theme-root", type=Path, help="existing private economic theme store")
     p.add_argument("--skip-analysis", action="store_true",
                    help="explicit legacy collection-only tick")
     operation = p.add_mutually_exclusive_group(required=True)
@@ -77,6 +78,7 @@ def _analyze_provider(opts: argparse.Namespace, name: str, runner) -> tuple[int,
         limit=getattr(opts, "analysis_limit", 100),
         model_config=getattr(opts, "analysis_model_config", None),
         ai_ledger=getattr(opts, "analysis_ai_ledger", None),
+        theme_root=getattr(opts, "analysis_theme_root", None),
         allow_paid=(getattr(opts, "allow_paid_ai", False)
                     and not getattr(opts, "replay_only", False)
                     and not getattr(opts, "dry_run", False)),
@@ -94,6 +96,8 @@ def _analyze_provider(opts: argparse.Namespace, name: str, runner) -> tuple[int,
             "ai_eligible_candidates": detail.get("ai_eligible_candidates", 0),
             "cache_hits": detail.get("cache_hits", 0),
             "new_ai_results": detail.get("new_ai_results", 0),
+            "economic_changes_count": detail.get("economic_changes_count", 0),
+            "theme_versions_created": detail.get("theme_versions_created", 0),
             "private_report_file": detail.get("private_report_file"),
             "report_sha256": detail.get("report_sha256"),
             "paid_execution_requested": params.allow_paid,

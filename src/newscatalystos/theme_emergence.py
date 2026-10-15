@@ -67,7 +67,7 @@ def topic_key(topic):
 
 def economic_observation(change, *, origin_reference, source_url, source_id,
                          source_available_at, polarity='SUPPORT', supersedes_event_id=None,
-                         source_binding=None, company_mappings=None):
+                         source_binding=None, company_mappings=None, content_scope=None):
     validate_change(change)
     if not _url(origin_reference) or not _url(source_url) or not _text(source_id):
         raise SourceShareError('explicit source and claim origin required')
@@ -80,10 +80,21 @@ def economic_observation(change, *, origin_reference, source_url, source_id,
     # Same release across any number of publishers remains one event.
     identity=[origin_reference,topic_key(change['topic']),change['economic_driver'],
               change['action'],sorted(set(change.get('original_entity_ids',change['entity_ids'])))]
+    # Identical title claims at multiple URLs are one observation candidate;
+    # they cannot multiply an economic event or prove independent reporting.
+    # This does not infer a publisher's original release URL.
+    if content_scope=='RSS_TITLE_METADATA':
+        identity[0]=['RSS_TITLE_METADATA',change['source_paragraph_sha256']]
     result = {'event_id':sha256(_bytes(identity)).hexdigest(),'change':change,
             'origin_reference':origin_reference,'source_url':source_url,'source_id':source_id,
             'source_available_at':source_available_at,'polarity':polarity,
             'supersedes_event_id':supersedes_event_id}
+    if content_scope is not None:
+        if content_scope not in {'RSS_TITLE_METADATA','LICENSED_ARTICLE_TEXT'}:
+            raise SourceShareError('invalid economic evidence scope')
+        if content_scope=='RSS_TITLE_METADATA' and change['evidence_level']!='REPORTED':
+            raise SourceShareError('RSS title is a reported claim')
+        result['content_scope']=content_scope
     if source_binding is not None:
         if not isinstance(source_binding,dict) or set(source_binding)!={'source_event_sha256','document_sha256'}:
             raise SourceShareError('invalid theme source binding')
@@ -107,7 +118,7 @@ def economic_observation(change, *, origin_reference, source_url, source_id,
 
 
 def _validate_observation(row):
-    if not isinstance(row,dict) or set(row)-{'source_binding','company_mappings'}!={'event_id','change','origin_reference','source_url',
+    if not isinstance(row,dict) or set(row)-{'source_binding','company_mappings','content_scope'}!={'event_id','change','origin_reference','source_url',
             'source_id','source_available_at','polarity','supersedes_event_id'}:
         raise SourceShareError('economic observation contract required')
     rebuilt=economic_observation(row['change'],**{k:row[k] for k in row if k not in {'change','event_id'}})
@@ -117,7 +128,9 @@ def _validate_observation(row):
 def _theme_id(row):
     c=row['change']
     key=[topic_key(c['topic']),c['economic_driver']]
-    if c['economic_driver']=='UNKNOWN':key.append(row['origin_reference'])
+    if c['economic_driver']=='UNKNOWN':
+        key.append(row['event_id'] if row.get('content_scope')=='RSS_TITLE_METADATA'
+                   else row['origin_reference'])
     return sha256(_bytes(key)).hexdigest()
 
 
@@ -280,6 +293,7 @@ def _snapshot(theme_id, rows, at, previous):
            'entity_ids':resolved_entities(row),'industry_tags':row['change']['industry_tags'],
            **({'company_mappings':row['company_mappings']} if 'company_mappings' in row else {}),
            **({'source_binding':row['source_binding']} if 'source_binding' in row else {}),
+           **({'content_scope':row['content_scope']} if 'content_scope' in row else {}),
            'phase':row['change']['phase'],'polarity':row['polarity'],
            'supersedes_event_id':row['supersedes_event_id']} for row,seen in rows]
     history=(previous['history'][:] if previous else [])

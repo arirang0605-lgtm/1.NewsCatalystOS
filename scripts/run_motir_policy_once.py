@@ -47,6 +47,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--allow-paid-ai", action="store_true",
                    help="enable budgeted AI for eligible events on scheduled ticks")
     p.add_argument("--analysis-ai-ledger", type=Path, help="shared monthly AI cost ledger")
+    p.add_argument("--analysis-theme-root", type=Path, help="existing private economic theme store")
     p.add_argument("--document-collection-root", type=Path,
                    help="enable bounded automatic collection of licensed ministry press text")
     p.add_argument("--document-jobs", type=Path,

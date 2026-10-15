@@ -21,6 +21,7 @@ from newscatalystos.ai_provider import AIModel
 from newscatalystos.feed_analysis import analyze_completed_feed, publish_feed_analysis
 from newscatalystos.official_relation_intake import _private_input
 from newscatalystos.source_share import SourceShareError, _json
+from newscatalystos.theme_emergence import ThemeStore, economic_observation
 
 
 def parser() -> argparse.ArgumentParser:
@@ -30,6 +31,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--inbox-root", type=Path)
     p.add_argument("--state", type=Path, help="existing ingestion state, read-only")
     p.add_argument("--analysis-root", type=Path, help="separate derived state and private reports")
+    p.add_argument("--theme-root", type=Path, help="existing private economic theme store")
     p.add_argument("--provider-id")
     p.add_argument("--event-id")
     p.add_argument("--title-sha256")
@@ -75,8 +77,24 @@ def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, d
         report["paid_execution_requested"] = opts.allow_paid
         report["requested_ai_complete"] = failures == 0 if opts.allow_paid else None
         path, digest = publish_feed_analysis(report, work / "reports")
+        observations = [economic_observation(change,
+            origin_reference=row["source_url"], source_url=row["source_url"],
+            source_id=row["provider_id"], source_available_at=row["source_available_at"],
+            content_scope="RSS_TITLE_METADATA", source_binding={
+                "source_event_sha256":row["source_event_sha256"],
+                "document_sha256":row["source_title_sha256"]})
+            for row in report["results"] for change in row.get("economic_changes", [])]
+        # Standard installed scopes share the existing document theme store;
+        # custom/test analysis roots remain isolated unless explicitly joined.
+        standard_roots = {(PROJECT / "output/feed_analysis" / scope).resolve()
+                          for scope in ("core", "motir")}
+        theme_root = getattr(opts, "theme_root", None) or (
+            base / "document_analysis/theme_history" if work.resolve() in standard_roots
+            else work / "theme_history")
+        themes = ThemeStore(theme_root).ingest(observations, now=now) if observations else []
         return (4 if opts.allow_paid and failures else 0), {
-            **report, "private_report_file": str(path), "report_sha256": digest}
+            **report, "private_report_file": str(path), "report_sha256": digest,
+            "economic_changes_count":len(observations), "theme_versions_created":len(themes)}
     except (SourceShareError, OSError, ValueError, TypeError, sqlite3.Error) as exc:
         return 4, {"status": "FEED_ANALYSIS_INPUT_UNAVAILABLE", "error_type": type(exc).__name__,
                    "source_fetch_calls": 0,

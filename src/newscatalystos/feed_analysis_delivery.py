@@ -17,6 +17,7 @@ from .official_relation_intake import _private_input
 from .provider_registry import _safe_https_endpoint
 from .reviewed_beneficiary_delivery import _handoff_root
 from .source_share import SourceShareError, _json, _must_sha, _when
+from .theme_emergence import validate_change
 
 SCHEMA = "newscatalyst.feed_analysis_delivery.v1"
 MAX_REPORT_BYTES = 2_000_000  # Existing producer's bound, not a new acceptance gate.
@@ -102,6 +103,14 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
             _must_sha(item.get("evidence_quote_sha256"), "source quote digest")
             if item.get("status") != "EXACT_SOURCE_MATCH_ISSUER_NOT_ATTESTED":
                 raise SourceShareError("source phrase matching is not independent truth")
+        changes = row.get("economic_changes", [])
+        if not isinstance(changes, list) or len(changes) > 30:
+            raise SourceShareError("bounded title economic changes required")
+        for change in changes:
+            validate_change(change)
+            if (change["source_paragraph_sha256"] != title
+                    or change["evidence_level"] != "REPORTED"):
+                raise SourceShareError("economic change must retain title evidence scope")
         _text(row.get("ai_status"), "AI status", 128)
         ai = row.get("ai_analysis")
         if ai is not None:

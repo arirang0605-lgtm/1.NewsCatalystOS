@@ -199,6 +199,10 @@ def build_theme_bundle(themes: list[dict], *, decision_at: datetime, now=None) -
         _must_sha(row['theme_id'],'theme identity')
         row_at=_when(row['decision_at'],'theme decision')
         for ref in row['source_refs']:
+            if ('content_scope' in ref and (ref['content_scope'] not in
+                    {'RSS_TITLE_METADATA','LICENSED_ARTICLE_TEXT'} or
+                    (ref['content_scope']=='RSS_TITLE_METADATA' and ref['evidence_level']!='REPORTED'))):
+                raise SourceShareError('invalid theme evidence scope')
             if (not _url(ref['source_url']) or not _url(ref['origin_reference'])
                     or not _when(ref['source_available_at'],'source')<=_when(ref['recorded_at'],'recorded')<=row_at):
                 raise SourceShareError('future theme source')

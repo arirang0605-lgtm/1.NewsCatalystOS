@@ -64,9 +64,12 @@ def analyze_motir_document(
         raise SourceShareError("document changed after screening")
     text = body.decode("utf-8")
     purpose = "EXISTING_ARTICLE" if analyze_existing else "NEW_EVENT"
-    content = json.dumps({"article_text": text, "source_url": binding["source_url"],
+    content_data = {"article_text": text, "source_url": binding["source_url"],
         "analysis_purpose": purpose, "screen_findings": screen["findings"],
-        "verified_new_economic_event": False}, ensure_ascii=False, sort_keys=True)
+        "verified_new_economic_event": False}
+    if screen.get("economic_changes"):
+        content_data["economic_changes"] = screen["economic_changes"]
+    content = json.dumps(content_data, ensure_ascii=False, sort_keys=True)
     event = sha256(("licensed-motir-body-v1\0" + binding["source_event_sha256"]
                     + "\0" + binding["document_sha256"]).encode()).hexdigest()
     content_sha = sha256(content.encode()).hexdigest()
@@ -90,6 +93,7 @@ def analyze_motir_document(
         "analysis_event_sha256": event, "input_sha256": content_sha,
         "source_available_at": binding["binding_at"],
         "analysis_purpose": purpose, "screen_findings": screen["findings"],
+        "economic_changes": screen.get("economic_changes", []),
         "ai_eligible": screen["ai_routing_candidate"],
         "ai_status": "NOT_ELIGIBLE", "ai_analysis": None,
         "ai_adapter_attempted": False, "new_ai_results": 0, "cache_hits": 0,
@@ -171,6 +175,12 @@ def consume_motir_document_analysis(path: Path, expected_sha256: str, *, now=Non
     for key in ("source_event_sha256", "title_sha256", "binding_sha256", "document_sha256",
                 "archive_receipt_sha256", "analysis_event_sha256", "input_sha256"):
         _must_sha(report[key], key)
+    from .theme_emergence import validate_change
+    changes = report.get("economic_changes", [])
+    if not isinstance(changes, list) or len(changes) > 30:
+        raise SourceShareError("invalid economic changes in document report")
+    for change in changes:
+        validate_change(change)
     result = report.get("ai_analysis")
     if result is not None:
         decoded = _decode(json.dumps(result, ensure_ascii=False, sort_keys=True,

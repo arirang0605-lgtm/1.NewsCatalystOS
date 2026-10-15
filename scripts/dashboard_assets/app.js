@@ -9,7 +9,7 @@ function showNotes(place,notes,empty){place.replaceChildren();if(!notes.length){
 function renderItems(){
   if(!currentData)return;
   const term=$("item-filter").value.trim().toLocaleLowerCase();
-  const matches=currentData.items.filter(x=>!term||(x.headline+" "+x.provider+" "+(x.category||"")).toLocaleLowerCase().includes(term));
+  const matches=currentData.items.filter(x=>!term||(x.headline+" "+x.provider+" "+(x.category||"")+" "+JSON.stringify(x.economic_changes||[])).toLocaleLowerCase().includes(term));
   const visible=matches.slice(0,shown);
   $("item-total").textContent=visible.length+" / "+matches.length+"건";
   $("items").replaceChildren();
@@ -25,10 +25,12 @@ function renderItems(){
       for(const claim of item.ai_claims||[])card.append(node("p","finding-detail","해석: "+claim));
       for(const unknown of item.ai_uncertainties||[])card.append(node("p","finding-detail","미확인: "+unknown));
     }
+    for(const change of item.economic_changes||[])card.append(node("p","finding-detail","경제 변화: "+change.topic+" · "+change.action+" · "+change.phase));
     if(item.content_scope==="LICENSED_ARTICLE_TEXT")card.append(node("p","finding-detail","본문 확인: "+item.source_available_at+" · 첨부자료 제외"));
     const link=node("a","source-link","출처 열기 ↗");link.href=item.source_url;link.target="_blank";link.rel="noopener noreferrer";card.append(link);$("items").append(card)
   }
   $("more-items").hidden=visible.length>=matches.length;
+  renderThemes(term);
 }
 function render(data){
   currentData=data;shown=20;
@@ -57,3 +59,20 @@ $("item-filter").addEventListener("input",()=>{shown=20;renderItems()});$("more-
 $("note-text").addEventListener("input",event=>{$("note-count").textContent=event.target.value.length+" / 2000"});
 $("note-form").addEventListener("submit",async event=>{event.preventDefault();const text=$("note-text").value.trim();if(!text)return;status("메모를 저장하는 중…");try{const response=await fetch("/api/notes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({view:state.view,date:state.date,text})});if(!response.ok)throw new Error("메모를 저장하지 못했습니다.");$("note-text").value="";$("note-count").textContent="0 / 2000";await load()}catch(error){status(error.message,true)}});
 load();
+
+function renderThemes(term){
+  const themes=(currentData.themes||[]).filter(x=>!term||JSON.stringify(x).toLocaleLowerCase().includes(term));
+  $("theme-total").textContent=themes.length+"개";$("themes").replaceChildren();
+  if(!themes.length)$("themes").append(node("p","empty-small",currentData.theme_status==="UNAVAILABLE"?"테마 기록을 읽지 못했습니다. 뉴스 분석 기록은 계속 표시합니다.":"이 시점·검색 조건에 해당하는 테마 후보가 없습니다."));
+  const labels={CANDIDATE:"관찰 후보",EMERGING:"형성 중",EXPANDING:"확산",WEAKENING:"약화",INVALIDATED:"무효",REACTIVATED:"재활성화"};
+  for(const theme of themes){
+    const card=node("article","finding"),meta=node("div","finding-meta");
+    meta.append(node("span","pill",labels[theme.status]||theme.status),node("span","","독립 사건 "+theme.scores.distinct_economic_events+" · 기업 "+theme.scores.company_breadth));
+    card.append(meta,node("h4","",theme.provisional_name),node("p","finding-detail","최초 발견: "+theme.first_detected_at),node("p","finding-detail","최근 근거: "+theme.last_evidence_at));
+    for(const company of theme.company_links)card.append(node("p","",company.entity_id+" · 테마 연관 · 수혜 미확정"));
+    const details=node("details",""),summary=node("summary","","근거와 상태 이력");details.append(summary);
+    for(const ref of theme.source_refs){const link=node("a","source-link",ref.action+" · "+ref.evidence_level+" · "+ref.phase);link.href=ref.source_url;link.target="_blank";link.rel="noopener noreferrer";details.append(link)}
+    for(const item of theme.history)details.append(node("p","finding-detail",item.decision_at+" · "+(labels[item.status]||item.status)));
+    card.append(details);$("themes").append(card);
+  }
+}

@@ -14,11 +14,13 @@ import re
 
 from .evidence_archive import _private_root, _read_once, _write_new, read_archived_evidence
 from .fact_extraction import MONEY
+from .economic_changes import extract_economic_changes
 from .motir_article_binding import consume_motir_article_binding
 from .provider_registry import MOTIR_PRESS_DOCUMENT
 from .source_share import SourceShareError, _json, _must_sha, _when
 
-SCHEMA = "newscatalyst.motir_document_economic_screen.v1"
+LEGACY_SCHEMA = "newscatalyst.motir_document_economic_screen.v1"
+SCHEMA = "newscatalyst.motir_document_economic_screen.v2"
 STATUS = "SOURCE_DOCUMENT_SCREENED_NOT_FACT_VERIFIED"
 SECTOR = re.compile(r"반도체|파운드리|메모리\s*칩|첨단전략산업|semiconductor|chip\s+fab", re.I)
 INVESTMENT = re.compile(r"투자|investment|investing", re.I)
@@ -95,6 +97,12 @@ def prepare_motir_document_screen(
         })
         if len(findings) > MAX_FINDINGS:
             raise SourceShareError("too many monetary investment paragraphs")
+    changes = extract_economic_changes("\n".join(lines))
+    # Investment routing retains its monetary threshold and temporal checks.
+    eligible_investments = {row["source_paragraph_sha256"] for row in findings
+                            if row["possible_new_investment_for_ai"]}
+    routed_changes = [row for row in changes if row["action"] != "INVESTMENT"
+                      or row["source_paragraph_sha256"] in eligible_investments]
     result = {
         "schema": SCHEMA, "status": STATUS,
         "source_url": binding["source_url"],
@@ -105,7 +113,8 @@ def prepare_motir_document_screen(
         "article_available_at": binding["binding_at"],
         "screened_at": at.isoformat(),
         "findings": findings,
-        "ai_routing_candidate": any(row["possible_new_investment_for_ai"] for row in findings),
+        "economic_changes": routed_changes,
+        "ai_routing_candidate": bool(routed_changes) or any(row["possible_new_investment_for_ai"] for row in findings),
         "ai_provider_calls": 0,
         "verified_new_economic_event": False,
         "verified_real_transaction": False,
@@ -147,7 +156,9 @@ def consume_motir_document_screen(path: Path, expected_sha256: str, *,
                 "ai_routing_candidate", "ai_provider_calls",
                 "verified_new_economic_event", "verified_real_transaction",
                 "verified_real_benefit"}
-    if (set(data) != required or data["schema"] != SCHEMA or data["status"] != STATUS
+    if data.get("schema") == SCHEMA:
+        required.add("economic_changes")
+    if (set(data) != required or data["schema"] not in {SCHEMA, LEGACY_SCHEMA} or data["status"] != STATUS
             or not isinstance(data["source_url"], str)
             or MOTIR_PRESS_DOCUMENT.fullmatch(data["source_url"]) is None
             or type(data["ai_provider_calls"]) is not int or data["ai_provider_calls"] != 0
@@ -180,8 +191,14 @@ def consume_motir_document_screen(path: Path, expected_sha256: str, *,
                        for value in row["source_amount_mentions"])):
             raise SourceShareError("invalid document screen finding")
         _must_sha(row["source_paragraph_sha256"], "paragraph evidence")
-    if data["ai_routing_candidate"] is not any(
+    changes = data.get("economic_changes", [])
+    from .theme_emergence import validate_change
+    if not isinstance(changes, list) or len(changes) > 30:
+        raise SourceShareError("invalid economic changes")
+    for change in changes:
+        validate_change(change)
+    if data["ai_routing_candidate"] is not (bool(changes) or any(
         row["possible_new_investment_for_ai"] for row in data["findings"]
-    ):
+    )):
         raise SourceShareError("document AI routing contradicts findings")
     return data

@@ -14,6 +14,7 @@ from scripts.run_feed_triage import _registry
 from scripts.run_feed_analysis import read_model_config
 from newscatalystos.motir_document_analysis import analyze_motir_document, publish_motir_document_analysis
 from newscatalystos.source_share import SourceShareError
+from newscatalystos.theme_emergence import ThemeStore, economic_observation
 
 
 def parser():
@@ -38,11 +39,17 @@ def evaluate(opts, *, opener=None, now=None):
             allow_paid=opts.allow_paid, analyze_existing=opts.analyze_existing,
             opener=opener, now=now)
         path, digest = publish_motir_document_analysis(report, opts.analysis_root / "reports")
+        observations = [economic_observation(change,
+            origin_reference=report["source_url"], source_url=report["source_url"],
+            source_id="motir-official-press", source_available_at=report["source_available_at"])
+            for change in report.get("economic_changes", [])]
+        themes = ThemeStore(opts.analysis_root.parent / "theme_history").ingest(observations, now=now) if observations else []
         failed = opts.allow_paid and (report["ai_eligible"] or opts.analyze_existing) and report["ai_status"] not in ("CACHE_HIT", "ANALYZED_UNVERIFIED")
         return (4 if failed else 0), {k: report[k] for k in (
             "status", "content_scope", "ai_status", "ai_eligible", "new_ai_results",
             "cache_hits", "source_fetch_calls", "verified_new_economic_event"
-        )} | {"private_report_file": str(path), "report_sha256": digest}
+        )} | {"private_report_file": str(path), "report_sha256": digest,
+              "economic_changes": len(observations), "theme_versions_created": len(themes)}
     except (SourceShareError, OSError, ValueError, TypeError, sqlite3.Error) as exc:
         return 4, {"status": "MOTIR_DOCUMENT_ANALYSIS_UNAVAILABLE",
                    "error_type": type(exc).__name__, "source_fetch_calls": 0}

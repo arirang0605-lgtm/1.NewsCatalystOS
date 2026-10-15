@@ -1,0 +1,76 @@
+"""Source-grounded economic actions; no LLM/company-benefit certification.
+
+Explicit action and topic must share a paragraph. Unknown topics are accepted
+only in an explicit quoted demand phrase, not from general headline similarity.
+"""
+from hashlib import sha256
+import re
+import unicodedata
+
+TOPICS = (
+    ('HBM', r'\bHBM\b|고대역폭\s*메모리'),
+    ('액침냉각', r'액침\s*냉각|immersion\s+cooling'),
+    ('DRAM', r'\bDRAM\b|디램'), ('NAND', r'\bNAND\b|낸드'),
+    ('반도체', r'반도체|semiconductor'),
+)
+DRIVERS = {'POLICY_ENABLEMENT': '정책 기반 확대', 'DEMAND_EXPANSION': '수요 확대',
+           'CAPACITY_EXPANSION': '생산능력 확대', 'SUPPLY_CONTRACTION': '공급 축소',
+           'UNKNOWN': '공통 원인 미확인'}
+ACTIONS = (
+    ('POLICY_CHANGE', r'(?:개정안|개정령안|법안).{0,130}(?:의결|통과)|규제.{0,25}(?:폐지|완화)|허가.{0,20}(?:승인|취득)'),
+    ('PRODUCTION_START', r'(?:양산|생산).{0,12}(?:시작|개시)|가동을?\s*시작'),
+    ('CAPACITY_ADDITION', r'(?:생산능력|생산량|공급량).{0,30}(?:증가|확대|늘렸|증설)'),
+    ('SUPPLY_REDUCTION', r'(?:생산|공급).{0,20}(?:중단|축소|감산)'),
+    ('CONTRACT', r'(?:공급\s*계약|수주\s*계약|납품\s*계약).{0,20}(?:체결|수주)'),
+    ('INVESTMENT', r'(?:신규|새로).{0,30}투자.{0,25}(?:결정|확정)|투자.{0,15}(?:결정|확정)'),
+)
+UNCERTAIN = re.compile(r'검토\s*중|논의\s*중|가능성|가정|미확정|계획이\s*없|하지\s*않|사실이\s*아니|체결되지|취득하지|의결되지')
+PAST = re.compile(r'(?:지난해|작년|과거|기존|이미).{0,45}(?:의결|체결|시작|확대|결정)|지난\s*\d+월.{0,30}(?:체결|발표|결정)')
+COMPANIES = re.compile(r'삼성전자|SK하이닉스|ASML|TSMC|마이크론|[가-힣A-Za-z]{2,20}(?:전자|반도체|소재|장비)')
+
+
+def normalized(value):
+    return ' '.join(unicodedata.normalize('NFKC', value).casefold().split())
+
+
+def extract_economic_changes(text):
+    """Return bounded source claims, including policy adoption before its effect.
+
+    Corporate actions without an explicit common demand cause retain their own
+    supply/capacity driver. A price-only article is not a capacity event.
+    """
+    changes = []
+    seen = set()
+    for line in (x.strip() for x in text.splitlines() if x.strip()):
+        if len(line) > 5000 or UNCERTAIN.search(line) or PAST.search(line):
+            continue
+        # Select the most specific known product, avoiding broad AI co-mentions.
+        topic = next((name for name, pattern in TOPICS if re.search(pattern, line, re.I)), None)
+        novel = re.search(r'[「“\"\']([^」”\"\']{2,50})[」”\"\']\s*(?:의\s*)?수요\s*(?:증가|확대)', line)
+        if novel:
+            topic = novel.group(1).strip()
+        if topic is None:
+            continue
+        action = next((name for name, pattern in ACTIONS if re.search(pattern, line, re.I)), None)
+        if action is None:
+            continue
+        driver = ('POLICY_ENABLEMENT' if action == 'POLICY_CHANGE' else
+                  'SUPPLY_CONTRACTION' if action == 'SUPPLY_REDUCTION' else
+                  'DEMAND_EXPANSION' if re.search(r'수요.{0,8}(?:증가|확대)', line) else
+                  'CAPACITY_EXPANSION' if action in {'PRODUCTION_START','CAPACITY_ADDITION'}
+                      or (action == 'INVESTMENT' and re.search(r'공장|생산|증설', line)) else 'UNKNOWN')
+        companies = sorted(set(COMPANIES.findall(line)))
+        companies = [x for x in companies if x not in {'첨단반도체','대한민국반도체','한국반도체','산업소재'}]
+        key = (topic, driver, action, tuple(companies))
+        if key in seen:
+            continue
+        seen.add(key)
+        changes.append({'topic':topic, 'economic_driver':driver, 'action':action,
+            'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
+                     else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line) else 'SOURCE_REPORTED'),
+            'entity_ids':companies, 'industry_tags':['SEMICONDUCTOR'] if re.search(r'반도체|HBM|DRAM|NAND|메모리',line,re.I) else [],
+            'source_paragraph_sha256':sha256(line.encode()).hexdigest(),
+            'evidence_level':'OFFICIAL_SOURCE', 'verified_economic_effect':False})
+        if len(changes) >= 30:
+            break
+    return changes

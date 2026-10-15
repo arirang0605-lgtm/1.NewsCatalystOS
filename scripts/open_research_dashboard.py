@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import sqlite3
 from pathlib import Path
 import sys
 from urllib.parse import parse_qs, urlsplit
@@ -16,6 +17,8 @@ if str(PROJECT / "src") not in sys.path:
 
 from newscatalystos.research_dashboard import KST, NoteStore, build_period, scan_saved_analysis
 from newscatalystos.source_share import SourceShareError
+from newscatalystos.theme_emergence import ThemeStore
+from newscatalystos.standard_delivery import build_theme_bundle
 
 ASSETS = Path(__file__).resolve().parent / "dashboard_assets"
 
@@ -66,9 +69,31 @@ class Handler(BaseHTTPRequestHandler):
                 records, source_info = scan_saved_analysis(self.server.reports, document_root=self.server.documents)
                 data = build_period(records, self.server.notes.read(), view, selected,
                                     source_info=source_info)
+                now = datetime.now(timezone.utc)
+                end = datetime.fromisoformat(data["end"]).replace(tzinfo=KST) + timedelta(days=1) - timedelta(microseconds=1)
+                try:
+                    data["themes"] = (ThemeStore(self.server.documents / "theme_history").search(
+                        as_of=min(end, now), now=now) if self.server.documents else [])
+                    build_theme_bundle(data["themes"], decision_at=min(end, now), now=now)
+                    data["theme_status"] = "READY"
+                except (SourceShareError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
+                    data["themes"], data["theme_status"] = [], "UNAVAILABLE"
                 self._json(200, data)
             except (SourceShareError, OSError, ValueError, KeyError, TypeError) as exc:
                 self._json(400, {"error": type(exc).__name__})
+            return
+        if url.path == "/api/themes":
+            query = parse_qs(url.query)
+            try:
+                from newscatalystos.source_share import _when
+                now = datetime.now(timezone.utc)
+                at = _when(query["as_of"][0], "as of") if "as_of" in query else now
+                themes = (ThemeStore(self.server.documents / "theme_history").search(
+                    as_of=at, query=query.get("q", [""])[0], now=now) if self.server.documents else [])
+                self._send(200, build_theme_bundle(themes, decision_at=at, now=now),
+                           "application/json; charset=utf-8")
+            except (SourceShareError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
+                self._json(400, {"error": "invalid theme query"})
             return
         files = {"/": ("index.html", "text/html; charset=utf-8"),
                  "/app.js": ("app.js", "text/javascript; charset=utf-8"),

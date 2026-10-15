@@ -177,3 +177,53 @@ def to_parquet_bytes(bundle: StandardBundle) -> bytes:
     buf=pa.BufferOutputStream()
     pq.write_table(table,buf,compression="zstd")
     return buf.getvalue().to_pybytes()
+
+
+THEME_SCHEMA = 'newscatalyst.theme_delivery.v1'
+
+
+def build_theme_bundle(themes: list[dict], *, decision_at: datetime, now=None) -> bytes:
+    """Read-only theme metadata envelope; v1 catalyst bundles stay unchanged."""
+    from .theme_emergence import SCHEMA as theme_schema, _url
+    at=_when(decision_at.isoformat(),'theme delivery decision')
+    present=_when((now or datetime.now(timezone.utc)).isoformat(),'now')
+    if at>present or not isinstance(themes,list) or len(themes)>1000:
+        raise SourceShareError('invalid theme delivery')
+    for row in themes:
+        if (row.get('schema_version')!=theme_schema or row.get('verified_beneficiary_count')!=0
+                or row.get('verified_vs_inferred')!='THEME_HYPOTHESIS'
+                or not _when(row['first_detected_at'],'first detection')<=_when(row['decision_at'],'theme decision')<=at):
+            raise SourceShareError('invalid or future theme candidate')
+        _must_sha(row['theme_id'],'theme identity')
+        for ref in row['source_refs']:
+            if (not _url(ref['source_url']) or not _url(ref['origin_reference'])
+                    or not _when(ref['source_available_at'],'source')<=_when(ref['recorded_at'],'recorded')<=at):
+                raise SourceShareError('future theme source')
+        for entry in row['history']:
+            if _when(entry['decision_at'],'history')>at:
+                raise SourceShareError('future theme history')
+        if any(link.get('relation_kind')!='THEMATIC_ONLY' or link.get('revenue_contribution') is not None
+               for link in row['company_links']):
+            raise SourceShareError('unsubstantiated direct theme benefit')
+    payload=_json_bytes({'schema':THEME_SCHEMA,'decision_at':at.isoformat(),
+        'ThemeCandidates':themes,'original_content_included':False,'verified_beneficiary_count':0})
+    if len(payload)>2_000_000:raise SourceShareError('oversized theme delivery')
+    return payload
+
+
+def read_theme_bundle(data: bytes, expected_sha256: str, *, decision_at: datetime, now=None) -> dict:
+    if not isinstance(data,bytes) or len(data)>2_000_000 or sha256(data).hexdigest()!=_must_sha(expected_sha256,'theme pin'):
+        raise SourceShareError('theme delivery SHA mismatch')
+    value=json.loads(data)
+    if (set(value)!={'schema','decision_at','ThemeCandidates','original_content_included','verified_beneficiary_count'}
+            or value['schema']!=THEME_SCHEMA or value['original_content_included'] is not False
+            or value['verified_beneficiary_count']!=0):
+        raise SourceShareError('invalid theme delivery schema')
+    created=_when(value['decision_at'],'bundle decision')
+    if created>_when(decision_at.isoformat(),'consumer decision'):
+        raise SourceShareError('theme bundle not yet available')
+    rebuilt=build_theme_bundle(value['ThemeCandidates'],decision_at=created,now=now)
+    if rebuilt!=data:raise SourceShareError('noncanonical theme delivery')
+    if decision_at>(now or datetime.now(timezone.utc)):
+        raise SourceShareError('future consumer decision')
+    return value

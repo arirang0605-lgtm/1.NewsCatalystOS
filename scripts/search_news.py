@@ -24,6 +24,7 @@ from newscatalystos.federated_news_search import (
     TitleSearchWorkspace, search_completed_workspaces,
 )
 from newscatalystos.source_share import SourceShareError
+from newscatalystos.theme_emergence import ThemeStore
 
 
 def parser() -> argparse.ArgumentParser:
@@ -56,10 +57,14 @@ def parser() -> argparse.ArgumentParser:
                    help="private root containing that published report")
     p.add_argument("--analysis-expected-sha256",
                    help="producer's independently retained SHA, not calculated from input")
+    p.add_argument("--theme-root", type=Path,
+                   help="include matching stored theme candidates and their source event links")
     return p
 
 
 def _with_saved_analysis(report: dict, opts: argparse.Namespace) -> dict:
+    if getattr(opts, "theme_root", None) is not None:
+        report = {**report, "theme_candidates": ThemeStore(opts.theme_root).search(query=opts.query)}
     selected = (getattr(opts, "analysis_report_file", None),
                 getattr(opts, "analysis_reports_root", None),
                 getattr(opts, "analysis_expected_sha256", None))

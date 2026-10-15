@@ -23,6 +23,7 @@ TOPIC_ALIASES = {
     '반도체': ('반도체','semiconductor'),
 }
 DRIVERS = {'POLICY_ENABLEMENT': '정책 기반 확대', 'DEMAND_EXPANSION': '수요 확대',
+           'DEMAND_CONTRACTION': '수요·주문 축소',
            'CAPACITY_EXPANSION': '생산능력 확대', 'SUPPLY_CONTRACTION': '공급 축소',
            'UNKNOWN': '공통 원인 미확인'}
 _QUOTED_NAME = r'(?:‘[^’\n]{2,80}’|“[^”\n]{2,80}”|「[^」\n]{2,80}」|"[^"\n]{2,80}"|\'[^\'\n]{2,80}\')'
@@ -98,7 +99,7 @@ ACTIONS = (
     ('POLICY_CHANGE', r'(?:개정안|개정령안|법안).{0,130}(?:의결|통과)|규제.{0,25}(?:폐지|완화)|허가.{0,20}(?:승인|취득)'),
     ('PRODUCTION_START', r'(?:양산|생산).{0,12}(?:시작|개시)|가동을?\s*시작'),
     ('CAPACITY_ADDITION', r'(?:생산능력|생산량|공급량).{0,30}(?:증가|확대|늘렸|증설)'),
-    ('SUPPLY_REDUCTION', r'(?:생산|공급).{0,20}(?:중단|축소|감산)'),
+    ('SUPPLY_REDUCTION', r'(?:생산|공급).{0,20}(?:중단|축소|감산)|감산(?:을)?\s*(?:결정|시작|실시|단행|추진|계획)|감산(?:했다|한다|에\s*착수)'),
     ('CONTRACT', r'(?:공급\s*계약|수주\s*계약|납품\s*계약).{0,20}(?:체결|수주)'),
     ('INVESTMENT', r'(?:신규|새로).{0,30}투자.{0,25}(?:결정|확정)|투자.{0,15}(?:결정|확정)'),
     ('BUSINESS_START', BUSINESS_ACTION),
@@ -131,11 +132,18 @@ _DEMAND = re.compile(
     r'(?P<connector>에\s*(?:대응(?:해|하여)?|따라|힘입어|대비(?:해|하여))'
     r'|(?:으)?로(?:\s*인해)?)(?=$|[\s,])', re.I)
 _DEMAND_DENIAL = re.compile(r'취소|철회|무산|부인|사실\s*무근|아니라|아닌|되지\s*않|하지\s*못|되지\s*못')
+_CONTRACTION_MENTION = re.compile(r'(?:수요|주문)(?:가|이)?\s*(?:감소|축소|급감)')
+_DEMAND_CONTRACTION = re.compile(
+    r'(?<![가-힣A-Za-z0-9])(?P<topic>'+_DEMAND_TOPIC+
+    r'|[「“\"\'][^」”\"\']{2,50}[」”\"\']|[가-힣A-Za-z][가-힣A-Za-z0-9-]{1,49}?)'
+    r'\s*(?:의\s*)?(?:수요|주문)(?:가|이)?\s*(?:감소|축소|급감)'
+    r'(?P<connector>에\s*(?:대응(?:해|하여)?|따라|대비(?:해|하여))'
+    r'|(?:으)?로(?:\s*인해)?|해|하여)(?=$|[\s,])',re.I)
 
 
-def _demand_topic(sentence, company_names=()):
+def _demand_topic(sentence, company_names=(), pattern=_DEMAND):
     """Return the sole demand topic and its connector, preserving action scope."""
-    matches=list(_DEMAND.finditer(sentence))
+    matches=list(pattern.finditer(sentence))
     topics={}
     for match in matches:
         # A demand observation alone is not a new contract/production event.
@@ -209,9 +217,16 @@ def extract_economic_changes(text, *, company_names=()):
         # Demand and economic action must be in the same sentence; unrelated
         # context elsewhere in the paragraph cannot supply the common cause.
         evidence_line=line
-        demand_matches=list(_DEMAND.finditer(line))
+        contraction_mentioned=bool(_CONTRACTION_MENTION.search(line))
+        reduction_mentioned=contraction_mentioned or bool(re.search(r'감산',line))
+        if reduction_mentioned and (re.search(r'전망|예상|우려',line)
+                or _DEMAND_DENIAL.search(line)
+                or re.search(r'(?:지난해|지난달|작년|과거|기존|이미|지난\s*\d+월).{0,60}(?:감산|축소|중단)',line)):
+            continue
+        demand_matches=list(_DEMAND.finditer(line))+list(_DEMAND_CONTRACTION.finditer(line))
         if (demand_matches or scoped) and _DEMAND_DENIAL.search(line):continue
-        cause=_demand_topic(line, company_names)
+        contraction=_demand_topic(line,company_names,_DEMAND_CONTRACTION)
+        cause=contraction or _demand_topic(line, company_names)
         # Multiple unresolved causes cannot borrow a known topic or actor from
         # another clause (including pronouns and omitted subjects).
         if len(demand_matches)>1:continue
@@ -238,7 +253,11 @@ def extract_economic_changes(text, *, company_names=()):
         topic=topic or (functions[0] if len(functions)==1 else None)
         if topic is None or action is None:
             continue
+        if contraction and (action!='SUPPLY_REDUCTION' or not re.search(
+                r'반도체|HBM|DRAM|NAND|메모리|EUV|DUV|극자외선|심자외선',line,re.I)):
+            continue
         driver = ('POLICY_ENABLEMENT' if action == 'POLICY_CHANGE' else
+                  'DEMAND_CONTRACTION' if contraction else
                   'SUPPLY_CONTRACTION' if action == 'SUPPLY_REDUCTION' else
                   'DEMAND_EXPANSION' if demand else
                   'CAPACITY_EXPANSION' if action in {'PRODUCTION_START','CAPACITY_ADDITION'}
@@ -263,7 +282,7 @@ def extract_economic_changes(text, *, company_names=()):
                      else 'PLANNED' if demand_planned
                      else business_phase if action == 'BUSINESS_START'
                      else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line)
-                         or (scoped and re.search(r'계획|추진|검토',line)) else 'SOURCE_REPORTED'),
+                         or ((scoped or reduction_mentioned) and re.search(r'계획|추진|검토',line)) else 'SOURCE_REPORTED'),
             'entity_ids':companies,
             **({'service_name':names[0]} if action=='BUSINESS_START' and len(names)==1 else {}),
             **({'original_entity_ids':original_companies} if companies!=original_companies else {}),

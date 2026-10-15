@@ -93,7 +93,7 @@ function renderThemes(term){
     card.append(meta,node("h4","",theme.provisional_name),node("p","finding-detail","최초 발견: "+theme.first_detected_at),node("p","finding-detail","최근 근거: "+theme.last_evidence_at));
     renderThemeChanges(card,currentData.theme_changes?.[theme.theme_id],labels);
     if(theme.topic_aliases?.length>1)card.append(node("p","finding-detail","같은 주제 표기: "+theme.topic_aliases.join(" · ")));
-    const drivers={DEMAND_EXPANSION:"수요 확대",POLICY_ENABLEMENT:"정책 기반 확대",CAPACITY_EXPANSION:"생산능력 확대",SUPPLY_CONTRACTION:"공급 축소",UNKNOWN:"공통 원인 미확인"};
+    const drivers={DEMAND_EXPANSION:"수요 확대",DEMAND_CONTRACTION:"수요·주문 축소",POLICY_ENABLEMENT:"정책 기반 확대",CAPACITY_EXPANSION:"생산능력 확대",SUPPLY_CONTRACTION:"공급 축소",UNKNOWN:"공통 원인 미확인"};
     card.append(node("p","finding-detail",theme.economic_driver==="UNKNOWN"?"명시된 공통 원인이 없어 개별 사건으로 관찰합니다.":"같은 주제에서 "+(drivers[theme.economic_driver]||theme.economic_driver)+"에 연결된 독립 행동 "+theme.scores.distinct_economic_events+"개를 묶었습니다. 원인 연결은 테마 가설입니다."));
     const relationLabels={REPORTED_DIRECT_TRANSACTION:"출처에 보고된 직접 계약",ANNOUNCED_SUPPLY_PLAN:"공급 계획"};
     const impactLabels={POTENTIAL_BENEFICIARY_UNVERIFIED:"잠재 수혜 (추론)",POTENTIAL_DAMAGE_UNVERIFIED:"잠재 피해 (추론)",ANNOUNCED_SUPPLY_PLAN_UNVERIFIED:"계획 단계 · 실현 미확인",UNKNOWN_RELATIONSHIP:"영향 경로 미확인",EFFECT_DIRECTION_UNKNOWN:"영향 방향 미확인",THEMATIC_ONLY:"단순 테마 연관"};

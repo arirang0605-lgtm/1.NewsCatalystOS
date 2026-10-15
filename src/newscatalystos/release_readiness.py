@@ -1,9 +1,11 @@
 """6_6 conservative V1.0 release-gate checklist, never an automatic release.
 
 A test file or a manually set Boolean is NOT independent operational proof.
-This screen reports mathematical deficiencies from supplied metadata; even an
-all-green self-reported list requires actual operator audit, signed evidence,
-off-device recovery, real market labels and the Git release decision.
+This screen reports deficiencies from supplied metadata. The 2026-10-15 user
+policy removes separate human news-article review, the 500-label release gate,
+and label-derived precision/recall thresholds. Article provenance is required
+in the operating pipeline; publication alone does not prove commercial claims.
+Even an all-green self-reported list needs an actual release decision.
 """
 from __future__ import annotations
 
@@ -14,6 +16,7 @@ import math
 from .source_share import SourceShareError
 
 ALL_TASKS=tuple(f"{phase}_{task}" for phase in range(1,7) for task in range(1,7))
+# Retained for the optional research/evaluation workflow, not a release gate.
 REQUIRED_GOLD_CASES=500
 
 
@@ -111,19 +114,12 @@ def evaluate_v1_readiness(values: ReadinessInputs) -> ReadinessReport:
     blocks=[]
     if missing:
         blocks.append(f"MISSING_{len(missing)}_V1_TASKS")
-    if values.labeled_news_cases<REQUIRED_GOLD_CASES:
-        blocks.append("INDEPENDENT_GOLD_SET_AT_LEAST_500_REQUIRED")
-    for name,threshold in (
-        ("DUPLICATE_PRECISION_95",.95),
-        ("IMPORTANT_DETECTION_RECALL_90",.90),
-        ("FACT_EXTRACTION_ACCURACY_95",.95),
-        ("BENEFICIARY_RELATION_PRECISION_95",.95),
-        ("NUMERIC_EVIDENCE_LINKAGE_100",1.0),
-    ):
-        if rates[name] is None or rates[name]<threshold:
-            blocks.append(name)
-    if values.important_missed_count is None:
-        blocks.append("IMPORTANT_MISSES_MUST_BE_REVIEWED")
+    # User-directed release scope: news articles enter as attributed source
+    # claims without human gold labels. These optional metrics remain visible
+    # to research tools, but cannot be represented as measured if absent.
+    # Explicit numeric assertions still need complete source linkage.
+    if rates["NUMERIC_EVIDENCE_LINKAGE_100"] is None or rates["NUMERIC_EVIDENCE_LINKAGE_100"]<1.0:
+        blocks.append("NUMERIC_EVIDENCE_LINKAGE_100")
     if values.actual_ai_month_cost_krw is None or values.actual_ai_month_cost_krw>50000:
         blocks.append("VERIFIED_AI_BUDGET_50000_KRW")
     if values.real_ai_provider_calls==0:

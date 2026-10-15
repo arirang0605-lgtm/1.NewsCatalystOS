@@ -119,6 +119,7 @@ def read_publisher_relation_intake(
     """
     # Import locally: human review helpers use the existing official intake.
     from .human_review_entry import _existing_private_dir
+    from .provider_registry import permits_document_storage
     root = _existing_private_dir(archive_root)
     receipt_pin = _must_sha(trusted_receipt_sha256, "archive receipt pin")
     document_pin = _must_sha(trusted_document_sha256, "publisher document pin")
@@ -137,8 +138,7 @@ def read_publisher_relation_intake(
         raise SourceShareError("publisher archive identity mismatch")
     provider = registry.active(archived.provider_id, at=at)
     if (provider.kind not in {"COMPANY_IR", "GOVERNMENT_POLICY"}
-            or provider.grant != "WRITTEN_LICENSE"
-            or provider.allow_full_text_storage is not True
+            or not permits_document_storage(provider)
             or not provider.enabled_at(archived.first_verified_at)):
         raise SourceShareError("publisher document storage permission missing or expired")
     data = _json(_private_input(private_review_json, MAX_REVIEW_BYTES),

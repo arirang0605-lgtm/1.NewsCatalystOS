@@ -5,7 +5,7 @@ import json
 import pytest
 
 from newscatalystos.provider_registry import (
-    SCHEMA, parse_provider_registry,
+    SCHEMA, MOTIR_PRESS_RIGHTS, parse_provider_registry,
 )
 from newscatalystos.source_share import SourceShareError
 
@@ -119,10 +119,25 @@ def test_social_tip_cannot_become_a_verified_fact():
 
 
 def test_fulltext_needs_written_license_even_when_reviewed():
-    with pytest.raises(SourceShareError, match="written license"):
+    with pytest.raises(SourceShareError, match="document license"):
         parse(sample(grant="OFFICIAL_TERMS_REVIEWED", approved=True,
                      rights_reference="synthetic", reviewed_at=NOW.isoformat(),
                      allow_full_text_storage=True))
+
+
+def test_kogl_type1_is_limited_to_ministry_press_article_text():
+    row = sample(provider_id="motir-press-171178", kind="GOVERNMENT_POLICY",
+                 method="DOCUMENT",
+                 endpoint="https://www.motir.go.kr/kor/article/ATCL3f49a5a8c/171178/view",
+                 grant="PUBLIC_LICENSE_KOGL_1", rights_reference=MOTIR_PRESS_RIGHTS,
+                 reviewed_at=NOW.isoformat(), approved=True, allow_full_text_storage=True)
+    assert parse(row).active("motir-press-171178", at=NOW).allow_full_text_storage
+    for change in ({"endpoint": "https://www.motir.go.kr/kor/contents/1"},
+                   {"endpoint": "https://evil.example.org/kor/article/ATCL3f49a5a8c/171178/view"},
+                   {"rights_reference": "https://example.org/unknown"},
+                   {"kind": "COMPANY_IR"}, {"method": "RSS"}):
+        with pytest.raises(SourceShareError, match="public license"):
+            parse(sample(**{**row["providers"][0], **change}))
 
 
 def test_no_real_rights_are_inferred_from_source_url():

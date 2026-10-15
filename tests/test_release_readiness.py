@@ -75,9 +75,21 @@ def test_four_sessions_fail_even_with_good_claimed_scores():
 def test_unreviewed_gold_or_precision_below_target_fails():
     values=synthetic_all_claimed()
     output=evaluate_v1_readiness(replace(values,duplicate_precision=.94))
-    assert "DUPLICATE_PRECISION_95" in output.blockers
+    assert "DUPLICATE_PRECISION_95" not in output.blockers
     output=evaluate_v1_readiness(replace(values,labeled_news_cases=499))
-    assert "INDEPENDENT_GOLD_SET_AT_LEAST_500_REQUIRED" in output.blockers
+    assert "INDEPENDENT_GOLD_SET_AT_LEAST_500_REQUIRED" not in output.blockers
+    output=evaluate_v1_readiness(replace(values,labeled_news_cases=0,
+        duplicate_precision=None,important_detection_recall=None,
+        extracted_fact_accuracy=None,beneficiary_relation_precision=None,
+        important_missed_count=None))
+    assert output.metrics_claim_mathematically_satisfied
+    assert not output.permitted_to_tag_v1
+
+
+def test_numeric_claims_still_need_source_linkage():
+    output=evaluate_v1_readiness(replace(
+        synthetic_all_claimed(),numeric_claim_source_linkage=.99))
+    assert "NUMERIC_EVIDENCE_LINKAGE_100" in output.blockers
 
 
 def test_nan_ai_cost_or_metrics_rejected():

@@ -9,14 +9,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from ipaddress import ip_address
+import re
 from urllib.parse import parse_qsl, urlsplit
 
 from .source_share import SourceShareError, _json, _must_id, _when
 
 SCHEMA = "newscatalyst.provider_registry.v1"
 TYPES = frozenset({"GOVERNMENT_POLICY", "COMPANY_IR", "LICENSED_NEWS", "SNS_TIP"})
-METHODS = frozenset({"RSS", "JSON_API", "RSS_POST"})
-GRANTS = frozenset({"OFFICIAL_TERMS_REVIEWED", "WRITTEN_LICENSE", "NOT_REVIEWED"})
+METHODS = frozenset({"RSS", "JSON_API", "RSS_POST", "DOCUMENT"})
+GRANTS = frozenset({"OFFICIAL_TERMS_REVIEWED", "WRITTEN_LICENSE", "PUBLIC_LICENSE_KOGL_1", "NOT_REVIEWED"})
+MOTIR_PRESS_RIGHTS = "https://www.motir.go.kr/kor/article/ATCL3f49a5a8c"
+MOTIR_PRESS_DOCUMENT = re.compile(
+    r"https://www\.motir\.go\.kr/kor/article/ATCL3f49a5a8c/[0-9]+/view"
+)
 RESERVED = frozenset({
     "dart-disclosures", "sec-submissions", "sec-companyfacts",
     "krx-kospi", "krx-kosdaq", "dart", "sec", "krx",
@@ -87,6 +92,21 @@ class Provider:
         )
 
 
+def permits_document_storage(provider: Provider) -> bool:
+    """Allow a reviewed written license or the narrow MOTIR public text license."""
+    if not isinstance(provider, Provider) or not provider.allow_full_text_storage:
+        return False
+    if provider.grant == "WRITTEN_LICENSE":
+        return True
+    return (
+        provider.grant == "PUBLIC_LICENSE_KOGL_1"
+        and provider.kind == "GOVERNMENT_POLICY"
+        and provider.method == "DOCUMENT"
+        and provider.rights_reference == MOTIR_PRESS_RIGHTS
+        and MOTIR_PRESS_DOCUMENT.fullmatch(provider.endpoint) is not None
+    )
+
+
 @dataclass(frozen=True)
 class ProviderRegistry:
     providers: tuple[Provider, ...]
@@ -137,6 +157,8 @@ def parse_provider_registry(data: bytes, *, now: datetime | None = None) -> Prov
             # The ministry publicly advertises this exact no-body form POST
             # feed. No other endpoint may silently gain POST capability.
             raise SourceShareError("RSS_POST allowed only for reviewed ministry feed")
+        if method == "DOCUMENT" and grant != "PUBLIC_LICENSE_KOGL_1":
+            raise SourceShareError("manual document method requires reviewed public license")
         permission = row["rights_reference"]
         if permission is not None and (not isinstance(permission, str)
                 or not 0 < len(permission) <= 512):
@@ -159,10 +181,13 @@ def parse_provider_registry(data: bytes, *, now: datetime | None = None) -> Prov
         if approved and (grant == "NOT_REVIEWED" or not permission or reviewed is None
                          or kind == "SNS_TIP"):
             raise SourceShareError("unreviewed or social source cannot be active")
-        if fulltext and (not approved or grant != "WRITTEN_LICENSE"):
-            raise SourceShareError("full-text storage requires explicit written license")
-        result.append(Provider(
+        provider = Provider(
             name, kind, method, endpoint, grant, permission, reviewed,
             expires, approved, fulltext, limit,
-        ))
+        )
+        if grant == "PUBLIC_LICENSE_KOGL_1" and not permits_document_storage(provider):
+            raise SourceShareError("public license limited to reviewed MOTIR press text")
+        if fulltext and (not approved or not permits_document_storage(provider)):
+            raise SourceShareError("full-text storage requires a reviewed document license")
+        result.append(provider)
     return ProviderRegistry(tuple(result))

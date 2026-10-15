@@ -16,7 +16,7 @@ import stat
 import tempfile
 import shutil
 
-from .provider_registry import Provider, _safe_https_endpoint
+from .provider_registry import Provider, _safe_https_endpoint, permits_document_storage
 from .source_share import SourceShareError, _json, _when, _must_sha, _must_id
 
 SCHEMA = "newscatalyst.immutable_evidence.v1"
@@ -143,9 +143,7 @@ def archive_evidence(
     _must_id(document_id, "document id")
     if scope not in ("METADATA_ONLY", "LICENSED_SOURCE_BYTES"):
         raise SourceShareError("unknown storage scope")
-    if scope == "LICENSED_SOURCE_BYTES" and (
-        provider.grant != "WRITTEN_LICENSE" or not provider.allow_full_text_storage
-    ):
+    if scope == "LICENSED_SOURCE_BYTES" and not permits_document_storage(provider):
         raise SourceShareError("licensed original storage not permitted")
     limit = MAX_META if scope == "METADATA_ONLY" else MAX_LICENSED_BYTES
     if not isinstance(payload, bytes) or not 0 < len(payload) <= limit:

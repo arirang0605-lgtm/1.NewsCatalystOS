@@ -86,12 +86,15 @@ class Handler(BaseHTTPRequestHandler):
                     data["themes"] = (ThemeStore(self.server.documents / "theme_history").search(
                         as_of=min(end, now), now=now, since=min(start,now), activity=activity)
                         if self.server.documents and (activity=='all' or start<=now) else [])
-                    build_theme_bundle(data["themes"], decision_at=min(end, now), now=now)
+                    bundle=json.loads(build_theme_bundle(data["themes"], decision_at=min(end, now), now=now,
+                                                         include_company_candidates=True))
+                    data['company_candidates']=bundle['CompanyCandidates']
                     data['theme_activity']={row['theme_id']:period_activity(row,start) for row in data['themes']}
                     data['theme_activity_filter']=activity
                     data["theme_status"] = "READY"
                 except (SourceShareError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
                     data["themes"], data["theme_status"] = [], "UNAVAILABLE"
+                    data['company_candidates']=[]
                 self._json(200, data)
             except (SourceShareError, OSError, ValueError, KeyError, TypeError) as exc:
                 self._json(400, {"error": type(exc).__name__})
@@ -106,7 +109,10 @@ class Handler(BaseHTTPRequestHandler):
                     as_of=at, query=query.get("q", [""])[0], now=now,
                     since=_when(query['since'][0],'period start') if 'since' in query else None,
                     activity=query.get('activity',['all'])[0]) if self.server.documents else [])
-                self._send(200, build_theme_bundle(themes, decision_at=at, now=now),
+                companies=query.get('company_candidates',['0'])[0]
+                if companies not in {'0','1'}:raise ValueError('invalid company candidate option')
+                self._send(200, build_theme_bundle(themes, decision_at=at, now=now,
+                                                  include_company_candidates=companies=='1'),
                            "application/json; charset=utf-8")
             except (SourceShareError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
                 self._json(400, {"error": "invalid theme query"})

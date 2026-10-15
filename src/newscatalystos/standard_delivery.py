@@ -181,9 +181,11 @@ def to_parquet_bytes(bundle: StandardBundle) -> bytes:
 
 THEME_SCHEMA = 'newscatalyst.theme_delivery.v1'
 THEME_RELATION_SCHEMA = 'newscatalyst.theme_delivery.v2'
+THEME_COMPANY_SCHEMA = 'newscatalyst.theme_delivery.v3'
 
 
-def build_theme_bundle(themes: list[dict], *, decision_at: datetime, now=None) -> bytes:
+def build_theme_bundle(themes: list[dict], *, decision_at: datetime, now=None,
+                       include_company_candidates=False) -> bytes:
     """Read-only theme metadata envelope; v1 catalyst bundles stay unchanged."""
     from .theme_emergence import SCHEMA as theme_schema, RELATION_SCHEMA, _url
     from .theme_supply_chain import validate_theme_relations
@@ -238,8 +240,13 @@ def build_theme_bundle(themes: list[dict], *, decision_at: datetime, now=None) -
                for link in row['company_links']):
             raise SourceShareError('unsubstantiated direct theme benefit')
     schema=THEME_RELATION_SCHEMA if any(x['schema_version']==RELATION_SCHEMA for x in themes) else THEME_SCHEMA
-    payload=_json_bytes({'schema':schema,'decision_at':at.isoformat(),
-        'ThemeCandidates':themes,'original_content_included':False,'verified_beneficiary_count':0})
+    envelope={'schema':schema,'decision_at':at.isoformat(),
+        'ThemeCandidates':themes,'original_content_included':False,'verified_beneficiary_count':0}
+    if include_company_candidates:
+        from .theme_company_candidates import company_candidates
+        envelope.update(schema=THEME_COMPANY_SCHEMA,
+                        CompanyCandidates=[c for theme in themes for c in company_candidates(theme)])
+    payload=_json_bytes(envelope)
     if len(payload)>2_000_000:raise SourceShareError('oversized theme delivery')
     return payload
 
@@ -248,14 +255,18 @@ def read_theme_bundle(data: bytes, expected_sha256: str, *, decision_at: datetim
     if not isinstance(data,bytes) or len(data)>2_000_000 or sha256(data).hexdigest()!=_must_sha(expected_sha256,'theme pin'):
         raise SourceShareError('theme delivery SHA mismatch')
     value=json.loads(data)
-    if (set(value)!={'schema','decision_at','ThemeCandidates','original_content_included','verified_beneficiary_count'}
-            or value['schema'] not in {THEME_SCHEMA,THEME_RELATION_SCHEMA} or value['original_content_included'] is not False
+    with_companies=value.get('schema')==THEME_COMPANY_SCHEMA
+    expected={'schema','decision_at','ThemeCandidates','original_content_included','verified_beneficiary_count'}
+    if with_companies:expected.add('CompanyCandidates')
+    if (set(value)!=expected
+            or value['schema'] not in {THEME_SCHEMA,THEME_RELATION_SCHEMA,THEME_COMPANY_SCHEMA} or value['original_content_included'] is not False
             or value['verified_beneficiary_count']!=0):
         raise SourceShareError('invalid theme delivery schema')
     created=_when(value['decision_at'],'bundle decision')
     if created>_when(decision_at.isoformat(),'consumer decision'):
         raise SourceShareError('theme bundle not yet available')
-    rebuilt=build_theme_bundle(value['ThemeCandidates'],decision_at=created,now=now)
+    rebuilt=build_theme_bundle(value['ThemeCandidates'],decision_at=created,now=now,
+                               include_company_candidates=with_companies)
     if rebuilt!=data:raise SourceShareError('noncanonical theme delivery')
     if decision_at>(now or datetime.now(timezone.utc)):
         raise SourceShareError('future consumer decision')

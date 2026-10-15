@@ -1,0 +1,85 @@
+"""Company reasons derived from a persisted, as-of theme; no new collection.
+
+Call through build_theme_bundle, which validates the source snapshot first.
+Reported participation and supply links never certify revenue or investment merit.
+"""
+from hashlib import sha256
+
+from .theme_emergence import _bytes
+
+SCHEMA = 'newscatalyst.theme_company_candidate.v1'
+ACTION_LABELS = {'CONTRACT':'계약', 'INVESTMENT':'투자', 'CAPACITY_ADDITION':'설비 확대',
+                 'PRODUCTION_START':'생산 시작', 'SUPPLY_REDUCTION':'공급 축소',
+                 'POLICY_CHANGE':'정책 변화', 'BUSINESS_START':'사업·서비스 시작'}
+RELATION_LABELS = {'REPORTED_DIRECT_TRANSACTION':'출처에 보고된 거래 관계',
+                   'ANNOUNCED_SUPPLY_PLAN':'발표된 공급 계획',
+                   'THEMATIC_ASSOCIATION':'추론한 테마 연관'}
+
+
+def company_candidates(theme):
+    candidates=[]
+    active=set(theme['event_ids'])-set(theme['invalidated_event_ids'])
+    snapshot_sha=sha256(_bytes(theme)).hexdigest()
+    for company in theme['company_links']:
+        entity=company['entity_id']
+        events=set(company['event_ids']) & active
+        refs=[r for r in theme['source_refs'] if r['event_id'] in events
+              and r['polarity']=='SUPPORT' and entity in r.get('entity_ids',[])]
+        links=[link for link in company.get('supply_chain_links',[])
+               if events.intersection(link['event_ids'])]
+        if not refs and not links:
+            continue  # No fabricated companies from a bare display label.
+        names=sorted({m['source_name'] for ref in refs for m in ref.get('company_mappings',[])
+                      if m['entity_id']==entity})
+        basis=[]
+        for ref in refs:
+            reported=ref['evidence_level'] in {'OFFICIAL_SOURCE','REPORTED'}
+            basis.append({'kind':'SOURCE_REPORTED_PARTICIPANT' if reported else 'INFERRED_ASSOCIATION',
+                'reason':f"{ref['topic']} 관련 {ACTION_LABELS.get(ref['action'],ref['action'])} 근거에 기업이 포함됨",
+                'event_id':ref['event_id'], 'topic':ref['topic'], 'action':ref['action'],
+                'phase':ref['phase'], 'evidence_level':ref['evidence_level'],
+                'content_scope':ref.get('content_scope','UNSPECIFIED'),
+                'source_url':ref['source_url'], 'evidence_sha256':ref['evidence_sha256'],
+                'source_binding':ref.get('source_binding'),
+                'source_available_at':ref['source_available_at'], 'recorded_at':ref['recorded_at'],
+                'identity_evidence': [m for m in ref.get('company_mappings',[]) if m['entity_id']==entity]})
+        for link in links:
+            basis.append({'kind':'INFERRED_ASSOCIATION' if link['relation_kind']=='THEMATIC_ASSOCIATION'
+                          else 'SOURCE_REPORTED_SUPPLY_RELATION',
+                'reason':f"{RELATION_LABELS.get(link['relation_kind'],link['relation_kind'])}의 "
+                         +('공급자' if link['role']=='supplier' else '고객'),
+                **link})
+        # A headline's topic is not the company's independently verified business.
+        topics=sorted({r['topic'] for r in refs})
+        stages=sorted({link['product_stage'] for link in links})
+        uncertainties=['출처에 등장하거나 관계가 보도됐다는 사실만으로 실제 수혜·투자 매력을 확정할 수 없음',
+                       '매출 기여·재무·현재 가격 평가는 연결되지 않아 미확인']
+        if not names: uncertainties.append('공시 명부와 연결된 기업명 근거가 이 결과에 없음')
+        if any(r.get('content_scope')=='RSS_TITLE_METADATA' for r in refs):
+            uncertainties.append('제목 근거 포함: 본문상의 역할·계약 조건은 확인되지 않음')
+        if any(r['phase']!='SOURCE_REPORTED' for r in refs) or any(
+                x['relation_kind']=='ANNOUNCED_SUPPLY_PLAN' for x in links):
+            uncertainties.append('계획 또는 시행 전 근거 포함: 집행·공급 실현 미확인')
+        conflicts=sorted(events & set(theme['conflicting_event_ids']))
+        if conflicts: uncertainties.append('연결된 사건에 상충 근거가 있음')
+        paths=[{'role':link['role'],'counterparty_id':link['counterparty_id'],
+                'product_stage':link['product_stage'],'category':link['impact_category'],
+                'evidence_level':link['impact_evidence_level'],
+                'graph_sha256':link['graph_sha256'],'relation_sha256':link['relation_sha256']}
+               for link in links]
+        candidates.append({'schema_version':SCHEMA,
+            'candidate_id':sha256(_bytes([theme['theme_id'],entity])).hexdigest(),
+            'theme_id':theme['theme_id'],'theme_snapshot_sha256':snapshot_sha,
+            'entity_id':entity,'display_name':' / '.join(names) if names else entity,
+            'decision_at':theme['decision_at'],'theme_status':theme['status'],
+            'event_ids':sorted(events),'conflicting_event_ids':conflicts,
+            'inclusion_basis':basis,
+            'business_context':{'source_topics':topics,'reported_supply_stages':stages,
+                                'verified_company_business':None},
+            'benefit_paths':paths,'benefit_path_status':'HYPOTHESIS' if paths else 'UNKNOWN',
+            'uncertainties':uncertainties,
+            'financial_assessment':{'status':'NOT_CONNECTED','value':None},
+            'price_assessment':{'status':'NOT_CONNECTED','value':None},
+            'investment_merit':'NOT_ASSESSED','revenue_contribution':None,
+            'verified_real_transaction':False,'verified_real_benefit':False})
+    return candidates

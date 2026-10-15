@@ -22,12 +22,14 @@ def main(argv=None):
     p.add_argument('--since',help='inclusive availability start, ISO timestamp with zone')
     p.add_argument('--activity',choices=['all','changed','new','updated'],default='all')
     p.add_argument('--export-root',type=Path)
+    p.add_argument('--company-candidates',action='store_true',help='include source-grounded company reasons in v3 delivery')
     args=p.parse_args(argv)
     now=datetime.now(timezone.utc)
     at=_when(args.as_of,'as of') if args.as_of else now
     themes=ThemeStore(args.root).search(as_of=at,query=args.query,now=now,
         since=_when(args.since,'period start') if args.since else None,activity=args.activity)
-    payload=build_theme_bundle(themes,decision_at=at,now=now)
+    payload=build_theme_bundle(themes,decision_at=at,now=now,
+                               include_company_candidates=args.company_candidates)
     digest=sha256(payload).hexdigest()
     if args.export_root:
         path=_private_root(args.export_root)/('theme_delivery_'+digest+'.json')

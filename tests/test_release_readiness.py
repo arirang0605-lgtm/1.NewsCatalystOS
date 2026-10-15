@@ -12,7 +12,7 @@ from newscatalystos.source_share import SourceShareError
 def synthetic_all_claimed():
     # Synthetic input tests decision logic only; it is never an operational record.
     return ReadinessInputs(
-        completed_tasks=ALL_TASKS, labeled_news_cases=500,
+        completed_tasks=ALL_TASKS,
         duplicate_precision=.97, important_detection_recall=.91,
         extracted_fact_accuracy=.99,beneficiary_relation_precision=.96,
         numeric_claim_source_linkage=1.0,important_missed_count=0,
@@ -73,13 +73,11 @@ def test_four_sessions_are_nonblocking_observation():
     assert report.permitted_to_tag_v1
 
 
-def test_human_review_and_research_accuracy_are_optional():
+def test_readiness_does_not_require_manual_labels_or_accuracy_metrics():
     values=synthetic_all_claimed()
     output=evaluate_v1_readiness(replace(values,duplicate_precision=.94))
     assert "DUPLICATE_PRECISION_95" not in output.blockers
-    output=evaluate_v1_readiness(replace(values,labeled_news_cases=499))
-    assert "INDEPENDENT_GOLD_SET_AT_LEAST_500_REQUIRED" not in output.blockers
-    output=evaluate_v1_readiness(replace(values,labeled_news_cases=0,
+    output=evaluate_v1_readiness(replace(values,
         duplicate_precision=None,important_detection_recall=None,
         extracted_fact_accuracy=None,beneficiary_relation_precision=None,
         important_missed_count=None))

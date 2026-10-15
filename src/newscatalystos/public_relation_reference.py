@@ -18,7 +18,7 @@ import re
 from .beneficiary_classification import classify_semiconductor_beneficiary
 from .beneficiary_graph_contract import build_beneficiary_graph
 from .event_identity import CompanyBinding
-from .human_review_entry import _existing_private_dir
+from .private_paths import _existing_private_dir
 from .new_source_adapter import FeedObservation
 from .official_relation_intake import _private_input
 from .physical_recovery import _different_disk

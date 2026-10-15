@@ -74,7 +74,7 @@ def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, d
             **report, "private_report_file": str(path), "report_sha256": digest}
     except (SourceShareError, OSError, ValueError, TypeError, sqlite3.Error) as exc:
         return 4, {"status": "FEED_ANALYSIS_INPUT_UNAVAILABLE", "error_type": type(exc).__name__,
-                   "source_fetch_calls": 0, "human_labels_added": 0,
+                   "source_fetch_calls": 0,
                    "verified_economic_facts": 0}
 
 

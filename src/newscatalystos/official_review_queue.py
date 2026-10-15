@@ -148,7 +148,7 @@ def build_official_review_queue(
             })
     payload = {
         "schema": CONTEXT_SCHEMA if filing_context is not None else SCHEMA,
-        "status": "OFFICIAL_METADATA_ONLY_MANUAL_SCREENING_REQUIRED",
+        "status": "OFFICIAL_METADATA_READY_FOR_AUTOMATIC_SCREENING",
         "decision_at": decision.isoformat(),
         "source_filter": source_id,
         "requested_document_id": document_id,

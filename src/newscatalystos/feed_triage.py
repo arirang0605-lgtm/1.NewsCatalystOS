@@ -1,8 +1,8 @@
-"""Incremental, rate-limited RSS metadata -> conservative semiconductor review queue.
+"""Incremental, rate-limited RSS metadata -> conservative semiconductor analysis queue.
 
 Reuses the observations from an already committed 1_3 poll: no second HTTP GET,
 no article bodies, no AI call, no assertion that keyword overlap proves relevance.
-A private versioned JSON queue is for human review, not a trading decision.
+A private versioned JSON queue supplies automatic analysis candidates.
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ from .provider_registry import ProviderRegistry
 from .source_share import SourceShareError, _must_sha, _when
 from .text_normalization import normalize_feed_metadata
 
-SCHEMA = "newscatalyst.feed_triage.v1"
+SCHEMA = "newscatalyst.feed_triage.v2"
 MARKER_SCHEMA = "newscatalyst.feed_triage_publication.v1"
 # These are screening hints, NEVER evidence that a report is about a semiconductor.
 SEMICONDUCTOR_TERMS = (
@@ -47,7 +47,7 @@ class FeedTriage:
     provider_id: str
     observed_count: int
     newly_seen_count: int
-    keyword_review_count: int
+    keyword_candidate_count: int
     payload: bytes
     payload_sha256: str
     decision_at: datetime
@@ -135,7 +135,7 @@ def triage_committed_feed(
                 if dedup.status == "NEW" and item.event_id not in fresh_ids
                 else dedup.status
             ),
-            "needs_human_review": candidate,
+            "analysis_candidate": candidate,
             "importance_priority": importance.priority,
             "economic_fact_verified": False,
             "ai_called": False,
@@ -152,7 +152,7 @@ def triage_committed_feed(
         "replayed_from_checkpoint": replayed_from_checkpoint,
         "observed_count": len(entries),
         "new_identity_count": len(fresh_ids),
-        "keyword_review_count": sum(x["needs_human_review"] for x in entries),
+        "keyword_candidate_count": sum(x["analysis_candidate"] for x in entries),
         "conservative_cluster_count": len(groups),
         "verified_new_economic_fact_count": 0,
         "confirmed_supply_relationship_count": 0,
@@ -166,7 +166,7 @@ def triage_committed_feed(
         raise SourceShareError("triage output too large")
     return FeedTriage(
         poll.provider_id, len(entries), len(fresh_ids),
-        output["keyword_review_count"], payload, sha256(payload).hexdigest(), decision,
+        output["keyword_candidate_count"], payload, sha256(payload).hexdigest(), decision,
     )
 
 

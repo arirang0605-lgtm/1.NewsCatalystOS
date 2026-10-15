@@ -332,7 +332,7 @@ def analyze_completed_feed(
     if not selected:
         return {"schema": SCHEMA, "status": "NO_COMPLETED_FEED_INPUT", "results": [],
                 "source_versions_checked": len(rows), "new_ai_results": 0, "cache_hits": 0,
-                "source_fetch_calls": 0, "human_labels_added": 0}
+                "source_fetch_calls": 0}
     root = _private_root(root)
     facts, cache, ledger = (root / n for n in ("facts.sqlite3", "ai_cache.sqlite3", "ai_costs.sqlite3"))
     if ai_ledger is not None:
@@ -420,7 +420,7 @@ def analyze_completed_feed(
         "ai_eligible_candidates": sum(x["ai_eligible"] for x in reports),
         "new_ai_results": sum(x["ai_status"] == "ANALYZED_UNVERIFIED" for x in reports),
         "cache_hits": sum(x["ai_status"] == "CACHE_HIT" for x in reports),
-        "source_fetch_calls": 0, "human_labels_added": 0,
+        "source_fetch_calls": 0,
         "source_inputs_modified": False, "article_body_included": False,
         "verified_economic_facts": 0, "market_action": None,
         "release_gate_verified": False}

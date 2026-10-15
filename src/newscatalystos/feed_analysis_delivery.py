@@ -38,7 +38,7 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
     if (data.get("schema") != ANALYSIS_SCHEMA
             or data.get("status") not in {"FEED_ECONOMIC_ANALYSIS_READY", "NO_COMPLETED_FEED_INPUT"}
             or not isinstance(data.get("results"), list) or len(data["results"]) > 100
-            or data.get("source_fetch_calls") != 0 or data.get("human_labels_added") != 0):
+            or data.get("source_fetch_calls") != 0 or data.get("human_labels_added", 0) != 0):
         raise SourceShareError("unsupported saved feed analysis")
     rows = data["results"]
     if data["status"] == "NO_COMPLETED_FEED_INPUT":
@@ -189,7 +189,7 @@ def consume_feed_analysis(
         "results": page, "scope": "SAVED_ANALYSIS_REPORT_ONLY",
         "source_freshness_certified": False, "historical_decision_certified": False,
         "report_modified": False, "source_fetch_calls": 0, "ai_calls": 0,
-        "database_writes": 0, "human_labels_added": 0,
+        "database_writes": 0,
         "verified_economic_facts": 0, "market_action": None,
     }
 

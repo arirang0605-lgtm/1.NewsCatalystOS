@@ -45,7 +45,7 @@ def test_once_delegates_to_existing_rate_limited_feed_runner(tmp_path):
         return 0, {
             "status": "FEED_METADATA_TRIAGE_READY",
             "new_provider_ids": 1,
-            "semiconductor_keyword_review": 0,
+            "semiconductor_keyword_candidates": 0,
         }
     code, report = execute(params, registry_reader=lambda _: registry(),
                            feed_runner=callback)

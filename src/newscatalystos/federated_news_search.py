@@ -165,7 +165,7 @@ def search_completed_workspaces(
                         "source_available_at": item["available_at"],
                         "triage_evidence_sha256": digest,
                         "semiconductor_keyword_candidate": bool(item["matching_tokens"]),
-                        "needs_human_review": item["needs_human_review"],
+                        "analysis_candidate": item["analysis_candidate"],
                         "verified_economic_fact": False,
                         "verified_supply_transaction": False,
                         "confirmed_beneficiary": False,
@@ -198,7 +198,7 @@ def search_completed_workspaces(
                       if phrase.strip().casefold() in row["headline"].casefold()
                       and (source_id is None or row["provider_id"] == source_id)
                       and (not semiconductor_only or (
-                          row["semiconductor_keyword_candidate"] and row["needs_human_review"]))),
+                          row["semiconductor_keyword_candidate"] and row["analysis_candidate"]))),
                      key=_order)
     results = [dict(row, search_verified_at=checked.isoformat()) for row in matches[:limit]]
     coverage = all(scope["coverage_complete"] for scope in summaries)
@@ -218,7 +218,6 @@ def search_completed_workspaces(
         "metadata_overlap_scope": "RETURNED_RESULTS_ONLY",
         "metadata_overlap_hints": _overlap_hints(results),
         "independent_economic_event_count": None,
-        "human_labels_evaluated": False,
         "original_article_body_stored": False,
         "fact_verified_by_search": False,
         "verified_supply_relationships": 0,

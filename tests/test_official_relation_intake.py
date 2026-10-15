@@ -44,7 +44,7 @@ def fixture(tmp_path, source="dart-disclosures"):
                               namespace, second, None, "c" * 64, earlier)
     review = OfficialRelationReview(
         row.source_id, row.source_document_id, row.evidence_id,
-        row.receipt_sha256, PIN, earlier, earlier, at, "REVIEWER_1",
+        row.receipt_sha256, PIN, earlier, earlier, at,
         "Supplier Alpha", "Customer Beta", SENTENCE, "ADVANCED_PACKAGING",
     )
     content = {

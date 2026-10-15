@@ -1,4 +1,4 @@
-"""Offline 5_2 intake: private human review + independent SHA + verified disclosure.
+"""Offline 5_2 intake: private relation evidence + independent SHA + verified disclosure.
 
 No DART/SEC/KRX network calls, EraLeader writes or official text persistence.
 The result is a review *candidate*, never evidence of executed transactions.
@@ -24,7 +24,7 @@ from .operational_observations import load_operational_observations
 from .source_share import SourceShareError, _json, _must_sha, _read_regular, _when
 from .supply_chain_graph import SupplyChainEdge
 
-SCHEMA = "newscatalyst.official_relation_intake.v1"
+SCHEMA = "newscatalyst.official_relation_intake.v2"
 MAX_REVIEW_BYTES = 16_384
 
 
@@ -102,7 +102,7 @@ def read_official_relation_intake(
     )
 
 
-PUBLISHER_SCHEMA = "newscatalyst.publisher_relation_intake.v1"
+PUBLISHER_SCHEMA = "newscatalyst.publisher_relation_intake.v2"
 
 
 def read_publisher_relation_intake(
@@ -112,13 +112,13 @@ def read_publisher_relation_intake(
 ) -> SupplyChainEdge:
     """Use a licensed IR/government document, without inventing an SEC filing.
 
-    Existing immutable archive, explicit source permission and human review are
+    Existing immutable archive, explicit source permission and source evidence are
     required. This function reads only; it never grants rights, downloads a
-    source, fills human answers, or promotes a transaction to verified status.
+    source, creates reviewer answers, or promotes a transaction to verified status.
     External publisher results have their own evidence status and graph schema.
     """
-    # Import locally: human review helpers use the existing official intake.
-    from .human_review_entry import _existing_private_dir
+    # Reuse the filesystem-only private directory validator.
+    from .private_paths import _existing_private_dir
     from .provider_registry import permits_document_storage
     root = _existing_private_dir(archive_root)
     receipt_pin = _must_sha(trusted_receipt_sha256, "archive receipt pin")
@@ -142,24 +142,21 @@ def read_publisher_relation_intake(
             or not provider.enabled_at(archived.first_verified_at)):
         raise SourceShareError("publisher document storage permission missing or expired")
     data = _json(_private_input(private_review_json, MAX_REVIEW_BYTES),
-                 "publisher document human review")
-    if (set(data) != {"schema", "review_origin", "relation_kind", "review", "supplier", "customer"}
+                 "publisher document evidence")
+    if (set(data) != {"schema", "relation_kind", "review", "supplier", "customer"}
             or data["schema"] != PUBLISHER_SCHEMA
-            or data["review_origin"] != "HUMAN_OPERATOR"
             or data["relation_kind"] not in {"REPORTED_DIRECT_TRANSACTION", "ANNOUNCED_SUPPLY_PLAN"}):
-        raise SourceShareError("explicit human publisher review required")
+        raise SourceShareError("publisher relation evidence schema required")
     review = _record(data["review"], OfficialRelationReview,
                      frozenset({"document_observed_at", "pin_observed_at", "reviewed_at"}))
     supplier = _record(data["supplier"], CompanyBinding, frozenset({"observed_at"}))
     customer = _record(data["customer"], CompanyBinding, frozenset({"observed_at"}))
-    if (not isinstance(review.reviewer_code, str)
-            or review.reviewer_code.startswith(("UNASSIGNED", "ASSISTANT", "SYNTHETIC"))
-            or (review.source_id, review.source_document_id, review.source_evidence_id,
+    if ((review.source_id, review.source_document_id, review.source_evidence_id,
                 review.source_receipt_sha256) !=
                (archived.provider_id, archived.document_id, archived.version_id, receipt_pin)
             or review.document_observed_at != archived.first_verified_at
             or not archived.archived_at <= review.pin_observed_at <= review.reviewed_at):
-        raise SourceShareError("publisher human review does not match archived source")
+        raise SourceShareError("publisher evidence does not match archived source")
     completed = _when((now or datetime.now(timezone.utc)).isoformat(), "publisher intake completed")
     # Rights may expire while the document is being read.
     registry.active(archived.provider_id, at=completed)

@@ -105,7 +105,7 @@ def evaluate(opts: argparse.Namespace) -> tuple[int, dict]:
             "poll_status": poll.status,
             "feed_count": screened.observed_count,
             "new_provider_ids": screened.newly_seen_count,
-            "semiconductor_keyword_review": screened.keyword_review_count,
+            "semiconductor_keyword_candidates": screened.keyword_candidate_count,
             "triage_payload_sha256": screened.payload_sha256,
             "private_triage_folder": str(folder),
             "verified_fact_count": 0, "ai_call_count": 0,

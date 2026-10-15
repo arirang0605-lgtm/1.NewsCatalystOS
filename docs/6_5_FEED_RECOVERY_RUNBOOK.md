@@ -1,5 +1,7 @@
 # 6_5 — 허가된 RSS 수집 성공 후 분석실패 복구·운영 영수증
 
+> 현재 기준은 D-060/D-059이다. 사람 검수 절차와 관련 도구는 삭제했다. 아래 실행 기록은 당시 기록이며 현재 완료 상태는 PROJECT_STATE.md를 따른다.
+
 ## 정상 처리·복구 계약
 - 기존 `incremental_poll`의 선택적 `before_commit` 훅으로 **승인 RSS의 제목/문서 ID/URL 메타만** Mac 내부 NewsCatalystOS 전용 비공개 폴더에 원자 게시한다. 이 복구용 기록의 내구성 확인이 끝나야 1_3 SQLite의 `seen_events`와 `last_success_at` 성공 트랜잭션을 커밋한다. 기본 1_3 호출자는 인자 미지정 시 이전 동작을 그대로 유지한다.
 - 비공개 복구 입력: `~/Library/Application Support/NewsCatalystOS/inbox/feed_triage/pending_<SHA>/`. `feed.json`의 로컬 SHA와 별도 마커를 검증한다. DART/SEC/KRX/다른 프로젝트 파일·유료 기사 본문·RSS description·API 키는 복사/저장하지 않는다. 실제 사용은 승인된 공급자의 허용 **메타데이터**에만 한정하며 원문 재배포 권리를 의미하지 않는다.
@@ -23,12 +25,6 @@ PYTHONPATH=src python3 scripts/check_feed_operations.py
 ```
 - 호출량/429·403·5xx 중지 및 접근권한 관리는 기존 1_3 원장을 그대로 사용한다. `NOT_DUE`는 실패가 아니며 강제 재요청하지 않는다. 자동 launchd나 장기 실행은 설치/시작하지 않았다. 테스트용 synthetic 샘플로 만든 ACK는 실제 5거래일 운용 기록이 아니다.
 
-## 운영 인수·완료 기준 (현재 미충족)
-- `check_feed_operations.py`은 비공개 checkpoint+성공 SQLite+triage SHA+ACK를 재대조해 실제 기록된 완료 건수/모든 승인 소스가 성공한 날짜/미처리 건수를 센다. 같은 날 여러 번 돌려도 하루로 센다.
-- 월~금 데이터가 5개 누적되더라도 공휴일·거래소 휴장 및 마감 직전/직후 조건은 별도 확인해야 한다. 도구는 `verified_exchange_trading_days=0`, `five_trading_day_operation_certified=false`, `independent_physical_recovery_verified=false`, `v1_release_ready=false`를 유지한다. 이는 **실행 실패**가 아니라 아직 5일 실증/물리복원을 수행하지 않았다는 뜻이다.
-- 2026-10-14 실제 Mac 점검 때 기승인 중기부 RSS는 앞선 요청의 호출주기 때문에 `NOT_DUE`로 차단되었으며 `--replay-only`는 `NO_PENDING_REPLAY`(HTTP 0회). 사전 35건의 1_3 메타 처리 이력은 **본 checkpoint 도입 이전**이라 사후 소급 ACK를 만들지 않았다. 새 프로그램 도입 후 처음 통과한 실행부터 운영 인수 이력이 누적된다.
-- 릴리스 `6_5` 최종 인수는 승인된 5개 실제 거래일 반복 운영/오류 회복/독립 물리 백업·복원 및 P0/P1=0, 전체 시험 등 별도 증거가 필요하다. 현재 완료 판정은 여전히 **23/36**이고 V1.0 tag는 생성하지 않는다.
-
 ## 2026-10-14 | 6_5 실제 서로 다른 물리 장치 SQLite 복원 + 독립 SHA PIN
 - 기존 `backup_recovery.backup_sqlite`/`restore_to_new_dir` **코드는 재사용**한다. 신규 `physical_recovery.verify_physical_recovery`는 맥북 내부 `NewsCatalystOS/state`의 허용된 DB 2개만 지정하고, 원본 `st_dev` 및 `diskutil info -plist`의 `ParentWholeDisk`를 비교해 같은 물리장치로 판단되는 백업을 차단한다. 테스트 시점 원본 `disk3`와 T5DATA SSD `disk6`의 상이한 부모 디스크를 확인했다.
 - 기존 운영 DB를 읽기 전용 SQLite 온라인 백업하여 `/Volumes/T5DATA/1.NewsCatalystOS/.local_backups/backup_<UUID>/`에 0700/개인 영수증·SHA로 저장한다. 이는 GitHub `.gitignore` 대상이며 원문/운영 DB/백업을 Public 커밋하지 않는다. 이후 맥북 내부 `~/Library/Application Support/NewsCatalystOS/restore_checks/` 아래 **새 디렉터리**에만 복원하고 SHA·SQLite integrity 및 필수 테이블 확인을 수행한다. 실행 대상 DB는 `incremental_feeds.sqlite3`·`triage_exact_index.sqlite3` 2개로 제한한다.
@@ -42,9 +38,6 @@ PYTHONPATH=src python3 scripts/check_feed_operations.py
 - Mac 실제 조회에서 `independent_physical_recovery_verified=true`, `local_recovery_source_count=2`, `offsite_backup_verified=false`, `five_trading_day_operation_certified=false`, `v1_release_ready=false`, 운영 ACK 2개/단일 날짜 기록 1개를 확인했다. 복원 실증 자체는 `check_physical_recovery.py --verify-pin`로 별도로 실제 PASS한 증거를 사용한다. 물리 복구 상태 반영은 6_5 전체 완료나 6_6 릴리스 승인으로 자동 연결되지 않는다.
 
 
-## 2026-10-14 | 6_5 거래소 일정과 실제 ACK 날짜 대조 (선택적 수동 검수)
-- 신규 `market_calendar_review.py`는 **거래소 거래일을 자동 생성하지 않습니다.** 소유자가 적법하게 보존한 실제 KRX 일정 출처 파일을 Mac 내부 개인 디렉터리의 `source_snapshot`(0600)으로 보관하고, 아래 형식 `review.json`(0600)을 작성해 서로 SHA가 일치할 때만 읽습니다. 폴더 권한 0700. 저장 파일은 GitHub에 업로드하지 않습니다.
-- `review.json` 필수 필드: `schema="newscatalyst.market_calendar_review.v1"`, `exchange="XKRX"`, `source_url`(공식 krx.co.kr HTTPS 링크), `source_sha256`(실제 source_snapshot SHA256), `source_first_observed_at`(UTC ISO-8601), `reviewer_id`(실제 운영 검토자 코드), `reviewed_at`(UTC ISO-8601), `session_dates`(검토된 거래일 배열; YYYY-MM-DD). 검토/입수 시각은 실제 기록하고 과거로 소급 조작하지 않습니다.
-- 운영 확인: `PYTHONPATH=src python3 scripts/check_feed_operations.py --calendar-review-dir "$HOME/Library/Application Support/NewsCatalystOS/market_calendar/reviewed_krx"`. 검수 자료가 없으면 기존 명령을 그대로 사용해 `operator_reviewed_calendar_day_count=0`으로 기록합니다. 출처 파일 또는 검토자/시각/권한/일자/해시 불일치 시 **exit 4**. 공식 일정 수집·재수집 및 실제 API 호출은 발생하지 않습니다.
-- 보고된 `operator_reviewed_calendar_days`는 **ACK로 양쪽 승인 소스가 실제 완료한 날과, 운영자가 검토한 KRX 일정이 교집합인 날짜**입니다. 검토 일정에 미래 날짜가 있어도 과거 성공 ACK를 만들 수 없고, 별도 외부 검증/실시간 거래소 확인이 없으므로 `verified_exchange_trading_days=0`, `five_trading_day_operation_certified=false`, `v1_release_ready=false`는 유지합니다. 매매 실행·성과 검증을 뜻하지 않습니다.
-- 6_5 최종 실사용 인수 시에는 5개 별도 실제 거래일의 기존 1_3~3_5 성공 ACK/복원 무결성, 소스별 누락, 공휴·휴장 및 운영 로그를 사람이 함께 검토합니다. 이번 기능은 완료 수를 증가시키지 않습니다.
+
+## 현재 기본 점검
+`check_feed_operations.py`는 수집 완료 기록·누락 출처·미처리 복구를 확인한다. 선택적 장치 복원 조회는 `--physical-pin-root`와 `--backup-root`를 함께 지정한다. 거래일 수동 입력 없이 실제 수집 날짜를 표시한다.

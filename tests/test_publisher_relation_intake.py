@@ -1,4 +1,4 @@
-"""Synthetic licensed documents/human inputs only; no actual permissions or labels."""
+"""Synthetic licensed documents and extracted evidence; no live permissions."""
 from dataclasses import asdict, replace
 from datetime import datetime, timedelta
 from hashlib import sha256
@@ -43,9 +43,9 @@ def fixture(tmp_path, *, kind="COMPANY_IR", relation_kind="REPORTED_DIRECT_TRANS
     review = OfficialRelationReview(
         provider.provider_id, "press-1", archive.version_id, archive.receipt_sha256,
         archive.payload_sha256, NOW, NOW + timedelta(seconds=1), reviewed,
-        "TEST_OPERATOR", "Alpha Devices", "Beta Systems", SENTENCE, "ADVANCED_PACKAGING",
+        "Alpha Devices", "Beta Systems", SENTENCE, "ADVANCED_PACKAGING",
     )
-    data = {"schema": PUBLISHER_SCHEMA, "review_origin": "HUMAN_OPERATOR",
+    data = {"schema": PUBLISHER_SCHEMA,
             "relation_kind": relation_kind, "review": plain(review),
             "supplier": plain(supplier), "customer": plain(customer)}
     vault = tmp_path / "private_review"; vault.mkdir(mode=0o700)
@@ -123,28 +123,27 @@ def test_absent_revoked_or_inadequate_storage_rights_block_input(tmp_path, patch
 
 
 @pytest.mark.parametrize("field,value", [
-    ("review_origin", "ASSISTANT_SOURCE_RESEARCH_NOT_HUMAN_REVIEW"),
+    ("review_origin", "REMOVED_FIELD"),
     ("review_origin", "UNASSIGNED"), ("relation_kind", "THEMATIC_ASSOCIATION"),
     ("schema", "newscatalyst.public_relation_reference.v1"),
 ])
-def test_reference_annotations_do_not_become_human_reviews(tmp_path, field, value):
+def test_unexpected_fields_and_invalid_evidence_schema_are_rejected(tmp_path, field, value):
     info = fixture(tmp_path)
     data = json.loads(info[2].read_text()); data[field] = value
     info[2].write_text(json.dumps(data))
-    with pytest.raises(SourceShareError, match="explicit human"):
+    with pytest.raises(SourceShareError, match="evidence schema"):
         run(info)
 
 
 @pytest.mark.parametrize("field,value", [
     ("source_document_id", "unrelated-sec-filing"),
     ("source_evidence_id", "f"*64), ("source_receipt_sha256", "e"*64),
-    ("reviewer_code", "ASSISTANT_RESEARCH"),
 ])
 def test_source_review_must_match_the_actual_document_archive(tmp_path, field, value):
     info = fixture(tmp_path)
     data = json.loads(info[2].read_text()); data["review"][field] = value
     info[2].write_text(json.dumps(data))
-    with pytest.raises(SourceShareError, match="human review does not match"):
+    with pytest.raises(SourceShareError, match="evidence does not match"):
         run(info)
 
 

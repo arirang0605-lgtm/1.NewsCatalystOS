@@ -32,7 +32,7 @@ ITEM_FIELDS = frozenset({
     "provider_id", "event_id", "document_id", "headline", "canonical_url",
     "title_sha256", "available_at", "source_kind", "claim_classification",
     "verified_fact", "reported_relevance_only", "matching_tokens",
-    "source_new_identity", "exact_index_status", "needs_human_review",
+    "source_new_identity", "exact_index_status", "analysis_candidate",
     "importance_priority", "economic_fact_verified", "ai_called",
     "verified_real_benefit",
 })
@@ -115,7 +115,7 @@ def _trusted_snapshot(ack: dict, root: Path, state: Path,
     doc = _json(raw, "acknowledged triage")
     reviewed = _when(doc.get("decision_at"), "triage decision")
     completed = _when(ack["confirmed_at"], "triage completion")
-    if (doc.get("schema") != TRIAGE_SCHEMA
+    if (doc.get("schema") not in {TRIAGE_SCHEMA, "newscatalyst.feed_triage.v1"}
             or doc.get("status") != "FEED_METADATA_SCREENED_NOT_FACT_VERIFIED"
             or doc.get("provider_id") != poll.provider_id
             or doc.get("source_kind") != SOURCE_ROLES[provider.kind]
@@ -132,6 +132,12 @@ def _trusted_snapshot(ack: dict, root: Path, state: Path,
         raise SourceShareError("duplicate checkpoint source records")
     seen = set()
     for item in doc["items"]:
+        # Legacy immutable receipts are read without recreating review tasks.
+        if doc["schema"] == "newscatalyst.feed_triage.v1" and isinstance(item, dict):
+            legacy_fields = (ITEM_FIELDS - {"analysis_candidate"}) | {"needs_human_review"}
+            if set(item) != legacy_fields:
+                raise SourceShareError("search source fields unsupported")
+            item["analysis_candidate"] = item.pop("needs_human_review")
         if not isinstance(item, dict) or set(item) != ITEM_FIELDS:
             raise SourceShareError("search source fields unsupported")
         event = _must_sha(item["event_id"], "search event ID")
@@ -158,7 +164,7 @@ def _trusted_snapshot(ack: dict, root: Path, state: Path,
                 or item["matching_tokens"] != tokens
                 or item["reported_relevance_only"] != (
                     "KEYWORD_CANDIDATE" if tokens else "UNKNOWN")
-                or item["needs_human_review"] is not bool(tokens and decision.eligible_for_review)
+                or item["analysis_candidate"] is not bool(tokens and decision.eligible_for_review)
                 or item["source_new_identity"] is not (
                     event in poll.newly_observed_event_ids)
                 or item["verified_fact"] is not False
@@ -239,7 +245,7 @@ def sync_completed_titles(inbox_root: Path, poll_state: Path, index_path: Path,
                     item["source_kind"],item["claim_classification"],
                     item["available_at"],at.isoformat(),triage_sha,
                     int(bool(item["matching_tokens"])),
-                    int(item["needs_human_review"]),
+                    int(item["analysis_candidate"]),
                 )).rowcount
                 added += inserted
             db.execute("""INSERT INTO consumed_receipts VALUES(?,?,?,?,?)""", (
@@ -311,7 +317,7 @@ def search_titles(index_path: Path, phrase: str, *,
             "source_available_at":row[7], "first_searchable_at":row[8],
             "triage_evidence_sha256":row[9],
             "semiconductor_keyword_candidate": bool(row[10]),
-            "needs_human_review": bool(row[11]),
+            "analysis_candidate": bool(row[11]),
             "verified_economic_fact":False,
             "verified_supply_transaction":False,
             "confirmed_beneficiary":False,

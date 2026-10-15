@@ -1,5 +1,7 @@
 # NewsCatalystOS 1_5 → 2_2 implementation and verification
 
+> 현재 기준은 D-060/D-059이다. 사람 검수 절차와 관련 도구는 삭제했다. 아래 실행 기록은 당시 기록이며 현재 완료 상태는 PROJECT_STATE.md를 따른다.
+
 ## 1_5 Immutable evidence receipts
 - `evidence_archive.py`: privately store **only operator-approved metadata** or source bytes when explicitly licensed for original storage. The root must be owner-only (0700), files 0600; each immutable revision uses SHA-derived identity, payload SHA, receipt SHA, initial verification time and actual archive-created time. Same version is idempotent; a correction references its prior version instead of overwriting it.
 - Historical replay checks `archived_at`, not just earlier source receipt, so a file archived now cannot be treated as archived yesterday. Hash mismatches, symlinks, path escapes, missing permission, future timestamps and changes to correction chain are rejected.
@@ -11,10 +13,6 @@
 
 ## 2_1 Deterministic normalization
 - `text_normalization.py`: decode bounded UTF-8, remove active markup, normalize NFKC/whitespace and safe URL tracking parameters; preserve official document-ID query keys. Expose raw SHA and actual verified time. Never alter original source bytes or infer company IDs, published time, source independence or market impact. Synthesized authorized feed tests cover deterministic replay/HTML/unsafe URL/PIT.
-
-## 2_2 Exact dedup and revisions
-- `exact_dedup.py`: private SHA-only SQLite index keyed by source ID, document fingerprint and title digest. First record NEW, exact repeat DUPLICATE (AI-ineligible), same document with changed digest REVISED (eligible and prior record preserved). Duplicate aliases of same URL+digest within a source are suppressed, but separate providers are not silently treated as a single independent fact. New/changed stories remain subject to later provenance/event cluster filtering.
-- Tests use synthetic sources and deterministic data. Real 5-trading-day deployment, human gold-label duplicate precision and source provenance checks remain later V1.0 gates. No AI APIs were called.
 
 ## Evidence and boundaries
 - All implementation runs on `/Volumes/T5DATA/1.NewsCatalystOS`; EraLeader code/DB/Git/DART/SEC/KRX collectors are untouched. Private receipts, databases, credentials, copyrighted source bodies and backups are excluded from GitHub Public.

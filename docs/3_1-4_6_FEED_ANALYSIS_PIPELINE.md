@@ -1,11 +1,6 @@
 # RSS 경제변화 판정 → 기존 AI·예산·캐시 → 비공개 분석 결과
 
-## 작동 경로
-기존 승인 RSS의 완료 ACK·관측 원장·제목 SHA를 읽기 전용 확인한다. 후속
-`feed_analysis.py`는 `prior_fact_state`, `novelty_detection`, `impact_triage`,
-`fact_extraction`, `run_budgeted_openai_analysis`, `analysis_cache`를 연결한다.
-기존 수집·triage/ACK·검색·Gold·공급망 v1/v2 코드는 변경하지 않는다.
-이 CLI는 새 수집기나 사람 검수 도구가 아니다.
+> 현재 기준은 D-060/D-059이다. 사람 검수 절차와 관련 도구는 삭제했다. 아래 실행 기록은 당시 기록이며 현재 완료 상태는 PROJECT_STATE.md를 따른다.
 
 제목의 명시된 공급계약·투자·상용화·출시 등으로 경제적 주장 후보를 분류하고,
 반도체 용어/금액의 실제 문자열을 기존 추출 검증에 통과시킨다. 회사 식별자,
@@ -73,20 +68,18 @@ LaunchAgent를 만들지 않고 기존 실행명령/1시간 설정을 유지한�
 
 - core는 선택한 제공자마다 최신 최대100개 제목 버전을 분석하고
   `output/feed_analysis/core/`에 기존 파생 상태·결과를 저장한다.
-- MOTIR는 기존 별도 등록부·수집 DB·inbox·Gold를 유지하고
-  `output/feed_analysis/motir/`에 저장한다. Gold 준비 실패는 분석을 막지 않지만
-  원래 실패 상태를 숨기지 않는다.
+
 - 두 실행기 모두 규칙 분석이 기본이다. `--analysis-model-config`는 기존 모델
   캐시를 읽는 용도이며 `allow_paid=False`로만 전달한다. 환경에 키가 있어도
   이 예약 경로에서 새 유료 요청은 하지 않는다. 유료 수동 실행은 앞 절의 별도 승인 경로다.
+
 - `NOT_DUE`나 수집 실패 때에도 이전 완료 ACK가 있으면 분석할 수 있다. 수집 실패와
   분석 실패를 별도로 기록하고, 어느 쪽이든 실패하면 종료코드4를 반환한다.
   분석 오류로 성공한 ACK·수집 워터마크를 롤백하거나 RSS를 다시 요청하지 않는다.
+
 - 선택한 제공자의 분석은 다른 제공자의 손상된 triage 결과로 막지 않는다.
   해당 제공자 자신의 SHA·PIT·현재 권한 검증은 그대로 수행한다.
-- `--skip-analysis`는 기존 수집/Gold 전용 동작이다. `--analysis-root`로 파생 위치,
-  `--analysis-limit 1..100`으로 제공자별 최근 버전 수를 설정할 수 있다.
-  초과 이력은 `has_more_results=true`로 표시하며 전체 역사 분석 완료로 세지 않는다.
+
 - 예약 stdout에는 상태·개수·비공개 결과 위치/SHA만 기록한다. 제목·AI 내용은
   비공개 결과파일에 남고, 일반 운영 로그에 복제하지 않는다.
 
@@ -97,35 +90,3 @@ PYTHONPATH=src python3 scripts/run_scheduled_triage.py --replay-only \
   --provider-id mss-official-press --provider-id newswire-public-rss-it
 PYTHONPATH=src python3 scripts/run_motir_policy_once.py --replay-only
 ```
-
-## 현재 검증 증거
-- 관련 **9개 테스트 파일 100 PASS/0 FAIL**. 합성 소스를 실제 수집·완료 ACK까지
-  처리한 후 같은 tick에서 결과를 저장했고, 재시도/캐시·제공자 실패 격리·dry-run·
-  기존 수집 전용 모드·MOTIR 분리 동작을 확인했다. 실제 유료AI·사람 정답이 아니다.
-- 실제 Mac 2026-10-14 20:40 KST: 기존 실행명령에 `--replay-only`를 지정한
-  별도 Python 프로세스에서 중기부23/뉴스와이어IT57/MOTIR10, 총90개 제목 버전의
-  규칙 결과3개를 저장하고 SHA 확인. core/motir 종료코드0, 누락/한도초과 없음.
-  등록부2·운영DB4·기존 LaunchAgent 설정3개, 총9파일 SHA 동일. RSS 신규 요청·
-  실제 AI·인적 라벨 추가0. 결과는 검토 후보이며 사건/수혜 확정이나 90개 독립 정답이 아니다.
-- 기존 서비스의 수동 kickstart 확인 요청은 도구 보안 차단으로 실행되지 않았다.
-  20:41 KST 읽기전용 로그 관찰에서는 아직 새 분석 필드가 없는 이전 정상 tick이었다.
-  **다음 자연 예약 tick의 새 분석 실행은 관찰 대기**이며 5거래일 인수로 세지 않는다.
-- 증거는 `logs/scheduled_analysis_regression.log`,
-  `logs/scheduled_analysis_live_check.json`,
-  `logs/scheduled_analysis_service_observation.json`에 비공개 보존한다.
-  앞선 AI 연결·캐시의 합성 별도 프로세스 증거는 `logs/feed_analysis_process_smoke.json`.
-
-## 저장된 분석 결과의 별도 읽기전용 소비 (2026-10-14)
-기존 `run_feed_analysis.py` 또는 예약 실행의 **비공개 결과 경로와 당시 기록된 producer `report_sha256`**를 운영자가 별도 소비자에 전달한다. SHA를 파일 내용에서 새로 계산하여 신뢰값으로 대체하지 않는다. 기존 수집기·AI·DB에 다시 연결할 필요가 없다.
-```sh
-cd /Volumes/T5DATA/1.NewsCatalystOS
-# 아래 값은 실제 이전 생산자 결과의 private_report_file/report_sha256에서 지정한다.
-REPORT_FILE="/absolute/private/reports/feed_analysis_<SHA>.json"
-REPORTS_ROOT="/absolute/private/reports"
-PRODUCER_SHA="<producer_report_sha256>"
-PYTHONPATH=src python3 scripts/consume_feed_analysis.py \
-  --report-file "$REPORT_FILE" --reports-root "$REPORTS_ROOT" \
-  --expected-sha256 "$PRODUCER_SHA" --limit 20
-```
-필요하면 `--provider-id`, `--event-id`, `--title-sha256`(event ID 필수), `--offset`, `--limit`로 조회한다. 반환값에는 원래 출처/분석 시각·불확실성이 유지되고 `consumer_available_at`은 **현재 소비 시각**이며 과거 PIT 소급 인수 증거가 아니다. 잘못된 SHA/미지원 보고서/미래 시각 등은 종료코드4로 실패하고 원문 내용을 오류에 노출하지 않는다. CLI 출력은 비공개 분석 메타데이터이므로 공개 로그/Git에 저장하지 않는다.
-- 코드 SHA `748d705f8045ccaa37be1d368ca1204fc7f42612` origin/main 반영, 관련 소비·분석·캐시 54 PASS/0 FAIL. 기존 실제 core80/MOTIR10 결과의 별도 프로세스 조회 2건 exit0, 항목90건 원본동일·보고서 SHA 불변은 `logs/feed_consumer_live_check.json`에 비공개 기록. 실제 AI/인적 정답/최종 출시 인수를 대체하지 않는다.

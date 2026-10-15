@@ -32,7 +32,7 @@ def test_dart_queue_uses_verified_metadata_without_semiconductor_inference(tmp_p
     )
     doc = json.loads(queue.payload)
     assert doc["schema"] == SCHEMA
-    assert doc["status"] == "OFFICIAL_METADATA_ONLY_MANUAL_SCREENING_REQUIRED"
+    assert doc["status"] == "OFFICIAL_METADATA_READY_FOR_AUTOMATIC_SCREENING"
     assert doc["total_eligible"] == 1 == doc["selected_count"]
     assert queue.payload_sha256 == sha256(queue.payload).hexdigest()
     item = doc["items"][0]

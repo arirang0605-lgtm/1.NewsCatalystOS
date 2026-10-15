@@ -39,7 +39,7 @@ def test_real_pipeline_ack_index_full_text_and_semiconductor_review(tmp_path):
     screened = search_titles(index, "반도체", registry=registry(),
                              semiconductor_only=True, now=current)
     assert len(screened) == 1
-    assert screened[0]["needs_human_review"]
+    assert screened[0]["analysis_candidate"]
     assert screened[0]["semiconductor_keyword_candidate"]
     assert screened[0]["event_id"] in {r.event_id for r in receipt.poll.observations}
     assert screened[0]["first_searchable_at"] == current.isoformat()
@@ -170,3 +170,28 @@ def test_search_cli_invalid_source_fails_without_returning_titles(tmp_path, monk
     assert code == 4 and report["status"] == "SEARCH_DATA_UNAVAILABLE"
     assert "results" not in report
     assert report["network_calls"] == report["ai_calls"] == 0
+
+
+def test_legacy_triage_receipt_reads_as_analysis_candidate_without_rewrite(tmp_path):
+    from newscatalystos.feed_triage import triage_committed_feed, publish_feed_triage
+    from newscatalystos.feed_recovery import acknowledge_retry_checkpoint
+    from test_feed_recovery import acquired
+    state, dedup, inbox, output = paths(tmp_path)
+    poll, receipts, _ = acquired(tmp_path)
+    triage = triage_committed_feed(registry(), poll, dedup)
+    old = json.loads(triage.payload)
+    old["schema"] = "newscatalyst.feed_triage.v1"
+    old["keyword_review_count"] = old.pop("keyword_candidate_count")
+    for item in old["items"]:
+        item["needs_human_review"] = item.pop("analysis_candidate")
+    body = json.dumps(old).encode()
+    triage = replace(triage, payload=body, payload_sha256=sha256(body).hexdigest())
+    folder = publish_feed_triage(triage, output)
+    ack = acknowledge_retry_checkpoint(inbox, receipts[0], folder, triage.payload_sha256)
+    before = (ack.read_bytes(), (folder / "triage.json").read_bytes())
+    index = tmp_path / "derived" / "search.sqlite3"
+    sync_completed_titles(inbox, state, index, registry())
+    result = search_titles(index, "반도체", registry=registry(), semiconductor_only=True)
+    assert result and result[0]["analysis_candidate"]
+    assert "needs_human_review" not in result[0]
+    assert before == (ack.read_bytes(), (folder / "triage.json").read_bytes())

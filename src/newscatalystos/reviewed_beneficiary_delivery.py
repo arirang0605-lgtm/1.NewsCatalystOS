@@ -1,4 +1,4 @@
-"""5_2->5_5: deliver a human-reviewed official relation as an unverified graph.
+"""5_2->5_5: deliver a source-backed official relation as an unverified graph.
 
 No automatic company selection, fabricated revenue, API calls or EraLeader
 writes. Official document text stays in owner-private operator input; only
@@ -61,7 +61,7 @@ def prepare_reviewed_beneficiary_graph(
     evidence_note: str = "Impact direction unverified; independent sales proof missing",
     now: datetime | None = None,
 ) -> ReviewedDelivery:
-    """Consume prior official metadata and human review ONCE; no new DART/SEC."""
+    """Consume prior official metadata and source evidence ONCE; no new DART/SEC."""
     if direction not in DIRECTIONS or direction not in (
         "POSITIVE", "NEGATIVE", "MIXED", "UNKNOWN",
     ):
@@ -75,7 +75,7 @@ def prepare_reviewed_beneficiary_graph(
     if (edge.evidence_status != RELATION_STATUS or edge.verified_real_transaction
             or edge.document_sha256 is None or edge.review_proof_sha256 is None
             or edge.available_at > checked):
-        raise SourceShareError("approved human-reviewed official relation required")
+        raise SourceShareError("approved source-backed official relation required")
     profile = build_semiconductor_profile()
     impact = propagate_semiconductor_claim(
         profile, edge.source_event_sha256, trigger,

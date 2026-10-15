@@ -59,7 +59,7 @@ class _PressTextParser(HTMLParser):
 
 
 def extract_motir_press_text(provider: Provider, html: bytes) -> bytes:
-    """Return UTF-8 body text; do not assert a human-reviewed relationship."""
+    """Return UTF-8 body text; do not assert a source-backed relationship."""
     if not permits_document_storage(provider):
         raise SourceShareError("reviewed MOTIR public document permission required")
     match = MOTIR_PRESS_DOCUMENT.fullmatch(provider.endpoint)

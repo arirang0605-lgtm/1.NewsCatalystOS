@@ -88,7 +88,7 @@ def evaluate(args: argparse.Namespace, *, now: datetime | None = None) -> tuple[
         "usable_from": edge.available_at.isoformat(),
         "verified_real_transaction_count": 0,
         "verified_real_benefit_count": 0,
-        "note": "human-reviewed relation is not evidence of contract performance",
+        "note": "source-backed relation is not evidence of contract performance",
     }
 
 

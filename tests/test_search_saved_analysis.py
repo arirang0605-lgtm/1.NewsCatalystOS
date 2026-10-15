@@ -92,15 +92,3 @@ def test_analysis_not_in_selected_report_is_explicitly_missing(tmp_path):
     assert joined["saved_analysis_matches"] == 0
     assert joined["saved_analysis_unmatched"] == 1
     assert joined["results"][0]["saved_analysis"] is None
-
-
-def test_blind_gold_review_rejects_analysis_before_creating_workspace(tmp_path):
-    opts, _, stored = produce(tmp_path)
-    request = _options(opts, stored)
-    request.review_links = True
-    request.reviewer_slot = "UNASSIGNED_A"
-    request.review_workspace_root = tmp_path / "must_not_create"
-    code, response = search_news.evaluate(request)
-    assert code == 4 and response["status"] == "SEARCH_DATA_UNAVAILABLE"
-    assert not request.review_workspace_root.exists()
-    assert "results" not in response

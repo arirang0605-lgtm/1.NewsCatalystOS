@@ -119,7 +119,7 @@ def test_three_sources_one_readonly_search_preserves_versions(sample, tmp_path, 
     assert result['keyword_hits'] == result['matched_document_versions'] == 5
     assert {x['headline'] for x in result['results']} == {SAME, REVISION, '반도체 지원 30억원'}
     assert result['independent_economic_event_count'] is None
-    assert not result['human_labels_evaluated'] and not result['fact_verified_by_search']
+    assert not result['fact_verified_by_search']
     assert result['network_calls'] == result['ai_calls'] == 0
     assert not result['source_databases_modified']
     assert all(not x['verified_supply_transaction'] and not x['confirmed_beneficiary']
@@ -183,7 +183,7 @@ def test_semiconductor_filter_excludes_advertising_not_source_facts(sample):
     assert search(scopes)['keyword_hits'] == 6
     filtered = search(scopes, semiconductor_only=True)
     assert filtered['keyword_hits'] == 5
-    assert all(r['needs_human_review'] for r in filtered['results'])
+    assert all(r['analysis_candidate'] for r in filtered['results'])
 
 
 def test_corrupt_scope_is_partial_and_never_uses_stale_cache(sample):

@@ -1,10 +1,10 @@
 # 산업부 보도자료 원문과 RSS 영수증 연결 — 2026-10-15
 
+> 현재 기준은 D-060/D-059이다. 사람 검수 절차와 관련 도구는 삭제했다. 아래 실행 기록은 당시 기록이며 현재 완료 상태는 PROJECT_STATE.md를 따른다.
+
 ## 기능
 
 `motir_article_binding.py`는 이미 SHA 확인된 산업부 RSS 수집 결과와 별도 공공누리 제1유형 본문 아카이브를 오프라인으로 결합한다. RSS의 `event_id`·제목 SHA·기사 URL·체크포인트·triage SHA와 아카이브의 제공자·문서 ID·본문 SHA·영수증 SHA를 모두 맞춘다. URL이 같아 보여도 다른 사건·제목 버전이면 결합하지 않는다. 기사 본문은 RSS 관측시각으로 소급하지 않고, 결합 영수증에 실제 아카이브·결합시각을 기록한다.
-
-별도 뉴스 인적 검수는 없다. 결합 결과는 **출처가 보도한 자료에 대한 연결**이며, 신규 경제 사건·실제 계약·수혜를 검증했다고 표시하지 않는다. 본문·HTML·첨부물은 공개 Git에 넣지 않는다. 이용 범위는 [산업통상부 보도자료 게시판](https://www.motir.go.kr/kor/article/ATCL3f49a5a8c)의 공공누리 제1유형 안내와 부처 작성 본문 텍스트로 한정한다.
 
 ## 실제 자료 검증
 
@@ -21,7 +21,5 @@
 기사 172295의 실제 본문 선별 결과는 `392조원`이 **지난 7월 발표된 계획**에 대한 `PRIOR_INVESTMENT_PLAN_MONITORING` 1건이다. 비공개 결과 SHA `57db4dcef75e85f3ac9bc11317de2955ff63b9c3a7602f75df34c65c8c5cdd65`를 별도 프로세스에서 소비했다. `ai_routing_candidate=false`, 실제 AI 호출 0, 신규 경제 사건 인증 0이다. 작은 합성 사례에서 명시적 신규 투자·과거 계획과 신규 표현이 섞인 문장도 각각 후보·보류로 분류함을 확인했다.
 
 ## 호출
-
-`scripts/archive_motir_press_document.py`는 한 번 받은 공식 HTML 파일에서 본문만 추출·아카이브한다. `scripts/bind_motir_article.py`는 기존 RSS 자료와 그 아카이브의 고정 SHA를 결합한다. `scripts/consume_motir_article_binding.py`는 별도로 전달받은 payload SHA와 시각·미확정 상태를 검사한다. 세 명령 모두 외부 뉴스 검수자를 요구하지 않는다.
 
 `scripts/screen_motir_document.py`와 `scripts/consume_motir_document_screen.py`는 그 결합 영수증을 이용해 본문 선별 결과를 비공개 게시·검사한다.

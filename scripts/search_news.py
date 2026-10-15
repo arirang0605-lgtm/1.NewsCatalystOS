@@ -23,7 +23,6 @@ from newscatalystos.feed_analysis_delivery import attach_saved_analysis_to_searc
 from newscatalystos.federated_news_search import (
     TitleSearchWorkspace, search_completed_workspaces,
 )
-from newscatalystos.search_gold_review import GoldSearchWorkspace, search_gold_review_links
 from newscatalystos.source_share import SourceShareError
 
 
@@ -51,15 +50,6 @@ def parser() -> argparse.ArgumentParser:
                    default=base / "state" / "motir_incremental_feeds.sqlite3")
     p.add_argument("--motir-inbox-root", type=Path,
                    default=base / "inbox" / "motir_feed_triage")
-    p.add_argument("--review-links", action="store_true",
-                   help="show blind source links to existing PIN gold; no labels or overlap hints")
-    p.add_argument("--reviewer-slot", choices=("UNASSIGNED_A", "UNASSIGNED_B"))
-    p.add_argument("--gold-out-root", type=Path, default=PROJECT / "output" / "gold_review")
-    p.add_argument("--gold-pin-root", type=Path, default=base / "pins" / "live_gold")
-    p.add_argument("--review-workspace-root", type=Path, default=base / "gold_review_workspace")
-    p.add_argument("--motir-gold-out-root", type=Path, default=PROJECT / "output" / "motir_gold_review")
-    p.add_argument("--motir-gold-pin-root", type=Path, default=base / "pins" / "motir_gold")
-    p.add_argument("--motir-review-workspace-root", type=Path, default=base / "motir_gold_review_workspace")
     p.add_argument("--analysis-report-file", type=Path,
                    help="existing private feed analysis publication, optional")
     p.add_argument("--analysis-reports-root", type=Path,
@@ -75,8 +65,8 @@ def _with_saved_analysis(report: dict, opts: argparse.Namespace) -> dict:
                 getattr(opts, "analysis_expected_sha256", None))
     if not any(value is not None for value in selected):
         return report  # unchanged search when enrichment not requested
-    if (not all(selected) or getattr(opts, "review_links", False)):
-        raise SourceShareError("complete saved analysis selection required without gold links")
+    if not all(selected):
+        raise SourceShareError("complete saved analysis selection required")
     return attach_saved_analysis_to_search(report, *selected)
 
 
@@ -85,13 +75,7 @@ def evaluate(opts: argparse.Namespace) -> tuple[int, dict]:
         scope = getattr(opts, "scope", "core")
         if scope not in ("core", "motir", "all"):
             raise SourceShareError("unsupported search scope")
-        review_links = getattr(opts, "review_links", False)
-        if review_links and any(getattr(opts, key, None) is not None for key in (
-                "analysis_report_file", "analysis_reports_root", "analysis_expected_sha256")):
-            raise SourceShareError("saved AI analysis must not enter blind human review")
-        if review_links and getattr(opts, "reviewer_slot", None) is None:
-            raise SourceShareError("review links require an explicit reviewer slot")
-        if scope != "core" or review_links:
+        if scope != "core":
             workspaces = []
             if scope in ("core", "all"):
                 workspaces.append(TitleSearchWorkspace(
@@ -101,19 +85,6 @@ def evaluate(opts: argparse.Namespace) -> tuple[int, dict]:
                 workspaces.append(TitleSearchWorkspace(
                     "motir", opts.motir_registry, opts.motir_state, opts.motir_inbox_root,
                 ))
-            if review_links:
-                linked_workspaces = tuple(GoldSearchWorkspace(
-                    source,
-                    opts.gold_out_root if source.scope == "core" else opts.motir_gold_out_root,
-                    opts.gold_pin_root if source.scope == "core" else opts.motir_gold_pin_root,
-                    opts.review_workspace_root if source.scope == "core" else opts.motir_review_workspace_root,
-                ) for source in workspaces)
-                report = search_gold_review_links(
-                    linked_workspaces, opts.query, registry_reader=_registry,
-                    slot=opts.reviewer_slot, source_id=opts.source_id,
-                    semiconductor_only=opts.semiconductor_only, limit=opts.limit,
-                )
-                return (0 if report["review_links_complete"] else 4), _with_saved_analysis(report, opts)
             report = search_completed_workspaces(
                 tuple(workspaces), opts.query, registry_reader=_registry,
                 source_id=opts.source_id, semiconductor_only=opts.semiconductor_only,

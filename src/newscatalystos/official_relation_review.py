@@ -1,9 +1,9 @@
-"""5_2: an offline, human-reviewed relation claim bound to a verified official receipt.
+"""5_2: an offline, automatically checked relation claim bound to a verified official receipt.
 
 The five baseline EraLeader snapshots contain filing *metadata*, not contract
 body text. Never infer counterparties from a filing ID, ticker or press title.
 This accepts separately available official document text only with an
-out-of-band pinned SHA and explicit human-reviewed role statement. It returns
+out-of-band pinned SHA and explicit automatically checked role statement. It returns
 a reviewed claim, NOT evidence of a completed commercial transaction.
 No collector/network/filesystem access; document bytes are not persisted.
 """
@@ -45,7 +45,6 @@ class OfficialRelationReview:
     document_observed_at: datetime
     pin_observed_at: datetime
     reviewed_at: datetime
-    reviewer_code: str
     supplier_name: str
     customer_name: str
     evidence_statement: str
@@ -69,7 +68,7 @@ def review_official_supply_relation(
     trusted_document_sha256 must originate from an independently kept,
     operator-approved pin (never computed from document_text by the caller).
     Official filing metadata does NOT contain the text of supplier contracts;
-    the reviewer's role assertion is separate and remains non-transactional.
+    the extracted role assertion is separate and remains non-transactional.
     """
     decision = _time(decision_at, "decision_at")
     current = _time(now or datetime.now(timezone.utc), "now")
@@ -80,7 +79,7 @@ def review_official_supply_relation(
         raise SourceShareError("complete official observation coverage required")
     rows = observations.as_of(decision, now=current)
     if not isinstance(review, OfficialRelationReview):
-        raise SourceShareError("typed human relation review required")
+        raise SourceShareError("typed relation evidence required")
     matches = [
         r for r in rows
         if (r.source_id, r.source_document_id) ==
@@ -136,7 +135,7 @@ def _review_bound_document(
         raise SourceShareError("official document text must be UTF-8") from exc
     observed = _time(review.document_observed_at, "document observed")
     pinned = _time(review.pin_observed_at, "independent pin observed")
-    reviewed = _time(review.reviewed_at, "human review")
+    reviewed = _time(review.reviewed_at, "evidence checked")
     # An offline review may predate this consumer's first validated read.
     # Never expose a relation before the complete evidence actually arrived.
     consumed = (_time(consumer_observed_at, "consumer observation")
@@ -149,10 +148,6 @@ def _review_bound_document(
         raise SourceShareError("document/pin/review unavailable at decision")
     if (supplier.validate() > reviewed or customer.validate() > reviewed):
         raise SourceShareError("review predates source or company mapping")
-    if not isinstance(review.reviewer_code, str) or not re.fullmatch(
-        r"[A-Z0-9_-]{3,32}", review.reviewer_code
-    ):
-        raise SourceShareError("operator reviewer code required")
     names = (review.supplier_name, review.customer_name)
     statement = review.evidence_statement
     # A company named 'Supplier Alpha' or a negated contract mention must
@@ -187,7 +182,6 @@ def _review_bound_document(
         "pin_observed_at":pinned.isoformat(),
         "reviewed_at":reviewed.isoformat(),
         "consumer_observed_at":consumed.isoformat(),
-        "reviewer_code":review.reviewer_code,
         "supplier_name":names[0],
         "customer_name":names[1],
         "statement_sha256":sha256(statement.encode("utf-8")).hexdigest(),

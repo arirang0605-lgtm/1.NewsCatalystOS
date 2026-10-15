@@ -1,11 +1,10 @@
 # 6_5 승인 RSS 2종 실운영 정기 실행 — 2026-10-14
 
+> 현재 기준은 D-060/D-059이다. 사람 검수 절차와 관련 도구는 삭제했다. 아래 실행 기록은 당시 기록이며 현재 완료 상태는 PROJECT_STATE.md를 따른다.
+
 ## 현재 설치 설정 — 2026-10-15 Gemini 연결
 
 core/MOTIR 두 기존 서비스 모두 `--analysis-model-config`와 `--allow-paid-ai`, `--analysis-ai-ledger`를 설정하여 Gemini·캐시·공유 월 한도를 사용한다. 모델은 Mac 사용자 전용 `ai-settings/gemini_v3.json`, 공통 원장은 `state/ai_costs.sqlite3`. 기존 plist는 `launchd/*.before_gemini.plist`로 백업했다. 서비스 재등록·첫 실행 정상, core 건강도 정상 확인. 원문·키는 로그로 출력하지 않는다. 회복용 replay와 dry-run은 유료 호출하지 않는다.
-
-
-> 현재 운영 기준은 [D-059](V1_RELEASE_POLICY_2026-10-15.md)이다. 아래는 당시 구현·실행 이력이며, 500건 검수·5거래일 사전 대기·독립 장치/릴리스 인증 조건은 현재 필수가 아니다. 예약 AI는 모델 설정과 `--allow-paid-ai`로 활성화할 수 있다.
 
 ## 실행 대상
 - macOS 사용자 `launchd` 라벨: `com.newscatalystos.triage`
@@ -45,11 +44,6 @@ launchctl bootout "gui/$(id -u)/com.newscatalystos.triage"
 - 다른 `com.newscatalystos.incremental` 개발용 템플릿은 **설치/활성화하지 않았다**. 같은 RSS를 두 스케줄러로 중복 요청하지 않도록 한다.
 - 서비스 스키마·출처 추가/주기 변경 시 기존 동작 및 로그인 plist를 임의 덮어쓰지 않고 운영 점검·백업을 먼저 확인한다. `create_triage_agent.py --write`는 기존 파일을 덮어쓰지 않는 `O_EXCL` 방식이다.
 
-## V1.0 인수 경계
-- 실제 5개 **거래소 거래일**, 동시 모든 승인 소스 정상/장애 후 회복, PIT/원장 무결성, 미처리 0 등은 향후 실제 운영 기록으로 인수. `weekday_candidate_days`는 단순 월~금이며 한국/미국 증시 휴장·실제 거래일 검증을 대신할 수 없다.
-- 로컬 다른 물리 장치 드라이브 간 DR/SHA PIN 검증은 이미 완료했지만, 원거리 오프사이트 백업과 5거래일 동작, 5_2 공식 반도체 거래문서, AI 실비용 및 500건 독립 라벨 검증은 미완료. **23/36 유지**, `6_5` 최종 완료·V1.0 릴리스 태그는 보류.
-
-
 ## 2026-10-14 | 실사용 자동작업 상태 진단 (6_5 health)
 ```sh
 cd /Volumes/T5DATA/1.NewsCatalystOS
@@ -61,12 +55,3 @@ PYTHONPATH=src python3 scripts/check_triage_agent_health.py
 - 대표 실패사유: `AGENT_NOT_LOADED`(스케줄러 정지), `NO_RECENT_TICK`(마지막 로그가 2시간 15분보다 오래됨), `LAST_RUN_FAILED`, `AGENT_CONFIG_MISMATCH`, `LAST_TICK_UNVERIFIED`, `DUPLICATE_SCHEDULER_ACTIVE`. 맥북 잠자기·SSD 연결해제·권한 오류가 발생한 경우 원인 확인 후 기존 `check_feed_operations.py`로 실제 ACK/PIT/물리복원 여부를 따로 확인한다.
 - Mac 로그는 사용자의 `~/Library/Application Support/NewsCatalystOS/logs/` 내부 owner-only 파일을 마지막 일부만 읽는다. 로그 원문·개인경로는 JSON에 출력하지 않으며 Private 저장 원칙을 유지한다. 서비스 간격 중 `state=not running`은 정상일 수 있으므로 오류로 간주하지 않는다.
 - 실제 2026-10-14 Mac 단발 검증: `runs=4`, `last_exit_code=0`, 승인 제공자 2개, `AGENT_HEALTHY_OBSERVED`, 외부 신규 API 0, 인수 운영일은 별도 1일 기록에 머문다. 기능은 자동 운영 완료를 인증하거나 V1.0 태그를 발급하지 않는다.
-
-
-## 과거 이력: 2026-10-14 Gold 예약 등록 / 2026-10-15 비활성화
-
-현재 `com.newscatalystos.gold`는 사용자 운영규칙 간소화에 따라 disable·bootout 완료했다. 기존 연구 자료와 plist는 보존한다. 아래는 등록 당시 이력이다.
-
-- 기존 `com.newscatalystos.triage` RSS 2제공자 1시간 수집·분석/예산·PIT 서비스와 독립적으로 Mac 사용자 `com.newscatalystos.gold`를 새로 등록했다. `gold`는 **RSS HTTP를 호출하지 않으며**, 이미 완료된 SHA 검증 ACK·기수집 뉴스 메타에서 신규 동결 후보만 수집해 private T5DATA 골드/별도 Mac PIN·두 빈 검수자 시트를 생성한다. 실 AI 호출/사람 정답 자동 생성 없음.
-- 기존 RSS LaunchAgent plist·EraLeader 원본·DB·Git은 건드리지 않는다. 실제 신규 골드 agent의 첫 launchctl kickstart 실행 `runs=1`, `last exit code=0`, stdout 상태 `NO_NEW_VERIFIED_RSS_CANDIDATES`, stderr 0바이트. 기존 triage는 `runs=9`, `last exit code=0`. Mac 잠자기/SSD 분리·호출 충돌 시 해당 gold 동결만 안전 실패하며 진짜 출처별 인수 5거래일 완료 선언을 하지 않는다.
-- 중지: `launchctl bootout gui/$(id -u)/com.newscatalystos.gold`. 상태: `launchctl print gui/$(id -u)/com.newscatalystos.gold`. 사용자 private 로그: `~/Library/Application Support/NewsCatalystOS/logs/gold_stdout.log`, `gold_stderr.log`. 수동 단발 체크: `PYTHONPATH=src python3 scripts/run_gold_capture_once.py`. 공개 저장소에는 사용자 plist·운영 로그·PIN·원문/DB가 포함되지 않는다.

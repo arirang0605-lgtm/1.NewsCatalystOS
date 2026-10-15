@@ -166,7 +166,7 @@ def execute(opts: argparse.Namespace, *, registry_reader=_registry,
         failures += int(code != 0 or status not in FEED_SUCCESS)
         outcome = {"provider_id": name, "status": status,
             "new_provider_ids": detail.get("new_provider_ids", 0),
-            "semiconductor_keyword_review": detail.get("semiconductor_keyword_review", 0)}
+            "semiconductor_keyword_candidates": detail.get("semiconductor_keyword_candidates", 0)}
         if enabled:
             analysis_code, analysis = _analyze_provider(opts, name, analysis_runner)
             outcome["analysis"] = analysis

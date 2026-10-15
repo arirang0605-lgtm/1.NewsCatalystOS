@@ -213,15 +213,13 @@ def test_invalid_limit_rejected_before_source_poll(tmp_path):
     assert code == 4 and report["status"] == "INVALID_ANALYSIS_LIMIT"
 
 
-@pytest.mark.parametrize("gold_fails", [False, True])
-def test_motir_completed_input_reaches_separate_analysis_even_if_gold_fails(tmp_path, gold_fails):
+def test_motir_completed_input_reaches_analysis_without_review(tmp_path):
     from scripts import run_motir_policy_once as sector
     from test_motir_sector_pipeline import config as sector_options
     from test_motir_rss_post import registry as official
     from test_federated_news_search import collect, write_registry
     from newscatalystos.federated_news_search import TitleSearchWorkspace
     params = sector_options(tmp_path)
-    params.capture_gold = True
     params.skip_analysis = False
     params.replay_only = True
     params.analysis_root = tmp_path / "sector_analysis"
@@ -232,13 +230,8 @@ def test_motir_completed_input_reaches_separate_analysis_even_if_gold_fails(tmp_
             [("policy-1", "반도체 HBM 설비 투자 발표", "https://www.motir.go.kr/policy/1")],
             at=datetime.now(timezone.utc))
     original = fingerprint(params.inbox_root)
-    def gold_step(_params):
-        if gold_fails:
-            raise OSError("synthetic unavailable Gold workspace")
-        return 0, {"status": "NO_NEW_VERIFIED_RSS_CANDIDATES"}
-    code, result = sector.run_once(params, gold_runner=gold_step)
+    code, result = sector.run_once(params)
     assert code == 0
-    assert bool(result["research_warning"]) is gold_fails
     assert result["analysis"]["exit_code"] == 0
     path = Path(result["analysis"]["private_report_file"])
     report = json.loads(path.read_bytes())
@@ -254,7 +247,7 @@ def test_installed_entrypoints_default_to_separate_rules_only_analysis(tmp_path)
         "--once", "--registry", str(tmp_path / "reg.json"), "--provider-id", GOV])
     motir = motir_parser().parse_args([])
     assert not core.skip_analysis and not motir.skip_analysis
-    assert motir.capture_gold is False
+    assert not hasattr(motir, "capture_gold")
     assert core.analysis_model_config is motir.analysis_model_config is None
     assert motir.analysis_root.name == "motir"
     assert core.output_root / "feed_analysis" / "core" != motir.analysis_root

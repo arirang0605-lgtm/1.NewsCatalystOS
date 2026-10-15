@@ -1,8 +1,7 @@
 """Operational readiness from recorded execution results.
 
-The user policy of 2026-10-15 makes human review, exchange calendar certification,
-five-session observation, off-device recovery and external consumer integration
-nonblocking follow-ups. This evaluator neither authenticates evidence nor tags Git.
+The user policy removes all human review. Five-session observation, off-device
+recovery and external consumer integration are nonblocking follow-ups. This evaluator neither authenticates evidence nor tags Git.
 """
 from __future__ import annotations
 
@@ -13,14 +12,11 @@ import math
 from .source_share import SourceShareError
 
 ALL_TASKS=tuple(f"{phase}_{task}" for phase in range(1,7) for task in range(1,7))
-# Retained for the optional research/evaluation workflow, not a release gate.
-REQUIRED_GOLD_CASES=500
 
 
 @dataclass(frozen=True)
 class ReadinessInputs:
     completed_tasks: tuple[str, ...] = ()
-    labeled_news_cases: int = 0
     duplicate_precision: float | None = None
     important_detection_recall: float | None = None
     extracted_fact_accuracy: float | None = None
@@ -73,7 +69,7 @@ def evaluate_v1_readiness(values: ReadinessInputs) -> ReadinessReport:
         raise SourceShareError("duplicate task identifiers")
     if set(values.completed_tasks)-set(ALL_TASKS):
         raise SourceShareError("unknown or unapproved V1.0 task")
-    for field in ("labeled_news_cases","real_ai_provider_calls",
+    for field in ("real_ai_provider_calls",
                   "full_regression_tests_passed", "successful_pipeline_runs"):
         val=getattr(values,field)
         if type(val) is not int or val<0:

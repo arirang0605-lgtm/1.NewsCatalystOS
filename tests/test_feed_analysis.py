@@ -70,7 +70,7 @@ def test_complete_path_uses_source_evidence_budgeted_adapter_then_cache(tmp_path
         assert db.execute("SELECT settled_krw FROM ai_invocations").fetchone()[0] == pytest.approx(.09)
     assert fingerprint(info[0].inbox_root.parent) == before
     assert not row["verified_economic_fact"] and row["revenue_estimate_krw"] is None
-    assert first["source_fetch_calls"] == first["human_labels_added"] == 0
+    assert first["source_fetch_calls"] == 0
     assert "FULL ARTICLE BODY" not in json.dumps(first)
 
 

@@ -45,7 +45,7 @@ def setup():
     review = OfficialRelationReview(
         row.source_id, DOC, EVIDENCE, RECEIPT, DIGEST,
         NOW-timedelta(minutes=35), NOW-timedelta(minutes=30),
-        NOW-timedelta(minutes=10), "REVIEWER_1",
+        NOW-timedelta(minutes=10),
         "Supplier Alpha", "Customer Beta", STATEMENT,
         "ADVANCED_PACKAGING",
     )
@@ -158,10 +158,8 @@ def test_late_pins_reviews_and_company_bindings_cannot_backdate():
     assert result.available_at==NOW
 
 
-def test_review_cannot_be_replaced_with_self_certification():
+def test_automatic_evidence_check_preserves_industry_scope():
     review=setup()[3]
-    with pytest.raises(SourceShareError,match="reviewer code"):
-        run(review=replace(review,reviewer_code=""))
     with pytest.raises(SourceShareError,match="invalid stage"):
         run(review=replace(review,product_stage="BIOTECH"))
     assert run().verified_real_transaction is False

@@ -60,21 +60,21 @@ def test_first_poll_can_be_screened_without_second_api_call(tmp_path):
     assert doc["schema"] == SCHEMA
     assert doc["observed_count"] == 3
     assert doc["new_identity_count"] == 3
-    assert doc["keyword_review_count"] == 1
+    assert doc["keyword_candidate_count"] == 1
     assert doc["ai_call_count"] == 0
     assert doc["source_body_count"] == 0
     assert doc["verified_new_economic_fact_count"] == 0
     assert doc["conservative_cluster_count"] == 2
     items = {x["document_id"]: x for x in doc["items"]}
-    assert items["one"]["needs_human_review"]
+    assert items["one"]["analysis_candidate"]
     assert "hbm" in items["one"]["matching_tokens"]
     assert items["one"]["importance_priority"] == "INSUFFICIENT_EVIDENCE_REVIEW"
     assert not items["one"]["verified_fact"]
     assert items["one"]["source_new_identity"]
     assert items["one"]["exact_index_status"] == "NEW"
-    assert not items["two"]["needs_human_review"]
+    assert not items["two"]["analysis_candidate"]
     assert items["two"]["claim_classification"] == "BLOCK_AD_SPAM"
-    assert not items["three"]["needs_human_review"]
+    assert not items["three"]["analysis_candidate"]
     assert "FULL ARTICLE BODY" not in screened.payload.decode()
     assert b"HBM" not in (tmp_path / "feed" / "poll.sqlite3").read_bytes()
     assert b"FULL ARTICLE BODY" not in (tmp_path / "feed" / "poll.sqlite3").read_bytes()
@@ -95,7 +95,7 @@ def test_repeated_feed_ids_are_not_treated_as_new_economic_facts(tmp_path):
     assert all(x["exact_index_status"] == "DUPLICATE" for x in doc["items"])
     assert not any(x["source_new_identity"] for x in doc["items"])
     # Existing headlines are still available for manual review without AI.
-    assert doc["keyword_review_count"] == 1
+    assert doc["keyword_candidate_count"] == 1
 
 
 def test_revised_title_same_feed_id_is_never_certified_or_lost(tmp_path):
@@ -110,7 +110,7 @@ def test_revised_title_same_feed_id_is_never_certified_or_lost(tmp_path):
     node = next(x for x in doc["items"] if x["document_id"] == "one")
     assert node["exact_index_status"] == "REVISED"
     assert node["source_new_identity"] is False
-    assert node["needs_human_review"] is True
+    assert node["analysis_candidate"] is True
     assert node["verified_fact"] is False
     assert doc["ai_call_count"] == 0
 

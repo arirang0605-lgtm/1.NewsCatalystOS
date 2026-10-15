@@ -1,4 +1,4 @@
-"""Publish 5_2 official human review to 5_3-5_5 candidate-only outbox.
+"""Publish 5_2 official source evidence to 5_3-5_5 candidate-only outbox.
 
 Never fetch a DART/SEC filing, write to EraLeader or certify sales. Requires
 a previously SHA-pinned completed observation publication and official text

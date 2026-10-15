@@ -23,6 +23,13 @@ MAX_METADATA_CHARS = 512
 MAX_CLAIMS = 12
 
 
+class AITransportError(SourceShareError):
+    """Safe operational status; never carries provider response bodies or keys."""
+    def __init__(self, http_status: int):
+        self.http_status = http_status if type(http_status) is int and 100 <= http_status <= 599 else 0
+        super().__init__(f"AI provider unavailable (HTTP_{self.http_status})")
+
+
 @dataclass(frozen=True)
 class AIModel:
     provider: str
@@ -67,6 +74,7 @@ class AIRequest:
     important: bool
     new_economic_event: bool
     externally_verified_fact: bool = False
+    analysis_purpose: str = "NEW_EVENT"
 
 
 @dataclass(frozen=True)
@@ -101,7 +109,9 @@ def _check_request(request: AIRequest, now: datetime) -> None:
             type(request.new_economic_event) is not bool or
             type(request.externally_verified_fact) is not bool):
         raise SourceShareError("invalid or unauthorized AI source")
-    if not request.important or not request.new_economic_event:
+    if request.analysis_purpose not in ("NEW_EVENT", "EXISTING_ARTICLE"):
+        raise SourceShareError("invalid AI analysis purpose")
+    if request.analysis_purpose == "NEW_EVENT" and (not request.important or not request.new_economic_event):
         raise SourceShareError("AI only for important novel events")
     if (not isinstance(request.metadata, str)
             or not 0 < len(request.metadata) <= MAX_METADATA_CHARS
@@ -164,6 +174,8 @@ def run_ai_analysis(
     }
     try:
         response = transport(model, prompt)
+    except AITransportError:
+        raise
     except Exception as exc:
         raise SourceShareError("AI provider unavailable, original evidence unchanged") from None
     if not isinstance(response, dict) or set(response) != {"result","usage"}:

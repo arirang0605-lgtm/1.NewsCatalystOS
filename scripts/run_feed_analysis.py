@@ -38,6 +38,9 @@ def parser() -> argparse.ArgumentParser:
                    help="owner-private AIModel JSON; no key or unverified default live prices")
     p.add_argument("--allow-paid", action="store_true",
                    help="explicitly authorize bounded live AI; ignored for noneligible/duplicate inputs")
+    p.add_argument("--analyze-existing", action="store_true",
+                   help="analyze one selected article without changing its new-event eligibility")
+    p.add_argument("--ai-ledger", type=Path, help="shared monthly cost ledger for all scopes")
     return p
 
 
@@ -59,8 +62,10 @@ def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, d
         report = analyze_completed_feed(_registry(registry_path), inbox, state, work,
             provider_id=opts.provider_id, event_id=opts.event_id,
             title_sha256=opts.title_sha256, limit=opts.limit, model=model,
-            allow_paid=opts.allow_paid, opener=opener, now=now)
-        failures = sum(row["ai_eligible"] and row["ai_status"] not in
+            allow_paid=opts.allow_paid, opener=opener, now=now,
+            analyze_existing=getattr(opts, "analyze_existing", False),
+            ai_ledger=getattr(opts, "ai_ledger", None))
+        failures = sum((row["ai_eligible"] or row.get("analysis_purpose") == "EXISTING_ARTICLE") and row["ai_status"] not in
                        ("ANALYZED_UNVERIFIED", "CACHE_HIT") for row in report["results"])
         report["paid_execution_requested"] = opts.allow_paid
         report["requested_ai_complete"] = failures == 0 if opts.allow_paid else None

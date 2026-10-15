@@ -46,6 +46,7 @@ def parser() -> argparse.ArgumentParser:
                    help="model and accounting configuration for cache or authorized AI")
     p.add_argument("--allow-paid-ai", action="store_true",
                    help="enable budgeted AI for eligible events on scheduled ticks")
+    p.add_argument("--analysis-ai-ledger", type=Path, help="shared monthly AI cost ledger")
     p.add_argument("--skip-analysis", action="store_true",
                    help="explicit legacy collection-only tick")
     operation = p.add_mutually_exclusive_group(required=True)
@@ -75,6 +76,7 @@ def _analyze_provider(opts: argparse.Namespace, name: str, runner) -> tuple[int,
         event_id=None, title_sha256=None,
         limit=getattr(opts, "analysis_limit", 100),
         model_config=getattr(opts, "analysis_model_config", None),
+        ai_ledger=getattr(opts, "analysis_ai_ledger", None),
         allow_paid=(getattr(opts, "allow_paid_ai", False)
                     and not getattr(opts, "replay_only", False)
                     and not getattr(opts, "dry_run", False)),

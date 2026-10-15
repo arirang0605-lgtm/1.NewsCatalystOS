@@ -19,6 +19,12 @@ function renderItems(){
     meta.append(node("span","",item.day+" · "+item.provider),node("span","pill",item.priority==="HIGH_REVIEW"?"우선 검토":item.priority==="PARTIAL_EVIDENCE_ONLY"?"근거 보류":"분석 후보"));
     const ai={"NOT_ELIGIBLE":"AI 미사용","AWAITING_EXPLICIT_AI_AUTHORIZATION":"AI 승인 대기","ANALYZED_UNVERIFIED":"AI 해석·미검증","CACHE_HIT":"기존 AI 해석"}[item.ai_status]||"AI 결과 없음";
     card.append(meta,node("h4","",item.headline),node("p","finding-detail",[item.category||"분류 없음",ai,"미확인 "+item.uncertainty_count+"개"].join(" · ")));
+    if(item.ai_summary){
+      card.append(node("p","finding-detail",item.analysis_purpose==="EXISTING_ARTICLE"?"기존 기사 AI 분석 · 제목 기준":"AI 분석 · 제목 기준"));
+      card.append(node("p","",item.ai_summary));
+      for(const claim of item.ai_claims||[])card.append(node("p","finding-detail","해석: "+claim));
+      for(const unknown of item.ai_uncertainties||[])card.append(node("p","finding-detail","미확인: "+unknown));
+    }
     const link=node("a","source-link","출처 열기 ↗");link.href=item.source_url;link.target="_blank";link.rel="noopener noreferrer";card.append(link);$("items").append(card)
   }
   $("more-items").hidden=visible.length>=matches.length;

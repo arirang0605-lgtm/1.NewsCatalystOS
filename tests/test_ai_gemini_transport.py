@@ -74,7 +74,7 @@ def test_transport_sends_metadata_json_without_tools_or_storage(key):
     assert sent.get_method() == "POST"
     body = json.loads(sent.data)
     assert body["store"] is False and "tools" not in body
-    assert body["generationConfig"]["responseFormat"]["text"]["mimeType"] == "application/json"
+    assert body["generationConfig"]["responseFormat"]["text"]["mimeType"] == "APPLICATION_JSON"
     assert body["generationConfig"]["maxOutputTokens"] == model.max_output_tokens
     assert "temperature" not in body["generationConfig"]
     assert "candidateCount" not in body["generationConfig"]
@@ -194,3 +194,17 @@ def test_gemini_is_not_called_for_blocked_feed_item(key, tmp_path):
     assert not row["ai_eligible"] and row["ai_status"] == "NOT_ELIGIBLE"
     assert opener.calls == 0
     assert not (info[-1] / "ai_costs.sqlite3").exists()
+
+
+def test_provider_http_status_survives_without_error_body_or_key(key, tmp_path):
+    from urllib.error import HTTPError
+    from newscatalystos.ai_provider import AITransportError
+    class Rejected:
+        def open(self, req, **kwargs):
+            raise HTTPError(req.full_url, 400, 'private provider body', {},
+                            BytesIO(b'private provider body'))
+    with pytest.raises(AITransportError) as error:
+        run_budgeted_gemini_analysis(config('GEMINI'), request(), tmp_path / 'ledger.sqlite3',
+            allow_paid=True, opener=Rejected(), now=NOW)
+    assert error.value.http_status == 400
+    assert 'private provider body' not in str(error.value)

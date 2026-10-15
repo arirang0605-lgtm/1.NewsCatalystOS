@@ -16,7 +16,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 from .ai_cost_ledger import reserve_ai_call, settle_ai_call
 from .ai_gemini_credentials import read_private_api_key, valid_api_key
 from .ai_provider import (
-    AIModel, AIRequest, AIResult, MAX_METADATA_CHARS, SCHEMA,
+    AIModel, AIRequest, AIResult, AITransportError, MAX_METADATA_CHARS, SCHEMA,
     _validate_result, run_ai_analysis,
 )
 from .source_share import SourceShareError, _json, _must_sha, _when
@@ -136,11 +136,14 @@ def gemini_generate_content_transport(
             "inferences. Do not assert contracts, revenue, beneficiaries, or "
             "investment advice without evidence. Return a JSON summary, "
             "claims, and uncertainties; list missing evidence."
+            " Respond in Korean. Keep the summary to two sentences and each "
+            "list to at most three concise items. Existing article analysis "
+            "does not establish a newly detected event."
         )}]},
         "generationConfig": {
             "maxOutputTokens": model.max_output_tokens,
             "responseFormat": {"text": {
-                "mimeType": "application/json", "schema": OUTPUT_SCHEMA}},
+                "mimeType": "APPLICATION_JSON", "schema": OUTPUT_SCHEMA}},
         },
         "store": False,
     }
@@ -158,7 +161,9 @@ def gemini_generate_content_transport(
         if len(raw) > MAX_RESPONSE:
             raise SourceShareError("AI provider response too large")
         return _normal_response(raw, model)
-    except (HTTPError, URLError, OSError, TimeoutError):
+    except HTTPError as exc:
+        raise AITransportError(exc.code) from None
+    except (URLError, OSError, TimeoutError):
         raise SourceShareError("AI provider HTTP unavailable; request not retried") from None
 
 

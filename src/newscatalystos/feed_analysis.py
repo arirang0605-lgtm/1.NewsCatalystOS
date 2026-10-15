@@ -276,6 +276,7 @@ def analyze_completed_feed(
     provider_id: str | None = None, event_id: str | None = None,
     title_sha256: str | None = None, limit: int = 20,
     model: AIModel | None = None, allow_paid: bool = False,
+    analyze_existing: bool = False, ai_ledger: Path | None = None,
     opener=None, now: datetime | None = None,
 ) -> dict:
     """Reuse committed sources and separate analysis state; paid execution is opt-in.
@@ -284,6 +285,9 @@ def analyze_completed_feed(
     Failed AI leaves source-backed fields visible and its cost reservation held.
     """
     at = _stamp(now)
+    if type(analyze_existing) is not bool or (analyze_existing and
+            (not provider_id or not event_id or not title_sha256 or limit != 1 or model is None)):
+        raise SourceShareError("existing article analysis requires one exact source version and model")
     if (type(limit) is not int or not 1 <= limit <= 100 or type(allow_paid) is not bool
             or not isinstance(registry, ProviderRegistry)):
         raise SourceShareError("invalid feed analysis inputs")
@@ -331,6 +335,10 @@ def analyze_completed_feed(
                 "source_fetch_calls": 0, "human_labels_added": 0}
     root = _private_root(root)
     facts, cache, ledger = (root / n for n in ("facts.sqlite3", "ai_cache.sqlite3", "ai_costs.sqlite3"))
+    if ai_ledger is not None:
+        ledger = Path(ai_ledger)
+        if any(ledger.resolve() == p.resolve() for p in (Path(poll_state), facts, cache)):
+            raise SourceShareError("AI ledger must be separate from source and analysis databases")
     reports = []
     for item in selected[:limit]:
         decision = _stamp(now)
@@ -350,13 +358,16 @@ def analyze_completed_feed(
             report["ai_eligible"] = False
             report["routing_priority"] = "PARTIAL_EVIDENCE_ONLY"
         report.update(ai_status="NOT_ELIGIBLE", ai_analysis=None, ai_adapter_attempted=False)
+        report["analysis_purpose"] = "EXISTING_ARTICLE" if analyze_existing else "NEW_EVENT"
         if fact:
             record_prior_fact(facts, fact, now=decision)
         cached = None
         metadata = "Unverified RSS title: " + item["headline"]
+        if analyze_existing:
+            metadata = "Existing article analysis; not a new-event signal. " + metadata
         metadata_sha = _digest(metadata)
         cache_unavailable = False
-        if fact and model is not None and cache.exists():
+        if (fact or analyze_existing) and model is not None and cache.exists():
             try:
                 cached = get_cached_analysis(cache, event_sha256=report["analysis_event_sha256"],
                     source_version_sha256=item["title_sha256"], metadata_sha256=metadata_sha,
@@ -367,13 +378,15 @@ def analyze_completed_feed(
                 report["ai_status"] = "AI_CACHE_UNAVAILABLE"
         if cached is not None:
             report.update(ai_status="CACHE_HIT", ai_analysis=json.loads(_result_bytes(cached.result)))
-        elif report["ai_eligible"] and not cache_unavailable:
+        elif (report["ai_eligible"] or analyze_existing) and not cache_unavailable:
             if not allow_paid:
                 report["ai_status"] = "AWAITING_EXPLICIT_AI_AUTHORIZATION"
             else:
                 request = AIRequest(report["analysis_event_sha256"], metadata,
                     "OFFICIAL_METADATA" if item["source_kind"] in ("OFFICIAL_AGENCY", "COMPANY_IR")
-                    else "LICENSED_METADATA", decision, decision, True, True)
+                    else "LICENSED_METADATA", decision, decision,
+                    report["ai_eligible"], report["ai_eligible"],
+                    analysis_purpose=report["analysis_purpose"])
                 try:
                     report["ai_adapter_attempted"] = True
                     runner = (run_budgeted_gemini_analysis if model.provider == "GEMINI"
@@ -393,6 +406,8 @@ def analyze_completed_feed(
                         else "AI_ALREADY_RESERVED_OR_RESULT_UNAVAILABLE" if "already reserved" in message
                         else "AI_PROVIDER_OR_CACHE_UNAVAILABLE")
                     report.update(ai_status=reason)
+                    if hasattr(exc, "http_status"):
+                        report["ai_http_status"] = exc.http_status
         report["analysis_available_at"] = _stamp(now).isoformat()
         reports.append(report)
     return {"schema": SCHEMA, "status": "FEED_ECONOMIC_ANALYSIS_READY",

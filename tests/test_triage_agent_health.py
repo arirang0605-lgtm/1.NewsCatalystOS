@@ -201,7 +201,8 @@ def test_configured_paid_scheduler_is_not_reported_as_health_failure(tmp_path):
     project, base, data = fixture(tmp_path)
     spec = plistlib.loads(data)
     spec['ProgramArguments'].extend([
-        '--analysis-model-config', str(base / 'models/gemini.json'), '--allow-paid-ai'])
+        '--analysis-model-config', str(base / 'models/gemini.json'), '--allow-paid-ai',
+        '--analysis-ai-ledger', str(base / 'state/ai_costs.sqlite3')])
     log = dict(PASS_LOG, ai_call_count=None, analysis_mode='BUDGETED_AI_AND_CACHE',
                analysis_providers_failed=0)
     result = evaluate_health(plist_data=plistlib.dumps(spec), project=project, base=base,

@@ -95,6 +95,10 @@ def scan_saved_analysis(root: Path, *, now: datetime | None = None) -> tuple[lis
                         "category": row.get("category_candidate"),
                         "priority": row.get("routing_priority"),
                         "ai_status": row["ai_status"],
+                        "analysis_purpose": row.get("analysis_purpose", "NEW_EVENT"),
+                        "ai_summary": (row.get("ai_analysis") or {}).get("summary"),
+                        "ai_claims": (row.get("ai_analysis") or {}).get("claims", []),
+                        "ai_uncertainties": (row.get("ai_analysis") or {}).get("uncertainties", []),
                         "uncertainty_count": len(row["uncertainties"]),
                         "reported_plan_only": row["reported_plan_only"],
                         "report_sha256": match.group(1),
@@ -103,8 +107,17 @@ def scan_saved_analysis(root: Path, *, now: datetime | None = None) -> tuple[lis
                     # The same source version can be reanalyzed. The dashboard places it
                     # on its earliest available analysis day, rather than inflating trends.
                     old = records.get(key)
-                    if old is None or item["available_at"] < old["available_at"]:
+                    if old is None:
                         records[key] = item
+                    else:
+                        first_day = min(old["day"], item["day"])
+                        # Keep the later AI result visible even if an earlier
+                        # rules-only report, or another rules tick, also exists.
+                        old_rank = (bool(old.get("ai_summary")), old["available_at"])
+                        new_rank = (bool(item.get("ai_summary")), item["available_at"])
+                        if new_rank > old_rank:
+                            records[key] = item
+                        records[key]["day"] = first_day
             except (SourceShareError, OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
                 skipped += 1
     return list(records.values()), {

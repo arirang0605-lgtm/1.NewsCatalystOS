@@ -52,6 +52,7 @@ def parser() -> argparse.ArgumentParser:
                    help="model and accounting configuration for cache or authorized AI")
     p.add_argument("--allow-paid-ai", action="store_true",
                    help="enable budgeted AI for eligible events on scheduled ticks")
+    p.add_argument("--analysis-ai-ledger", type=Path, help="shared monthly AI cost ledger")
     p.add_argument("--skip-analysis", action="store_true")
     p.add_argument("--capture-gold", action="store_true",
                    help="optional research candidate capture; no news review or release gate")

@@ -110,11 +110,18 @@ def evaluate_health(*, plist_data: bytes, project: Path, base: Path,
             base / "state" / "triage_exact_index.sqlite3",
             base / "inbox" / "feed_triage", base / "logs")
         tail = args[len(expected["ProgramArguments"]):]
+        if (len(tail) >= 2 and tail[-2] == "--analysis-ai-ledger"
+                and isinstance(tail[-1], str) and Path(tail[-1]).is_absolute()
+                and ".." not in Path(tail[-1]).parts):
+            ledger_args, tail = tail[-2:], tail[:-2]
+        else:
+            ledger_args = []
         if (len(tail) in (2, 3) and tail[0] == "--analysis-model-config"
                 and isinstance(tail[1], str) and Path(tail[1]).is_absolute()
                 and ".." not in Path(tail[1]).parts
                 and (len(tail) == 2 or tail[2] == "--allow-paid-ai")):
             expected["ProgramArguments"].extend(tail)
+            expected["ProgramArguments"].extend(ledger_args)
             paid_config = len(tail) == 3
         if spec != expected:
             reasons.append("AGENT_CONFIG_MISMATCH")

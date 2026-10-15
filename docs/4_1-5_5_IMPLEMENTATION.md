@@ -27,3 +27,9 @@
 - 통합 `run_budgeted_openai_analysis`는 4_6 승인원장에 예상 **최대 비용을 먼저 예약**한 뒤에만 네트워크 호출을 허용한다. 동일 사건·모델·프롬프트·메타 입력이 `CACHED/IN_FLIGHT_OR_UNSETTLED`이면 추가 유료 호출 0; 장애 시 자동 재시도 없이 기존 예약 비용을 보류한다. 단가 KRW/백만 토큰은 운영자 가정치이므로 실청구 요율/월 비용에 대한 독립 검증이 필요하다. 실제 OpenAI 계정의 API 사용권한·모델/JSON Schema 지원·청구 검증 없이는 **4_1/4_6 완료 판정 불가**.
 - 공식 API 참조: https://developers.openai.com/api/reference/resources/responses/methods/create . 모델별 지원 파라미터는 다를 수 있어 요청은 공통 JSON Schema·기본 샘플링 경로를 사용하고 `temperature`와 같은 비필수 옵션을 무조건 전송하지 않는다. 운영자 인증이 별도로 확인되지 않으면 `allow_paid=False` 기본값, credential 누락, 미승인 중요도/PIT/월간 예산 초과 모두 네트워크 전 실패한다.
 - 현재 실제 유료 AI HTTP **0회**, 키는 공개·Git 기록 금지. 동작 시험은 테스트 전용 가짜 환경변수와 내부 가짜 HTTP 연결만 사용한다. 테스트 PASS가 실공급자 모델 호출 성공/정답 500건/5거래일 완료를 뜻하지 않는다.
+
+
+## 2026-10-15 | Gemini API 경로 연결 (실호출 미실행)
+- 사용자 선택에 따라 `src/newscatalystos/ai_gemini_transport.py`가 Google Gemini `models/{model}:generateContent` REST 요청을 처리한다. `GEMINI_API_KEY`는 호출 직전 비공개 환경변수에서 읽으며 키·요청 원문·응답 원문을 공개 Git/로그에 남기지 않는다. 모델명은 비공개 `AIModel` 설정에서 고르고 URL 경로 문자를 제한한다. 공식 API 형식: https://ai.google.dev/api/generate-content 및 https://ai.google.dev/gemini-api/docs/generate-content/structured-output .
+- 기존 중요 신규 사건/PIT/짧은 승인 메타데이터 선별, 4_6 월간 최대비용 예약·중복호출 방지, 모델별 캐시와 비공개 보고서·읽기전용 소비를 재사용한다. `allow_paid=True` 없이 HTTP를 열지 않고, 도구/검색 grounding·리다이렉트·자동 재시도를 사용하지 않는다. Gemini `usageMetadata.totalTokenCount - promptTokenCount`를 출력·사고 토큰의 보수적 사용량으로 잡아 정산한다.
+- 코드와 합성 응답의 연결 테스트는 통과했지만 2026-10-15 개발 프로세스에 `GEMINI_API_KEY`가 없어 실제 Gemini API 요청은 **0회**다. 모델별 사용권·현재 원화 환산 단가와 청구 형태는 운영자가 확인하여 비공개 `AIModel`에 입력해야 한다. 코드 연결 성공을 실호출 성공이나 운영 인수로 표시하지 않는다.

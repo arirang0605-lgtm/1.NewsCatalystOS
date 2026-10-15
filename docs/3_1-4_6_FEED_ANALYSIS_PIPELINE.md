@@ -55,8 +55,10 @@ PYTHONPATH=src python3 scripts/run_feed_analysis.py --scope motir --limit 100
 이 한도에 도달하면 `has_more_results`를 표시한다. 공시/기업자료를 재수집하지 않는다.
 
 유료 실행은 **별도 승인 후** `--model-config /absolute/private/model.json --allow-paid`를
-추가한다. 설정은 기존 `AIModel` 필드만 포함한다. 키는 비공개 환경변수에 두고
-설정/터미널 출력/Git에 넣지 않는다. 코드에 현재 모델명·요금의 임의 기본값은 없다.
+추가한다. 설정은 기존 `AIModel` 필드만 포함한다. `provider`는 `OPENAI` 또는
+`GEMINI`를 고른다. Gemini는 개발 Mac의 비공개 `GEMINI_API_KEY` 환경변수를
+호출 직전에 사용한다. 키를 설정/터미널 출력/Git에 넣지 않는다. 코드에 현재
+모델명·요금의 임의 기본값은 없다.
 기존 월 비용 원장의 5만원 상한·중복 요청 방지를 사용한다. 승인 없는 상태에서도
 캐시된 결과를 읽을 수 있다. 요청한 AI가 실패하면 출처가 붙은 부분 결과를 저장하고
 종료코드4를 반환한다. 규칙 전용 실행의 성공을 AI 실사용으로 표시하지 않는다.

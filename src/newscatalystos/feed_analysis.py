@@ -20,6 +20,7 @@ import tempfile
 from .ai_provider import AIModel, AIRequest
 from .change_followup import assess_followup
 from .ai_openai_transport import run_budgeted_openai_analysis
+from .ai_gemini_transport import run_budgeted_gemini_analysis
 from .analysis_cache import cache_analysis_once, get_cached_analysis, _result_bytes
 from .evidence_archive import _private_root, _write_new
 from .fact_extraction import FactProposal, MONEY, verify_extracted_facts
@@ -294,8 +295,8 @@ def analyze_completed_feed(
             raise SourceShareError("title version selection requires an event")
     if model is not None:
         model.validate()
-        if model.provider != "OPENAI":
-            raise SourceShareError("this pipeline uses the existing OpenAI adapter")
+        if model.provider not in ("OPENAI", "GEMINI"):
+            raise SourceShareError("this pipeline requires a supported AI adapter")
     elif allow_paid:
         raise SourceShareError("explicit model and rates required before paid execution")
     if provider_id is not None:
@@ -375,7 +376,9 @@ def analyze_completed_feed(
                     else "LICENSED_METADATA", decision, decision, True, True)
                 try:
                     report["ai_adapter_attempted"] = True
-                    result = run_budgeted_openai_analysis(model, request, ledger,
+                    runner = (run_budgeted_gemini_analysis if model.provider == "GEMINI"
+                              else run_budgeted_openai_analysis)
+                    result = runner(model, request, ledger,
                         allow_paid=True, opener=opener, now=now)
                     stored = cache_analysis_once(cache, result,
                         source_version_sha256=item["title_sha256"],

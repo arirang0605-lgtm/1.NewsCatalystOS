@@ -1,7 +1,7 @@
 """Analyze already committed RSS metadata; no source polling or automatic paid AI.
 
-A model configuration and --allow-paid are both required for the existing
-OpenAI adapter. API credentials remain in the private process environment.
+A model configuration and --allow-paid are both required for OpenAI or
+Gemini. API credentials remain in the private process environment.
 """
 from __future__ import annotations
 

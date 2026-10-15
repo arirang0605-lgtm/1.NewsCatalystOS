@@ -15,7 +15,7 @@ from .source_share import SourceShareError, _must_sha, _when
 SCHEMA = "newscatalyst.novelty_detection.v1"
 CATEGORIES = frozenset({
     "NEW_CONTRACT", "NEW_INVESTMENT", "COMMERCIALIZATION", "PRODUCT_LAUNCH",
-    "REGULATORY_APPROVAL", "NEW_CUSTOMER", "NEW_FACILITY",
+    "REGULATORY_APPROVAL", "NEW_CUSTOMER", "NEW_FACILITY", "BUSINESS_START",
     "CONTRACT_TERMINATION", "CONTRACT_REDUCTION", "CONTRACT_DELAY",  # reported reversals, unverified
 })
 

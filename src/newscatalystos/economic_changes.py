@@ -25,6 +25,40 @@ TOPIC_ALIASES = {
 DRIVERS = {'POLICY_ENABLEMENT': '정책 기반 확대', 'DEMAND_EXPANSION': '수요 확대',
            'CAPACITY_EXPANSION': '생산능력 확대', 'SUPPLY_CONTRACTION': '공급 축소',
            'UNKNOWN': '공통 원인 미확인'}
+_QUOTED_NAME = r'(?:‘[^’\n]{2,80}’|“[^”\n]{2,80}”|「[^」\n]{2,80}」|"[^"\n]{2,80}"|\'[^\'\n]{2,80}\')'
+_START_VERB = r'(?:개시|시작|출시|나선다|나설)(?=$|[\s,.!…·]|했|하|해|한|할|됐|되|된|를|에)'
+_START_MODIFIER = r'(?:(?:정식|공식|본격|국내|전국|글로벌|상업)\s*)?'
+BUSINESS_ACTION = (r'(?:서비스|사업|운영)(?:을|를|에|가|는)?\s*(?:'+_QUOTED_NAME+r'\s*)?'
+                   +_START_MODIFIER+_START_VERB)
+_BUSINESS_CONTEXT = re.compile(
+    r'(?:개시|시작|출시).{0,15}(?:기념|주년|행사|설명회|세미나|방법|가능성|위한|위해|협약|양해각서|하지\s*않|하지\s*못|되지\s*않)'
+    r'|(?:체험|시범|시험)\s*(?:서비스|운영)|취소|철회|무산|부인|사실\s*무근'
+    r'|(?:지난해|지난달|작년|과거|이미).{0,60}(?:개시|시작|출시)')
+_BUSINESS_PLAN = re.compile(r'예정|계획|추진|준비|검토|목표|예고|나선다|나설|앞두|앞둔')
+
+
+def business_start_phase(text):
+    """Explicit service/business operation claim; intention is not operation."""
+    if not re.search(BUSINESS_ACTION, text) or _BUSINESS_CONTEXT.search(text):
+        return None
+    return 'PLANNED' if _BUSINESS_PLAN.search(text) else 'SOURCE_REPORTED'
+
+
+def business_start_names(text):
+    if business_start_phase(text) is None:
+        return []
+    result=[]
+    for match in re.finditer(_QUOTED_NAME, text):
+        before,after=text[:match.start()],text[match.end():]
+        direct_after=re.match(r'\s*(?:서비스|사업)(?:을|를|가|는)?\s*'+_START_MODIFIER+_START_VERB,after)
+        direct_before=(re.search(r'(?:서비스|사업)\s*$',before) and
+                       re.match(r'\s*'+_START_MODIFIER+_START_VERB,after))
+        name=match.group()[1:-1].strip()
+        if (direct_after or direct_before) and name and name not in result:
+            result.append(name)
+    return result[:10]
+
+
 ACTIONS = (
     ('POLICY_CHANGE', r'(?:개정안|개정령안|법안).{0,130}(?:의결|통과)|규제.{0,25}(?:폐지|완화)|허가.{0,20}(?:승인|취득)'),
     ('PRODUCTION_START', r'(?:양산|생산).{0,12}(?:시작|개시)|가동을?\s*시작'),
@@ -32,6 +66,7 @@ ACTIONS = (
     ('SUPPLY_REDUCTION', r'(?:생산|공급).{0,20}(?:중단|축소|감산)'),
     ('CONTRACT', r'(?:공급\s*계약|수주\s*계약|납품\s*계약).{0,20}(?:체결|수주)'),
     ('INVESTMENT', r'(?:신규|새로).{0,30}투자.{0,25}(?:결정|확정)|투자.{0,15}(?:결정|확정)'),
+    ('BUSINESS_START', BUSINESS_ACTION),
 )
 UNCERTAIN = re.compile(r'검토\s*중|논의\s*중|가능성|가정|미확정|계획이\s*없|하지\s*않|사실이\s*아니|체결되지|취득하지|의결되지')
 PAST = re.compile(r'(?:지난해|작년|과거|기존|이미).{0,45}(?:의결|체결|시작|확대|결정)|지난\s*\d+월.{0,30}(?:체결|발표|결정)')
@@ -102,12 +137,15 @@ def extract_economic_changes(text, *, company_names=()):
         # Demand and economic action must be in the same sentence; unrelated
         # context elsewhere in the paragraph cannot supply the common cause.
         evidence_line=line
+        business_phase=business_start_phase(line)
+        names=business_start_names(line) if business_phase else []
         demand=_demand_topic(line, company_names)
         topic=demand or next((name for name,pattern in TOPICS
-            if re.search(pattern,evidence_line,re.I)),None)
+            if re.search(pattern,evidence_line,re.I)),None) or (names[0] if len(names)==1 else None)
         if topic is None:
             continue
-        action = next((name for name, pattern in ACTIONS if re.search(pattern, evidence_line, re.I)), None)
+        action = next((name for name, pattern in ACTIONS if re.search(pattern, evidence_line, re.I)
+                       and (name!='BUSINESS_START' or business_phase)), None)
         if action is None:
             continue
         driver = ('POLICY_ENABLEMENT' if action == 'POLICY_CHANGE' else
@@ -128,6 +166,7 @@ def extract_economic_changes(text, *, company_names=()):
         seen.add(key)
         changes.append({'topic':topic, 'economic_driver':driver, 'action':action,
             'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
+                     else business_phase if action == 'BUSINESS_START'
                      else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line) else 'SOURCE_REPORTED'),
             'entity_ids':companies,
             **({'original_entity_ids':original_companies} if companies!=original_companies else {}),

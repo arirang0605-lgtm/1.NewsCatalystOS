@@ -19,7 +19,7 @@ from .source_share import SourceShareError, _when, _must_sha
 SCHEMA = 'newscatalyst.theme_candidate.v1'
 RELATION_SCHEMA = 'newscatalyst.theme_candidate.v2'
 QUALITIES = {'OFFICIAL_SOURCE','REPORTED','INFERRED','UNVERIFIED','UNKNOWN'}
-ACTIONS = {'POLICY_CHANGE','PRODUCTION_START','CAPACITY_ADDITION','SUPPLY_REDUCTION','CONTRACT','INVESTMENT'}
+ACTIONS = {'POLICY_CHANGE','PRODUCTION_START','CAPACITY_ADDITION','SUPPLY_REDUCTION','CONTRACT','INVESTMENT','BUSINESS_START'}
 KNOWN_TOPICS = {'euv','duv','hbm','dram','nand','반도체','액침냉각'}
 CHANGE_KEYS = {'topic','economic_driver','action','phase','entity_ids','industry_tags',
                'source_paragraph_sha256','evidence_level','verified_economic_effect'}

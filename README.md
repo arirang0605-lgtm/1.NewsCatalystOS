@@ -2,7 +2,7 @@
 
 Evidence-first economic news and disclosure analysis. V1.0 development is staged across 36 tasks (1_1–6_6); only the semiconductor industry is included for supply-chain validation.
 
-**Current status (2026-10-15):** Core code paths are implemented for **36/36 tasks**. Operational readiness now requires a successful real pipeline run, a live AI response with cost records, source linkage, a backup restore, passing regression tests and no unresolved critical incidents. Human news review is not required; five trading sessions are a post-start observation goal. External consumer integration and off-device backup are follow-ups. See [current operating policy](docs/V1_RELEASE_POLICY_2026-10-15.md). Actual live AI generation remains pending; changing the policy does not create execution evidence.
+**Current status (2026-10-15):** Core code paths are implemented for **36/36 tasks**. Operational readiness now requires a successful real pipeline run, a live AI response with cost records, source linkage, a backup restore, passing regression tests and no unresolved critical incidents. Human news review is not required; five trading sessions are a post-start observation goal. External consumer integration and off-device backup are follow-ups. See [current operating policy](docs/V1_RELEASE_POLICY_2026-10-15.md). One real Gemini analysis of existing official RSS title metadata now completes through saved output, read-only consumption and the local dashboard. Both installed feed schedules share one AI cost ledger. This demonstrates the connection, not full-article analysis or measured industry accuracy.
 
 ## Development checkpoints
 

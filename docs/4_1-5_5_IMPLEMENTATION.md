@@ -1,5 +1,16 @@
 # NewsCatalystOS V1.0 — 4_1~5_5 구현 현황 (2026-10-13)
 
+## 2026-10-15 실제 Gemini 연결 완료 (`5465403`)
+
+- 기존 기사 1건의 명시 선택(`--provider-id`, `--event-id`, `--title-sha256`, `--limit 1`, `--analyze-existing`)으로 실제 생성과 저장·읽기 전용 조회를 확인했다. 기사 신규성·중요도 판정을 바꾸지 않는다. 제목만 전송하며 결과는 한국어 요약·해석·미확인으로 제공한다.
+- Gemini `responseFormat.text.mimeType`은 [공식 API 문서](https://ai.google.dev/api/generate-content#TextResponseFormat)의 enum `APPLICATION_JSON`을 사용한다. 종전 `application/json` 문자열을 수정했다. HTTP 오류는 본문·키 없이 상태 코드만 전달한다.
+- [Gemini 공식 단가](https://ai.google.dev/gemini-api/docs/pricing#gemini-3.5-flash-lite)는 일반 호출 입력 $0.30/백만 토큰, 출력 $2.50/백만 토큰이다. 로컬 예산은 환율 여유를 둔 기존 가정치 입력 600원/백만·출력 5,000원/백만을 사용한다. 실제 청구 환율이나 계정 요금제 확인을 뜻하지 않는다.
+- 성공 입력 259·출력 135토큰, 예상 0.8304원. 최초 실패의 예약 7.5776원은 미정산으로 남겨 합계 8.408원을 예산에서 계산한다. 동일 입력 재실행 캐시 적중, 추가 생성 0회. 실제 결과·원장은 공개 Git 제외.
+- `--ai-ledger` / 예약 실행의 `--analysis-ai-ledger`로 core/MOTIR의 월 5만원을 공통 원장에 예약한다. 두 설치된 서비스에 같은 모델 설정·원장을 적용하고 첫 실행 정상 확인.
+- 대시보드는 이전 규칙 분석이 있어도 나중에 도착한 AI 결과를 표시한다. 최초 관측일은 유지하고 실제 결과 시각은 별도 보존한다. 실제 결과 1건을 주간 화면에서 확인했다.
+- 비용 원장·AI 캐시 2개 DB의 새 폴더 백업/복원 성공. 전체 회귀 1,158 PASS/0 FAIL. 아래 실호출 미완료 표기는 과거 구현 이력이다.
+
+
 ## AI 분석 — 4_1~4_6
 - **4_1 ai_provider.py: 공통 계약 구현, 실호출 미검증.** OpenAI/Gemini/Anthropic 모델 버전·prompt 버전·temperature·token 제한·가정 단가를 한 스키마로 처리. 명시적 transport가 없으면 네트워크 호출을 거부. 중요 신규 사건, PIT, 허가된 짧은 메타데이터만 입력 가능하며 AI 가설은 사실로 인증하지 않음.
 - 2026-10-15 Gemini 키는 Mac 내부 사용자 전용 파일에 등록됐고 인증 모델 GET HTTP 200을 확인했다. OpenAI/Anthropic 실키 및 유료 Gemini 생성 호출은 별도 미검증이다. 4_1 코드 구현 완료와 유료 실호출·운영 인수를 분리한다.

@@ -1,5 +1,10 @@
 # 6_5 승인 RSS 2종 실운영 정기 실행 — 2026-10-14
 
+## 현재 설치 설정 — 2026-10-15 Gemini 연결
+
+core/MOTIR 두 기존 서비스 모두 `--analysis-model-config`와 `--allow-paid-ai`, `--analysis-ai-ledger`를 설정하여 Gemini·캐시·공유 월 한도를 사용한다. 모델은 Mac 사용자 전용 `ai-settings/gemini_v3.json`, 공통 원장은 `state/ai_costs.sqlite3`. 기존 plist는 `launchd/*.before_gemini.plist`로 백업했다. 서비스 재등록·첫 실행 정상, core 건강도 정상 확인. 원문·키는 로그로 출력하지 않는다. 회복용 replay와 dry-run은 유료 호출하지 않는다.
+
+
 > 현재 운영 기준은 [D-059](V1_RELEASE_POLICY_2026-10-15.md)이다. 아래는 당시 구현·실행 이력이며, 500건 검수·5거래일 사전 대기·독립 장치/릴리스 인증 조건은 현재 필수가 아니다. 예약 AI는 모델 설정과 `--allow-paid-ai`로 활성화할 수 있다.
 
 ## 실행 대상

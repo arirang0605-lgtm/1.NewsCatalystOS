@@ -203,3 +203,79 @@ def test_normalized_saved_events_cli_is_pinned_and_idempotent(tmp_path):
     assert len(ThemeStore(root).search()[0]['history'])==1
     with pytest.raises(SourceShareError,match='SHA'):
         main(['--events-file',str(path),'--expected-sha256','0'*64,'--root',str(root)])
+
+
+@pytest.mark.parametrize('topic',['광인터커넥트','광인터커넥트의','「광인터커넥트」'])
+def test_unlisted_unquoted_demand_subject_is_detected(topic):
+    changes=extract_economic_changes(f'가상전자는 {topic} 수요 확대에 대응해 공급 계약을 체결했다.')
+    assert len(changes)==1
+    assert changes[0]['topic']=='광인터커넥트'
+    assert changes[0]['economic_driver']=='DEMAND_EXPANSION'
+
+
+def test_demand_subject_wins_over_incidental_product_and_stays_in_its_sentence():
+    text='HBM 업체인 가상소재는 액침 냉각 수요 증가에 따라 공급 계약을 체결했다.'
+    change=extract_economic_changes(text)[0]
+    assert change['topic']=='액침냉각' and change['economic_driver']=='DEMAND_EXPANSION'
+    separate='가상전자는 HBM 수요 확대에 대응해 생산능력 확대를 검토 중이다. 다른소재는 액침냉각 공급 계약을 체결했다.'
+    rows=extract_economic_changes(separate)
+    assert len(rows)==1 and rows[0]['topic']=='액침냉각'
+    assert rows[0]['entity_ids']==['다른소재'] and rows[0]['economic_driver']=='UNKNOWN'
+    assert rows[0]['source_paragraph_sha256']==sha256(separate.encode()).hexdigest()
+
+
+@pytest.mark.parametrize('text',[
+    '가상전자는 광인터커넥트 수요 확대에 대응해 공급 계약을 검토 중이다.',
+    '가상전자는 광인터커넥트 수요 확대를 기대했다.',
+    '가상전자는 시장 수요 확대에 대응해 공급 계약을 체결했다.',
+    '가상전자는 AI 수요 확대에 대응해 공급 계약을 체결했다.',
+    '가상전자는 광인터커넥트 및 양자냉각 수요 확대에 대응해 공급 계약을 체결했다.',
+])
+def test_broad_or_unresolved_demand_never_creates_specific_theme(text):
+    assert extract_economic_changes(text)==[]
+
+
+def test_raw_articles_find_one_new_theme_and_deliver_company_reasons(tmp_path):
+    """Synthetic articles, no prelabelled event JSON, no external calls."""
+    from scripts.open_research_dashboard import DashboardServer
+    from urllib.request import urlopen
+    import threading
+    articles=[
+        '가상전자는 광인터커넥트 수요 확대에 대응해 공급 계약을 체결했다.',
+        '새빛소재는 광인터커넥트의 수요 증가에 따라 생산을 시작했다.',
+        '미래장비는 「광인터커넥트」 수요 급증에 대응하여 생산능력을 확대했다.',
+    ]
+    docs=tmp_path/'documents';store=ThemeStore(docs/'theme_history')
+    def observation(text,n):
+        change=extract_economic_changes(text)[0]
+        return economic_observation(change,origin_reference=f'https://example.org/release/{n}',
+            source_url=f'https://example.org/release/{n}',source_id='synthetic-source',
+            source_available_at=T.isoformat())
+    originals=[observation(text,n) for n,text in enumerate(articles)]
+    first=store.ingest(originals[:1],now=T)[0]
+    later=store.ingest(originals[1:],now=T+timedelta(seconds=1))[0]
+    assert first['status']=='CANDIDATE' and later['status']=='EMERGING'
+    assert later['topic_classification']=='PROVISIONAL_TOPIC'
+    assert later['scores']['distinct_economic_events']==3
+    assert later['scores']['distinct_claim_origins']==3
+    assert set(later['entity_ids'])=={'가상전자','새빛소재','미래장비'}
+    assert {r['action'] for r in later['source_refs']}=={'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION'}
+    assert all(r['topic']=='광인터커넥트' and r['economic_driver']=='DEMAND_EXPANSION' for r in later['source_refs'])
+    assert store.search(as_of=T,now=T+timedelta(seconds=2))==[first]
+    assert not store.search(as_of=T,query='미래장비',now=T+timedelta(seconds=2))
+    assert store.ingest(originals*10,now=T+timedelta(seconds=2))==[]
+    unrelated=observation('별빛전자는 양자냉각 수요 확대에 대응해 공급 계약을 체결했다.',4)
+    store.ingest([unrelated],now=T+timedelta(seconds=3))
+    assert len(store.search(now=T+timedelta(seconds=3)))==2
+    server=DashboardServer(0,tmp_path/'reports',tmp_path/'notes',docs)
+    thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+    try:
+        with urlopen(f'http://127.0.0.1:{server.server_port}/api/themes?q='+__import__('urllib.parse',fromlist=['quote']).quote('광인터커넥트')) as response:
+            raw=response.read()
+        bundle=read_theme_bundle(raw,sha256(raw).hexdigest(),decision_at=datetime.now(timezone.utc))
+        assert len(bundle['ThemeCandidates'])==1
+        shown=bundle['ThemeCandidates'][0]
+        assert shown['entity_ids']==later['entity_ids']
+        assert shown['source_refs']==later['source_refs']
+        assert shown['verified_beneficiary_count']==0
+    finally:server.shutdown();server.server_close();thread.join(2)

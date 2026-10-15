@@ -70,6 +70,8 @@ function renderThemes(term){
     const card=node("article","finding"),meta=node("div","finding-meta");
     meta.append(node("span","pill",labels[theme.status]||theme.status),node("span","","독립 사건 "+theme.scores.distinct_economic_events+" · 기업 "+theme.scores.company_breadth));
     card.append(meta,node("h4","",theme.provisional_name),node("p","finding-detail","최초 발견: "+theme.first_detected_at),node("p","finding-detail","최근 근거: "+theme.last_evidence_at));
+    const drivers={DEMAND_EXPANSION:"수요 확대",POLICY_ENABLEMENT:"정책 기반 확대",CAPACITY_EXPANSION:"생산능력 확대",SUPPLY_CONTRACTION:"공급 축소",UNKNOWN:"공통 원인 미확인"};
+    card.append(node("p","finding-detail","연결 기준: 같은 주제의 "+(drivers[theme.economic_driver]||theme.economic_driver)+" 사건 · 테마 후보 추론"));
     const relationLabels={REPORTED_DIRECT_TRANSACTION:"출처에 보고된 직접 계약",ANNOUNCED_SUPPLY_PLAN:"공급 계획"};
     const impactLabels={POTENTIAL_BENEFICIARY_UNVERIFIED:"잠재 수혜 (추론)",POTENTIAL_DAMAGE_UNVERIFIED:"잠재 피해 (추론)",ANNOUNCED_SUPPLY_PLAN_UNVERIFIED:"계획 단계 · 실현 미확인",UNKNOWN_RELATIONSHIP:"영향 경로 미확인",EFFECT_DIRECTION_UNKNOWN:"영향 방향 미확인",THEMATIC_ONLY:"단순 테마 연관"};
     for(const company of theme.company_links){
@@ -86,7 +88,9 @@ function renderThemes(term){
       }
     }
     const details=node("details",""),summary=node("summary","","근거와 상태 이력");details.append(summary);
-    for(const ref of theme.source_refs){const link=node("a","source-link",ref.action+" · "+ref.evidence_level+" · "+ref.phase);link.href=ref.source_url;link.target="_blank";link.rel="noopener noreferrer";details.append(link)}
+    const actions={POLICY_CHANGE:"정책 변화",PRODUCTION_START:"생산 개시",CAPACITY_ADDITION:"생산능력 확대",SUPPLY_REDUCTION:"공급 축소",CONTRACT:"계약",INVESTMENT:"투자 결정"};
+    const phases={SOURCE_REPORTED:"출처 보도",ADOPTED_NOT_YET_EFFECTIVE:"의결 · 시행 전",PLANNED:"계획 단계"};
+    for(const ref of theme.source_refs){const link=node("a","source-link",(ref.entity_ids?.join(", ")||"기업 미식별")+" · "+(ref.topic||theme.provisional_name)+" · "+(actions[ref.action]||ref.action)+" · "+(phases[ref.phase]||ref.phase)+" · "+ref.evidence_level);link.href=ref.source_url;link.target="_blank";link.rel="noopener noreferrer";details.append(link)}
     for(const item of theme.history)details.append(node("p","finding-detail",item.decision_at+" · "+(labels[item.status]||item.status)));
     card.append(details);$("themes").append(card);
   }

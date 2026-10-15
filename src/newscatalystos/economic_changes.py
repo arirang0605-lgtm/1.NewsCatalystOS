@@ -1,7 +1,7 @@
 """Source-grounded economic actions; no LLM/company-benefit certification.
 
-Explicit action and topic must share a paragraph. Unknown topics are accepted
-only in an explicit quoted demand phrase, not from general headline similarity.
+Explicit action and topic must share a sentence. Unknown topics are accepted
+in an explicit demand-response phrase, not from general headline similarity.
 """
 from hashlib import sha256
 import re
@@ -33,6 +33,35 @@ def normalized(value):
     return ' '.join(unicodedata.normalize('NFKC', value).casefold().split())
 
 
+# Prefer the demand subject over incidental product mentions. Multiword unknown
+# terms must be quoted; unquoted unknown terms are a single explicit noun token.
+_GENERIC_DEMAND = {'시장','제품','상품','관련','전체','국내','글로벌','해외','고객','기업',
+                   '이런','이러한','해당','그','수출','산업','기술','수요','AI','인공지능'}
+_DEMAND_TOPIC = '|'.join('(?:'+pattern+')' for _,pattern in TOPICS)
+_DEMAND = re.compile(
+    r'(?<![가-힣A-Za-z0-9])(?P<topic>'+_DEMAND_TOPIC+
+    r'|[「“\"\'][^」”\"\']{2,50}[」”\"\']|[가-힣A-Za-z][가-힣A-Za-z0-9-]{1,49}?)'
+    r'\s*(?:의\s*)?수요(?:가)?\s*(?:증가|확대|급증)'
+    r'(?:에\s*(?:대응(?:해|하여)?|따라|힘입어)|로\s*인해)', re.I)
+
+
+def _demand_topic(sentence):
+    matches=list(_DEMAND.finditer(sentence))
+    topics=set()
+    for match in matches:
+        # A demand observation alone is not a new contract/production event.
+        if not any(re.search(pattern,sentence[match.end():],re.I) for _,pattern in ACTIONS):
+            continue
+        term=match['topic'].strip('「」“”"\'').strip()
+        if normalized(term) in {normalized(t) for t in _GENERIC_DEMAND}:continue
+        # Do not pick just the last member of a coordinated demand subject.
+        prefix=sentence[:match.start()].rstrip()
+        if re.search(r'(?:및|와|과|또는|,)\s*$',prefix):continue
+        term=next((name for name,pattern in TOPICS if re.fullmatch(pattern,term,re.I)),term)
+        topics.add(term)
+    return next(iter(topics)) if len(topics)==1 else None
+
+
 def extract_economic_changes(text):
     """Return bounded source claims, including policy adoption before its effect.
 
@@ -41,26 +70,30 @@ def extract_economic_changes(text):
     """
     changes = []
     seen = set()
-    for line in (x.strip() for x in text.splitlines() if x.strip()):
+    units=((paragraph,sentence.strip()) for paragraph in text.splitlines()
+           if paragraph.strip() and len(paragraph)<=5000
+           for sentence in re.split(r'(?<=[.!?。])\s+',paragraph.strip()) if sentence.strip())
+    for paragraph,line in units:
         if len(line) > 5000 or UNCERTAIN.search(line) or PAST.search(line):
             continue
-        # Select the most specific known product, avoiding broad AI co-mentions.
-        topic = next((name for name, pattern in TOPICS if re.search(pattern, line, re.I)), None)
-        novel = re.search(r'[「“\"\']([^」”\"\']{2,50})[」”\"\']\s*(?:의\s*)?수요\s*(?:증가|확대)', line)
-        if novel:
-            topic = novel.group(1).strip()
+        # Demand and economic action must be in the same sentence; unrelated
+        # context elsewhere in the paragraph cannot supply the common cause.
+        evidence_line=line
+        demand=_demand_topic(line)
+        topic=demand or next((name for name,pattern in TOPICS
+            if re.search(pattern,evidence_line,re.I)),None)
         if topic is None:
             continue
-        action = next((name for name, pattern in ACTIONS if re.search(pattern, line, re.I)), None)
+        action = next((name for name, pattern in ACTIONS if re.search(pattern, evidence_line, re.I)), None)
         if action is None:
             continue
         driver = ('POLICY_ENABLEMENT' if action == 'POLICY_CHANGE' else
                   'SUPPLY_CONTRACTION' if action == 'SUPPLY_REDUCTION' else
-                  'DEMAND_EXPANSION' if re.search(r'수요.{0,8}(?:증가|확대)', line) else
+                  'DEMAND_EXPANSION' if demand else
                   'CAPACITY_EXPANSION' if action in {'PRODUCTION_START','CAPACITY_ADDITION'}
                       or (action == 'INVESTMENT' and re.search(r'공장|생산|증설', line)) else 'UNKNOWN')
-        companies = sorted(set(COMPANIES.findall(line)))
-        companies = [x for x in companies if x not in {'첨단반도체','대한민국반도체','한국반도체','산업소재'}]
+        companies = sorted(set(COMPANIES.findall(evidence_line)))
+        companies = [x for x in companies if x not in {'첨단반도체','대한민국반도체','한국반도체','산업소재','노광장비','첨단장비','반도체소재'}]
         key = (topic, driver, action, tuple(companies))
         if key in seen:
             continue
@@ -69,7 +102,7 @@ def extract_economic_changes(text):
             'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
                      else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line) else 'SOURCE_REPORTED'),
             'entity_ids':companies, 'industry_tags':['SEMICONDUCTOR'] if re.search(r'반도체|HBM|DRAM|NAND|메모리',line,re.I) else [],
-            'source_paragraph_sha256':sha256(line.encode()).hexdigest(),
+            'source_paragraph_sha256':sha256(paragraph.strip().encode()).hexdigest(),
             'evidence_level':'OFFICIAL_SOURCE', 'verified_economic_effect':False})
         if len(changes) >= 30:
             break

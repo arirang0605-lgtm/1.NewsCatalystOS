@@ -254,6 +254,7 @@ def _snapshot(theme_id, rows, at, previous):
            'source_available_at':row['source_available_at'],'recorded_at':seen,
            'evidence_sha256':row['change']['source_paragraph_sha256'],
            'evidence_level':row['change']['evidence_level'],'action':row['change']['action'],
+           'topic':row['change']['topic'],'economic_driver':row['change']['economic_driver'],
            'entity_ids':resolved_entities(row),'industry_tags':row['change']['industry_tags'],
            **({'company_mappings':row['company_mappings']} if 'company_mappings' in row else {}),
            **({'source_binding':row['source_binding']} if 'source_binding' in row else {}),

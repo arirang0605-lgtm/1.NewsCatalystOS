@@ -107,6 +107,8 @@ def scan_saved_analysis(root: Path, *, document_root: Path | None = None, now: d
                         "source_products": list(dict.fromkeys(x["value"]
                             for x in row["source_matched_fields"] if x["field"] == "PRODUCT")),
                         "economic_changes": row.get("economic_changes", []),
+                        "company_identity": row.get("company_identity"),
+                        "company_identity_status": row.get("company_identity_status", "NOT_CONFIGURED"),
                         "report_sha256": match.group(1),
                         "evidence_status": "LOCAL_DIGEST_AND_SAVED_SCHEMA_CHECKED",
                     }
@@ -124,6 +126,16 @@ def scan_saved_analysis(root: Path, *, document_root: Path | None = None, now: d
                         if new_rank > old_rank:
                             records[key] = item
                         records[key]["day"] = first_day
+                        # AI selection must not hide newer directory enrichment.
+                        # Retain its own report/time, rather than backdating it to AI.
+                        identity_owner = max((old, item), key=lambda r: r.get(
+                            "company_identity_analysis_available_at", r["analysis_available_at"]))
+                        for field in ("company_identity", "company_identity_status"):
+                            records[key][field] = identity_owner.get(field)
+                        records[key]["company_identity_analysis_available_at"] = identity_owner.get(
+                            "company_identity_analysis_available_at", identity_owner["analysis_available_at"])
+                        records[key]["company_identity_report_sha256"] = identity_owner.get(
+                            "company_identity_report_sha256", identity_owner["report_sha256"])
             except (SourceShareError, OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
                 skipped += 1
     if document_root is not None:

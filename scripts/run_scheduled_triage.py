@@ -79,6 +79,7 @@ def _analyze_provider(opts: argparse.Namespace, name: str, runner) -> tuple[int,
         model_config=getattr(opts, "analysis_model_config", None),
         ai_ledger=getattr(opts, "analysis_ai_ledger", None),
         theme_root=getattr(opts, "analysis_theme_root", None),
+        company_identity_config=getattr(opts, "company_identity_config", None),
         allow_paid=(getattr(opts, "allow_paid_ai", False)
                     and not getattr(opts, "replay_only", False)
                     and not getattr(opts, "dry_run", False)),

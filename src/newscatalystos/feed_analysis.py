@@ -151,7 +151,7 @@ def _krw(mention: str) -> Decimal | None:
     }[match[2]]
 
 
-def _screen(item: dict, prior: PriorState, at: datetime) -> tuple[dict, FactInput | None]:
+def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=()) -> tuple[dict, FactInput | None]:
     title, event = item["headline"], _version(item)
     category = _category(title)
     permitted = item["claim_classification"] not in BLOCKED
@@ -195,8 +195,23 @@ def _screen(item: dict, prior: PriorState, at: datetime) -> tuple[dict, FactInpu
         ("scale", SCALE), ("affected_scope", SCOPE), ("repeatability", REPEAT), ("novelty", NOVELTY)))
     eligible = bool(fact and known_score >= HIGH_REVIEW_SCORE and novelty_dim in
                     ("NEW_FACT_CANDIDATE", "MATERIAL_REVISION"))
-    changes = (extract_economic_changes(title) if permitted and not
+    changes = (extract_economic_changes(title, company_names=company_names) if permitted and not
                (NEGATED.search(title) or UNCERTAIN_CHANGE.search(title)) else [])
+    # Identity enrichment must not reinterpret an already extracted event's
+    # topic/driver (e.g. a comma becomes an actor separator after name lookup).
+    # Preserve its semantic key and add only names from the same paragraph.
+    baseline_changes = extract_economic_changes(title) if changes and company_names else []
+    if baseline_changes:
+        for baseline in baseline_changes:
+            entities = set(baseline["entity_ids"])
+            for enriched in changes:
+                if enriched["source_paragraph_sha256"] == baseline["source_paragraph_sha256"]:
+                    entities.update(enriched["entity_ids"])
+            if entities != set(baseline["entity_ids"]):
+                baseline["original_entity_ids"] = baseline["entity_ids"][:]
+                baseline["entity_ids"] = sorted(baseline["entity_ids"] +
+                    sorted(entities - set(baseline["entity_ids"]))[:30-len(baseline["entity_ids"])])
+        changes = baseline_changes
     for change in changes:
         change["evidence_level"] = "REPORTED"
         change["source_paragraph_sha256"] = item["title_sha256"]
@@ -314,7 +329,7 @@ def analyze_completed_feed(
     title_sha256: str | None = None, limit: int = 20,
     model: AIModel | None = None, allow_paid: bool = False,
     analyze_existing: bool = False, ai_ledger: Path | None = None,
-    opener=None, now: datetime | None = None,
+    opener=None, now: datetime | None = None, company_identity_config: Path | None = None,
 ) -> dict:
     """Reuse committed sources and separate analysis state; paid execution is opt-in.
 
@@ -376,6 +391,15 @@ def analyze_completed_feed(
         ledger = Path(ai_ledger)
         if any(ledger.resolve() == p.resolve() for p in (Path(poll_state), facts, cache)):
             raise SourceShareError("AI ledger must be separate from source and analysis databases")
+    from .feed_company_identity import load_directory, ensure_feed_identity
+    contexts = None
+    identity_status = "NOT_CONFIGURED"
+    if company_identity_config is not None:
+        try:
+            contexts = load_directory(company_identity_config, now=at)
+            identity_status = "READY"
+        except (SourceShareError, OSError, ValueError, TypeError):
+            identity_status = "UNAVAILABLE"
     reports = []
     for item in selected[:limit]:
         decision = _stamp(now)
@@ -388,7 +412,19 @@ def analyze_completed_feed(
                     and previous["claim_classification"] not in BLOCKED):
                 record_prior_fact(facts, _claim(previous, decision), now=decision)
         prior = prior_state_as_of(facts, _subject(item), decision, now=decision)
-        report, fact = _screen(item, prior, decision)
+        identity = None
+        row_identity_status = identity_status
+        if contexts is not None:
+            try:
+                identity = ensure_feed_identity(item, contexts, root / "company_identity", at=decision)
+            except (SourceShareError, OSError, ValueError, TypeError, KeyError):
+                row_identity_status = "UNAVAILABLE"
+        report, fact = _screen(item, prior, decision, company_names=[
+            r["source_name"] for r in (identity or {}).get("matches", [])
+            if len(r["source_name"]) <= 120])
+        report["company_identity_status"] = row_identity_status
+        if identity is not None:
+            report["company_identity"] = identity
         report["followup_change"] = _contract_change_followup(item, prior, rows, decision)
         if (report["category_candidate"] in ("CONTRACT_REDUCTION", "CONTRACT_DELAY")
                 and report["followup_change"]["status"] != "WEAKENED_CANDIDATE"):

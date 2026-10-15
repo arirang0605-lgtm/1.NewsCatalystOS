@@ -29,6 +29,7 @@ function renderItems(){
       for(const claim of item.ai_claims||[])card.append(node("p","finding-detail","해석: "+claim));
       for(const unknown of item.ai_uncertainties||[])card.append(node("p","finding-detail","미확인: "+unknown));
     }
+    for(const match of item.company_identity?.matches||[])card.append(node("p","finding-detail","기업 식별: "+match.source_name+" · "+match.entity_id+" (공시 명부 이름 일치 · 거래·수혜 확정 아님)"));
     for(const change of item.economic_changes||[])card.append(node("p","finding-detail","경제 변화: "+change.topic+" · "+(economicActionLabels[change.action]||change.action)+" · "+(economicPhaseLabels[change.phase]||change.phase)));
     if(item.content_scope==="LICENSED_ARTICLE_TEXT")card.append(node("p","finding-detail","본문 확인: "+item.source_available_at+" · 첨부자료 제외"));
     const link=node("a","source-link","출처 열기 ↗");link.href=item.source_url;link.target="_blank";link.rel="noopener noreferrer";card.append(link);$("items").append(card)

@@ -103,6 +103,9 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
             _must_sha(item.get("evidence_quote_sha256"), "source quote digest")
             if item.get("status") != "EXACT_SOURCE_MATCH_ISSUER_NOT_ATTESTED":
                 raise SourceShareError("source phrase matching is not independent truth")
+        if "company_identity" in row:
+            from .feed_company_identity import validate_feed_identity
+            validate_feed_identity(row["company_identity"], row, at=analyzed_at)
         changes = row.get("economic_changes", [])
         if not isinstance(changes, list) or len(changes) > 30:
             raise SourceShareError("bounded title economic changes required")

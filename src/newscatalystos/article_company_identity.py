@@ -91,10 +91,15 @@ def validate_report(report,at):
         _must_sha(report['directory_sha256'],'filing directory')
         if report['resolver_version']!=RESOLVER_VERSION:raise SourceShareError('unsupported identity resolver')
     for key in ('archive_version','document_sha256','archive_receipt_sha256'):_must_sha(report[key],key)
-    if not isinstance(report['matches'],list) or not isinstance(report['unresolved'],list) or len(report['matches'])+len(report['unresolved'])>100:
+    validate_name_results(report['matches'],report['unresolved'],_when(report['decision_at'],'decision'))
+
+
+def validate_name_results(matches,unresolved,at):
+    from .theme_emergence import _text
+    if not isinstance(matches,list) or not isinstance(unresolved,list) or len(matches)+len(unresolved)>100:
         raise SourceShareError('bounded company results required')
     seen=set()
-    for row in report['matches']:
+    for row in matches:
         if (set(row)!={'source_name','issuer_name','entity_id','source_id','filing_document_id','source_receipt_sha256','original_sha256','available_at','evidence_sha256'}
                 or not _text(row['source_name'],200) or not _text(row['issuer_name'],200)
                 or normalized(row['source_name'])!=normalized(row['issuer_name'])
@@ -102,14 +107,14 @@ def validate_report(report,at):
                 or not _text(row['filing_document_id'])
                 or row['source_id'] not in {'dart-disclosures','sec-submissions'}
                 or not row['entity_id'].startswith('DART_CORP:' if row['source_id']=='dart-disclosures' else 'SEC_CIK:')
-                or not _when(row['available_at'],'identity available')<=_when(report['decision_at'],'decision')):
+                or not _when(row['available_at'],'identity available')<=at):
             raise SourceShareError('invalid source company identity')
         for key in ('source_receipt_sha256','original_sha256','evidence_sha256'):_must_sha(row[key],key)
         if sha256(encoded({k:v for k,v in row.items() if k!='evidence_sha256'})).hexdigest()!=row['evidence_sha256']:
             raise SourceShareError('identity evidence mismatch')
         if normalized(row['source_name']) in seen:raise SourceShareError('duplicate identity name')
         seen.add(normalized(row['source_name']))
-    for row in report['unresolved']:
+    for row in unresolved:
         if set(row)!={'source_name','status'} or not _text(row['source_name'],200) or row['status'] not in {'AMBIGUOUS','NOT_IN_SNAPSHOT'}:
             raise SourceShareError('invalid unresolved identity')
         if normalized(row['source_name']) in seen:raise SourceShareError('ambiguous identity claim')

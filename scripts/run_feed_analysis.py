@@ -21,6 +21,7 @@ from newscatalystos.ai_provider import AIModel
 from newscatalystos.feed_analysis import analyze_completed_feed, publish_feed_analysis
 from newscatalystos.official_relation_intake import _private_input
 from newscatalystos.source_share import SourceShareError, _json
+from newscatalystos.economic_changes import normalized
 from newscatalystos.theme_emergence import ThemeStore, economic_observation
 
 
@@ -32,6 +33,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--state", type=Path, help="existing ingestion state, read-only")
     p.add_argument("--analysis-root", type=Path, help="separate derived state and private reports")
     p.add_argument("--theme-root", type=Path, help="existing private economic theme store")
+    p.add_argument("--company-identity-config", type=Path, help="existing pinned filing directory configuration")
     p.add_argument("--provider-id")
     p.add_argument("--event-id")
     p.add_argument("--title-sha256")
@@ -65,13 +67,18 @@ def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, d
         inbox = opts.inbox_root or base / "inbox" / (prefix + "feed_triage")
         state = opts.state or base / "state" / (prefix + "incremental_feeds.sqlite3")
         work = opts.analysis_root or PROJECT / "output" / "feed_analysis" / opts.scope
+        standard_roots = {(PROJECT / "output/feed_analysis" / scope).resolve()
+                          for scope in ("core", "motir")}
+        identity_config = getattr(opts, "company_identity_config", None)
+        if identity_config is None and work.resolve() in standard_roots:
+            identity_config = base / "company_identity.json"
         model = read_model_config(opts.model_config)
         report = analyze_completed_feed(_registry(registry_path), inbox, state, work,
             provider_id=opts.provider_id, event_id=opts.event_id,
             title_sha256=opts.title_sha256, limit=opts.limit, model=model,
             allow_paid=opts.allow_paid, opener=opener, now=now,
             analyze_existing=getattr(opts, "analyze_existing", False),
-            ai_ledger=getattr(opts, "ai_ledger", None))
+            ai_ledger=getattr(opts, "ai_ledger", None), company_identity_config=identity_config)
         failures = sum((row["ai_eligible"] or row.get("analysis_purpose") == "EXISTING_ARTICLE") and row["ai_status"] not in
                        ("ANALYZED_UNVERIFIED", "CACHE_HIT") for row in report["results"])
         report["paid_execution_requested"] = opts.allow_paid
@@ -82,12 +89,13 @@ def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, d
             source_id=row["provider_id"], source_available_at=row["source_available_at"],
             content_scope="RSS_TITLE_METADATA", source_binding={
                 "source_event_sha256":row["source_event_sha256"],
-                "document_sha256":row["source_title_sha256"]})
+                "document_sha256":row["source_title_sha256"]},
+            company_mappings=[{k: match[k] for k in ("source_name", "entity_id", "evidence_sha256")}
+                for match in row.get("company_identity", {}).get("matches", [])
+                if normalized(match["source_name"]) in {normalized(n) for n in change["entity_ids"]}] or None)
             for row in report["results"] for change in row.get("economic_changes", [])]
         # Standard installed scopes share the existing document theme store;
         # custom/test analysis roots remain isolated unless explicitly joined.
-        standard_roots = {(PROJECT / "output/feed_analysis" / scope).resolve()
-                          for scope in ("core", "motir")}
         theme_root = getattr(opts, "theme_root", None) or (
             base / "document_analysis/theme_history" if work.resolve() in standard_roots
             else work / "theme_history")

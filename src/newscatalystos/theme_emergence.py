@@ -258,7 +258,7 @@ def _snapshot(theme_id, rows, at, previous):
         if row['polarity']!='SUPPORT':continue
         old=events.get(row['event_id'])
         quality=lambda r:(rank[r['change']['evidence_level']],len(r.get('company_mappings',[])),len(r['change']['entity_ids']))
-        if old is None or quality(row)>quality(old):
+        if old is None or quality(row)>=quality(old):
             events[row['event_id']]=row
     invalid=set()
     conflicts=set()

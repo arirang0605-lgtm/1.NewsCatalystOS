@@ -173,6 +173,7 @@ def scan_saved_documents(root: Path, headlines: list[dict], *, now: datetime) ->
                     "ai_status": data["ai_status"], "analysis_purpose": data["analysis_purpose"],
                     "ai_summary": ai.get("summary"), "ai_claims": ai.get("claims", []),
                     "economic_changes": data.get("economic_changes", []),
+                    "company_identity": data.get("company_identity"),
                     "ai_uncertainties": ai.get("uncertainties", []), "uncertainty_count": len(ai.get("uncertainties", [])),
                     "reported_plan_only": any(x["category"] == "PRIOR_INVESTMENT_PLAN_MONITORING" for x in data["screen_findings"]),
                     "report_sha256": match.group(1), "document_sha256": data["document_sha256"],

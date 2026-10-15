@@ -59,10 +59,14 @@ def parser() -> argparse.ArgumentParser:
                    help="producer's independently retained SHA, not calculated from input")
     p.add_argument("--theme-root", type=Path,
                    help="include matching stored theme candidates and their source event links")
+    p.add_argument('--company-identity-root',type=Path,help='include saved article company identity matches')
     return p
 
 
 def _with_saved_analysis(report: dict, opts: argparse.Namespace) -> dict:
+    if getattr(opts,'company_identity_root',None) is not None:
+        from newscatalystos.article_company_identity import search_article_identities
+        report={**report,'article_company_identities':search_article_identities(opts.company_identity_root,query=opts.query)}
     if getattr(opts, "theme_root", None) is not None:
         report = {**report, "theme_candidates": ThemeStore(opts.theme_root).search(query=opts.query)}
     selected = (getattr(opts, "analysis_report_file", None),

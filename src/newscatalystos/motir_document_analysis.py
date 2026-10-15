@@ -181,6 +181,12 @@ def consume_motir_document_analysis(path: Path, expected_sha256: str, *, now=Non
         raise SourceShareError("invalid economic changes in document report")
     for change in changes:
         validate_change(change)
+    if 'company_identity' in report:
+        from .article_company_identity import validate_report
+        identity=report['company_identity']
+        validate_report(identity,_when(report['analysis_available_at'],'analysis time'))
+        if identity['document_sha256']!=report['document_sha256'] or identity['source_url']!=report['source_url']:
+            raise SourceShareError('company identity belongs to another article')
     result = report.get("ai_analysis")
     if result is not None:
         decoded = _decode(json.dumps(result, ensure_ascii=False, sort_keys=True,

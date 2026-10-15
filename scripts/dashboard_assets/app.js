@@ -9,7 +9,7 @@ function showNotes(place,notes,empty){place.replaceChildren();if(!notes.length){
 function renderItems(){
   if(!currentData)return;
   const term=$("item-filter").value.trim().toLocaleLowerCase();
-  const matches=currentData.items.filter(x=>!term||(x.headline+" "+x.provider+" "+(x.category||"")+" "+JSON.stringify(x.economic_changes||[])).toLocaleLowerCase().includes(term));
+  const matches=currentData.items.filter(x=>!term||(x.headline+" "+x.provider+" "+(x.category||"")+" "+JSON.stringify(x.economic_changes||[])+" "+JSON.stringify(x.company_identity||{})).toLocaleLowerCase().includes(term));
   const visible=matches.slice(0,shown);
   $("item-total").textContent=visible.length+" / "+matches.length+"건";
   $("items").replaceChildren();
@@ -31,6 +31,7 @@ function renderItems(){
   }
   $("more-items").hidden=visible.length>=matches.length;
   renderThemes(term);
+  renderCompanyIdentities(term);
 }
 function render(data){
   currentData=data;shown=20;
@@ -88,5 +89,22 @@ function renderThemes(term){
     for(const ref of theme.source_refs){const link=node("a","source-link",ref.action+" · "+ref.evidence_level+" · "+ref.phase);link.href=ref.source_url;link.target="_blank";link.rel="noopener noreferrer";details.append(link)}
     for(const item of theme.history)details.append(node("p","finding-detail",item.decision_at+" · "+(labels[item.status]||item.status)));
     card.append(details);$("themes").append(card);
+  }
+}
+
+function renderCompanyIdentities(term){
+  const place=$("company-identities");place.replaceChildren();
+  const rows=(currentData.company_identities||[]).filter(r=>!term||JSON.stringify(r).toLocaleLowerCase().includes(term));
+  if(!rows.length)place.append(node("p","empty-small",currentData.company_identity_status==="UNAVAILABLE"?"기업 식별 기록을 읽지 못했습니다. 뉴스는 계속 표시합니다.":"해당 시점·검색 조건의 기업 식별 기록이 없습니다."));
+  for(const row of rows){
+    const card=node("article","finding");
+    card.append(node("h4","","기사 속 기업 · "+row.matches.length+"개 식별"));
+    for(const item of row.matches){
+      card.append(node("p","",item.source_name+" · "+item.entity_id));
+      card.append(node("p","finding-detail","근거: "+item.source_id+" / "+item.filing_document_id+" · 명부 확인: "+item.available_at));
+    }
+    for(const item of row.unresolved)card.append(node("p","finding-detail",item.source_name+" · "+(item.status==="AMBIGUOUS"?"동명 기업으로 식별 미확정":"현재 명부에서 식별하지 못함")));
+    const link=node("a","source-link","기사 원문");link.href=row.source_url;link.target="_blank";link.rel="noopener noreferrer";
+    card.append(link,node("p","finding-detail","식별 기록: "+row.decision_at));place.append(card);
   }
 }

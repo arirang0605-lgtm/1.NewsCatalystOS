@@ -19,6 +19,7 @@ from newscatalystos.research_dashboard import KST, NoteStore, build_period, scan
 from newscatalystos.source_share import SourceShareError
 from newscatalystos.theme_emergence import ThemeStore
 from newscatalystos.standard_delivery import build_theme_bundle
+from newscatalystos.article_company_identity import search_article_identities
 
 ASSETS = Path(__file__).resolve().parent / "dashboard_assets"
 
@@ -71,6 +72,13 @@ class Handler(BaseHTTPRequestHandler):
                                     source_info=source_info)
                 now = datetime.now(timezone.utc)
                 end = datetime.fromisoformat(data["end"]).replace(tzinfo=KST) + timedelta(days=1) - timedelta(microseconds=1)
+                try:
+                    data['company_identities']=(search_article_identities(self.server.documents/'company_identity',
+                        as_of=min(end,now)) if self.server.documents else [])
+                    data['company_identity_status']='READY'
+                except (SourceShareError,OSError,ValueError,TypeError,KeyError):
+                    data['company_identities']=[]
+                    data['company_identity_status']='UNAVAILABLE'
                 try:
                     data["themes"] = (ThemeStore(self.server.documents / "theme_history").search(
                         as_of=min(end, now), now=now) if self.server.documents else [])

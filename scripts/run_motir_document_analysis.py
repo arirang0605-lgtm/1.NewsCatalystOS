@@ -16,6 +16,9 @@ from newscatalystos.motir_document_analysis import analyze_motir_document, publi
 from newscatalystos.source_share import SourceShareError
 from newscatalystos.theme_emergence import ThemeStore, economic_observation
 from newscatalystos.motir_article_binding import consume_motir_article_binding
+from newscatalystos.article_company_identity import search_article_identities
+from newscatalystos.source_share import _when
+from newscatalystos.economic_changes import normalized
 
 
 def parser():
@@ -39,13 +42,29 @@ def evaluate(opts, *, opener=None, now=None):
             model=read_model_config(opts.model_config), ai_ledger=opts.ai_ledger,
             allow_paid=opts.allow_paid, analyze_existing=opts.analyze_existing,
             opener=opener, now=now)
-        path, digest = publish_motir_document_analysis(report, opts.analysis_root / "reports")
         binding = consume_motir_article_binding(opts.binding_path, opts.binding_sha256, now=now)
+        identity_status='NOT_AVAILABLE'
+        try:
+            identities=search_article_identities(opts.analysis_root.parent/'company_identity',
+                as_of=_when(report['analysis_available_at'],'analysis time'))
+            identity=next((r for r in identities if r['archive_version']==binding['archive_version']
+                and r['document_sha256']==report['document_sha256'] and r['source_url']==report['source_url']),None)
+            if identity:
+                report['company_identity']=identity
+                identity_status='READY'
+        except (SourceShareError,OSError,ValueError,TypeError,KeyError):
+            identity=None
+            identity_status='UNAVAILABLE'
+        path, digest = publish_motir_document_analysis(report, opts.analysis_root / "reports")
+        mapped={normalized(r['source_name']):r for r in (identity or {}).get('matches',[])}
         observations = [economic_observation(change,
             origin_reference=report["source_url"], source_url=report["source_url"],
             source_id="motir-official-press", source_available_at=report["source_available_at"],
             source_binding={"source_event_sha256":binding["archive_version"],
-                            "document_sha256":report["document_sha256"]})
+                            "document_sha256":report["document_sha256"]},
+            **({'company_mappings':[{'source_name':n,'entity_id':mapped[normalized(n)]['entity_id'],
+                    'evidence_sha256':mapped[normalized(n)]['evidence_sha256']}
+                   for n in change['entity_ids'] if normalized(n) in mapped]} if identity else {}))
             for change in report.get("economic_changes", [])]
         themes = ThemeStore(opts.analysis_root.parent / "theme_history").ingest(observations, now=now) if observations else []
         failed = opts.allow_paid and (report["ai_eligible"] or opts.analyze_existing) and report["ai_status"] not in ("CACHE_HIT", "ANALYZED_UNVERIFIED")
@@ -53,7 +72,8 @@ def evaluate(opts, *, opener=None, now=None):
             "status", "content_scope", "ai_status", "ai_eligible", "new_ai_results",
             "cache_hits", "source_fetch_calls", "verified_new_economic_event"
         )} | {"private_report_file": str(path), "report_sha256": digest,
-              "economic_changes": len(observations), "theme_versions_created": len(themes)}
+              "economic_changes": len(observations), "theme_versions_created": len(themes),
+              "company_identity_status":identity_status}
     except (SourceShareError, OSError, ValueError, TypeError, sqlite3.Error) as exc:
         return 4, {"status": "MOTIR_DOCUMENT_ANALYSIS_UNAVAILABLE",
                    "error_type": type(exc).__name__, "source_fetch_calls": 0}

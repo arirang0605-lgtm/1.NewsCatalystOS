@@ -159,6 +159,35 @@ def _demand_topic(sentence, company_names=()):
     return next(iter(topics.items())) if len(topics)==1 else None
 
 
+def company_clauses(sentence, company_names=()):
+    """Split only explicit named subjects after an economic-action conjunction.
+
+    Joint subjects and quoted names/statements remain intact. No pronoun or
+    omitted subject is resolved to a company from another clause.
+    """
+    names=set(company_names)|set(COMPANIES.findall(sentence))
+    names-=_NON_COMPANY_TERMS
+    if not names:return [sentence]
+    name='(?:'+'|'.join(re.escape(n) for n in sorted(names,key=lambda n:(-len(n),n)))+')'
+    subject=re.compile(r'(?<!\w)'+name+r'(?:\s*(?:와|과|및|,|·)\s*'+name+r')*(?:은|는|이|가)(?=\s)')
+    quoted=[(m.start(),m.end()) for m in re.finditer(_QUOTED_NAME,sentence)]
+    cuts=[0]
+    for match in subject.finditer(sentence):
+        prefix=sentence[cuts[-1]:match.start()]
+        if (any(a<=match.start()<b for a,b in quoted)
+                or not any(re.search(p,prefix,re.I) for _,p in ACTIONS)
+                or not any(mentions_name(prefix,n) for n in names)
+                or not re.search(r'(?:했고|했으며|하고|하며|됐고|되었고|했지만|한\s*반면|한\s*뒤|한\s*후|[,;])\s*[,;]?\s*(?:(?:반면|한편|또한)\s*)?$',prefix)):
+            continue
+        cuts.append(match.start())
+    if len(cuts)==1:return [sentence]
+    # A shared denial of the entire quoted/joint account has unclear scope.
+    if re.search(r'(?:모두|양사|두\s*회사|해당\s*보도).{0,30}(?:부인|취소|철회|사실\s*무근)',sentence):
+        return [sentence]
+    cuts.append(len(sentence))
+    return [sentence[a:b].strip(' ,;') for a,b in zip(cuts,cuts[1:])]
+
+
 def extract_economic_changes(text, *, company_names=()):
     """Return bounded source claims, including policy adoption before its effect.
 
@@ -170,18 +199,29 @@ def extract_economic_changes(text, *, company_names=()):
         raise ValueError('bounded source company names required')
     changes = []
     seen = set()
-    units=((paragraph,sentence.strip()) for paragraph in text.splitlines()
+    units=((paragraph,clause,len(clauses)>1) for paragraph in text.splitlines()
            if paragraph.strip() and len(paragraph)<=5000
-           for sentence in re.split(r'(?<=[.!?。])\s+',paragraph.strip()) if sentence.strip())
-    for paragraph,line in units:
+           for sentence in re.split(r'(?<=[.!?。])\s+',paragraph.strip()) if sentence.strip()
+           for clauses in [company_clauses(sentence.strip(),company_names)] for clause in clauses)
+    for paragraph,line,scoped in units:
         if len(line) > 5000 or UNCERTAIN.search(line) or PAST.search(line):
             continue
         # Demand and economic action must be in the same sentence; unrelated
         # context elsewhere in the paragraph cannot supply the common cause.
         evidence_line=line
         demand_matches=list(_DEMAND.finditer(line))
-        if demand_matches and _DEMAND_DENIAL.search(line):continue
+        if (demand_matches or scoped) and _DEMAND_DENIAL.search(line):continue
         cause=_demand_topic(line, company_names)
+        # Multiple unresolved causes cannot borrow a known topic or actor from
+        # another clause (including pronouns and omitted subjects).
+        if len(demand_matches)>1:continue
+        # Without a named subject boundary, a second predicate cannot inherit
+        # the first actor. This also covers pronouns and omitted subjects.
+        if any(any(re.search(p,line[:m.start()],re.I) for _,p in ACTIONS)
+               and any(re.search(p,line[m.end():],re.I) for _,p in ACTIONS)
+               for m in re.finditer(r'했고|했으며|하고|하며|됐고|되었고|했지만',line)):
+            continue
+        if scoped and re.search(r'해지|계약\s*없|루머|광고|unconfirmed|rumou?r',line,re.I):continue
         demand=cause[0] if cause else None
         # A preceding, unrelated action cannot inherit a later demand cause.
         action_text=line[cause[1].end():] if cause else line
@@ -210,6 +250,10 @@ def extract_economic_changes(text, *, company_names=()):
             if mentions_name(line,name) and not any(normalized(x)==normalized(name) for x in companies):
                 companies.append(name)
         companies=sorted(set(companies[:30]))
+        if scoped:
+            # Explicit source-named actors anchor separate clause events even
+            # when their names came from the pinned directory, not a suffix rule.
+            original_companies=companies[:]
         key = (topic, driver, action, tuple(original_companies))
         if key in seen:
             continue
@@ -218,7 +262,8 @@ def extract_economic_changes(text, *, company_names=()):
             'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
                      else 'PLANNED' if demand_planned
                      else business_phase if action == 'BUSINESS_START'
-                     else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line) else 'SOURCE_REPORTED'),
+                     else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line)
+                         or (scoped and re.search(r'계획|추진|검토',line)) else 'SOURCE_REPORTED'),
             'entity_ids':companies,
             **({'service_name':names[0]} if action=='BUSINESS_START' and len(names)==1 else {}),
             **({'original_entity_ids':original_companies} if companies!=original_companies else {}),

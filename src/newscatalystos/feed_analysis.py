@@ -25,7 +25,7 @@ from .analysis_cache import cache_analysis_once, get_cached_analysis, _result_by
 from .evidence_archive import _private_root, _write_new
 from .fact_extraction import FactProposal, MONEY, verify_extracted_facts
 from .feed_triage import _matched_terms
-from .economic_changes import extract_economic_changes, business_start_phase, business_start_names, business_start_functions
+from .economic_changes import extract_economic_changes, business_start_phase, business_start_names, business_start_functions, company_clauses
 from .impact_triage import ImpactInputs, triage_importance, SCALE, SCOPE, REPEAT, NOVELTY
 from .news_search import read_completed_title_snapshots
 from .novelty_detection import detect_new_economic_claim
@@ -195,27 +195,33 @@ def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=()) ->
         ("scale", SCALE), ("affected_scope", SCOPE), ("repeatability", REPEAT), ("novelty", NOVELTY)))
     eligible = bool(fact and known_score >= HIGH_REVIEW_SCORE and novelty_dim in
                     ("NEW_FACT_CANDIDATE", "MATERIAL_REVISION"))
-    changes = (extract_economic_changes(title, company_names=company_names) if permitted and not
-               (NEGATED.search(title) or UNCERTAIN_CHANGE.search(title)) else [])
+    scoped=len(company_clauses(title,company_names))>1
+    changes = (extract_economic_changes(title, company_names=company_names) if permitted and
+               (scoped or not (NEGATED.search(title) or UNCERTAIN_CHANGE.search(title))) else [])
     # Identity enrichment must not reinterpret an already extracted event's
     # topic/driver (e.g. a comma becomes an actor separator after name lookup).
-    # Preserve its semantic key and add only names from the same paragraph.
+    # Preserve its semantic key; never union every clause's names by title SHA.
     baseline_changes = extract_economic_changes(title) if changes and company_names else []
-    if baseline_changes:
+    if baseline_changes and len(baseline_changes)==len(changes):
+        paired=[]
         for baseline in baseline_changes:
             entities = set(baseline["entity_ids"])
-            for enriched in changes:
-                if enriched["source_paragraph_sha256"] == baseline["source_paragraph_sha256"]:
-                    entities.update(enriched["entity_ids"])
+            matches=[enriched for enriched in changes
+                if enriched['source_paragraph_sha256']==baseline['source_paragraph_sha256']
+                and enriched['topic']==baseline['topic'] and enriched['action']==baseline['action']
+                and (not scoped or entities.issubset(enriched['entity_ids']))]
+            if len(matches)!=1:break
+            entities.update(matches[0]['entity_ids'])
             if entities != set(baseline["entity_ids"]):
                 baseline["original_entity_ids"] = baseline["entity_ids"][:]
                 baseline["entity_ids"] = sorted(baseline["entity_ids"] +
                     sorted(entities - set(baseline["entity_ids"]))[:30-len(baseline["entity_ids"])])
-        changes = baseline_changes
+            paired.append(baseline)
+        if len(paired)==len(changes):changes=paired
     for change in changes:
         change["evidence_level"] = "REPORTED"
         change["source_paragraph_sha256"] = item["title_sha256"]
-        if PLANNED.search(title):
+        if not scoped and PLANNED.search(title):
             change["phase"] = "PLANNED"
     report = {
         "analysis_event_sha256": event, "source_event_sha256": item["event_id"],

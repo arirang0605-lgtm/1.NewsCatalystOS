@@ -9,11 +9,23 @@ function shift(amount){const [y,m,d]=state.date.split("-").map(Number),day=new D
 function niceDate(value){return new Intl.DateTimeFormat("ko-KR",{year:"numeric",month:"long",day:"numeric",timeZone:"UTC"}).format(new Date(value+"T00:00:00Z"))}
 function amountText(value){const parts=String(value).split(".");parts[0]=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,",");return parts.join(".")}
 function showNotes(place,notes,empty){place.replaceChildren();if(!notes.length){place.append(node("p","empty-small",empty));return}for(const item of [...notes].reverse()){const box=node("div","note");box.append(node("span","note-date",item.period+" · "+item.view),node("p","",item.text));place.append(box)}}
-function categoryLabel(item){const labels={PRODUCT_LAUNCH:"제품 출시",BUSINESS_START:"사업·서비스 개시",NEW_CONTRACT:"신규 계약",NEW_INVESTMENT:"신규 투자",COMMERCIALIZATION:"상용화",REGULATORY_APPROVAL:"인허가",NEW_FACILITY:"신규 시설",CONTRACT_TERMINATION:"계약 종료",CONTRACT_REDUCTION:"계약 감액",CONTRACT_DELAY:"납기 지연"};const label=labels[item.category];return label?label+(item.reported_plan_only?" 계획 보도":" 보도"):(item.category||"분류 없음")}
+function savedCategoryLabel(item){const labels={PRODUCT_LAUNCH:"제품 출시",BUSINESS_START:"사업·서비스 개시",NEW_CONTRACT:"신규 계약",NEW_INVESTMENT:"신규 투자",COMMERCIALIZATION:"상용화",REGULATORY_APPROVAL:"인허가",NEW_FACILITY:"신규 시설",CONTRACT_TERMINATION:"계약 종료",CONTRACT_REDUCTION:"계약 감액",CONTRACT_DELAY:"납기 지연"};const label=labels[item.category];return label?label+(item.reported_plan_only?" 계획 보도":" 보도"):(item.category==="LICENSED_ARTICLE_ANALYSIS"?"허가 본문 분석":item.category||"분류 없음")}
+function actionLabel(change){return (economicActionLabels[change.action]||change.action)+" · "+(economicPhaseLabels[change.phase]||"단계 미확인")}
+function categoryLabel(item){
+  // A cancellation/change warning must remain visible even when the source also
+  // contains an economic action. Never rewrite category or AI eligibility.
+  if(["CONTRACT_TERMINATION","CONTRACT_REDUCTION","CONTRACT_DELAY"].includes(item.category))return savedCategoryLabel(item);
+  const labels=[...new Set((item.economic_changes||[]).map(actionLabel))];
+  return labels.length?labels.join(" / "):savedCategoryLabel(item);
+}
+const actionSearchTerms={POLICY_CHANGE:"정책 변화 규제 허가",BUSINESS_START:"사업 개시 서비스 개시 사업 시작 서비스 시작",PRODUCTION_START:"생산 개시 생산 시작 양산 가동",CAPACITY_ADDITION:"생산능력 확대 생산량 확대 공급량 확대 증설",SUPPLY_REDUCTION:"공급 축소 생산 축소 감산 공급 중단",CONTRACT:"계약 체결 공급계약 납품계약 수주",INVESTMENT:"투자 결정 투자 확정"};
+function actionSearchText(changes){return (changes||[]).map(c=>[c.action,actionLabel(c),actionSearchTerms[c.action]||""].join(" ")).join(" ")}
+function matchesFinding(item,term){return !term||[item.headline,item.provider,item.category||"",savedCategoryLabel(item),categoryLabel(item),actionSearchText(item.economic_changes),JSON.stringify(item.economic_changes||[]),JSON.stringify(item.company_identity||{})].join(" ").toLocaleLowerCase().includes(term)}
+function matchesTheme(theme,term,candidates,changes){return !term||[JSON.stringify(theme),JSON.stringify(changes||{}),JSON.stringify(candidates||[]),actionSearchText(theme.source_refs)].join(" ").toLocaleLowerCase().includes(term)}
 function renderItems(){
   if(!currentData)return;
   const term=$("item-filter").value.trim().toLocaleLowerCase();
-  const matches=currentData.items.filter(x=>!term||(x.headline+" "+x.provider+" "+(x.category||"")+" "+categoryLabel(x)+" "+JSON.stringify(x.economic_changes||[])+" "+JSON.stringify(x.company_identity||{})).toLocaleLowerCase().includes(term));
+  const matches=currentData.items.filter(x=>matchesFinding(x,term));
   const visible=matches.slice(0,shown);
   $("item-total").textContent=visible.length+" / "+matches.length+"건";
   $("items").replaceChildren();
@@ -82,7 +94,7 @@ load();
 
 function renderThemes(term){
   const candidates=currentData.company_candidates||[];
-  const themes=(currentData.themes||[]).filter(x=>!term||(JSON.stringify(x)+" "+JSON.stringify(currentData.theme_changes?.[x.theme_id]||{})+" "+JSON.stringify(candidates.filter(c=>c.theme_id===x.theme_id))+" "+(x.source_refs||[]).map(r=>economicActionLabels[r.action]||r.action).join(" ")).toLocaleLowerCase().includes(term));
+  const themes=(currentData.themes||[]).filter(x=>matchesTheme(x,term,candidates.filter(c=>c.theme_id===x.theme_id),currentData.theme_changes?.[x.theme_id]));
   $("theme-total").textContent=themes.length+"개";$("themes").replaceChildren();
   if(!themes.length)$("themes").append(node("p","empty-small",currentData.theme_status==="UNAVAILABLE"?"테마 기록을 읽지 못했습니다. 뉴스 분석 기록은 계속 표시합니다.":"이 시점·검색 조건에 해당하는 테마 후보가 없습니다."));
   const labels={CANDIDATE:"관찰 후보",EMERGING:"형성 중",EXPANDING:"확산",WEAKENING:"약화",INVALIDATED:"무효",REACTIVATED:"재활성화"};

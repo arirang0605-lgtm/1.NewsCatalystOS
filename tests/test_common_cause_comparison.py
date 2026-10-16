@@ -89,6 +89,18 @@ def test_wrong_stored_cause_product_or_sha_cannot_be_quoted(tmp_path):
  assert all(s['cause']['source_expression'] is None for row in v['rows'] for s in row['sources'])
 
 
+
+def test_legacy_refs_without_driver_or_topic_never_invent_an_expression(tmp_path):
+ theme,*_=case(tmp_path)
+ for r in theme['source_refs']:
+  r.pop('economic_driver');r.pop('topic');r.pop('demand_recovery_cause')
+ before=deepcopy(theme)
+ v=common_cause_comparisons([theme])[theme['theme_id']]
+ assert len(v['rows'])==2 and v['distinct_action_groups']==2
+ assert all(s['cause']['source_expression'] is None and s['economic_driver'] is None and s['topic'] is None for row in v['rows'] for s in row['sources'])
+ assert theme==before
+
+
 def dom(theme,candidates,comparison):
  code='''const fs=require('node:fs'),vm=require('node:vm'),input=JSON.parse(fs.readFileSync(0,'utf8'));
 class Element{constructor(tag){this.tag=tag;this.children=[]}append(...a){this.children.push(...a)}}

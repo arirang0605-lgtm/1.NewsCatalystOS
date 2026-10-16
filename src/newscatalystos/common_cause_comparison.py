@@ -8,6 +8,8 @@ from .source_share import SourceShareError
 
 
 def _cause(ref):
+    if not ref.get('economic_driver') or not ref.get('topic'):
+        return {'status':'SOURCE_EXPRESSION_UNAVAILABLE','source_expression':None}
     driver=ref['economic_driver'];topic=ref['topic']
     proofs=[]
     try:
@@ -41,13 +43,13 @@ def common_cause_comparisons(themes):
         for ref in theme['source_refs']:
             if ref['polarity']!='SUPPORT' or ref['event_id'] not in active:continue
             # No cross-driver/topic joins, even if a caller hands us mixed refs.
-            if (ref['economic_driver']!=theme['economic_driver'] or
-                    topic_key(ref.get('topic_alias_evidence',{}).get('canonical_topic',ref['topic'])) not in
-                    {topic_key(x) for x in theme['topic_aliases']}):
+            if (ref.get('economic_driver') not in (None,theme['economic_driver']) or
+                    (ref.get('topic') and topic_key(ref.get('topic_alias_evidence',{}).get('canonical_topic',ref['topic'])) not in
+                    {topic_key(x) for x in theme['topic_aliases']})):
                 excluded+=1;continue
             fields=('event_id','action','phase','topic','economic_driver','source_url','source_id',
                     'source_available_at','recorded_at','evidence_sha256','evidence_level','origin_reference')
-            source={k:ref[k] for k in fields}
+            source={k:ref.get(k) for k in fields}
             if ref.get('source_binding'):source['source_binding']=deepcopy(ref['source_binding'])
             source.update(cause=_cause(ref),content_scope=ref.get('content_scope','UNSPECIFIED'),
                 extraction_method=ref.get('extraction_method'),

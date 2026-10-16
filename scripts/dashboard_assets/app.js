@@ -94,11 +94,12 @@ function renderThemeActionOrder(card,period){
   card.append(node("p","finding-detail","선택 기간 독립 행동 추가 "+period.independent_actions_added+"개 · 제외 "+period.independent_actions_removed+"개 · 새 행동의 신규 당사자 "+period.new_event_participant_count+"개"));
   card.append(node("p","finding-detail","추가 보도·같은 프로젝트 후속·식별·관계 갱신은 새 독립 행동으로 세지 않습니다. 아래 공통 원인·기업별 행동·출처 비교에서 근거를 확인하세요. 거래·수혜·대장주 확정이 아닙니다."));
 }
-function renderCrossProductDemand(parent,comparison,term=""){
+function renderCrossProductDemand(parent,comparison,term="",search={}){
   if(!comparison)return;
   if(comparison.status==="PARTIAL")parent.append(node("p","fineprint","일부 제품의 선택 판본·근거를 확인할 수 없어 해당 비교는 미확인으로 남겼습니다."));
   for(const group of comparison.groups||[]){
-    if(term&&!JSON.stringify(group).normalize("NFKC").toLowerCase().includes(term.normalize("NFKC").toLowerCase()))continue;
+    const direct=group.products.some(p=>p.actions.some(a=>search[a.candidate_id]?.match_kind==="DIRECT_COMPANY"));
+    if(term&&!direct&&!JSON.stringify(group).normalize("NFKC").toLowerCase().includes(term.normalize("NFKC").toLowerCase()))continue;
     const card=node("article","finding");
     card.append(node("h4","","복수 제품 공통 원인 후보 · "+group.destination_expressions.join(" / ")));
     card.append(node("p","","같은 명시 수요처의 수요 증가 보도를 비교한 가설 · 기존 제품별 테마는 유지합니다. 거래·수혜·대장주 확정이 아닙니다."));
@@ -257,7 +258,7 @@ function renderThemes(term){
   const search=companySearchResults(currentData.company_search?.candidates,term);
   const themes=(currentData.themes||[]).filter(x=>matchesTheme(x,term,candidates.filter(c=>c.theme_id===x.theme_id),currentData.theme_changes?.[x.theme_id],currentData.theme_presentations?.[x.theme_id])||candidates.some(c=>c.theme_id===x.theme_id&&["DIRECT_COMPANY","AMBIGUOUS_NAME"].includes(search[c.candidate_id]?.match_kind)));
   $("theme-total").textContent=themes.length+"개";$("themes").replaceChildren();
-  renderCrossProductDemand($("themes"),currentData.cross_product_demand,term);
+  renderCrossProductDemand($("themes"),currentData.cross_product_demand,term,search);
   renderCompanyTimelines($("themes"),currentData.company_timelines,term,companySearchResults(currentData.timeline_search_context||currentData.company_search?.candidates,term));
   if(!themes.length)$("themes").append(node("p","empty-small",currentData.theme_status==="UNAVAILABLE"?"테마 기록을 읽지 못했습니다. 뉴스 분석 기록은 계속 표시합니다.":"이 시점·검색 조건에 해당하는 테마 후보가 없습니다."));
   const labels={CANDIDATE:"관찰 후보",EMERGING:"형성 중",EXPANDING:"확산",WEAKENING:"약화",INVALIDATED:"무효",REACTIVATED:"재활성화"};

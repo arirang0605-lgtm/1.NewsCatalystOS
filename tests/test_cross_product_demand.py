@@ -136,13 +136,14 @@ def test_historical_period_and_search_retain_related_product_context_without_bor
  assert view(themes,cs,comp,query='다른 수요처')['groups']==[]
 
 
-def test_ui_displays_products_bound_sources_times_and_uncertainty(tmp_path):
- store,themes,cs,comp,*_=case(tmp_path);data=view(themes,cs,comp)
+@pytest.mark.parametrize('alias',['','명부표시명'])
+def test_ui_displays_products_bound_sources_times_and_uncertainty(tmp_path,alias):
+ store,themes,cs,comp,*_=case(tmp_path);data=view(themes,cs,comp);data['test_alias']=alias
  code='''const fs=require('node:fs'),vm=require('node:vm'),input=JSON.parse(fs.readFileSync(0,'utf8'));
 class Element{constructor(tag){this.tag=tag;this.children=[]}append(...a){this.children.push(...a)}}
 const document={createElement:t=>new Element(t)},parent=new Element('root');
 const code=fs.readFileSync('scripts/dashboard_assets/app.js','utf8').split('function renderItems(){')[0];
-vm.runInNewContext(code+';renderCrossProductDemand(parent,input);',{input,document,parent});process.stdout.write(JSON.stringify(parent));'''
+vm.runInNewContext(code+';renderCrossProductDemand(parent,input,input.test_alias,{[input.groups[0].products[0].actions[0].candidate_id]:{match_kind:"DIRECT_COMPANY"}});',{input,document,parent});process.stdout.write(JSON.stringify(parent));'''
  rendered=subprocess.check_output(['node','-e',code],input=json.dumps(data).encode()).decode()
  assert '복수 제품 공통 원인 후보 · AI 서버' in rendered
  assert 'HBM' in rendered and 'DRAM' in rendered and '원문 원인:' in rendered

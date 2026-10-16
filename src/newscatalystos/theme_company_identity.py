@@ -112,6 +112,11 @@ def filter_research(research, themes, query):
     from .theme_emergence import theme_presentation
     matching_themes={t['theme_id'] for t in themes
                      if term in normalized(encoded(t).decode()+' '+theme_presentation(t)['name'])}
-    research['CompanyCandidates']=[c for c in research['CompanyCandidates']
-        if c['theme_id'] in matching_themes or term in normalized(encoded(c).decode())]
+    from .company_search import company_search_context,match_company_search
+    context=company_search_context(themes,research['CompanyCandidates'])
+    matches=match_company_search(context,query)
+    matching_themes.update(c['theme_id'] for c in research['CompanyCandidates']
+        if term in normalized(encoded(c).decode()) or matches[c['candidate_id']]['match_kind'] in {'DIRECT_COMPANY','AMBIGUOUS_NAME'})
+    research['CompanyCandidates']=[c for c in research['CompanyCandidates'] if c['theme_id'] in matching_themes]
+    research['company_search']={'query':query,'candidates':{c['candidate_id']:matches[c['candidate_id']] for c in research['CompanyCandidates']}}
     return research

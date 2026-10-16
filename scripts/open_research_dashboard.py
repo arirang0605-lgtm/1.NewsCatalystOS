@@ -23,6 +23,7 @@ from newscatalystos.article_company_identity import search_article_identities
 from newscatalystos.era_company_assessment import enrich_candidates
 from newscatalystos.theme_changes import compare_themes
 from newscatalystos.theme_company_candidates import inclusion_presentations
+from newscatalystos.company_search import company_search_context,match_company_search
 
 ASSETS = Path(__file__).resolve().parent / "dashboard_assets"
 
@@ -105,6 +106,8 @@ class Handler(BaseHTTPRequestHandler):
                             data['assessment_source_status']=research['assessment_source_status']
                     except (SourceShareError,OSError,ValueError,TypeError,KeyError):
                         data['assessment_source_status']='UNAVAILABLE'
+                    context=company_search_context(data['themes'],data['company_candidates'])
+                    data['company_search']={'query':query.get('q',[''])[0],'candidates':match_company_search(context,query.get('q',[''])[0])}
                     data['company_inclusion_presentations']=inclusion_presentations(data['themes'],data['company_candidates'])
                     data['theme_activity']={row['theme_id']:period_activity(row,start) for row in data['themes']}
                     data['theme_activity_filter']=activity
@@ -122,6 +125,7 @@ class Handler(BaseHTTPRequestHandler):
                     data["themes"], data["theme_status"] = [], "UNAVAILABLE"
                     data['company_candidates']=[]
                     data['company_inclusion_presentations']={}
+                    data['company_search']={'query':'','candidates':{}}
                 self._json(200, data)
             except (SourceShareError, OSError, ValueError, KeyError, TypeError) as exc:
                 self._json(400, {"error": type(exc).__name__})

@@ -1,0 +1,65 @@
+"""Read-only company search attribution for one validated theme query version."""
+import json
+import unicodedata
+from hashlib import sha256
+from .theme_emergence import _bytes
+from .source_share import SourceShareError
+from .theme_company_identity import ID
+
+
+def search_term(value):
+    # Whole values only. This normalizes typography, never aliases or identities.
+    return ' '.join(unicodedata.normalize('NFKC',value).lower().split())
+
+
+def company_search_context(themes,candidates):
+    by_theme={t['theme_id']:t for t in themes};output={};owners={}
+    for c in candidates:
+        t=by_theme.get(c['theme_id'])
+        entry={k:c[k] for k in ('theme_id','entity_id','theme_snapshot_sha256','decision_at')}
+        entry.update(status='SNAPSHOT_MISMATCH',keys=[],sources=[])
+        output[c['candidate_id']]=entry
+        if not t or c['theme_snapshot_sha256']!=sha256(_bytes(t)).hexdigest() or c['decision_at']!=t['decision_at']:continue
+        entry['status']='READY'
+        active=set(t['event_ids'])-set(t['invalidated_event_ids'])
+        refs=[r for r in t['source_refs'] if r['event_id'] in active and r['polarity']=='SUPPORT' and c['entity_id'] in r['entity_ids']]
+        names={c['display_name'],c['entity_id']}
+        for r in refs:
+            names.update(m['source_name'] for m in r.get('company_mappings',[]) if m['entity_id']==c['entity_id'])
+        identity=c.get('identity_context',{})
+        official=c.get('resolved_entity_id') if identity.get('status')=='MATCHED' else None
+        # Candidate IDs already resolved in the snapshot need no later receipt.
+        if ID.fullmatch(c['entity_id']):official=c['entity_id']
+        if official:
+            names.add(official)
+            for m in identity.get('matches',[]):
+                if m['entity_id']==official:names.update((m['source_name'],m['issuer_name']))
+        owner=official or 'SOURCE_NAME:'+search_term(c['entity_id'])
+        for name in sorted(names):
+            key=search_term(name)
+            if not key:continue
+            is_id=bool(ID.fullmatch(name)) and name==official
+            entry['keys'].append({'value':key,'kind':'OFFICIAL_ID' if is_id else 'EXACT_NAME',
+                                  'ambiguous':not is_id and identity.get('status')=='AMBIGUOUS'})
+            owners.setdefault(key,set()).add(owner)
+        entry['identity_status']='OFFICIAL_ID_AVAILABLE' if official else 'SOURCE_NAME_ONLY'
+        fields=('event_id','action','phase','source_url','evidence_sha256','source_available_at','recorded_at')
+        entry['sources']=sorted({ _bytes({k:r[k] for k in fields}) for r in refs})
+        entry['sources']=[json.loads(raw) for raw in entry['sources']]
+    for entry in output.values():
+        for key in entry['keys']:
+            key['ambiguous']=key['ambiguous'] or (key['kind']!='OFFICIAL_ID' and len(owners[key['value']])>1)
+    return output
+
+
+def match_company_search(context,query):
+    if not isinstance(query,str) or len(query)>200:raise SourceShareError('invalid company search query')
+    term=search_term(query);direct=set();ambiguous=set()
+    for cid,entry in context.items():
+        keys=[k for k in entry['keys'] if k['value']==term] if term else []
+        if any(not k['ambiguous'] for k in keys):direct.add(cid)
+        elif keys:ambiguous.add(cid)
+    themes={context[cid]['theme_id'] for cid in direct|ambiguous}
+    return {cid:{**entry,'match_kind':('UNFILTERED' if not term else 'DIRECT_COMPANY' if cid in direct
+            else 'AMBIGUOUS_NAME' if cid in ambiguous else 'RELATED_THEME' if entry['theme_id'] in themes
+            else 'TEXT_CONTEXT')} for cid,entry in context.items()}

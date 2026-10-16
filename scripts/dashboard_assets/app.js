@@ -28,6 +28,16 @@ function inclusionBasisLabel(candidate,basis,index,presentations){
   if(!entry||entry.status!=="READY"||entry.theme_id!==candidate.theme_id||entry.entity_id!==candidate.entity_id||entry.theme_snapshot_sha256!==candidate.theme_snapshot_sha256||entry.decision_at!==candidate.decision_at||item?.basis_index!==index||item?.event_id!==basis.event_id||item?.extraction_method!=="AI_SOURCE_SPAN_MATCHED")return "";
   return item.label||"";
 }
+function companySearchResults(context,query){
+  const term=query.normalize("NFKC").toLowerCase().trim().replace(/\s+/gu," "),direct=new Set(),ambiguous=new Set();
+  for(const [id,entry] of Object.entries(context||{})){
+    const keys=term?entry.keys.filter(k=>k.value===term):[];
+    if(keys.some(k=>!k.ambiguous))direct.add(id);else if(keys.length)ambiguous.add(id);
+  }
+  const themes=new Set([...direct,...ambiguous].map(id=>context[id].theme_id));
+  return Object.fromEntries(Object.entries(context||{}).map(([id,e])=>[id,{...e,match_kind:!term?"UNFILTERED":direct.has(id)?"DIRECT_COMPANY":ambiguous.has(id)?"AMBIGUOUS_NAME":themes.has(e.theme_id)?"RELATED_THEME":"TEXT_CONTEXT"}]));
+}
+function companySearchLabel(kind){return {DIRECT_COMPANY:"검색 기업명·식별자와 정확히 일치 · 거래·수혜 확인 아님",AMBIGUOUS_NAME:"동일 이름 복수 기업 · 식별 미확정",RELATED_THEME:"같은 테마의 연관 기업 · 검색 기업과 직접 관계 미확인",TEXT_CONTEXT:"검색어가 포함된 테마 맥락 · 기업 직접 일치 아님"}[kind]||""}
 function renderItems(){
   if(!currentData)return;
   const term=$("item-filter").value.trim().toLocaleLowerCase();
@@ -100,7 +110,8 @@ load();
 
 function renderThemes(term){
   const candidates=currentData.company_candidates||[];
-  const themes=(currentData.themes||[]).filter(x=>matchesTheme(x,term,candidates.filter(c=>c.theme_id===x.theme_id),currentData.theme_changes?.[x.theme_id],currentData.theme_presentations?.[x.theme_id]));
+  const search=companySearchResults(currentData.company_search?.candidates,term);
+  const themes=(currentData.themes||[]).filter(x=>matchesTheme(x,term,candidates.filter(c=>c.theme_id===x.theme_id),currentData.theme_changes?.[x.theme_id],currentData.theme_presentations?.[x.theme_id])||candidates.some(c=>c.theme_id===x.theme_id&&["DIRECT_COMPANY","AMBIGUOUS_NAME"].includes(search[c.candidate_id]?.match_kind)));
   $("theme-total").textContent=themes.length+"개";$("themes").replaceChildren();
   if(!themes.length)$("themes").append(node("p","empty-small",currentData.theme_status==="UNAVAILABLE"?"테마 기록을 읽지 못했습니다. 뉴스 분석 기록은 계속 표시합니다.":"이 시점·검색 조건에 해당하는 테마 후보가 없습니다."));
   const labels={CANDIDATE:"관찰 후보",EMERGING:"형성 중",EXPANDING:"확산",WEAKENING:"약화",INVALIDATED:"무효",REACTIVATED:"재활성화"};
@@ -137,6 +148,21 @@ function renderThemes(term){
       card.append(node("p","",display+" · "+(company.supply_chain_links?.length?"공급망 근거 연결":"테마 연관")+" · 수혜 미확정"));
       const candidate=candidates.find(c=>c.theme_id===theme.theme_id&&c.entity_id===company.entity_id);
       if(candidate){
+        const match=search[candidate.candidate_id];
+        if(match&&match.status==="READY"&&match.theme_snapshot_sha256===candidate.theme_snapshot_sha256&&match.decision_at===candidate.decision_at&&match.entity_id===candidate.entity_id&&match.theme_id===candidate.theme_id){
+          const label=companySearchLabel(match.match_kind);
+          if(label){
+            card.append(node("p","finding-detail",label));
+            if(match.match_kind==="DIRECT_COMPANY"&&match.identity_status==="SOURCE_NAME_ONLY")card.append(node("p","finding-detail","출처 이름 일치 · 공식 기업 식별은 미확인"));
+            const sources=node("details","finding-detail");sources.append(node("summary","","이 기업의 사건·출처 근거"));
+            if(!match.sources.length)sources.append(node("p","","이 판본의 활성 사건 근거 없음"));
+            for(const source of match.sources){
+              sources.append(node("p","",actionLabel(source)+" · 사건 "+source.event_id));
+              const a=node("a","source-link","이 기업 사건의 출처");a.href=source.source_url;a.target="_blank";a.rel="noopener noreferrer";sources.append(a);
+            }
+            card.append(sources);
+          }
+        }
         const reasons=node("details","finding-detail");reasons.append(node("summary","","기업 포함 이유·수혜 경로·불확실성"));
         const kinds={SOURCE_REPORTED_INVESTMENT_STAGES:"같은 투자 프로젝트의 단계 보도",SOURCE_REPORTED_PARTICIPANT:"출처에 등장한 당사자",SOURCE_REPORTED_SUPPLY_RELATION:"출처에 보고된 공급 관계",INFERRED_ASSOCIATION:"추론한 연관"};
         for(const [basisIndex,basis] of candidate.inclusion_basis.entries()){

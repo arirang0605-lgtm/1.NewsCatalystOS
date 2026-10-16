@@ -216,6 +216,26 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
             if (change["source_paragraph_sha256"] != title
                     or change["evidence_level"] != "REPORTED"):
                 raise SourceShareError("economic change must retain title evidence scope")
+        # A report carrying a three-part source group cannot silently downgrade
+        # one sibling to a pre-feature keyword claim by removing its span proof.
+        # Reports wholly predating this feature still use their legacy path.
+        from .economic_changes import price_parallel_actions
+        for sibling in changes:
+            proof=sibling.get('price_parallel_action')
+            if not proof:continue
+            parsed=price_parallel_actions(proof['source_expression'],company_names=proof['actors'])
+            if len(parsed)!=3:continue  # Proofs were already validated above.
+            for change in changes:
+                if ('price_parallel_action' not in change and change['action'] in parsed
+                        and all(change.get(k)==sibling.get(k) for k in
+                                ('topic','economic_driver','entity_ids','phase','demand_scope'))):
+                    # An earlier standalone clause may legitimately have kept
+                    # this action's first identity during source deduplication.
+                    native=_source_changes(row['headline'],dict(change,price_parallel_action=proof))
+                    if not any('price_parallel_action' not in c and all(c.get(k)==v
+                            for k,v in change.items() if k not in {'evidence_level','source_paragraph_sha256'})
+                            for c in native):
+                        raise SourceShareError('shared price sibling requires its source span')
         _text(row.get("ai_status"), "AI status", 128)
         ai = row.get("ai_analysis")
         if ai is not None:

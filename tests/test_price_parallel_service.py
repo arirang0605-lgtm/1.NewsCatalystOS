@@ -62,7 +62,7 @@ def test_seven_stored_pairs_keep_price_cause_actor_and_literal_names(tmp_path,op
  assert read_theme_bundle(raw,sha256(raw).hexdigest(),decision_at=END,now=END)['CompanyCandidates']==cs
  assert store.search(query='가격 상승',now=END)==themes
 
-@pytest.mark.parametrize('variant',['계획','목표','의향','취소','부인','past','actor','pronoun','product','scope','service_scope','recovery','demand','second_price','third','unnamed','anticipation','service_plan','market_scope'])
+@pytest.mark.parametrize('variant',['계획','목표','의향','취소','부인','past','actor','pronoun','product','scope','service_scope','recovery','demand','second_price','duplicate','unnamed','anticipation','service_plan','market_scope'])
 def test_ambiguous_or_planned_pair_does_not_inherit_actuals(operation,variant):
  article=text(operation)
  if variant=='past':article=article.replace('「별빛검사」','지난해 「별빛검사」')
@@ -74,7 +74,7 @@ def test_ambiguous_or_planned_pair_does_not_inherit_actuals(operation,variant):
  elif variant=='recovery':article=article.replace('및 ','및 DRAM 수요 회복으로 ')
  elif variant=='demand':article=article.replace('및 ','및 DRAM 수요 증가로 ')
  elif variant=='second_price':article=article.replace('및 ','및 DRAM 가격 상승으로 ')
- elif variant=='third':article+=' 및 생산 개시'
+ elif variant=='duplicate':article+=' 및 '+operation[1]
  elif variant=='unnamed':article=article.replace('「별빛검사」','검사')
  elif variant=='anticipation':article=article.replace('상승으로','상승에 대비해')
  elif variant=='service_plan':article=article.replace('서비스 개시','서비스 개시 계획')

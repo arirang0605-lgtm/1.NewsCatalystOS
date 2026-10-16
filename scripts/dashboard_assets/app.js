@@ -108,7 +108,7 @@ function renderThemes(term){
     card.append(meta,node("h4","",title),node("p","finding-detail","최초 발견: "+theme.first_detected_at),node("p","finding-detail","최근 근거: "+theme.last_evidence_at));
     if(title!==theme.provisional_name){const saved=node("details","finding-detail");saved.append(node("summary","","저장 당시 테마명"),node("p","",theme.provisional_name));card.append(saved)}
     renderThemeChanges(card,currentData.theme_changes?.[theme.theme_id],labels);
-    if(["DEMAND_EXPANSION","DEMAND_CONTRACTION","PRODUCT_PRICE_INCREASE"].includes(theme.economic_driver)){
+    if(["DEMAND_EXPANSION","DEMAND_CONTRACTION","PRODUCT_PRICE_INCREASE","PRODUCT_PRICE_DECREASE"].includes(theme.economic_driver)){
       const refs=theme.source_refs.filter(r=>r.polarity==="SUPPORT"&&!theme.invalidated_event_ids.includes(r.event_id));
       const scopes=[...new Set(refs.map(r=>r.demand_scope?(r.demand_scope.status==="EXPLICIT"?r.demand_scope.destination+"용":"복수·불명확 (공통 수요처 미확인)"):"N/A (수요처 미명시)"))];
       card.append(node("p","finding-detail","보도된 수요처 범위: "+scopes.join(" · ")+" · 고객회사·계약·수혜 확인을 뜻하지 않습니다."));
@@ -122,7 +122,7 @@ function renderThemes(term){
       detail.append(node("p","","출처 가용: "+ref.source_available_at+" · 연결 확보: "+ref.recorded_at));
       detail.append(node("p","","병기 구간 SHA: "+proof.expression_sha256));card.append(detail);
     }
-    const drivers={DEMAND_EXPANSION:"수요 확대",DEMAND_CONTRACTION:"수요·주문 축소",PRODUCT_PRICE_INCREASE:"제품 가격 상승",POLICY_ENABLEMENT:"정책 기반 확대",CAPACITY_EXPANSION:"생산능력 확대",SUPPLY_CONTRACTION:"공급 축소",UNKNOWN:"공통 원인 미확인"};
+    const drivers={DEMAND_EXPANSION:"수요 확대",DEMAND_CONTRACTION:"수요·주문 축소",PRODUCT_PRICE_INCREASE:"제품 가격 상승",PRODUCT_PRICE_DECREASE:"제품 가격 하락",POLICY_ENABLEMENT:"정책 기반 확대",CAPACITY_EXPANSION:"생산능력 확대",SUPPLY_CONTRACTION:"공급 축소",UNKNOWN:"공통 원인 미확인"};
     card.append(node("p","finding-detail",theme.economic_driver==="UNKNOWN"?"명시된 공통 원인이 없어 개별 사건으로 관찰합니다.":"같은 주제에서 "+(drivers[theme.economic_driver]||theme.economic_driver)+"에 연결된 독립 행동 "+theme.scores.distinct_economic_events+"개를 묶었습니다. 원인 연결은 테마 가설입니다."));
     const relationLabels={REPORTED_DIRECT_TRANSACTION:"출처에 보고된 직접 계약",ANNOUNCED_SUPPLY_PLAN:"공급 계획"};
     const impactLabels={POTENTIAL_BENEFICIARY_UNVERIFIED:"잠재 수혜 (추론)",POTENTIAL_DAMAGE_UNVERIFIED:"잠재 피해 (추론)",ANNOUNCED_SUPPLY_PLAN_UNVERIFIED:"계획 단계 · 실현 미확인",UNKNOWN_RELATIONSHIP:"영향 경로 미확인",EFFECT_DIRECTION_UNKNOWN:"영향 방향 미확인",THEMATIC_ONLY:"단순 테마 연관"};

@@ -76,6 +76,8 @@ def company_candidates(theme):
                        '매출 기여·재무·현재 가격 평가는 연결되지 않아 미확인']
         if any(r.get('product_price_cause') for r in refs):
             uncertainties.append('제품 가격 원인은 출처 보도이며 판매량·이익·실제 수혜는 독립 확인되지 않음')
+        if any(r.get('product_price_cause',{}).get('change')=='DECREASE' for r in refs):
+            uncertainties.append('가격 하락 대응의 감산 결정·계획은 실제 감산 이행이나 매출·이익 감소 확인이 아님')
         if any(r['action']=='MARKET_ENTRY' for r in refs):
             uncertainties.append('시장 진출은 출처 보도이며 고객·계약·실제 판매·매출·수혜는 독립 확인되지 않음')
         if any(r['action']=='DELIVERY_START' for r in refs):

@@ -81,9 +81,10 @@ def validate_market_entry(proof, action):
 
 
 def validate_product_price(proof,topic,driver):
-    if (driver!='PRODUCT_PRICE_INCREASE' or not isinstance(proof,dict)
+    if (driver not in {'PRODUCT_PRICE_INCREASE','PRODUCT_PRICE_DECREASE'} or not isinstance(proof,dict)
             or not _text(proof.get('source_expression'),160)
-            or product_price_cause(proof['source_expression'])!=proof or proof['product']!=topic):
+            or product_price_cause(proof['source_expression'])!=proof or proof['product']!=topic
+            or driver!='PRODUCT_PRICE_'+proof['change']):
         raise SourceShareError('invalid reported product price cause')
 
 
@@ -94,7 +95,7 @@ def validate_change(change):
             or change['phase'] not in {'SOURCE_REPORTED','ADOPTED_NOT_YET_EFFECTIVE','PLANNED'}
             or change['verified_economic_effect'] is not False):
         raise SourceShareError('invalid source economic change')
-    if change['economic_driver']=='PRODUCT_PRICE_INCREASE' or 'product_price_cause' in change:
+    if change['economic_driver'] in {'PRODUCT_PRICE_INCREASE','PRODUCT_PRICE_DECREASE'} or 'product_price_cause' in change:
         validate_product_price(change.get('product_price_cause'),change['topic'],change['economic_driver'])
     if change['action']=='MARKET_ENTRY' or 'market_entry' in change:
         validate_market_entry(change.get('market_entry'),change['action'])

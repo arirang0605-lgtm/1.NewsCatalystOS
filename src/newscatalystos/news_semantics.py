@@ -81,7 +81,7 @@ def parse_events(result, title):
                 or normalized(event['topic']) in {'ai','인공지능','서비스','신규','사업','시장','기술'}):
             raise SourceShareError('semantic event lacks bounded title evidence')
         if PLANNED.search(title) or business_start_phase(title)=='PLANNED':event['phase']='PLANNED'
-        if event['driver']=='PRODUCT_PRICE_INCREASE' and _price_claim(event) is None:
+        if event['driver'] in {'PRODUCT_PRICE_INCREASE','PRODUCT_PRICE_DECREASE'} and _price_claim(event) is None:
             raise SourceShareError('semantic product price requires literal source cause and actor')
         if event not in events: events.append(event)
     if len(events)>2:raise SourceShareError('bounded semantic events required')
@@ -182,7 +182,7 @@ def changes_from_events(events, title_sha):
         'verified_economic_effect':False,'extraction_method':'AI_SOURCE_SPAN_MATCHED',
         **({k:v for k,v in (_price_claim(e) or {}).items() if k in {
             'topic','product_price_cause','demand_scope','market_entry','investment_project'}}
-           if e['driver']=='PRODUCT_PRICE_INCREASE' else {})} for e in events]
+           if e['driver'] in {'PRODUCT_PRICE_INCREASE','PRODUCT_PRICE_DECREASE'} else {})} for e in events]
 
 
 def merge_changes(existing, proposed):

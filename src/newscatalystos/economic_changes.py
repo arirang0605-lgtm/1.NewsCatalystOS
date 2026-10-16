@@ -22,7 +22,7 @@ TOPIC_ALIASES = {
     '액침냉각': ('액침냉각','액침 냉각','immersion cooling'),
     '반도체': ('반도체','semiconductor'),
 }
-DRIVERS = {'PRODUCT_PRICE_INCREASE':'제품 가격 상승', 'POLICY_ENABLEMENT': '정책 기반 확대', 'DEMAND_EXPANSION': '수요 확대',
+DRIVERS = {'PRODUCT_PRICE_INCREASE':'제품 가격 상승', 'PRODUCT_PRICE_DECREASE':'제품 가격 하락', 'POLICY_ENABLEMENT': '정책 기반 확대', 'DEMAND_EXPANSION': '수요 확대',
            'DEMAND_CONTRACTION': '수요·주문 축소',
            'CAPACITY_EXPANSION': '생산능력 확대', 'SUPPLY_CONTRACTION': '공급 축소',
            'UNKNOWN': '공통 원인 미확인'}
@@ -199,7 +199,7 @@ _ORDER_GROWTH_MENTION = re.compile(r'주문(?:이|가)?\s*(?:증가|확대|급�
 # Product prices only: securities/share/ETF price clauses are not products.
 _PRODUCT_PRICE = re.compile(
     r'(?<![가-힣A-Za-z0-9])(?P<topic>'+_DEMAND_TOPIC+r')'
-    r'\s*(?:제품\s*)?(?:의\s*)?가격(?:이|가)?\s*(?:상승|인상|급등)'
+    r'\s*(?:제품\s*)?(?:의\s*)?가격(?:이|가)?\s*(?P<movement>상승|인상|급등|하락|인하|급락)'
     r'(?P<connector>에\s*(?:대응(?:해|하여)?|따라|힘입어|대비(?:해|하여))'
     r'|(?:으)?로(?:\s*인해)?)(?=$|[\s,])',re.I)
 
@@ -208,7 +208,8 @@ def product_price_cause(expression):
     match=_PRODUCT_PRICE.fullmatch(expression)
     if match is None:return None
     topic=next(name for name,p in TOPICS if re.fullmatch(p,match['topic'],re.I))
-    return {'product':topic,'change':'INCREASE','source_expression':expression,
+    direction='DECREASE' if match['movement'] in {'하락','인하','급락'} else 'INCREASE'
+    return {'product':topic,'change':direction,'source_expression':expression,
             'expression_sha256':sha256(expression.encode()).hexdigest()}
 
 
@@ -396,7 +397,7 @@ def parse_demand_scope(expression):
     pattern,match=matches[0]
     topic=match['topic'].strip('「」“”"\'').strip()
     topic=next((name for name,p in TOPICS if re.fullmatch(p,topic,re.I)),topic)
-    return topic,('PRODUCT_PRICE_INCREASE' if pattern is _PRODUCT_PRICE else 'DEMAND_CONTRACTION' if pattern is _DEMAND_CONTRACTION else 'DEMAND_EXPANSION'),demand_scope(expression,match)
+    return topic,('PRODUCT_PRICE_'+product_price_cause(match.group())['change'] if pattern is _PRODUCT_PRICE else 'DEMAND_CONTRACTION' if pattern is _DEMAND_CONTRACTION else 'DEMAND_EXPANSION'),demand_scope(expression,match)
 
 
 def market_entry(text):
@@ -468,6 +469,20 @@ def _commercial_claim(line, cause, company_names, action, scope=None):
     planned=bool(match['plan']) or match['ending'] in {'할','한다'}
     return {'actors':sorted(actors),'phase':'PLANNED' if planned else 'SOURCE_REPORTED',
             **({'market_entry':market} if market else {})}
+
+
+def price_curtailment_phase(text,topic):
+    """A reported cut versus a planned cut; a decision is not physical execution."""
+    products='(?:'+'|'.join(re.escape(t) for t in TOPIC_ALIASES.get(topic,(topic,)))+')'
+    action=(r'(?:'+products+r'\s+)?(?:(?:생산|공급)(?:을|를)?\s*(?:축소|중단)'
+            r'|감산(?:을)?\s*(?:결정|시작|실시|단행|추진|계획)|감산(?:에\s*착수)?)')
+    ending=r'(?P<ending>했다|했습니다|한다|했으며|했고|하고|하며|했지만|할)?'
+    intent=r'(?P<intent>\s*(?:계획|예정|목표|추진|검토|방침|결정)(?:이다|했다)?)?'
+    match=re.fullmatch(action+ending+intent,text.strip().rstrip('.。!'),re.I)
+    if match is None:return None
+    planned=(bool(match['intent']) or match['ending'] in {'한다','할'}
+             or bool(re.search(r'결정|추진|계획',match.group())))
+    return 'PLANNED' if planned else 'SOURCE_REPORTED'
 
 
 def investment_execution_phase(text):
@@ -577,10 +592,13 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         # Alias expansion may change offsets; preserve only an exact source proof.
         if scope and scope['source_expression'] not in evidence_line:scope=None
         price_proof=product_price_cause(price[1].group()) if price else None
+        price_drop=bool(price_proof and price_proof['change']=='DECREASE')
         if price:
             subject=_cause_subject(line,cause,set(company_names)|set(COMPANIES.findall(line)),scope)
             if subject is None:continue
             price_actors,action_text=subject
+        cut_phase=price_curtailment_phase(action_text,price[0]) if price_drop else None
+        if price_drop and cut_phase is None:continue
         commercial_claims={kind:_commercial_claim(line,cause,company_names,kind,scope)
             for kind,enabled in [('CUSTOMER_ACQUISITION',include_new_customers),('DELIVERY_START',include_delivery_start),('MARKET_ENTRY',include_market_entry)]
             if enabled and not contraction}
@@ -645,7 +663,8 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                                  for n,p in TOPICS):continue
             if policy and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}:
                 continue
-            if (order_cause or price) and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}:
+            if price_drop and action!='SUPPLY_REDUCTION':continue
+            if (order_cause or (price and not price_drop)) and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}:
                 continue
             functions=business_start_functions(action_text) if action=='BUSINESS_START' else []
             topic=demand or next((name for name,pattern in TOPICS
@@ -663,7 +682,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                     r'반도체|HBM|DRAM|NAND|메모리|EUV|DUV|극자외선|심자외선',line,re.I)):
                 continue
             driver = ('POLICY_ENABLEMENT' if policy or action == 'POLICY_CHANGE' else
-                      'PRODUCT_PRICE_INCREASE' if price else
+                      'PRODUCT_PRICE_'+price_proof['change'] if price else
                       'DEMAND_CONTRACTION' if contraction else
                       'SUPPLY_CONTRACTION' if action == 'SUPPLY_REDUCTION' else
                       'DEMAND_EXPANSION' if demand else
@@ -703,6 +722,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
             changes.append({'topic':topic, 'economic_driver':driver, 'action':action,
                 'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
                          else 'PLANNED' if demand_planned or (project and _BUSINESS_PLAN.search(action_text))
+                         else cut_phase if price_drop
                          else commercial_claims[action]['phase'] if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}
                          else execution_phase if action == 'INVESTMENT_EXECUTION'
                          else business_phase if action == 'BUSINESS_START'

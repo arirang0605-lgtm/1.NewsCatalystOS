@@ -61,7 +61,7 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                             validate_policy_cause(policy,ref['topic'])
                             if not policy['policy_name'] or not policy['jurisdiction']:continue
                             if 'policy_parallel_action' in ref:
-                                validate_policy_parallel_action(ref['policy_parallel_action'],ref['topic'],driver,ref['action'],ref['phase'],policy,ref.get('service_name'))
+                                validate_policy_parallel_action(ref['policy_parallel_action'],ref['topic'],driver,ref['action'],ref['phase'],policy,ref.get('service_name'),ref.get('market_entry'))
                                 actors={m['source_name']:m['entity_id'] for m in ref.get('company_mappings',[])}
                                 if not all(actors.get(a,a) in ref['entity_ids'] for a in ref['policy_parallel_action']['actors']):raise SourceShareError('shared action actor mismatch')
                             if ref['action']=='BUSINESS_START':

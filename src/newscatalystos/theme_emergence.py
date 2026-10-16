@@ -89,7 +89,7 @@ def validate_policy_investment_action(proof,topic,driver,action,phase,policy):
         raise SourceShareError('policy investment action cause mismatch')
 
 
-def validate_policy_parallel_action(proof,topic,driver,action,phase,policy,service_name=None):
+def validate_policy_parallel_action(proof,topic,driver,action,phase,policy,service_name=None,market=None):
     if (driver!='POLICY_ENABLEMENT' or phase!='SOURCE_REPORTED' or not isinstance(proof,dict)
             or not isinstance(proof.get('actors'),list) or len(proof['actors'])!=1
             or any(not _text(a) for a in proof['actors'])
@@ -99,6 +99,8 @@ def validate_policy_parallel_action(proof,topic,driver,action,phase,policy,servi
     if not parsed or parsed.get(action)!=proof:raise SourceShareError('shared policy action span mismatch')
     causes=policy_causes(proof['source_expression'])
     if causes[0][0]!=topic or causes[0][2]!=policy:raise SourceShareError('shared policy action cause mismatch')
+    if action=='MARKET_ENTRY' and market_entry(proof['action_expression'])!=market:
+        raise SourceShareError('shared market name mismatch')
     if action=='BUSINESS_START':
         from .economic_changes import business_start_names
         if business_start_names(proof['action_expression'])!=[service_name]:raise SourceShareError('shared service name mismatch')
@@ -201,7 +203,7 @@ def validate_change(change):
         if not set(change['policy_investment_action']['actors']).issubset(change.get('original_entity_ids',change['entity_ids'])):raise SourceShareError('policy investment actors mismatch')
         if change['policy_investment_action'].get('investment_project')!=change.get('investment_project'):raise SourceShareError('policy investment project mismatch')
     if 'policy_parallel_action' in change:
-        validate_policy_parallel_action(change['policy_parallel_action'],change['topic'],change['economic_driver'],change['action'],change['phase'],change.get('policy_cause'),change.get('service_name'))
+        validate_policy_parallel_action(change['policy_parallel_action'],change['topic'],change['economic_driver'],change['action'],change['phase'],change.get('policy_cause'),change.get('service_name'),change.get('market_entry'))
         if not set(change['policy_parallel_action']['actors']).issubset(change.get('original_entity_ids',change['entity_ids'])):raise SourceShareError('shared action actors mismatch')
     if 'adjacent_demand_cause' in change:
         if change['phase']!='SOURCE_REPORTED':raise SourceShareError('adjacent action phase mismatch')

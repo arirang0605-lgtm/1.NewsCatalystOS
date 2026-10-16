@@ -310,7 +310,7 @@ def _parallel_actions(action_text, cause, actors, *, include_investment_executio
             start=source_line.find(part,offset);end=start+len(part)
             if start<0:return None
             matches=[]
-            for kind in ('BUSINESS_START','CAPACITY_ADDITION','INVESTMENT_EXECUTION','PRODUCTION_START','CONTRACT'):
+            for kind in ('BUSINESS_START','CAPACITY_ADDITION','INVESTMENT_EXECUTION','PRODUCTION_START','CONTRACT','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY'):
                 claim=_commercial_claim(source_line,cause,actors,kind,action_span=(start,end))
                 if claim and claim['phase']=='SOURCE_REPORTED' and claim['actors']==sorted(actors):
                     if kind=='BUSINESS_START' and len(business_start_names(part))!=1:continue
@@ -786,10 +786,14 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         policy_parallel=(policy_parallel_actions(line,company_names=company_names) if policy and include_policy_parallel and include_parallel_actions and line==evidence_line else None)
         if (policy and include_policy_parallel and include_parallel_actions and re.search(r'\s+및\s+',action_text)
                 and any(k=='BUSINESS_START' and re.search(pattern,action_text,re.I) for k,pattern in ACTIONS)
-                and any(k in {'CAPACITY_ADDITION','INVESTMENT_EXECUTION','PRODUCTION_START','CONTRACT'} and re.search(pattern,action_text,re.I) for k,pattern in ACTIONS)
+                and any(k in {'CAPACITY_ADDITION','INVESTMENT_EXECUTION','PRODUCTION_START','CONTRACT','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY'} and re.search(pattern,action_text,re.I) for k,pattern in ACTIONS)
                 and policy_parallel is None):continue
-        if policy_parallel and 'INVESTMENT_EXECUTION' in policy_parallel and not include_investment_execution:policy_parallel=None
-        if policy_parallel:commercial_claims.update({k:{'actors':v['actors'],'phase':v['phase']} for k,v in policy_parallel.items()})
+        if policy_parallel and any(k in policy_parallel and not enabled for k,enabled in (
+                ('INVESTMENT_EXECUTION',include_investment_execution),('DELIVERY_START',include_delivery_start),
+                ('CUSTOMER_ACQUISITION',include_new_customers),('MARKET_ENTRY',include_market_entry))):policy_parallel=None
+        if policy_parallel:commercial_claims.update({k:{'actors':v['actors'],'phase':v['phase'],
+            **({'market_entry':market_entry(v['action_expression'])} if k=='MARKET_ENTRY' else {})}
+            for k,v in policy_parallel.items()})
         commercial_claim=next((c for c in commercial_claims.values() if c),None)
         if commercial_claim and policy:policy_actors=set(commercial_claim['actors'])
         if price:
@@ -836,6 +840,8 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                          or _DEMAND_DENIAL.search(line)):
             continue
         for action in actions:
+            if policy_parallel and action=='BUSINESS_START':
+                names=business_start_names(policy_parallel[action]['action_expression'])
             if customer_context and action!='DELIVERY_START':continue
             if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'} and not commercial_claims.get(action):continue
             execution_text=(next(p for p in re.split(r'\s+및\s+',action_text)

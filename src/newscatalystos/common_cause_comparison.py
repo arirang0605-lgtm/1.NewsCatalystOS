@@ -34,7 +34,7 @@ def _cause(ref):
         if 'policy_investment_action' in ref:
             validate_policy_investment_action(ref['policy_investment_action'],topic,driver,ref['action'],ref['phase'],ref.get('policy_cause'))
         if 'policy_parallel_action' in ref:
-            validate_policy_parallel_action(ref['policy_parallel_action'],topic,driver,ref['action'],ref['phase'],ref.get('policy_cause'),ref.get('service_name'))
+            validate_policy_parallel_action(ref['policy_parallel_action'],topic,driver,ref['action'],ref['phase'],ref.get('policy_cause'),ref.get('service_name'),ref.get('market_entry'))
         if 'policy_cause' in ref:
             if driver!='POLICY_ENABLEMENT':raise SourceShareError('different cause')
             validate_policy_cause(ref['policy_cause'],topic)

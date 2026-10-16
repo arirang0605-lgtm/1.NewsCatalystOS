@@ -155,6 +155,7 @@ function renderThemes(term){
               const box=node("div","finding-detail");
               box.append(node("p","",(item.content_scope==="RSS_TITLE_METADATA"?"RSS 제목 범위":item.content_scope==="LICENSED_ARTICLE_TEXT"?"허가 본문 범위":"저장 근거")+" · "+(economicActionLabels[item.action]||item.action)+" · "+(economicPhaseLabels[item.phase]||item.phase)));
               box.append(node("p","",item.status==="READY"?item.excerpt:"N/A · "+item.reason));
+              if(item.status==="READY"&&item.extraction_method==="AI_SOURCE_SPAN_MATCHED")box.append(node("p","","AI 해석의 원문 근거 · 독립 사실 확인 아님"));
               const a=node("a","source-link","해당 판본의 출처");a.href=item.source_url;a.target="_blank";a.rel="noopener noreferrer";box.append(a);
               box.append(node("p","","출처 가용: "+item.source_available_at+(item.analysis_available_at?" · 분석 가용: "+item.analysis_available_at:"")));
               const history=item.contract_amount_history;

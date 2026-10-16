@@ -184,6 +184,28 @@ def _body_source(ref,row,jobs,at,now):
     return None,status
 
 
+def _semantic_clause(text,row,change,entity,ref,body):
+    # Reuse a validated stored interpretation, never a fresh AI/rules inference.
+    # Its literal quote is source context, not independent transaction proof.
+    if change.get('extraction_method')!='AI_SOURCE_SPAN_MATCHED':return None
+    semantic=row.get('semantic_analysis',{})
+    if not isinstance(semantic,dict) or semantic.get('status') not in {'ANALYZED','CACHE_HIT'}:return None
+    from .news_semantics import validate_saved,validate_document_semantics,changes_from_events
+    try:
+        if body:validate_document_semantics(row)
+        else:validate_saved(row,_when(row['analysis_available_at'],'analysis time'))
+        names=[m['source_name'] for m in ref.get('company_mappings',[]) if m['entity_id']==entity] or [entity]
+        matches=set()
+        for event in semantic['events']:
+            if changes_from_events([event],change['source_paragraph_sha256'])!=[change]:continue
+            if not any(n in event['actors'] and mentions_name(event['quote'],n) for n in names):continue
+            if body and text.strip() not in semantic.get('evidence_contexts',[]):continue
+            quote=event['quote']
+            if quote in text:matches.add(quote)
+        return next(iter(matches)) if len(matches)==1 else None
+    except ERRORS:return None
+
+
 def _clause(text,change,entity,ref,*,include_investment_execution=True,include_new_customers=True,include_delivery_start=True,include_market_entry=True):
     names=[m['source_name'] for m in ref.get('company_mappings',[]) if m['entity_id']==entity] or [entity]
     options=dict(company_names=change['entity_ids'],include_investment_execution=include_investment_execution,
@@ -268,7 +290,10 @@ def company_evidence(theme,entity,*,reports_root,document_root=None,feeds=(),job
                     item['status']=status
                     if text is None:continue
                     excerpt=_clause(text,change,entity,ref)
+                    if excerpt is None:excerpt=_semantic_clause(text,row,change,entity,ref,body)
                     if excerpt is None:item['status']='CLAUSE_UNRESOLVED';continue
+                    if change.get('extraction_method')=='AI_SOURCE_SPAN_MATCHED':
+                        item['extraction_method']='AI_SOURCE_SPAN_MATCHED'
                     item.update(status='READY',excerpt=excerpt,content_scope='LICENSED_ARTICLE_TEXT' if body else 'RSS_TITLE_METADATA',
                         excerpt_sha256=sha256(excerpt.encode()).hexdigest(),analysis_available_at=available,report_sha256=pin)
                     if not body and change['action']=='CONTRACT':
@@ -278,7 +303,9 @@ def company_evidence(theme,entity,*,reports_root,document_root=None,feeds=(),job
                             revision['before_source'].update(analysis_available_at=available,report_sha256=pin)
                     break
                 if item['status']=='READY':break
-        item['reason']=REASONS.get(item['status'],'원본 판본과 사건이 일치하는 근거입니다.')
+        item['reason']=('원문과 일치하는 AI 해석의 인용문이며 독립 사실 확인은 아닙니다.'
+                        if item['status']=='READY' and item.get('extraction_method')=='AI_SOURCE_SPAN_MATCHED'
+                        else REASONS.get(item['status'],'원본 판본과 사건이 일치하는 근거입니다.'))
         result['items'].append(item)
     if not refs:result['reason']=REASONS['UNSUPPORTED_SCOPE']
     return result

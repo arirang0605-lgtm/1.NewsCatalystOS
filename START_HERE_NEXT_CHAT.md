@@ -1,8 +1,9 @@
 # START HERE — NewsCatalystOS
 
-AGENTS.md → PROJECT_STATE.md → DECISIONS.md → NEXT_TASK.md와 실제 Git 상태 확인. 최신 사용자 지시 우선.
-운영 `/Volumes/T5DATA/1.NewsCatalystOS`, 작업 `/Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project`.
+AGENTS.md → PROJECT_STATE.md → DECISIONS.md → NEXT_TASK.md와 실제 Git 상태를 확인한다. 최신 사용자 지시를 우선하고 기존 변경을 보존한다.
 
-최신: 기능 코드962b02d의 누적 시장/사업·서비스/명시 서비스·투자 프로젝트별 분리를 운영 소스7개에 반영. 직전c96ce38 일치 확인·비공개 백업·대시보드PID38870. 10/16 API39기록/6테마/3기업, 10/15 API43기록/4테마/0기업·기간변화READY 보존. 원문 표본3건 READY1/기존 CLAUSE_UNRESOLVED2 전후 동일. 운영DB3/설정·불변 JSON831 SHA 보존·일일 설정/SSD문서/EraLeader 미변경. 이전 기능 시험 반복 없이 실제 조회 확인만 수행. 새 수집/유료AI/replay·기존169제목/3본문 부재 재조회0. 자연tick/실제 새 회복 양성 미검증. output/recovery_rollout_check/deployment.json.
+최신 기능: b00840b의 저장 AI 인용 기반 기업 원문 연결. 규칙 재추출이 되지 않아도 저장 해석/주체·원문 인용·권한/원본·보고서SHA/PIT가 일치할 때 정확한 인용만 반환한다. AI 해석·독립 사실 확인 아님을 표시한다. 집중71 PASS(신규19), 실제 AI 호출 없이 합성 시험 수행. 상세 실자료·운영 증거와 내부 경로는 비공개 로컬 산출물에 보존한다.
 
-다음: 표본2건 CLAUSE_UNRESOLVED의 실제 원문 구간 연결 누락 수정. 비공개 deployment.json의 해당 theme/entity/event ID와 고정 근거SHA만 조사하고 정상 원문·기업·사건 일치 시 READY로 연결한다. 다른 기업/원인 차용·전체원문 무조건반환·운영DB replay·169제목 재조회 금지. 공개시험은 최소 합성·실제재현은 비공개, 구판ID/첫관측/판본/PIT/표준bytes 보존. NEXT_TASK 참고. 사용자 변경·비밀·사용권·예산·무인 운영·EraLeader 읽기 전용·실주문 금지 유지. 전체 제품 완료·자동 실행 종료는 아직 선언하지 않음.
+다음: 기업 포함 이유에서도 정확한 사건 ID로 source_refs의 추출 방법을 연결해 AI 해석 근거를 표시한다. 혼합 근거별 구분·다른 사건 방법 차용 금지. 저장 후보/구판 ID/PIT/표준 bytes·원문 링크·사실/추론 구분을 보존한다. NEXT_TASK 참고.
+
+새 수집/유료AI·운영 DB replay·동일 상태 반복 검증·일일 설정/상대 프로젝트 변경 금지. 사용자 변경·비밀·사용권·예산·무인 운영·실주문 금지를 유지한다. 전체 제품 완료를 선언하지 않는다.

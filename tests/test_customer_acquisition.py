@@ -49,7 +49,7 @@ def test_source_action_phase_actor_and_sha(text,phase,actor):
  TITLE.replace('신규 고객','새빛소재는 신규 고객'),
  TITLE.replace('신규 고객','DRAM 신규 고객'),
  TITLE.replace('HBM 수요 증가로','HBM 기술 소개로'),
- TITLE.replace('HBM 수요 증가로','HBM 가격 상승으로'),
+ TITLE.replace('HBM 수요 증가로','HBM 주가 상승으로'),
  TITLE.replace('HBM 수요 증가로','HBM 수요 감소로'),
  TITLE.replace('HBM 수요 증가로','지난해 HBM 수요 증가로'),
  TITLE.replace('신규 고객','지난달 신규 고객'),

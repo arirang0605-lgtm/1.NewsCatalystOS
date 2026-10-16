@@ -22,7 +22,7 @@ TOPIC_ALIASES = {
     '액침냉각': ('액침냉각','액침 냉각','immersion cooling'),
     '반도체': ('반도체','semiconductor'),
 }
-DRIVERS = {'POLICY_ENABLEMENT': '정책 기반 확대', 'DEMAND_EXPANSION': '수요 확대',
+DRIVERS = {'PRODUCT_PRICE_INCREASE':'제품 가격 상승', 'POLICY_ENABLEMENT': '정책 기반 확대', 'DEMAND_EXPANSION': '수요 확대',
            'DEMAND_CONTRACTION': '수요·주문 축소',
            'CAPACITY_EXPANSION': '생산능력 확대', 'SUPPLY_CONTRACTION': '공급 축소',
            'UNKNOWN': '공통 원인 미확인'}
@@ -194,6 +194,22 @@ _ORDER_EXPANSION = re.compile(
     r'(?P<connector>에\s*(?:대응(?:해|하여)?|따라|힘입어|대비(?:해|하여))'
     r'|(?:으)?로(?:\s*인해)?|해|하여)(?=$|[\s,])',re.I)
 _ORDER_GROWTH_MENTION = re.compile(r'주문(?:이|가)?\s*(?:증가|확대|급증)')
+
+
+# Product prices only: securities/share/ETF price clauses are not products.
+_PRODUCT_PRICE = re.compile(
+    r'(?<![가-힣A-Za-z0-9])(?P<topic>'+_DEMAND_TOPIC+r')'
+    r'\s*(?:제품\s*)?(?:의\s*)?가격(?:이|가)?\s*(?:상승|인상|급등)'
+    r'(?P<connector>에\s*(?:대응(?:해|하여)?|따라|힘입어|대비(?:해|하여))'
+    r'|(?:으)?로(?:\s*인해)?)(?=$|[\s,])',re.I)
+
+
+def product_price_cause(expression):
+    match=_PRODUCT_PRICE.fullmatch(expression)
+    if match is None:return None
+    topic=next(name for name,p in TOPICS if re.fullmatch(p,match['topic'],re.I))
+    return {'product':topic,'change':'INCREASE','source_expression':expression,
+            'expression_sha256':sha256(expression.encode()).hexdigest()}
 
 
 def _demand_topic(sentence, company_names=(), pattern=_DEMAND, *, actions=ACTIONS):
@@ -374,13 +390,13 @@ def demand_scope(text, match, company_names=()):
 
 
 def parse_demand_scope(expression):
-    matches=[(pattern,m) for pattern in (_DEMAND,_ORDER_EXPANSION,_DEMAND_CONTRACTION)
+    matches=[(pattern,m) for pattern in (_DEMAND,_ORDER_EXPANSION,_DEMAND_CONTRACTION,_PRODUCT_PRICE)
              for m in pattern.finditer(expression)]
     if len(matches)!=1:return None
     pattern,match=matches[0]
     topic=match['topic'].strip('「」“”"\'').strip()
     topic=next((name for name,p in TOPICS if re.fullmatch(p,topic,re.I)),topic)
-    return topic,('DEMAND_CONTRACTION' if pattern is _DEMAND_CONTRACTION else 'DEMAND_EXPANSION'),demand_scope(expression,match)
+    return topic,('PRODUCT_PRICE_INCREASE' if pattern is _PRODUCT_PRICE else 'DEMAND_CONTRACTION' if pattern is _DEMAND_CONTRACTION else 'DEMAND_EXPANSION'),demand_scope(expression,match)
 
 
 def market_entry(text):
@@ -398,15 +414,8 @@ def market_entry(text):
             'expression_sha256':sha256(expression.encode()).hexdigest()}
 
 
-def _commercial_claim(line, cause, company_names, action, scope=None):
-    """Literal commercial action with a named actor and explicit cause.
-
-    A customer object remains in the source excerpt; it is not a second actor,
-    a contract counterparty, or a verified beneficiary.
-    """
-    if cause is None or re.search(r'지난해|지난달|작년|과거|이미|지난\s*\d+월|전망|예상|우려',line):return None
-    if action=='CUSTOMER_ACQUISITION' and '기존' in line:return None
-    names=set(company_names)|set(COMPANIES.findall(line))
+def _cause_subject(line,cause,names,scope=None):
+    """Explicit leading actor or cause-first actor, with a literal end-use scope."""
     prefix=line[:cause[1].start()];tail=line[cause[1].end():].strip().rstrip('.。!')
     if scope:
         # Remove only the literal qualifier just parsed, preserving the actor.
@@ -421,6 +430,21 @@ def _commercial_claim(line, cause, company_names, action, scope=None):
         if subject is None:return None
         actors,tail=subject
     else:return None
+    return actors,tail
+
+
+def _commercial_claim(line, cause, company_names, action, scope=None):
+    """Literal commercial action with a named actor and explicit cause.
+
+    A customer object remains in the source excerpt; it is not a second actor,
+    a contract counterparty, or a verified beneficiary.
+    """
+    if cause is None or re.search(r'지난해|지난달|작년|과거|이미|지난\s*\d+월|전망|예상|우려',line):return None
+    if action=='CUSTOMER_ACQUISITION' and '기존' in line:return None
+    names=set(company_names)|set(COMPANIES.findall(line))
+    subject=_cause_subject(line,cause,names,scope)
+    if subject is None:return None
+    actors,tail=subject
     customer='(?:'+_QUOTED_NAME+'|'+'|'.join(re.escape(n) for n in sorted(names,key=lambda n:(-len(n),n)))+')'
     phrase=r'(?:신규\s*고객(?:사)?(?:를|을)?\s*확보|'+customer+r'(?:을|를)\s+신규\s*고객(?:사)?(?:으로|로)\s*확보)'
     if action=='DELIVERY_START':
@@ -458,7 +482,7 @@ def investment_execution_phase(text):
 
 def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True,
                              include_policy_causes=True, include_policy_destinations=True, include_investment_execution=True,
-                             include_investment_projects=True, include_new_customers=True, include_delivery_start=True, include_demand_scopes=True, include_market_entry=True):
+                             include_investment_projects=True, include_new_customers=True, include_delivery_start=True, include_demand_scopes=True, include_market_entry=True, include_product_prices=True):
     """Return bounded source claims, including policy adoption before its effect.
 
     Corporate actions without an explicit common demand cause retain their own
@@ -473,6 +497,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     include_delivery_start=False reads earlier records without changing their clause boundaries.
     include_demand_scopes=False reads old evidence without retroactive theme reassignment.
     include_market_entry=False reads earlier actions and company-clause boundaries.
+    include_product_prices=False matches saved pre-price causes without reclassification.
     """
     if (not isinstance(company_names,(list,tuple)) or len(company_names)>100
             or any(not isinstance(n,str) or not n.strip() or len(n)>120 for n in company_names)):
@@ -523,12 +548,18 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
             continue
         order_matches=list(_ORDER_EXPANSION.finditer(line)) if include_order_growth else []
         demand_matches=list(_DEMAND.finditer(line))+list(_DEMAND_CONTRACTION.finditer(line))+order_matches
+        price_matches=list(_PRODUCT_PRICE.finditer(line)) if include_product_prices else []
+        price=_demand_topic(line,company_names,_PRODUCT_PRICE,actions=action_patterns) if price_matches else None
+        if price_matches and (not price or len(price_matches)!=1 or demand_matches or policies
+                or _DEMAND_DENIAL.search(line)
+                or re.search(r'전망|예상|우려|지난해|지난달|작년|과거|이미|지난\s*\d+월',line)):
+            continue
         if (demand_matches or scoped) and _DEMAND_DENIAL.search(line):continue
         contraction=_demand_topic(line,company_names,_DEMAND_CONTRACTION,actions=action_patterns)
         order_cause=_demand_topic(line,company_names,_ORDER_EXPANSION,actions=action_patterns) if order_matches else None
         if order_matches and order_cause is None:continue
         if policy and demand_matches:continue
-        cause=(policy[:2] if policy else None) or contraction or _demand_topic(line, company_names,actions=action_patterns) or order_cause
+        cause=(policy[:2] if policy else None) or contraction or _demand_topic(line, company_names,actions=action_patterns) or order_cause or price
         # Multiple unresolved causes cannot borrow a known topic or actor from
         # another clause (including pronouns and omitted subjects).
         if len(demand_matches)>1:continue
@@ -545,11 +576,24 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         scope=demand_scope(line,cause[1],company_names) if include_demand_scopes and cause and not policy else None
         # Alias expansion may change offsets; preserve only an exact source proof.
         if scope and scope['source_expression'] not in evidence_line:scope=None
+        price_proof=product_price_cause(price[1].group()) if price else None
+        if price:
+            subject=_cause_subject(line,cause,set(company_names)|set(COMPANIES.findall(line)),scope)
+            if subject is None:continue
+            price_actors,action_text=subject
         commercial_claims={kind:_commercial_claim(line,cause,company_names,kind,scope)
             for kind,enabled in [('CUSTOMER_ACQUISITION',include_new_customers),('DELIVERY_START',include_delivery_start),('MARKET_ENTRY',include_market_entry)]
             if enabled and not contraction}
         commercial_claim=next((c for c in commercial_claims.values() if c),None)
         if commercial_claim and policy:policy_actors=set(commercial_claim['actors'])
+        if price:
+            if (any(n not in {price[0],'반도체'} and re.search(p,action_text,re.I) for n,p in TOPICS)
+                    or re.search(r'소개|설명회|여부|위한|위해|협약|양해각서|준비|시범|실패|보류|지연',action_text)):
+                continue
+            if commercial_claim is None and (
+                    any(mentions_name(action_text,n) for n in (set(company_names)|set(COMPANIES.findall(line)))-price_actors)
+                    or re.search(r'(?:그|해당|다른)\s*(?:회사|기업)|(?<!\w)\w+(?:은|는)\s',action_text)):
+                continue
         if (order_cause or policy) and commercial_claim is None:
             actors=set(company_names)|set(COMPANIES.findall(line))
             earlier={n for n in actors if mentions_name(line[:cause[1].start()],n)}
@@ -577,6 +621,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         actors=[n for n in set(company_names)|set(COMPANIES.findall(line))
                 if n not in _NON_COMPANY_TERMS and cause and mentions_name(line[:cause[1].start()],n)]
         if policy:actors=sorted(policy_actors)
+        if price:actors=sorted(price_actors)
         parallel=_parallel_actions(action_text,cause,actors,include_investment_execution=include_investment_execution) if include_parallel_actions else None
         actions=[action] if parallel is None else parallel
         if parallel and (re.search(r'계획|예정|추진|전망|예상|지난달|과거|이미',line)
@@ -591,7 +636,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
             execution_phase=investment_execution_phase(execution_text) if action=='INVESTMENT_EXECUTION' else None
             if action=='INVESTMENT_EXECUTION':
                 if execution_phase is None or re.search(r'지난해|지난달|과거|이미|지난\s*\d+월',line):continue
-                if cause and not policy:
+                if cause and not policy and not price:
                     known=set(company_names)|set(COMPANIES.findall(line))
                     before={n for n in known if mentions_name(line[:cause[1].start()],n)}
                     after={n for n in known if mentions_name(action_text,n)}
@@ -600,7 +645,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                                  for n,p in TOPICS):continue
             if policy and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}:
                 continue
-            if order_cause and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}:
+            if (order_cause or price) and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}:
                 continue
             functions=business_start_functions(action_text) if action=='BUSINESS_START' else []
             topic=demand or next((name for name,pattern in TOPICS
@@ -618,6 +663,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                     r'반도체|HBM|DRAM|NAND|메모리|EUV|DUV|극자외선|심자외선',line,re.I)):
                 continue
             driver = ('POLICY_ENABLEMENT' if policy or action == 'POLICY_CHANGE' else
+                      'PRODUCT_PRICE_INCREASE' if price else
                       'DEMAND_CONTRACTION' if contraction else
                       'SUPPLY_CONTRACTION' if action == 'SUPPLY_REDUCTION' else
                       'DEMAND_EXPANSION' if demand else
@@ -635,6 +681,8 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
             if policy:
                 companies=sorted(policy_actors-_NON_COMPANY_TERMS)
                 original_companies=companies[:]
+            if price:
+                companies=sorted(price_actors-_NON_COMPANY_TERMS);original_companies=companies[:]
             if scoped:
                 # Explicit source-named actors anchor separate clause events even
                 # when their names came from the pinned directory, not a suffix rule.
@@ -659,10 +707,12 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                          else execution_phase if action == 'INVESTMENT_EXECUTION'
                          else business_phase if action == 'BUSINESS_START'
                          else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line)
+                             or (price and re.search(r'계획|예정|목표|추진|검토|방침|한다|할(?=$|\s)',action_text))
                              or ((scoped or reduction_mentioned or order_mentioned or policy)
                                  and re.search(r'계획|추진|검토',action_text if policy else line)) else 'SOURCE_REPORTED'),
                 'entity_ids':companies,
                 **({'policy_cause':policy[2]} if policy else {}),
+                **({'product_price_cause':price_proof} if price_proof else {}),
                 **({'topic_alias_evidence':alias} if alias and alias['canonical_topic'] not in TOPIC_ALIASES else {}),
                 **({'investment_project':project} if project else {}),
                 **({'demand_scope':scope} if scope else {}),

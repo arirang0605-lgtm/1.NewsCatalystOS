@@ -44,6 +44,18 @@ For company events include the acting company in the quote. Never put agencies i
 Do not turn an earlier announcement or a future plan into a present action.'''
 
 
+def _price_claim(event):
+    from .economic_changes import extract_economic_changes
+    for change in extract_economic_changes(event['quote'],company_names=event['actors']):
+        proof=change.get('product_price_cause')
+        if (proof and change['economic_driver']==event['driver'] and change['action']==event['action']
+                and change['phase']==event['phase'] and topic_key(change['topic'])==topic_key(event['topic'])
+                and sorted(change['entity_ids'])==sorted(set(event['actors']))
+                and event['cause_quote'] in {proof['source_expression'],change.get('demand_scope',{}).get('source_expression')}):
+            return change
+    return None
+
+
 def parse_events(result, title):
     from .feed_analysis import NEGATED, UNCERTAIN_CHANGE, PLANNED
     if (NEGATED.search(title) or UNCERTAIN_CHANGE.search(title)) and result.claims:
@@ -69,6 +81,8 @@ def parse_events(result, title):
                 or normalized(event['topic']) in {'ai','인공지능','서비스','신규','사업','시장','기술'}):
             raise SourceShareError('semantic event lacks bounded title evidence')
         if PLANNED.search(title) or business_start_phase(title)=='PLANNED':event['phase']='PLANNED'
+        if event['driver']=='PRODUCT_PRICE_INCREASE' and _price_claim(event) is None:
+            raise SourceShareError('semantic product price requires literal source cause and actor')
         if event not in events: events.append(event)
     if len(events)>2:raise SourceShareError('bounded semantic events required')
     return events
@@ -165,7 +179,10 @@ def changes_from_events(events, title_sha):
     return [{'topic':e['topic'],'economic_driver':e['driver'],'action':e['action'],
         'phase':e['phase'],'entity_ids':sorted(set(e['actors'])),'industry_tags':[],
         'source_paragraph_sha256':title_sha,'evidence_level':'REPORTED',
-        'verified_economic_effect':False,'extraction_method':'AI_SOURCE_SPAN_MATCHED'} for e in events]
+        'verified_economic_effect':False,'extraction_method':'AI_SOURCE_SPAN_MATCHED',
+        **({k:v for k,v in (_price_claim(e) or {}).items() if k in {
+            'topic','product_price_cause','demand_scope','market_entry','investment_project'}}
+           if e['driver']=='PRODUCT_PRICE_INCREASE' else {})} for e in events]
 
 
 def merge_changes(existing, proposed):

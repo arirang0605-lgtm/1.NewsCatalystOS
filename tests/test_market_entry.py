@@ -60,7 +60,7 @@ def test_demand_order_policy_cause_first(text):
  TITLE.replace('일본 시장 진출','일본 시장 진출 준비 시작'),
  TITLE.replace('일본 시장 진출','새빛소재는 일본 시장 진출'),
  TITLE.replace('가상전자, ','그 회사는 '),TITLE.replace('가상전자, ',''),
- TITLE.replace(CAUSE,'HBM 기술 소개로'),TITLE.replace(CAUSE,'HBM 가격 상승으로'),
+ TITLE.replace(CAUSE,'HBM 기술 소개로'),TITLE.replace(CAUSE,'HBM 주가 상승으로'),
  TITLE.replace(CAUSE,'HBM 수요 감소로'),TITLE.replace(CAUSE,'지난해 HBM 수요 증가로'),
  TITLE.replace('일본 시장','지난달 일본 시장'),TITLE+'했고 그 회사는 생산 시작',
  TITLE.replace('일본 시장','DRAM 시장'),TITLE.replace('일본 시장','새빛소재 시장'),

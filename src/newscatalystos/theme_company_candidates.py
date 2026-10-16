@@ -38,6 +38,7 @@ def company_candidates(theme):
             reason=f"{ref['topic']} 관련 {ACTION_LABELS.get(ref['action'],ref['action'])} 근거에 기업이 포함됨"
             if policy:
                 reason+=f" · 보도된 원인: {policy['source_expression']}"
+            if ref.get('product_price_cause'):reason+=' · 보도된 제품 가격 원인: '+ref['product_price_cause']['source_expression']
             if ref.get('market_entry'):reason+=' · 명시 진출 대상: '+ref['market_entry']['source_expression']
             if ref.get('demand_scope'):
                 reason+=' · 보도된 수요처 범위: '+ref['demand_scope']['source_expression']
@@ -49,6 +50,7 @@ def company_candidates(theme):
                 **({'policy_cause':policy} if policy else {}),
                 **({'demand_scope':ref['demand_scope']} if 'demand_scope' in ref else {}),
                 **({'market_entry':ref['market_entry']} if 'market_entry' in ref else {}),
+                **({'product_price_cause':ref['product_price_cause']} if 'product_price_cause' in ref else {}),
                 'event_id':ref['event_id'], 'topic':ref['topic'], 'action':ref['action'],
                 'phase':ref['phase'], 'evidence_level':ref['evidence_level'],
                 'content_scope':ref.get('content_scope','UNSPECIFIED'),
@@ -72,6 +74,8 @@ def company_candidates(theme):
         stages=sorted({link['product_stage'] for link in links})
         uncertainties=['출처에 등장하거나 관계가 보도됐다는 사실만으로 실제 수혜·투자 매력을 확정할 수 없음',
                        '매출 기여·재무·현재 가격 평가는 연결되지 않아 미확인']
+        if any(r.get('product_price_cause') for r in refs):
+            uncertainties.append('제품 가격 원인은 출처 보도이며 판매량·이익·실제 수혜는 독립 확인되지 않음')
         if any(r['action']=='MARKET_ENTRY' for r in refs):
             uncertainties.append('시장 진출은 출처 보도이며 고객·계약·실제 판매·매출·수혜는 독립 확인되지 않음')
         if any(r['action']=='DELIVERY_START' for r in refs):

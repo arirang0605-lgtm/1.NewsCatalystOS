@@ -50,7 +50,7 @@ def test_reported_demand_order_policy_causes(text):
  TITLE.replace('납품 시작','시범 공급 개시'),TITLE.replace('신규 고객에','DRAM을'),
  TITLE.replace('신규 고객에','새빛소재는'),TITLE.replace('가상전자, ','그 회사는 '),
  TITLE.replace('가상전자, ',''),TITLE.replace('HBM 수요 증가로','HBM 기술 소개로'),
- TITLE.replace('HBM 수요 증가로','HBM 가격 상승으로'),TITLE.replace('HBM 수요 증가로','HBM 수요 감소로'),
+ TITLE.replace('HBM 수요 증가로','HBM 주가 상승으로'),TITLE.replace('HBM 수요 증가로','HBM 수요 감소로'),
  TITLE.replace('HBM 수요 증가로','지난해 HBM 수요 증가로'),TITLE.replace('신규 고객에','지난달 고객에'),
  TITLE.replace('HBM 수요 증가로','HBM 수요 증가. 새빛소재는'),TITLE+'했고 그 회사는 생산 시작',
  PREFIX+'신규 고객 확보',PREFIX+'공급 계약 체결',PREFIX+'생산 시작',

@@ -201,6 +201,10 @@ def build_theme_bundle(themes: list[dict], *, decision_at: datetime, now=None,
         _must_sha(row['theme_id'],'theme identity')
         row_at=_when(row['decision_at'],'theme decision')
         for ref in row['source_refs']:
+            if 'adjacent_demand_cause' in ref:
+                from .theme_emergence import validate_adjacent_demand
+                if ref['phase']!='SOURCE_REPORTED':raise SourceShareError('adjacent action phase mismatch')
+                validate_adjacent_demand(ref['adjacent_demand_cause'],ref['topic'],ref['economic_driver'],ref['action'],[ref['adjacent_demand_cause']['source_actor']],ref['evidence_sha256'])
             if 'investment_event_key' in ref:
                 from .theme_emergence import validate_investment_event_key
                 validate_investment_event_key(ref)

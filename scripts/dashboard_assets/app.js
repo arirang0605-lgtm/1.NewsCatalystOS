@@ -68,6 +68,9 @@ function renderCommonCauseComparison(card,theme,candidates,comparisons,period){
     const group=node("div","finding-detail");group.append(node("h5","",row.display_name),node("p","","연결 사건 "+row.distinct_event_count+"개 · 출처 근거 "+row.sources.length+"개"));
     if(period?.status==="READY"&&period.action_group_ids.includes(row.action_group_id))group.append(node("p","",row.sources.some(s=>s.company_participation==="SOURCE_EVENT_ACTOR")?"기간 내 새 독립 행동의 당사자 근거":"기간 내 새 행동의 관계 맥락 · 당사자 확산 집계 아님"));
     for(const source of row.sources){
+      if(source.cause?.kind==="adjacent_demand_cause"){
+        group.append(node("p","","인접 문장의 명시적 원인 연결 · 출처 보도이며 독립 사실 확인 아님"),node("p","","원인 문장: "+source.cause.cause_expression),node("p","","행동 문장: "+source.cause.action_expression));
+      }
       const contextOnly=source.company_participation==="SUPPLY_CHAIN_CONTEXT";
       group.append(node("p","",(contextOnly?"공급망으로 연결된 사건 · 이 기업의 직접 행동 확인 아님 · ":"")+actionLabel(source)+" · 사건 "+source.event_id));
       if(contextOnly)group.append(node("p","","사건 당사자: "+source.event_entity_ids.join(" · ")));

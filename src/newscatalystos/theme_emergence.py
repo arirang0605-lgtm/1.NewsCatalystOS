@@ -114,8 +114,17 @@ def validate_investment_event_key(row):
         raise SourceShareError('invalid explicit investment event key')
 
 
+def validate_adjacent_demand(proof,topic,driver,action,entities,paragraph_sha):
+    from .adjacent_demand import parse_adjacent_demand
+    if not isinstance(proof,dict):raise SourceShareError('invalid adjacent demand proof')
+    parsed=parse_adjacent_demand(proof.get('source_expression'))
+    if (parsed is None or {**parsed,'paragraph_sha256':paragraph_sha}!=proof
+        or topic!=parsed['product'] or driver!='DEMAND_EXPANSION' or action!='CAPACITY_ADDITION'
+        or entities!=[parsed['source_actor']]):raise SourceShareError('invalid adjacent demand binding')
+
+
 def validate_change(change):
-    if (not isinstance(change,dict) or set(change)-{'original_entity_ids','service_name','service_event_key','investment_event_key','extraction_method','topic_alias_evidence','policy_cause','investment_project','demand_scope','market_entry','product_price_cause','demand_recovery_cause'}!=CHANGE_KEYS
+    if (not isinstance(change,dict) or set(change)-{'adjacent_demand_cause','original_entity_ids','service_name','service_event_key','investment_event_key','extraction_method','topic_alias_evidence','policy_cause','investment_project','demand_scope','market_entry','product_price_cause','demand_recovery_cause'}!=CHANGE_KEYS
             or not _text(change['topic'],80) or change['economic_driver'] not in DRIVERS
             or change['action'] not in ACTIONS or change['evidence_level'] not in QUALITIES
             or change['phase'] not in {'SOURCE_REPORTED','ADOPTED_NOT_YET_EFFECTIVE','PLANNED'}
@@ -127,6 +136,9 @@ def validate_change(change):
         validate_demand_recovery(change.get('demand_recovery_cause'),change['topic'],change['economic_driver'],change['action'])
     if change['action']=='MARKET_ENTRY' or 'market_entry' in change:
         validate_market_entry(change.get('market_entry'),change['action'])
+    if 'adjacent_demand_cause' in change:
+        if change['phase']!='SOURCE_REPORTED':raise SourceShareError('adjacent action phase mismatch')
+        validate_adjacent_demand(change['adjacent_demand_cause'],change['topic'],change['economic_driver'],change['action'],change['entity_ids'],change['source_paragraph_sha256'])
     if 'demand_scope' in change:validate_demand_scope(change['demand_scope'],change['topic'],change['economic_driver'])
     if 'investment_project' in change:validate_investment_project(change['investment_project'],change['action'])
     if 'extraction_method' in change and change['extraction_method']!='AI_SOURCE_SPAN_MATCHED':
@@ -197,7 +209,9 @@ def economic_observation(change, *, origin_reference, source_url, source_id,
         raise SourceShareError('retraction requires a targeted official correction')
     source_available_at=_when(source_available_at,'source availability').isoformat()
     # Same release across any number of publishers remains one event.
-    identity=[origin_reference,topic_key(change['topic']),change['economic_driver'],
+    # Extra adjacent demand context cannot mint a second ID for the same
+    # pre-existing capacity action; stored assignments keep their original theme.
+    identity=[origin_reference,topic_key(change['topic']),('CAPACITY_EXPANSION' if 'adjacent_demand_cause' in change else change['economic_driver']),
               change['action'],sorted(set(change.get('original_entity_ids',change['entity_ids'])))]
     # Identical title claims at multiple URLs are one observation candidate;
     # they cannot multiply an economic event or prove independent reporting.
@@ -560,6 +574,7 @@ def _snapshot(theme_id, rows, at, previous):
            **({'content_scope':row['content_scope']} if 'content_scope' in row else {}),
            **({'investment_project':row['change']['investment_project']} if 'investment_project' in row['change'] else {}),
            **({'investment_event_key':row['change']['investment_event_key']} if 'investment_event_key' in row['change'] else {}),
+           **({'adjacent_demand_cause':row['change']['adjacent_demand_cause']} if 'adjacent_demand_cause' in row['change'] else {}),
            **({'demand_scope':row['change']['demand_scope']} if 'demand_scope' in row['change'] else {}),
            **({'market_entry':row['change']['market_entry']} if 'market_entry' in row['change'] else {}),
            **({'demand_recovery_cause':row['change']['demand_recovery_cause']} if 'demand_recovery_cause' in row['change'] else {}),

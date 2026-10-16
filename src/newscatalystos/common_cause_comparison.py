@@ -3,7 +3,7 @@ import json
 from copy import deepcopy
 from hashlib import sha256
 from .theme_emergence import (_bytes,topic_key,validate_demand_scope,
-    validate_demand_recovery,validate_product_price,validate_policy_cause)
+    validate_demand_recovery,validate_product_price,validate_policy_cause,validate_adjacent_demand)
 from .theme_changes import _groups
 from .source_share import SourceShareError
 
@@ -14,6 +14,10 @@ def _cause(ref):
     driver=ref['economic_driver'];topic=ref['topic']
     proofs=[]
     try:
+        if 'adjacent_demand_cause' in ref:
+            proof=ref['adjacent_demand_cause']
+            validate_adjacent_demand(proof,topic,driver,ref['action'],[proof['source_actor']],ref['evidence_sha256'])
+            proofs.append(('adjacent_demand_cause',proof))
         if 'demand_scope' in ref:
             validate_demand_scope(ref['demand_scope'],topic,driver)
             proofs.append(('demand_scope',ref['demand_scope']))
@@ -32,7 +36,11 @@ def _cause(ref):
     if not proofs:return {'status':'SOURCE_EXPRESSION_UNAVAILABLE','source_expression':None}
     kind,proof=proofs[0]
     return {'status':'STORED_EXPRESSION','kind':kind,
-            'source_expression':proof['source_expression'],'expression_sha256':proof['expression_sha256']}
+            'source_expression':proof['source_expression'],'expression_sha256':proof['expression_sha256'],
+            **({'cause_expression':proof['cause_expression'],'action_expression':proof['action_expression'],
+                'cause_span':proof['cause_span'],'action_span':proof['action_span'],
+                'cause_sha256':proof['cause_sha256'],'action_sha256':proof['action_sha256'],
+                'paragraph_sha256':proof['paragraph_sha256']} if kind=='adjacent_demand_cause' else {})}
 
 
 

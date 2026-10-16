@@ -59,13 +59,14 @@ function renderEventImpactPaths(parent,source){
     parent.append(box);
   }
 }
-function renderCommonCauseComparison(card,theme,candidates,comparisons){
+function renderCommonCauseComparison(card,theme,candidates,comparisons,period){
   const comparison=comparisons?.[theme.theme_id],cs=candidates.filter(c=>c.theme_id===theme.theme_id);
   if(!comparison||comparison.theme_id!==theme.theme_id||comparison.decision_at!==theme.decision_at||!cs.length||cs.some(c=>c.theme_snapshot_sha256!==comparison.theme_snapshot_sha256||c.decision_at!==comparison.decision_at))return;
   const box=node("details","finding-detail");box.append(node("summary","","공통 원인 · 기업별 행동·출처 비교"));
   box.append(node("p","","독립 행동 묶음 "+comparison.distinct_action_groups+"개 · 같은 사건의 여러 보도는 별도 행동으로 세지 않습니다. 공통 원인은 테마 가설이며 거래·수혜 확인이 아닙니다."));
   for(const row of comparison.rows){
     const group=node("div","finding-detail");group.append(node("h5","",row.display_name),node("p","","연결 사건 "+row.distinct_event_count+"개 · 출처 근거 "+row.sources.length+"개"));
+    if(period?.status==="READY"&&period.action_group_ids.includes(row.action_group_id))group.append(node("p","",row.sources.some(s=>s.company_participation==="SOURCE_EVENT_ACTOR")?"기간 내 새 독립 행동의 당사자 근거":"기간 내 새 행동의 관계 맥락 · 당사자 확산 집계 아님"));
     for(const source of row.sources){
       const contextOnly=source.company_participation==="SUPPLY_CHAIN_CONTEXT";
       group.append(node("p","",(contextOnly?"공급망으로 연결된 사건 · 이 기업의 직접 행동 확인 아님 · ":"")+actionLabel(source)+" · 사건 "+source.event_id));
@@ -82,6 +83,12 @@ function renderCommonCauseComparison(card,theme,candidates,comparisons){
     box.append(group);
   }
   card.append(box);
+}
+function renderThemeActionOrder(card,period){
+  if(!period)return;
+  if(period.status!=="READY"){card.append(node("p","finding-detail","기간별 행동 증가 미확인 · 비교 자료를 확인할 수 없습니다."));return}
+  card.append(node("p","finding-detail","선택 기간 독립 행동 추가 "+period.independent_actions_added+"개 · 제외 "+period.independent_actions_removed+"개 · 새 행동의 신규 당사자 "+period.new_event_participant_count+"개"));
+  card.append(node("p","finding-detail","추가 보도·같은 프로젝트 후속·식별·관계 갱신은 새 독립 행동으로 세지 않습니다. 아래 공통 원인·기업별 행동·출처 비교에서 근거를 확인하세요. 거래·수혜·대장주 확정이 아닙니다."));
 }
 function renderCompanyTimelines(parent,timeline,term,search){
   if(!term||!timeline)return;
@@ -196,9 +203,10 @@ function render(data){
   showNotes($("inherited-notes"),data.inherited_notes,"하위 기간의 메모가 아직 없습니다.");
   $("source-count").textContent="저장 보고서 "+(data.source.saved_reports_seen||0)+"개 중 읽기 제외 "+(data.source.saved_reports_skipped||0)+"개";
 }
-async function load(){status("저장된 조사 기록을 불러오는 중…");for(const button of document.querySelectorAll("[data-view]"))button.classList.toggle("active",button.dataset.view===state.view);$("date").value=state.date;try{const response=await fetch("/api/period?view="+encodeURIComponent(state.view)+"&date="+encodeURIComponent(state.date)+"&theme_activity="+encodeURIComponent($("theme-activity").value)+"&timeline_activity="+encodeURIComponent($("timeline-activity")?.value||"all"),{cache:"no-store"});if(!response.ok)throw new Error("조사 기록을 읽지 못했습니다.");render(await response.json());status("")}catch(error){status(error.message||"불러오기에 실패했습니다.",true)}}
+async function load(){status("저장된 조사 기록을 불러오는 중…");for(const button of document.querySelectorAll("[data-view]"))button.classList.toggle("active",button.dataset.view===state.view);$("date").value=state.date;try{const response=await fetch("/api/period?view="+encodeURIComponent(state.view)+"&date="+encodeURIComponent(state.date)+"&theme_activity="+encodeURIComponent($("theme-activity").value)+"&theme_sort="+encodeURIComponent($("theme-sort")?.value||"latest")+"&timeline_activity="+encodeURIComponent($("timeline-activity")?.value||"all"),{cache:"no-store"});if(!response.ok)throw new Error("조사 기록을 읽지 못했습니다.");render(await response.json());status("")}catch(error){status(error.message||"불러오기에 실패했습니다.",true)}}
 for(const button of document.querySelectorAll("[data-view]"))button.addEventListener("click",()=>{state.view=button.dataset.view;load()});
 $("theme-activity").addEventListener("change",()=>load());
+$("theme-sort").addEventListener("change",()=>load());
 $("timeline-activity").addEventListener("change",()=>load());
 $("date").addEventListener("change",event=>{if(event.target.value){state.date=event.target.value;load()}});
 $("previous").addEventListener("click",()=>shift(-1));$("next").addEventListener("click",()=>shift(1));$("today").addEventListener("click",()=>{state.date=new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"});load()});
@@ -215,6 +223,7 @@ function renderThemes(term){
   renderCompanyTimelines($("themes"),currentData.company_timelines,term,companySearchResults(currentData.timeline_search_context||currentData.company_search?.candidates,term));
   if(!themes.length)$("themes").append(node("p","empty-small",currentData.theme_status==="UNAVAILABLE"?"테마 기록을 읽지 못했습니다. 뉴스 분석 기록은 계속 표시합니다.":"이 시점·검색 조건에 해당하는 테마 후보가 없습니다."));
   const labels={CANDIDATE:"관찰 후보",EMERGING:"형성 중",EXPANDING:"확산",WEAKENING:"약화",INVALIDATED:"무효",REACTIVATED:"재활성화"};
+  if(currentData.theme_order?.mode==="actions")$("themes").append(node("p","fineprint","정렬: 기간 비교가 있는 후보 → 독립 행동 추가 수 → 신규 당사자 수 → 최근 갱신 → 테마 ID 내림차순. 증가가 없는 후보도 표시합니다."));
   for(const theme of themes){
     const card=node("article","finding"),meta=node("div","finding-meta");
     meta.append(node("span","pill",labels[theme.status]||theme.status),node("span","","사건 후보 "+theme.scores.distinct_economic_events+" · 기업 "+theme.scores.company_breadth));
@@ -223,6 +232,7 @@ function renderThemes(term){
     const title=themeTitle(theme,currentData.theme_presentations?.[theme.theme_id]);
     card.append(meta,node("h4","",title),node("p","finding-detail","최초 발견: "+theme.first_detected_at),node("p","finding-detail","최근 근거: "+theme.last_evidence_at));
     if(title!==theme.provisional_name){const saved=node("details","finding-detail");saved.append(node("summary","","저장 당시 테마명"),node("p","",theme.provisional_name));card.append(saved)}
+    renderThemeActionOrder(card,currentData.theme_order?.entries?.[theme.theme_id]);
     renderThemeChanges(card,currentData.theme_changes?.[theme.theme_id],labels);
     if(["DEMAND_EXPANSION","DEMAND_RECOVERY","DEMAND_CONTRACTION","PRODUCT_PRICE_INCREASE","PRODUCT_PRICE_DECREASE"].includes(theme.economic_driver)){
       const refs=theme.source_refs.filter(r=>r.polarity==="SUPPORT"&&!theme.invalidated_event_ids.includes(r.event_id));
@@ -240,7 +250,7 @@ function renderThemes(term){
     }
 
     card.append(node("p","finding-detail",theme.economic_driver==="UNKNOWN"?"명시된 공통 원인이 없어 개별 사건으로 관찰합니다.":"같은 주제에서 "+(economicDriverLabels[theme.economic_driver]||theme.economic_driver)+"에 연결된 독립 행동 "+theme.scores.distinct_economic_events+"개를 묶었습니다. 원인 연결은 테마 가설입니다."));
-    renderCommonCauseComparison(card,theme,candidates,currentData.common_cause_comparisons);
+    renderCommonCauseComparison(card,theme,candidates,currentData.common_cause_comparisons,currentData.theme_order?.entries?.[theme.theme_id]);
     const relationLabels={REPORTED_DIRECT_TRANSACTION:"출처에 보고된 직접 계약",ANNOUNCED_SUPPLY_PLAN:"공급 계획"};
     const impactLabels={POTENTIAL_BENEFICIARY_UNVERIFIED:"잠재 수혜 (추론)",POTENTIAL_DAMAGE_UNVERIFIED:"잠재 피해 (추론)",ANNOUNCED_SUPPLY_PLAN_UNVERIFIED:"계획 단계 · 실현 미확인",UNKNOWN_RELATIONSHIP:"영향 경로 미확인",EFFECT_DIRECTION_UNKNOWN:"영향 방향 미확인",THEMATIC_ONLY:"단순 테마 연관"};
     for(const company of theme.company_links){

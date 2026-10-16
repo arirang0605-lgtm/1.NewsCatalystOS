@@ -22,6 +22,7 @@ from newscatalystos.standard_delivery import build_theme_bundle
 from newscatalystos.article_company_identity import search_article_identities
 from newscatalystos.era_company_assessment import enrich_candidates
 from newscatalystos.theme_changes import compare_themes
+from newscatalystos.theme_action_order import order_theme_actions
 from newscatalystos.theme_company_candidates import inclusion_presentations
 from newscatalystos.company_search import company_search_context,match_company_search
 from newscatalystos.common_cause_comparison import common_cause_comparisons
@@ -81,6 +82,8 @@ class Handler(BaseHTTPRequestHandler):
                                                             now=now, as_of=at)
                 data = build_period(records, self.server.notes.read(), view, selected,
                                     source_info=source_info, now=now)
+                theme_sort=query.get('theme_sort',['latest'])[0]
+                if theme_sort not in {'latest','actions'}:raise ValueError('invalid theme sort')
                 timeline_activity=query.get('timeline_activity',['all'])[0]
                 if timeline_activity not in {'all','observed'}:raise ValueError('invalid timeline activity')
                 activity=query.get('theme_activity',['all'])[0]
@@ -121,6 +124,7 @@ class Handler(BaseHTTPRequestHandler):
                     data['company_inclusion_presentations']=inclusion_presentations(data['themes'],data['company_candidates'])
                     data['theme_activity']={row['theme_id']:period_activity(row,start) for row in data['themes']}
                     data['theme_activity_filter']=activity
+                    comparison=None
                     data['theme_changes']={}
                     data['theme_changes_status']='NOT_STARTED' if start>now else 'READY'
                     if self.server.documents and start<=now:
@@ -130,6 +134,8 @@ class Handler(BaseHTTPRequestHandler):
                             data['theme_changes']={r['theme_id']:r for r in comparison['ThemeChanges']}
                         except (SourceShareError,OSError,ValueError,KeyError,TypeError,sqlite3.Error):
                             data['theme_changes_status']='UNAVAILABLE'
+                    data['themes'],data['theme_order']=order_theme_actions(data['themes'],comparison,data['common_cause_comparisons'],
+                        since=start,as_of=min(end,now),mode=theme_sort)
                     data["theme_status"] = "READY"
                 except (SourceShareError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
                     data["themes"], data["theme_status"] = [], "UNAVAILABLE"

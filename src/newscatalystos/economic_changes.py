@@ -102,6 +102,7 @@ ACTIONS = (
     ('SUPPLY_REDUCTION', r'(?:생산|공급).{0,20}(?:중단|축소|감산)|감산(?:을)?\s*(?:결정|시작|실시|단행|추진|계획)|감산(?:했다|한다|에\s*착수)'),
     ('CONTRACT', r'(?:공급\s*계약|수주\s*계약|납품\s*계약).{0,20}(?:체결|수주)'),
     ('INVESTMENT', r'(?:신규|새로).{0,30}투자.{0,25}(?:결정|확정)|투자.{0,15}(?:결정|확정)'),
+    ('INVESTMENT_EXECUTION', r'(?<![가-힣])투자(?:를)?\s*집행'),
     ('BUSINESS_START', BUSINESS_ACTION),
 )
 UNCERTAIN = re.compile(r'검토\s*중|논의\s*중|가능성|(?<!\w)가정(?=$|[^\w]|하|한|해)|미확정|계획이\s*없|하지\s*않|사실이\s*아니|체결되지|취득하지|의결되지')
@@ -198,12 +199,13 @@ def _demand_topic(sentence, company_names=(), pattern=_DEMAND):
     return next(iter(topics.items())) if len(topics)==1 else None
 
 
-def company_clauses(sentence, company_names=()):
+def company_clauses(sentence, company_names=(), *, include_investment_execution=True):
     """Split only explicit named subjects after an economic-action conjunction.
 
     Joint subjects and quoted names/statements remain intact. No pronoun or
     omitted subject is resolved to a company from another clause.
     """
+    patterns=[(kind,p) for kind,p in ACTIONS if include_investment_execution or kind!='INVESTMENT_EXECUTION']
     names=set(company_names)|set(COMPANIES.findall(sentence))
     names-=_NON_COMPANY_TERMS
     if not names:return [sentence]
@@ -214,7 +216,7 @@ def company_clauses(sentence, company_names=()):
     for match in subject.finditer(sentence):
         prefix=sentence[cuts[-1]:match.start()]
         if (any(a<=match.start()<b for a,b in quoted)
-                or not any(re.search(p,prefix,re.I) for _,p in ACTIONS)
+                or not any(re.search(p,prefix,re.I) for _,p in patterns)
                 or not any(mentions_name(prefix,n) for n in names)
                 or not re.search(r'(?:했고|했으며|하고|하며|됐고|되었고|했지만|한\s*반면|한\s*뒤|한\s*후|[,;])\s*[,;]?\s*(?:(?:반면|한편|또한)\s*)?$',prefix)):
             continue
@@ -227,7 +229,7 @@ def company_clauses(sentence, company_names=()):
     return [sentence[a:b].strip(' ,;') for a,b in zip(cuts,cuts[1:])]
 
 
-def _parallel_actions(action_text, cause, actors):
+def _parallel_actions(action_text, cause, actors, *, include_investment_execution=True):
     """A bounded nominal 'action 및 action' list shares an explicit subject/cause.
 
     None preserves the ordinary single-action path; [] leaves an ambiguous
@@ -235,6 +237,7 @@ def _parallel_actions(action_text, cause, actors):
     """
     parts=re.split(r'\s+및\s+',action_text.strip().rstrip('.。!'))
     supported={'CONTRACT','INVESTMENT','PRODUCTION_START','CAPACITY_ADDITION'}
+    if include_investment_execution:supported.add('INVESTMENT_EXECUTION')
     patterns=[(kind,pattern) for kind,pattern in ACTIONS if kind in supported]
     if len(parts)<2 or not all(any(re.search(p,part,re.I) for _,p in patterns) for part in parts):return None
     if not cause:return None
@@ -244,6 +247,7 @@ def _parallel_actions(action_text, cause, actors):
     syntax={
         'CONTRACT':r'(?:공급|납품|수주)\s*계약(?:을)?\s*(?:체결|수주)',
         'INVESTMENT':r'(?:(?:신규|새로)\s*)?(?:(?:공장|시설|설비)\s*)?투자(?:를)?\s*(?:결정|확정)',
+        'INVESTMENT_EXECUTION':r'(?:(?:신규|새로)\s*)?(?:(?:공장|시설|설비)\s*)?투자(?:를)?\s*집행',
         'PRODUCTION_START':r'(?:양산|생산)(?:을)?\s*(?:시작|개시)',
         'CAPACITY_ADDITION':r'(?:생산능력|생산량|공급량)(?:을)?\s*(?:증가|확대|증설)',
     }
@@ -318,8 +322,18 @@ def _leading_company_subject(text, names):
     return actors,text[match.end():]
 
 
+def investment_execution_phase(text):
+    """Reported execution versus planned execution, never certified expenditure."""
+    if (not re.search(r'(?<![가-힣])투자(?:를)?\s*집행',text)
+            or _DEMAND_DENIAL.search(text)
+            or re.search(r'미집행|미실행|보류|중단|지연|불발|전망|예상|우려|지난해|지난달|과거|이미',text)
+            or re.search(r'집행(?:의|률|에\s*관한)|집행(?:을)?\s*(?:위한|여부|설명|교육|기준|지침|방법|현황|실적)',text)):
+        return None
+    return 'PLANNED' if re.search(r'계획|예정|추진|검토|방침|결정|확정',text) else 'SOURCE_REPORTED'
+
+
 def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True,
-                             include_policy_causes=True, include_policy_destinations=True):
+                             include_policy_causes=True, include_policy_destinations=True, include_investment_execution=True):
     """Return bounded source claims, including policy adoption before its effect.
 
     Corporate actions without an explicit common demand cause retain their own
@@ -329,16 +343,18 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     include_parallel_actions=False likewise preserves the prior single-action reader.
     include_policy_causes=False matches old policy-only records without rewriting them.
     include_policy_destinations=False reads earlier policy causes without reinterpreting scope.
+    include_investment_execution=False reads earlier investment decisions and clause boundaries.
     """
     if (not isinstance(company_names,(list,tuple)) or len(company_names)>100
             or any(not isinstance(n,str) or not n.strip() or len(n)>120 for n in company_names)):
         raise ValueError('bounded source company names required')
+    action_patterns=[(kind,p) for kind,p in ACTIONS if include_investment_execution or kind!='INVESTMENT_EXECUTION']
     changes = []
     seen = set()
     units=((paragraph,clause,len(clauses)>1) for paragraph in text.splitlines()
            if paragraph.strip() and len(paragraph)<=5000
            for sentence in re.split(r'(?<=[.!?。])\s+',paragraph.strip()) if sentence.strip()
-           for clauses in [company_clauses(sentence.strip(),company_names)] for clause in clauses)
+           for clauses in [company_clauses(sentence.strip(),company_names,include_investment_execution=include_investment_execution)] for clause in clauses)
     for paragraph,line,scoped in units:
         if len(line) > 5000 or UNCERTAIN.search(line) or PAST.search(line):
             continue
@@ -380,8 +396,8 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         if len(demand_matches)>1:continue
         # Without a named subject boundary, a second predicate cannot inherit
         # the first actor. This also covers pronouns and omitted subjects.
-        if any(any(re.search(p,line[:m.start()],re.I) for _,p in ACTIONS)
-               and any(re.search(p,line[m.end():],re.I) for _,p in ACTIONS)
+        if any(any(re.search(p,line[:m.start()],re.I) for _,p in action_patterns)
+               and any(re.search(p,line[m.end():],re.I) for _,p in action_patterns)
                for m in re.finditer(r'했고|했으며|하고|하며|됐고|되었고|했지만',line)):
             continue
         if scoped and re.search(r'해지|계약\s*없|루머|광고|unconfirmed|rumou?r',line,re.I):continue
@@ -410,20 +426,33 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         names=business_start_names(action_text) if business_phase else []
         # Anticipatory demand is kept in the planned path, never realized demand.
         demand_planned=bool(cause and '대비' in cause[1]['connector'])
-        action = next((name for name, pattern in ACTIONS if re.search(pattern, action_text, re.I)
+        action = next((name for name, pattern in action_patterns if re.search(pattern, action_text, re.I)
                        and (name!='BUSINESS_START' or business_phase)), None)
         actors=[n for n in set(company_names)|set(COMPANIES.findall(line))
                 if n not in _NON_COMPANY_TERMS and cause and mentions_name(line[:cause[1].start()],n)]
         if policy:actors=sorted(policy_actors)
-        parallel=_parallel_actions(action_text,cause,actors) if include_parallel_actions else None
+        parallel=_parallel_actions(action_text,cause,actors,include_investment_execution=include_investment_execution) if include_parallel_actions else None
         actions=[action] if parallel is None else parallel
         if parallel and (re.search(r'계획|예정|추진|전망|예상|지난달|과거|이미',line)
                          or _DEMAND_DENIAL.search(line)):
             continue
         for action in actions:
-            if policy and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT'}:
+            execution_text=(next(p for p in re.split(r'\s+및\s+',action_text)
+                                 if re.search(r'투자(?:를)?\s*집행',p))
+                            if parallel and action=='INVESTMENT_EXECUTION' else action_text)
+            execution_phase=investment_execution_phase(execution_text) if action=='INVESTMENT_EXECUTION' else None
+            if action=='INVESTMENT_EXECUTION':
+                if execution_phase is None or re.search(r'지난해|지난달|과거|이미|지난\s*\d+월',line):continue
+                if cause and not policy:
+                    known=set(company_names)|set(COMPANIES.findall(line))
+                    before={n for n in known if mentions_name(line[:cause[1].start()],n)}
+                    after={n for n in known if mentions_name(action_text,n)}
+                    if not before or after-before:continue
+                if cause and any(n not in {cause[0],'반도체'} and re.search(p,action_text,re.I)
+                                 for n,p in TOPICS):continue
+            if policy and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION'}:
                 continue
-            if order_cause and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT'}:
+            if order_cause and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION'}:
                 continue
             functions=business_start_functions(action_text) if action=='BUSINESS_START' else []
             topic=demand or next((name for name,pattern in TOPICS
@@ -445,7 +474,8 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                       'SUPPLY_CONTRACTION' if action == 'SUPPLY_REDUCTION' else
                       'DEMAND_EXPANSION' if demand else
                       'CAPACITY_EXPANSION' if action in {'PRODUCTION_START','CAPACITY_ADDITION'}
-                          or (action == 'INVESTMENT' and re.search(r'공장|생산|증설', line)) else 'UNKNOWN')
+                          or (action == 'INVESTMENT' and re.search(r'공장|생산|증설', line))
+                          or (action == 'INVESTMENT_EXECUTION' and re.search(r'공장|생산|증설|설비|시설', line)) else 'UNKNOWN')
             companies = sorted(set(COMPANIES.findall(evidence_line)))
             companies = [x for x in companies if x not in _NON_COMPANY_TERMS][:30]
             original_companies=companies[:]
@@ -468,6 +498,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
             changes.append({'topic':topic, 'economic_driver':driver, 'action':action,
                 'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
                          else 'PLANNED' if demand_planned
+                         else execution_phase if action == 'INVESTMENT_EXECUTION'
                          else business_phase if action == 'BUSINESS_START'
                          else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line)
                              or ((scoped or reduction_mentioned or order_mentioned or policy)

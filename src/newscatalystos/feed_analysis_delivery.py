@@ -117,9 +117,15 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
             if 'policy_cause' in change:
                 from .economic_changes import extract_economic_changes
                 extracted=extract_economic_changes(row['headline'],company_names=change['entity_ids'])
+                if change['action']=='INVESTMENT':
+                    extracted+=extract_economic_changes(row['headline'],company_names=change['entity_ids'],
+                                                        include_investment_execution=False)
                 if 'destination' not in change['policy_cause']:
                     extracted+=extract_economic_changes(row['headline'],company_names=change['entity_ids'],
                                                         include_policy_destinations=False)
+                    if change['action']=='INVESTMENT':
+                        extracted+=extract_economic_changes(row['headline'],company_names=change['entity_ids'],
+                            include_policy_destinations=False,include_investment_execution=False)
                 if not any(all(c.get(k)==change.get(k) for k in (
                         'topic','action','phase','economic_driver','policy_cause')) for c in extracted):
                     raise SourceShareError('policy response is not in the saved source title')

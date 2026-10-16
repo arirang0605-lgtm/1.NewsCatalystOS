@@ -8,7 +8,7 @@ from hashlib import sha256
 from .theme_emergence import _bytes
 
 SCHEMA = 'newscatalyst.theme_company_candidate.v1'
-ACTION_LABELS = {'CONTRACT':'계약', 'INVESTMENT':'투자', 'CAPACITY_ADDITION':'설비 확대',
+ACTION_LABELS = {'CONTRACT':'계약', 'INVESTMENT':'투자', 'INVESTMENT_EXECUTION':'투자 집행', 'CAPACITY_ADDITION':'설비 확대',
                  'PRODUCTION_START':'생산 시작', 'SUPPLY_REDUCTION':'공급 축소',
                  'POLICY_CHANGE':'정책 변화', 'BUSINESS_START':'사업·서비스 시작'}
 RELATION_LABELS = {'REPORTED_DIRECT_TRANSACTION':'출처에 보고된 거래 관계',

@@ -19,7 +19,7 @@ from .source_share import SourceShareError, _when, _must_sha
 SCHEMA = 'newscatalyst.theme_candidate.v1'
 RELATION_SCHEMA = 'newscatalyst.theme_candidate.v2'
 QUALITIES = {'OFFICIAL_SOURCE','REPORTED','INFERRED','UNVERIFIED','UNKNOWN'}
-ACTIONS = {'POLICY_CHANGE','PRODUCTION_START','CAPACITY_ADDITION','SUPPLY_REDUCTION','CONTRACT','INVESTMENT','BUSINESS_START'}
+ACTIONS = {'POLICY_CHANGE','PRODUCTION_START','CAPACITY_ADDITION','SUPPLY_REDUCTION','CONTRACT','INVESTMENT','INVESTMENT_EXECUTION','BUSINESS_START'}
 KNOWN_TOPICS = {'euv','duv','hbm','dram','nand','반도체','액침냉각'}
 CHANGE_KEYS = {'topic','economic_driver','action','phase','entity_ids','industry_tags',
                'source_paragraph_sha256','evidence_level','verified_economic_effect'}
@@ -81,7 +81,7 @@ def validate_change(change):
     if 'policy_cause' in change:
         validate_policy_cause(change['policy_cause'],change['topic'])
         if change['economic_driver']!='POLICY_ENABLEMENT' or change['action'] not in {
-                'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT'}:
+                'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION'}:
             raise SourceShareError('policy cause must describe a corporate response')
 
 

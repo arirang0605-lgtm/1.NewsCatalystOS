@@ -168,32 +168,35 @@ def _body_source(ref,row,jobs,at,now):
     return None,status
 
 
-def _clause(text,change,entity,ref):
+def _clause(text,change,entity,ref,*,include_investment_execution=True):
     names=[m['source_name'] for m in ref.get('company_mappings',[]) if m['entity_id']==entity] or [entity]
+    options=dict(company_names=change['entity_ids'],include_investment_execution=include_investment_execution)
     matches=[]
     for sentence in re.split(r'(?<=[.!?。])\s+',text):
-        for clause in company_clauses(sentence,change['entity_ids']):
+        for clause in company_clauses(sentence,change['entity_ids'],include_investment_execution=include_investment_execution):
             if ('topic_alias_evidence' in change
                     and change['topic_alias_evidence'] not in explicit_topic_aliases(clause)):
                 continue
             if not any(mentions_name(clause,n) for n in names):continue
             # Pure matching only: never persist a reinterpreted event or infer a subject.
-            candidates=extract_economic_changes(clause,company_names=change['entity_ids'])
+            candidates=extract_economic_changes(clause,**options)
             if 'policy_cause' in change and 'destination' not in change['policy_cause']:
-                candidates+=extract_economic_changes(clause,company_names=change['entity_ids'],include_policy_destinations=False)
+                candidates+=extract_economic_changes(clause,**options,include_policy_destinations=False)
             if 'policy_cause' not in change:
-                candidates+=extract_economic_changes(clause,company_names=change['entity_ids'],include_policy_causes=False)
+                candidates+=extract_economic_changes(clause,**options,include_policy_causes=False)
             if ' 및 ' in clause:
-                candidates+=extract_economic_changes(clause,company_names=change['entity_ids'],include_parallel_actions=False)
+                candidates+=extract_economic_changes(clause,**options,include_parallel_actions=False)
             # A saved pre-order-growth event retains its original driver/ID.
             # Match its old extraction without persisting or reclassifying it.
             if change['economic_driver']!='DEMAND_EXPANSION':
-                candidates+=extract_economic_changes(clause,company_names=change['entity_ids'],include_order_growth=False,include_parallel_actions=False)
+                candidates+=extract_economic_changes(clause,**options,include_order_growth=False,include_parallel_actions=False)
             for found in candidates:
                 if (all(found[k]==change[k] for k in ('topic','economic_driver','action','phase'))
                         and found.get('policy_cause')==change.get('policy_cause')):
                     matches.append(clause);break
     matches=list(dict.fromkeys(matches))
+    if len(matches)!=1 and include_investment_execution and change['action']=='INVESTMENT':
+        return _clause(text,change,entity,ref,include_investment_execution=False)
     return matches[0] if len(matches)==1 else None
 
 

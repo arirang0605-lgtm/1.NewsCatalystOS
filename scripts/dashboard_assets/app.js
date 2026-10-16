@@ -63,6 +63,9 @@ function renderReportedContractAmount(parent,cause){
   const amount=cause?.contract_amount;
   if(amount?.status==="SOURCE_REPORTED_TOTAL")parent.append(node("p","","보도된 계약 총액: "+amount.source_expression+" · 실제 이행·매출·수혜 확인 아님"));
 }
+function renderReportedDemandReduction(parent,source){
+  if(source.action==="SUPPLY_REDUCTION"&&source.cause?.kind==="adjacent_demand_cause")parent.append(node("p","","보도된 수요 감소→감산 연결 · 실제 생산량·매출·손실을 독립 확인한 결과는 아닙니다."));
+}
 function renderCommonCauseComparison(card,theme,candidates,comparisons,period){
   const comparison=comparisons?.[theme.theme_id],cs=candidates.filter(c=>c.theme_id===theme.theme_id);
   if(!comparison||comparison.theme_id!==theme.theme_id||comparison.decision_at!==theme.decision_at||!cs.length||cs.some(c=>c.theme_snapshot_sha256!==comparison.theme_snapshot_sha256||c.decision_at!==comparison.decision_at))return;
@@ -76,7 +79,7 @@ function renderCommonCauseComparison(card,theme,candidates,comparisons,period){
         group.append(node("p","","인접 문장의 명시적 원인 연결 · 출처 보도이며 독립 사실 확인 아님"),node("p","","원인 문장: "+source.cause.cause_expression),node("p","","행동 문장: "+source.cause.action_expression));
         if(source.cause.demand_scope)group.append(node("p","","명시 수요처: "+(source.cause.demand_scope.status==="EXPLICIT"?source.cause.demand_scope.destination:"복수·불명확 · 공동 수요처 미확인")+" · 고객회사·계약·수혜 확인 아님"));
       }
-      renderReportedContractAmount(group,source.cause);
+      renderReportedContractAmount(group,source.cause);renderReportedDemandReduction(group,source);
       const contextOnly=source.company_participation==="SUPPLY_CHAIN_CONTEXT";
       group.append(node("p","",(contextOnly?"공급망으로 연결된 사건 · 이 기업의 직접 행동 확인 아님 · ":"")+actionLabel(source)+" · 사건 "+source.event_id));
       if(contextOnly)group.append(node("p","","사건 당사자: "+source.event_entity_ids.join(" · ")));
@@ -130,7 +133,7 @@ function renderCrossProductDemand(parent,comparison,term="",search={}){
         box.append(node("h5","",action.display_name),node("p","",action.identity_status==="IDENTIFIED"?"식별된 사건 당사자":"출처 이름 맥락 · 기업 동일성 미확인"));
         for(const source of action.sources){
           box.append(node("p","",actionLabel(source)+" · "+(source.in_period?"기간 내 관측 근거":"기간 이전 맥락")),node("p","","원문 원인: "+source.cause.source_expression));
-          renderReportedContractAmount(box,source.cause);
+          renderReportedContractAmount(box,source.cause);renderReportedDemandReduction(box,source);
           if(source.conflicting)box.append(node("p","","상충 보도가 있는 사건 · 해소 또는 수혜 확정 아님"));
           box.append(node("p","","출처 근거 수준: "+source.evidence_level+" · 독립 사실 확인 아님"));
           const a=node("a","source-link","이 제품·기업 행동의 출처");a.href=source.source_url;a.target="_blank";a.rel="noopener noreferrer";box.append(a);
@@ -164,7 +167,7 @@ function renderCompanyTimelines(parent,timeline,term,search){
       if(!entry.in_period&&entry.period_evidence_kinds?.length)box.append(node("p","","기간 이전 대상 사건 · 아래 새 근거를 이해하기 위한 맥락"));
       box.append(node("p","",entry.theme_name+" · "+(entry.company_participation==="SUPPLY_CHAIN_CONTEXT"?"공급망 관계 기업 · 직접 행동 주체 아님":"출처의 사건 당사자")));
       box.append(node("p","",entry.cause.source_expression?"저장된 원인 표현: “"+entry.cause.source_expression+"”":"원인 유형: "+(economicDriverLabels[entry.economic_driver]||"미확인")+" · 원문 근거 미확인"));
-      renderReportedContractAmount(box,entry.cause);
+      renderReportedContractAmount(box,entry.cause);renderReportedDemandReduction(box,entry);
       if(entry.extraction_method==="AI_SOURCE_SPAN_MATCHED")box.append(node("p","","AI 해석의 원문 근거 · 독립 사실 확인 아님"));
       if(entry.identity_available_at)box.append(node("p","","기업 식별 연결 확보: "+entry.identity_available_at+" · 사건의 최초 관측과 별도"));
       box.append(node("p","","출처 가용: "+entry.source_available_at+" · 최초 기록: "+entry.recorded_at+" · 선택 판본: "+entry.decision_at));

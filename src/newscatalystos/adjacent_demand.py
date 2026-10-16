@@ -6,17 +6,27 @@ from .fact_extraction import MONEY
 
 PRODUCT=r'HBM|DRAM|NAND'
 CAUSE=re.compile(r'(?:(?P<qualifier>[가-힣A-Za-z0-9 ,/·&-]{1,120}용)\s+)?(?P<product>'+PRODUCT+r')\s+수요가\s+증가(?:하고\s+있다|했다)[.!。]')
-ACTION=re.compile(r'이에\s+따라\s+(?P<actor>[가-힣A-Za-z0-9·& ]{2,70})(?:은|는)\s+(?P<product>'+PRODUCT+r')\s+(?:(?P<amount>(?i:'+MONEY.pattern+r'))\s+)?(?:(?P<capacity>생산능력을\s+확대했다)|(?P<contract>공급계약을\s+체결했다))[.!。]')
+REDUCTION_CAUSE=re.compile(CAUSE.pattern.replace('증가','감소'))
+ACTION=re.compile(r'이에\s+따라\s+(?P<actor>[가-힣A-Za-z0-9·& ]{2,70})(?:은|는)\s+(?P<product>'+PRODUCT+r')\s+(?:(?P<amount>(?i:'+MONEY.pattern+r'))\s+)?(?:(?P<capacity>생산능력을\s+확대했다)|(?P<contract>공급계약을\s+체결했다)|(?P<reduction>생산을\s+(?:축소했다|감산했다)))[.!。]')
 
 
-def parse_adjacent_demand(expression,*,include_scopes=True,include_contracts=True,include_amounts=True):
+def legacy_driver(action):
+    return {'CONTRACT':'UNKNOWN','SUPPLY_REDUCTION':'SUPPLY_CONTRACTION'}.get(action,'CAPACITY_EXPANSION')
+
+
+def demand_driver(action):
+    return 'DEMAND_CONTRACTION' if action=='SUPPLY_REDUCTION' else 'DEMAND_EXPANSION'
+
+
+def parse_adjacent_demand(expression,*,include_scopes=True,include_contracts=True,include_amounts=True,include_reductions=True):
     """A deliberately small grammar: one factual cause, one named actor/action."""
     if not isinstance(expression,str) or len(expression)>500:return None
     sentences=list(re.finditer(r'(?:[^.!?。]|\.(?=\d))+[.!?。]',expression))
     if len(sentences)!=2 or expression[sentences[-1].end():].strip():return None
     left,right=[m.group().strip() for m in sentences]
-    cause=CAUSE.fullmatch(left);action=ACTION.fullmatch(right)
+    cause=CAUSE.fullmatch(left) or (REDUCTION_CAUSE.fullmatch(left) if include_reductions else None);action=ACTION.fullmatch(right)
     if not cause or not action or cause['product']!=action['product']:return None
+    if bool(REDUCTION_CAUSE.fullmatch(left))!=bool(action['reduction']):return None
     if action['contract'] and not include_contracts:return None
     amount=action['amount']
     if amount:
@@ -43,11 +53,11 @@ def parse_adjacent_demand(expression,*,include_scopes=True,include_contracts=Tru
         'cause_expression':left,'cause_sha256':sha256(left.encode()).hexdigest(),'cause_span':[l,l+len(left)],
         'action_expression':right,'action_sha256':sha256(right.encode()).hexdigest(),'action_span':[r,r+len(right)],
         'product':cause['product'],'source_actor':actor,'connector':'이에 따라',
-        **({'action':'CONTRACT'} if action['contract'] else {}),
+        **({'action':'CONTRACT'} if action['contract'] else {'action':'SUPPLY_REDUCTION'} if action['reduction'] else {}),
         **({'contract_amount':reported_amount} if reported_amount else {})}
 
 
-def attach_adjacent_demand(text,changes,company_names,*,include_scopes=True,include_contracts=True,include_amounts=True):
+def attach_adjacent_demand(text,changes,company_names,*,include_scopes=True,include_contracts=True,include_amounts=True,include_reductions=True):
     from .economic_changes import COMPANIES,extract_economic_changes,parse_demand_scope
     result=deepcopy(changes);matches={}
     for paragraph in text.splitlines():
@@ -57,7 +67,7 @@ def attach_adjacent_demand(text,changes,company_names,*,include_scopes=True,incl
         if len(sentences)!=2 or paragraph[sentences[-1].end():].strip():continue
         for a,b in zip(sentences,sentences[1:]):
             expression=paragraph[a.start():b.end()].strip()
-            proof=parse_adjacent_demand(expression,include_scopes=include_scopes,include_contracts=include_contracts,include_amounts=include_amounts)
+            proof=parse_adjacent_demand(expression,include_scopes=include_scopes,include_contracts=include_contracts,include_amounts=include_amounts,include_reductions=include_reductions)
             if not proof:continue
             actor=proof['source_actor']
             if actor not in company_names and actor not in COMPANIES.findall(actor):continue
@@ -65,9 +75,9 @@ def attach_adjacent_demand(text,changes,company_names,*,include_scopes=True,incl
             if len(base)!=1:continue
             row=base[0]
             expected_action=proof.get('action','CAPACITY_ADDITION')
-            legacy_driver='UNKNOWN' if expected_action=='CONTRACT' else 'CAPACITY_EXPANSION'
+            old_driver=legacy_driver(expected_action)
             if (row['topic']!=proof['product'] or row['action']!=expected_action
-                or row['economic_driver']!=legacy_driver or row['phase']!='SOURCE_REPORTED'
+                or row['economic_driver']!=old_driver or row['phase']!='SOURCE_REPORTED'
                 or row['entity_ids']!=[actor]):continue
             proof['paragraph_sha256']=sha256(paragraph.encode()).hexdigest()
             key=(proof['paragraph_sha256'],row['topic'],tuple(row['entity_ids']),row['action'])
@@ -78,9 +88,9 @@ def attach_adjacent_demand(text,changes,company_names,*,include_scopes=True,incl
         # A competing assertion for the same action never picks a first cause.
         if len(proofs)!=1:continue
         expected_action=proofs[0].get('action','CAPACITY_ADDITION')
-        legacy_driver='UNKNOWN' if expected_action=='CONTRACT' else 'CAPACITY_EXPANSION'
-        if row['action']!=expected_action or row['economic_driver']!=legacy_driver:continue
-        row['economic_driver']='DEMAND_EXPANSION';row['adjacent_demand_cause']=proofs[0]
+        old_driver=legacy_driver(expected_action)
+        if row['action']!=expected_action or row['economic_driver']!=old_driver:continue
+        row['economic_driver']=demand_driver(expected_action);row['adjacent_demand_cause']=proofs[0]
         scoped=parse_demand_scope(proofs[0]['cause_expression'])
         if scoped:row['demand_scope']=scoped[2]
     return result

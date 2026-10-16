@@ -115,11 +115,11 @@ def validate_investment_event_key(row):
 
 
 def validate_adjacent_demand(proof,topic,driver,action,entities,paragraph_sha,*,scope=None):
-    from .adjacent_demand import parse_adjacent_demand
+    from .adjacent_demand import parse_adjacent_demand,demand_driver
     if not isinstance(proof,dict):raise SourceShareError('invalid adjacent demand proof')
     parsed=parse_adjacent_demand(proof.get('source_expression'))
     if (parsed is None or {**parsed,'paragraph_sha256':paragraph_sha}!=proof
-        or topic!=parsed['product'] or driver!='DEMAND_EXPANSION' or action!=parsed.get('action','CAPACITY_ADDITION')
+        or topic!=parsed['product'] or driver!=demand_driver(parsed.get('action','CAPACITY_ADDITION')) or action!=parsed.get('action','CAPACITY_ADDITION')
         or entities!=[parsed['source_actor']]):raise SourceShareError('invalid adjacent demand binding')
     scoped=parse_demand_scope(parsed['cause_expression'])
     if scope!=(scoped[2] if scoped else None):raise SourceShareError('adjacent demand scope mismatch')
@@ -212,8 +212,9 @@ def economic_observation(change, *, origin_reference, source_url, source_id,
     source_available_at=_when(source_available_at,'source availability').isoformat()
     # Same release across any number of publishers remains one event.
     # Extra adjacent demand context cannot mint a second ID for the same
-    # pre-existing capacity/contract action; stored assignments keep their original theme.
-    identity=[origin_reference,topic_key(change['topic']),(('UNKNOWN' if change['action']=='CONTRACT' else 'CAPACITY_EXPANSION') if 'adjacent_demand_cause' in change else change['economic_driver']),
+    # pre-existing capacity/contract/reduction action; stored assignments keep their original theme.
+    from .adjacent_demand import legacy_driver
+    identity=[origin_reference,topic_key(change['topic']),(legacy_driver(change['action']) if 'adjacent_demand_cause' in change else change['economic_driver']),
               change['action'],sorted(set(change.get('original_entity_ids',change['entity_ids'])))]
     # Identical title claims at multiple URLs are one observation candidate;
     # they cannot multiply an economic event or prove independent reporting.

@@ -44,7 +44,7 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                 if resolved and not ID.fullmatch(resolved):resolved=None
                 for source in row['sources']:
                     if source['company_participation']!='SOURCE_EVENT_ACTOR':continue
-                    if driver=='POLICY_ENABLEMENT' and (source['action'] not in {'PRODUCTION_START','CAPACITY_ADDITION','CONTRACT'} or source['phase']!='SOURCE_REPORTED'):continue
+                    if driver=='POLICY_ENABLEMENT' and (source['action'] not in {'PRODUCTION_START','CAPACITY_ADDITION','CONTRACT','DELIVERY_START'} or source['phase']!='SOURCE_REPORTED'):continue
                     if driver=='DEMAND_CONTRACTION' and (source['action']!='SUPPLY_REDUCTION' or source['phase']!='SOURCE_REPORTED'):continue
                     if driver=='DEMAND_RECOVERY' and (source['action'] not in {'SUPPLY_RESUMPTION','CONTRACT','DELIVERY_START','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','MARKET_ENTRY','BUSINESS_START'} or source['phase']!='SOURCE_REPORTED'):continue
                     if (source['event_id'] not in set(theme['event_ids'])-set(theme['invalidated_event_ids'])

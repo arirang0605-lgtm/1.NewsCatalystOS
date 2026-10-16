@@ -1,7 +1,7 @@
 """Query-only shared-end-use hypotheses across pinned semiconductor themes."""
 from copy import deepcopy
 from hashlib import sha256
-from .theme_emergence import _bytes,validate_demand_scope,topic_key
+from .theme_emergence import _bytes,validate_demand_scope,validate_demand_recovery,topic_key
 from .economic_changes import normalized
 from .common_cause_comparison import common_cause_comparisons
 from .company_search import company_search_context,match_company_search
@@ -23,7 +23,7 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
     for theme in themes:
         tid=theme['theme_id']
         driver=theme['economic_driver']
-        if driver not in {'DEMAND_EXPANSION','DEMAND_CONTRACTION'} or theme['industry_tags']!=['SEMICONDUCTOR']:continue
+        if driver not in {'DEMAND_EXPANSION','DEMAND_CONTRACTION','DEMAND_RECOVERY'} or theme['industry_tags']!=['SEMICONDUCTOR']:continue
         products={p for p in PRODUCTS if topic_key(p) in {topic_key(x) for x in theme['topic_aliases']}}
         if len(products)!=1:continue
         product=next(iter(products));digest=sha256(_bytes(theme)).hexdigest()
@@ -44,7 +44,7 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                 if resolved and not ID.fullmatch(resolved):resolved=None
                 for source in row['sources']:
                     if source['company_participation']!='SOURCE_EVENT_ACTOR':continue
-                    if driver=='DEMAND_CONTRACTION' and (source['action']!='SUPPLY_REDUCTION' or source['phase']!='SOURCE_REPORTED'):continue
+                    if driver in {'DEMAND_CONTRACTION','DEMAND_RECOVERY'} and (source['action']!=('SUPPLY_RESUMPTION' if driver=='DEMAND_RECOVERY' else 'SUPPLY_REDUCTION') or source['phase']!='SOURCE_REPORTED'):continue
                     if (source['event_id'] not in set(theme['event_ids'])-set(theme['invalidated_event_ids'])
                         or _when(source['recorded_at'],'recorded')>as_of
                         or _when(source['source_available_at'],'source available')>as_of):continue
@@ -56,6 +56,10 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                         scope=ref.get('demand_scope')
                         if not scope or scope['status']!='EXPLICIT':continue
                         validate_demand_scope(scope,ref['topic'],driver)
+                        if driver=='DEMAND_RECOVERY':
+                            proof=ref.get('demand_recovery_cause')
+                            validate_demand_recovery(proof,ref['topic'],driver,ref['action'])
+                            if not scope['source_expression'].endswith(proof['source_expression']):continue
                         if source['cause']['status']!='STORED_EXPRESSION':continue
                         key=normalized(scope['destination'])
                         item=items.setdefault(key,{'product':product,'theme_id':tid,'theme_snapshot_sha256':digest,
@@ -71,14 +75,15 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                             'identity_status':'IDENTIFIED' if resolved else 'SOURCE_NAME_ONLY',
                             'display_name':row['display_name'],'action_group_id':row['action_group_id'],'sources':{}})
                         observation={**deepcopy(source),'demand_scope':deepcopy(scope),
-                            'in_period':since is None or _when(source['recorded_at'],'recorded')>=since}
+                            'in_period':since is None or _when(source['recorded_at'],'recorded')>=since,
+                            **({'demand_recovery_cause':deepcopy(proof)} if driver=='DEMAND_RECOVERY' else {})}
                         action['sources'][sha256(_bytes(observation)).hexdigest()]=observation
             for key,item in items.items():
                 scope=next(iter(next(iter(item['actions'].values()))['sources'].values()))['demand_scope']
-                identity=['CROSS_PRODUCT_DEMAND',key]+([driver] if driver=='DEMAND_CONTRACTION' else [])
+                identity=['CROSS_PRODUCT_DEMAND',key]+([driver] if driver!='DEMAND_EXPANSION' else [])
                 group=grouped.setdefault((key,driver),{'destination_key':key,'destination_expressions':set(),
                     'group_id':sha256(_bytes(identity)).hexdigest(),'products':[],
-                    **({'economic_driver':driver} if driver=='DEMAND_CONTRACTION' else {})})
+                    **({'economic_driver':driver} if driver!='DEMAND_EXPANSION' else {})})
                 group['destination_expressions'].add(scope['destination'])
                 for a in item['actions'].values():a['sources']=sorted(a['sources'].values(),key=lambda s:(s['recorded_at'],s['event_id'],s['source_url']))
                 item['actions']=list(item['actions'].values());group['products'].append(item)

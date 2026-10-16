@@ -23,6 +23,11 @@ function actionSearchText(changes){return (changes||[]).map(c=>[c.action,actionL
 function matchesFinding(item,term){return !term||[item.headline,item.provider,item.category||"",savedCategoryLabel(item),categoryLabel(item),actionSearchText(item.economic_changes),JSON.stringify(item.economic_changes||[]),JSON.stringify(item.company_identity||{})].join(" ").toLocaleLowerCase().includes(term)}
 function themeTitle(theme,presentation){return presentation?.name||theme.provisional_name}
 function matchesTheme(theme,term,candidates,changes,presentation){return !term||[themeTitle(theme,presentation),JSON.stringify(theme),JSON.stringify(changes||{}),JSON.stringify(candidates||[]),actionSearchText(theme.source_refs)].join(" ").toLocaleLowerCase().includes(term)}
+function inclusionBasisLabel(candidate,basis,index,presentations){
+  const entry=presentations?.[candidate.candidate_id],item=entry?.items?.[index];
+  if(!entry||entry.status!=="READY"||entry.theme_id!==candidate.theme_id||entry.entity_id!==candidate.entity_id||entry.theme_snapshot_sha256!==candidate.theme_snapshot_sha256||entry.decision_at!==candidate.decision_at||item?.basis_index!==index||item?.event_id!==basis.event_id||item?.extraction_method!=="AI_SOURCE_SPAN_MATCHED")return "";
+  return item.label||"";
+}
 function renderItems(){
   if(!currentData)return;
   const term=$("item-filter").value.trim().toLocaleLowerCase();
@@ -134,8 +139,10 @@ function renderThemes(term){
       if(candidate){
         const reasons=node("details","finding-detail");reasons.append(node("summary","","기업 포함 이유·수혜 경로·불확실성"));
         const kinds={SOURCE_REPORTED_INVESTMENT_STAGES:"같은 투자 프로젝트의 단계 보도",SOURCE_REPORTED_PARTICIPANT:"출처에 등장한 당사자",SOURCE_REPORTED_SUPPLY_RELATION:"출처에 보고된 공급 관계",INFERRED_ASSOCIATION:"추론한 연관"};
-        for(const basis of candidate.inclusion_basis){
+        for(const [basisIndex,basis] of candidate.inclusion_basis.entries()){
           reasons.append(node("p","",(kinds[basis.kind]||basis.kind)+" · "+basis.reason+(basis.phase?" · "+(economicPhaseLabels[basis.phase]||basis.phase):"")));
+          const basisLabel=inclusionBasisLabel(candidate,basis,basisIndex,currentData.company_inclusion_presentations);
+          if(basisLabel)reasons.append(node("p","",basisLabel));
           for(const url of basis.source_urls||(basis.source_url?[basis.source_url]:[])){const a=node("a","source-link","포함 근거 원문");a.href=url;a.target="_blank";a.rel="noopener noreferrer";reasons.append(a)}
         }
         const evidence=node("details","finding-detail");evidence.append(node("summary","","저장된 원인·행동 근거 문장"));

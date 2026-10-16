@@ -146,3 +146,34 @@ def company_candidates(theme):
             'investment_merit':'NOT_ASSESSED','revenue_contribution':None,
             'verified_real_transaction':False,'verified_real_benefit':False})
     return candidates
+
+
+def inclusion_presentations(themes,candidates):
+    """Query-only labels; never change a stored candidate or v3 bundle."""
+    by_theme={t['theme_id']:t for t in themes}
+    output={}
+    fields=('event_id','source_url','source_available_at','recorded_at','action','phase','topic','evidence_level')
+    for candidate in candidates:
+        theme=by_theme.get(candidate['theme_id'])
+        entry={'theme_id':candidate['theme_id'],'entity_id':candidate['entity_id'],
+               'theme_snapshot_sha256':candidate['theme_snapshot_sha256'],'decision_at':candidate['decision_at'],
+               'status':'SNAPSHOT_MISMATCH','items':[]}
+        output[candidate['candidate_id']]=entry
+        if (not theme or candidate['theme_snapshot_sha256']!=sha256(_bytes(theme)).hexdigest()
+                or candidate['decision_at']!=theme['decision_at']):continue
+        entry['status']='READY'
+        active=set(theme['event_ids'])-set(theme['invalidated_event_ids'])
+        for index,basis in enumerate(candidate['inclusion_basis']):
+            refs=[r for r in theme['source_refs']
+                  if basis.get('kind')=='SOURCE_REPORTED_PARTICIPANT'
+                  and basis.get('event_id') in active and r['polarity']=='SUPPORT'
+                  and candidate['entity_id'] in r['entity_ids']
+                  and all(r.get(k)==basis.get(k) for k in fields)
+                  and r.get('evidence_sha256')==basis.get('evidence_sha256')
+                  and r.get('source_binding')==basis.get('source_binding')]
+            methods={r.get('extraction_method') for r in refs}
+            is_ai=bool(refs) and methods=={'AI_SOURCE_SPAN_MATCHED'}
+            entry['items'].append({'basis_index':index,'event_id':basis.get('event_id'),
+                'extraction_method':'AI_SOURCE_SPAN_MATCHED' if is_ai else None,
+                'label':'AI 해석의 원문 근거 · 독립 사실 확인 아님' if is_ai else None})
+    return output

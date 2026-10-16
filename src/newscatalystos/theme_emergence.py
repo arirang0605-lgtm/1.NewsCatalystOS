@@ -11,7 +11,7 @@ import sqlite3
 import re
 from urllib.parse import urlsplit, quote
 
-from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized, explicit_topic_aliases, policy_causes, policy_cause_key, investment_project
+from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized, explicit_topic_aliases, policy_causes, policy_cause_key, investment_project, parse_demand_scope
 from .evidence_archive import _private_root
 from .incremental_ingest import _check_state_path
 from .source_share import SourceShareError, _when, _must_sha
@@ -61,13 +61,26 @@ def validate_investment_project(proof, action):
         raise SourceShareError('invalid explicit investment project')
 
 
+def validate_demand_scope(proof, topic, driver):
+    if (not isinstance(proof,dict) or not _text(proof.get('source_expression'),240)
+            or parse_demand_scope(proof['source_expression'])!=(topic,driver,proof)):
+        raise SourceShareError('invalid source demand scope')
+
+
+def _demand_key(row):
+    proof=row['change'].get('demand_scope')
+    if not proof:return ()
+    return ('DEMAND_SCOPE',normalized(proof['destination']) if proof['status']=='EXPLICIT' else row['event_id'])
+
+
 def validate_change(change):
-    if (not isinstance(change,dict) or set(change)-{'original_entity_ids','service_name','extraction_method','topic_alias_evidence','policy_cause','investment_project'}!=CHANGE_KEYS
+    if (not isinstance(change,dict) or set(change)-{'original_entity_ids','service_name','extraction_method','topic_alias_evidence','policy_cause','investment_project','demand_scope'}!=CHANGE_KEYS
             or not _text(change['topic'],80) or change['economic_driver'] not in DRIVERS
             or change['action'] not in ACTIONS or change['evidence_level'] not in QUALITIES
             or change['phase'] not in {'SOURCE_REPORTED','ADOPTED_NOT_YET_EFFECTIVE','PLANNED'}
             or change['verified_economic_effect'] is not False):
         raise SourceShareError('invalid source economic change')
+    if 'demand_scope' in change:validate_demand_scope(change['demand_scope'],change['topic'],change['economic_driver'])
     if 'investment_project' in change:validate_investment_project(change['investment_project'],change['action'])
     if 'extraction_method' in change and change['extraction_method']!='AI_SOURCE_SPAN_MATCHED':
         raise SourceShareError('unsupported economic extraction method')
@@ -191,6 +204,7 @@ def _theme_id(row):
         # A named law does not identify the same individual permit for two actors.
         key.append(['REPORTED_POLICY',policy_cause_key(proof)]
                    if proof['policy_name'] and proof['jurisdiction'] and not proof['restriction'].endswith('허가') else row['event_id'])
+    if 'demand_scope' in c:key.append(_demand_key(row))
     if c['economic_driver']=='UNKNOWN':
         key.append(row['event_id'] if row.get('content_scope')=='RSS_TITLE_METADATA'
                    else row['origin_reference'])
@@ -213,7 +227,7 @@ def _service_key(row):
             or name in {normalized(x) for x in ('AI','인공지능','신규','맞춤','서비스',*KNOWN_TOPICS)}):
         return None
     return (name,tuple(entities),topic_key(change['topic']),change['economic_driver'],
-            tuple(sorted(change['industry_tags'])))
+            tuple(sorted(change['industry_tags'])))+_demand_key(row)
 
 
 def _investment_key(row):
@@ -224,7 +238,7 @@ def _investment_key(row):
             or change['evidence_level'] not in {'REPORTED','OFFICIAL_SOURCE'}):return None
     return (normalized(proof['project_name']),tuple(entities),topic_key(change['topic']),
             change['economic_driver'],tuple(sorted(change['industry_tags'])),
-            tuple(policy_cause_key(change['policy_cause'])) if 'policy_cause' in change else None)
+            tuple(policy_cause_key(change['policy_cause'])) if 'policy_cause' in change else None)+_demand_key(row)
 
 
 def _investment_pairs(rows):
@@ -493,6 +507,7 @@ def _snapshot(theme_id, rows, at, previous):
            **({'source_binding':row['source_binding']} if 'source_binding' in row else {}),
            **({'content_scope':row['content_scope']} if 'content_scope' in row else {}),
            **({'investment_project':row['change']['investment_project']} if 'investment_project' in row['change'] else {}),
+           **({'demand_scope':row['change']['demand_scope']} if 'demand_scope' in row['change'] else {}),
            **({'service_name':row['change']['service_name']} if 'service_name' in row['change'] else {}),
            **({'topic_alias_evidence':row['change']['topic_alias_evidence']} if 'topic_alias_evidence' in row['change'] else {}),
            **({'policy_cause':row['change']['policy_cause']} if 'policy_cause' in row['change'] else {}),
@@ -503,6 +518,7 @@ def _snapshot(theme_id, rows, at, previous):
     return {'schema_version':SCHEMA,'theme_id':theme_id,
         'provisional_name':(previous['provisional_name'] if previous else display_topic+' · '+
             ((first['policy_cause']['policy_name'] or '정책명 미확인')+' · ' if 'policy_cause' in first else '')+
+            ((first['demand_scope']['destination']+'용' if first['demand_scope']['status']=='EXPLICIT' else '수요처 범위 미확인')+' · ' if 'demand_scope' in first else '')+
             DRIVERS[first['economic_driver']]),
         'parent_theme_id':('taxonomy:semiconductor' if topic_key(first['topic']) in {'hbm','dram','nand','euv','duv'} else None),
         'topic_classification':'KNOWN_TOPIC' if topic_key(first['topic']) in KNOWN_TOPICS else 'PROVISIONAL_TOPIC',

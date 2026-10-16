@@ -120,6 +120,12 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
                         ('topic','action','phase','economic_driver','entity_ids','policy_cause'))
                         for c in extract_economic_changes(row['headline'],company_names=change['entity_ids'])):
                     raise SourceShareError('commercial action is not in the saved source title')
+            if 'demand_scope' in change:
+                from .economic_changes import extract_economic_changes
+                if not any(all(c.get(k)==change.get(k) for k in
+                        ('topic','action','phase','economic_driver','entity_ids','demand_scope'))
+                        for c in extract_economic_changes(row['headline'],company_names=change['entity_ids'])):
+                    raise SourceShareError('demand scope is not in the saved source title')
             if 'investment_project' in change:
                 from .economic_changes import extract_economic_changes
                 if not any(all(c.get(k)==change.get(k) for k in

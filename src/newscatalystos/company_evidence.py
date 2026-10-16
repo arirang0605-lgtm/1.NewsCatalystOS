@@ -99,6 +99,7 @@ def _change_matches(change,ref):
     if change.get('topic_alias_evidence')!=ref.get('topic_alias_evidence'):return False
     if change.get('policy_cause')!=ref.get('policy_cause'):return False
     if change.get('investment_project')!=ref.get('investment_project'):return False
+    if change.get('demand_scope')!=ref.get('demand_scope'):return False
     if any(change.get(k)!=ref.get(k) for k in ('topic','action','phase','economic_driver')):return False
     if change['source_paragraph_sha256']!=ref['evidence_sha256']:return False
     event=economic_observation(change,origin_reference=ref['origin_reference'],source_url=ref['source_url'],
@@ -172,6 +173,7 @@ def _body_source(ref,row,jobs,at,now):
 def _clause(text,change,entity,ref,*,include_investment_execution=True,include_new_customers=True,include_delivery_start=True):
     names=[m['source_name'] for m in ref.get('company_mappings',[]) if m['entity_id']==entity] or [entity]
     options=dict(company_names=change['entity_ids'],include_investment_execution=include_investment_execution,
+                 include_demand_scopes='demand_scope' in change,
                  include_investment_projects='investment_project' in change,include_new_customers=include_new_customers,include_delivery_start=include_delivery_start)
     matches=[]
     for sentence in re.split(r'(?<=[.!?。])\s+',text):
@@ -195,6 +197,7 @@ def _clause(text,change,entity,ref,*,include_investment_execution=True,include_n
             for found in candidates:
                 if (all(found[k]==change[k] for k in ('topic','economic_driver','action','phase'))
                         and found.get('policy_cause')==change.get('policy_cause')
+                        and found.get('demand_scope')==change.get('demand_scope')
                         and ('investment_project' not in change or found.get('investment_project')==change['investment_project'])):
                     matches.append(clause);break
     matches=list(dict.fromkeys(matches))

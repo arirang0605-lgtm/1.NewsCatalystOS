@@ -38,11 +38,15 @@ def company_candidates(theme):
             reason=f"{ref['topic']} 관련 {ACTION_LABELS.get(ref['action'],ref['action'])} 근거에 기업이 포함됨"
             if policy:
                 reason+=f" · 보도된 원인: {policy['source_expression']}"
+            if ref.get('demand_scope'):
+                reason+=' · 보도된 수요처 범위: '+ref['demand_scope']['source_expression']
+                if ref['demand_scope']['status']=='UNRESOLVED':reason+=' (복수·불명확, 공통 수요처 미확인)'
             if ref.get('investment_project'):reason+=' · 명시 프로젝트: '+ref['investment_project']['project_name']
             basis.append({'kind':'SOURCE_REPORTED_PARTICIPANT' if reported else 'INFERRED_ASSOCIATION',
                 'reason':reason,
                 **({'investment_project':ref['investment_project']} if 'investment_project' in ref else {}),
                 **({'policy_cause':policy} if policy else {}),
+                **({'demand_scope':ref['demand_scope']} if 'demand_scope' in ref else {}),
                 'event_id':ref['event_id'], 'topic':ref['topic'], 'action':ref['action'],
                 'phase':ref['phase'], 'evidence_level':ref['evidence_level'],
                 'content_scope':ref.get('content_scope','UNSPECIFIED'),

@@ -108,6 +108,11 @@ function renderThemes(term){
     card.append(meta,node("h4","",title),node("p","finding-detail","최초 발견: "+theme.first_detected_at),node("p","finding-detail","최근 근거: "+theme.last_evidence_at));
     if(title!==theme.provisional_name){const saved=node("details","finding-detail");saved.append(node("summary","","저장 당시 테마명"),node("p","",theme.provisional_name));card.append(saved)}
     renderThemeChanges(card,currentData.theme_changes?.[theme.theme_id],labels);
+    if(["DEMAND_EXPANSION","DEMAND_CONTRACTION"].includes(theme.economic_driver)){
+      const refs=theme.source_refs.filter(r=>r.polarity==="SUPPORT"&&!theme.invalidated_event_ids.includes(r.event_id));
+      const scopes=[...new Set(refs.map(r=>r.demand_scope?(r.demand_scope.status==="EXPLICIT"?r.demand_scope.destination+"용":"복수·불명확 (공통 수요처 미확인)"):"N/A (수요처 미명시)"))];
+      card.append(node("p","finding-detail","보도된 수요처 범위: "+scopes.join(" · ")+" · 고객회사·계약·수혜 확인을 뜻하지 않습니다."));
+    }
     if(theme.topic_aliases?.length>1)card.append(node("p","finding-detail","같은 주제 표기: "+theme.topic_aliases.join(" · ")));
     for(const ref of theme.source_refs.filter(r=>r.topic_alias_evidence)){
       const proof=ref.topic_alias_evidence,detail=node("details","finding-detail");

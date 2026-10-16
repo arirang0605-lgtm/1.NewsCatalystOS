@@ -102,7 +102,35 @@ def period_cross_product(store,selected,current,*,since,as_of,now,query='',ident
                         'before_snapshot':{'sha256':sha256(_bytes(prior)).hexdigest(),'decision_at':prior['decision_at']},
                         'after_snapshot':{'sha256':sha256(_bytes(latest)).hexdigest(),'decision_at':latest['decision_at']},
                         'stored_stage_link':deepcopy(link)})
-            known_stage_groups={c['action_group_id'] for c in stage_contexts}
+            service_contexts=[]
+            for product in ((fresh or {}).get('products',[]) if group.get('economic_driver')=='DEMAND_RECOVERY' else []):
+                prior=by_before.get(product['theme_id']);latest=by_after[product['theme_id']]
+                if prior is None:continue
+                starts={s['event_id'] for a in product['actions'] for s in a['sources'] if s['action']=='BUSINESS_START'}
+                find,known,_=_groups(prior,latest)
+                def service_context(kind,event,old_refs,new_refs,link=None):
+                    return {'kind':kind,'theme_id':product['theme_id'],'action_group_id':find(event),
+                        'before_snapshot':{'sha256':sha256(_bytes(prior)).hexdigest(),'decision_at':prior['decision_at']},
+                        'after_snapshot':{'sha256':sha256(_bytes(latest)).hexdigest(),'decision_at':latest['decision_at']},
+                        'sources':deepcopy(old_refs+new_refs),
+                        **({'stored_followup':deepcopy(link)} if link else {})}
+                for link in latest.get('event_followups',[]):
+                    event=link['realization_event_id']
+                    if (event not in starts or event in prior['event_ids'] or link['planned_event_id'] not in prior['event_ids']
+                        or find(event) not in known):continue
+                    old_refs=[r for r in prior['source_refs'] if r['polarity']=='SUPPORT' and r['event_id']==link['planned_event_id']
+                        and r['phase']=='PLANNED' and r['evidence_sha256']==link['evidence_sha256'][0]]
+                    new_refs=[r for r in latest['source_refs'] if r['polarity']=='SUPPORT' and r['event_id']==event
+                        and r['phase']=='SOURCE_REPORTED' and r['evidence_sha256']==link['evidence_sha256'][1]]
+                    if old_refs and new_refs:service_contexts.append(service_context('STORED_SERVICE_FOLLOWUP',event,old_refs,new_refs,link))
+                # An already-known event becoming eligible is a metadata/stage
+                # update, never an invented two-event realization link.
+                for event in sorted(starts.intersection(prior['event_ids'])):
+                    if find(event) in left['action_group_ids']:continue
+                    old_refs=[r for r in prior['source_refs'] if r['polarity']=='SUPPORT' and r['event_id']==event]
+                    new_refs=[r for r in latest['source_refs'] if r['polarity']=='SUPPORT' and r['event_id']==event and r['phase']=='SOURCE_REPORTED']
+                    if old_refs and new_refs:service_contexts.append(service_context('EXISTING_EVENT_UPDATE',event,old_refs,new_refs))
+            known_stage_groups={c['action_group_id'] for c in stage_contexts+service_contexts}
             change={'status':'READY','baseline':'LATEST_STRICTLY_BEFORE_SINCE','since':since.isoformat(),'as_of':as_of.isoformat(),
                 'before':left,'after':right,'is_current_candidate':is_current,
                 'formed_in_period':len(left['products'])<2 and is_current,
@@ -116,6 +144,11 @@ def period_cross_product(store,selected,current,*,since,as_of,now,query='',ident
             if stage_contexts and change['status']=='READY':
                 change['investment_stage_contexts']=sorted(stage_contexts,key=lambda c:(c['theme_id'],c['action_group_id']))
                 if not left['products']:change['baseline']='RECORDED_INVESTMENT_DECISION_CONTEXT'
+            if service_contexts and change['status']=='READY':
+                change['service_stage_contexts']=sorted(service_contexts,key=lambda c:(c['theme_id'],c['action_group_id']))
+                if not left['products']:
+                    change['baseline']=('RECORDED_ACTION_STAGE_CONTEXT' if stage_contexts else
+                        'RECORDED_SERVICE_EVENT_CONTEXT' if any(c['kind']=='EXISTING_EVENT_UPDATE' for c in service_contexts) else 'RECORDED_SERVICE_PLAN_CONTEXT')
             group['period_change']=change
             group['search_keys']=sorted({k for p in group['products']+removed+removed_action_contexts for a in p['actions'] for k in search_keys.get(a['candidate_id'],set())})
             exact=any(a['candidate_id'] in direct for p in group['products']+removed+removed_action_contexts for a in p['actions'])

@@ -93,8 +93,9 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                             validate_demand_scope(scope,ref['topic'],driver)
                             key=normalized(scope['destination'])
                         if 'growth_parallel_action' in ref:
-                            validate_growth_parallel_action(ref['growth_parallel_action'],ref['topic'],driver,ref['action'],ref['phase'],scope,ref.get('service_name'),ref.get('market_entry'))
+                            validate_growth_parallel_action(ref['growth_parallel_action'],ref['topic'],driver,ref['action'],ref['phase'],scope,ref.get('service_name'),ref.get('market_entry'),ref.get('investment_project'))
                             validate_service_event_key(ref)
+                            validate_investment_event_key(ref)
                             actors=dict(zip(ref.get('original_entity_ids',ref['entity_ids']),ref['entity_ids']))
                             if not all(actors.get(a,a) in ref['entity_ids'] for a in ref['growth_parallel_action']['actors']):raise SourceShareError('shared growth actor mismatch')
                         if driver=='DEMAND_RECOVERY':

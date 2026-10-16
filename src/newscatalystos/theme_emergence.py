@@ -123,9 +123,11 @@ def validate_recovery_parallel_action(proof,topic,driver,action,phase,recovery,s
         raise SourceShareError('shared recovery action cause or destination mismatch')
 
 
-def validate_growth_parallel_action(proof,topic,driver,action,phase,scope=None,service_name=None,market=None):
+def validate_growth_parallel_action(proof,topic,driver,action,phase,scope=None,service_name=None,market=None,project=None):
     if driver!='DEMAND_EXPANSION':raise SourceShareError('different shared growth driver')
     _validate_parallel_action(proof,action,phase,growth_parallel_actions,service_name,market)
+    if action=='INVESTMENT_EXECUTION' and investment_project(proof['action_expression'],action)!=project:
+        raise SourceShareError('shared growth investment project mismatch')
     expression=proof['source_expression']
     match=_DEMAND.search(expression) or _ORDER_EXPANSION.search(expression)
     parsed=parse_demand_scope(expression[slice(*proof['cause_span'])])
@@ -189,7 +191,8 @@ def validate_investment_event_key(row):
     if 'investment_event_key' not in row:return
     proof=row.get('investment_project')
     if (row.get('action') not in {'INVESTMENT','INVESTMENT_EXECUTION'}
-            or row.get('economic_driver') not in {'DEMAND_RECOVERY','POLICY_ENABLEMENT'}
+            or row.get('economic_driver') not in {'DEMAND_RECOVERY','POLICY_ENABLEMENT','DEMAND_EXPANSION'}
+            or (row.get('economic_driver')=='DEMAND_EXPANSION' and not isinstance(row.get('growth_parallel_action'),dict))
             or (row.get('economic_driver')=='POLICY_ENABLEMENT' and not isinstance(row.get('policy_cause'),dict))
             or not isinstance(proof,dict)
             or not _text(proof.get('project_name'),80)
@@ -232,7 +235,7 @@ def validate_change(change):
         if not set(change['policy_investment_action']['actors']).issubset(change.get('original_entity_ids',change['entity_ids'])):raise SourceShareError('policy investment actors mismatch')
         if change['policy_investment_action'].get('investment_project')!=change.get('investment_project'):raise SourceShareError('policy investment project mismatch')
     if 'growth_parallel_action' in change:
-        validate_growth_parallel_action(change['growth_parallel_action'],change['topic'],change['economic_driver'],change['action'],change['phase'],change.get('demand_scope'),change.get('service_name'),change.get('market_entry'))
+        validate_growth_parallel_action(change['growth_parallel_action'],change['topic'],change['economic_driver'],change['action'],change['phase'],change.get('demand_scope'),change.get('service_name'),change.get('market_entry'),change.get('investment_project'))
         if not set(change['growth_parallel_action']['actors']).issubset(change.get('original_entity_ids',change['entity_ids'])):raise SourceShareError('shared growth actors mismatch')
     if 'recovery_parallel_action' in change:
         validate_recovery_parallel_action(change['recovery_parallel_action'],change['topic'],change['economic_driver'],change['action'],change['phase'],change.get('demand_recovery_cause'),change.get('demand_scope'),change.get('service_name'),change.get('market_entry'),change.get('investment_project'))

@@ -628,7 +628,8 @@ def growth_parallel_actions(text, *, company_names=()):
     if subject is None:return None
     actors,tail=subject
     return _parallel_actions(tail,cause,actors,source_line=text,scope=scope,
-        supported_actions=('BUSINESS_START','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY'))
+        supported_actions=('BUSINESS_START','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY',
+            'PRODUCTION_START','CONTRACT','CAPACITY_ADDITION','INVESTMENT_EXECUTION','SUPPLY_RESUMPTION'))
 
 
 def policy_capacity_action(text, *, company_names=(), include_parallel=True):
@@ -850,12 +851,15 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
             if growth and include_growth_parallel and include_parallel_actions and include_demand_scopes and line==evidence_line else None)
         if growth_parallel and any(k in growth_parallel and not enabled for k,enabled in (
                 ('DELIVERY_START',include_delivery_start),('CUSTOMER_ACQUISITION',include_new_customers),
-                ('MARKET_ENTRY',include_market_entry))):growth_parallel=None
+                ('MARKET_ENTRY',include_market_entry),('INVESTMENT_EXECUTION',include_investment_execution),
+                ('SUPPLY_RESUMPTION',include_resumption))):growth_parallel=None
+        if (growth_parallel and 'INVESTMENT_EXECUTION' in growth_parallel and not include_investment_projects
+                and investment_project(growth_parallel['INVESTMENT_EXECUTION']['action_expression'],'INVESTMENT_EXECUTION')):growth_parallel=None
         # Do not fall back to the legacy service-only claim for an ambiguous pair.
         # Stored pre-feature reports explicitly disable this path when reread.
         if (growth and include_growth_parallel and re.search(r'\s+및\s+',action_text)
                 and any(k=='BUSINESS_START' and re.search(p,action_text,re.I) for k,p in ACTIONS)
-                and any(k in {'DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY'} and re.search(p,action_text,re.I) for k,p in ACTIONS)
+                and any(k in {'DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY','PRODUCTION_START','CONTRACT','CAPACITY_ADDITION','INVESTMENT_EXECUTION','SUPPLY_RESUMPTION'} and re.search(p,action_text,re.I) for k,p in ACTIONS)
                 and growth_parallel is None):continue
         shared_parallel=policy_parallel or recovery_parallel or growth_parallel
         if shared_parallel:commercial_claims.update({k:{'actors':v['actors'],'phase':v['phase'],
@@ -983,7 +987,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 # Explicit source-named actors anchor separate clause events even
                 # when their names came from the pinned directory, not a suffix rule.
                 original_companies=companies[:]
-            if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'} or (recovery and action in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','BUSINESS_START'}) or ((policy or growth_parallel) and action=='BUSINESS_START'):
+            if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'} or (recovery and action in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','BUSINESS_START'}) or (policy and action=='BUSINESS_START') or growth_parallel:
                 companies=commercial_claims[action]['actors'];original_companies=companies[:]
             project=investment_project(shared_parallel[action]['action_expression'] if shared_parallel else action_text,action) if include_investment_projects else None
             key = (alias['canonical_topic'] if alias else topic, driver, action, tuple(original_companies),
@@ -998,7 +1002,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 if name!=first:service_event_key=sha256(name.encode()).hexdigest()
                 key+=('SOURCE_NAMED_SERVICE',name)
             investment_event_key=None
-            if (recovery or (policy and include_policy_investment_actions)) and project:
+            if (recovery or growth_parallel or (policy and include_policy_investment_actions)) and project:
                 name=normalized(project['project_name'])
                 first=first_projects.setdefault(key,name)
                 if name!=first:investment_event_key=sha256(name.encode()).hexdigest()
@@ -1014,7 +1018,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
                          else policy_investment['phase'] if policy_investment else policy_contract['phase'] if policy_contract else policy_capacity['phase'] if policy_capacity else 'PLANNED' if demand_planned or (project and _BUSINESS_PLAN.search(action_text))
                          else cut_phase if price_drop
-                         else commercial_claims[action]['phase'] if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'} or (recovery and action in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','BUSINESS_START'}) or ((policy or growth_parallel) and action=='BUSINESS_START')
+                         else commercial_claims[action]['phase'] if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'} or (recovery and action in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','BUSINESS_START'}) or (policy and action=='BUSINESS_START') or growth_parallel
                          else execution_phase if action == 'INVESTMENT_EXECUTION'
                          else business_phase if action == 'BUSINESS_START'
                          else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line)

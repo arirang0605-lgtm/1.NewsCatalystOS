@@ -238,7 +238,7 @@ def build_theme_bundle(themes: list[dict], *, decision_at: datetime, now=None,
                 if ref['policy_investment_action'].get('investment_project')!=ref.get('investment_project'):raise SourceShareError('policy investment project mismatch')
             if 'growth_parallel_action' in ref:
                 from .theme_emergence import validate_growth_parallel_action
-                validate_growth_parallel_action(ref['growth_parallel_action'],ref['topic'],ref['economic_driver'],ref['action'],ref['phase'],ref.get('demand_scope'),ref.get('service_name'),ref.get('market_entry'))
+                validate_growth_parallel_action(ref['growth_parallel_action'],ref['topic'],ref['economic_driver'],ref['action'],ref['phase'],ref.get('demand_scope'),ref.get('service_name'),ref.get('market_entry'),ref.get('investment_project'))
                 actors=dict(zip(ref.get('original_entity_ids',ref['entity_ids']),ref['entity_ids']))
                 if not all(actors.get(a,a) in ref['entity_ids'] for a in ref['growth_parallel_action']['actors']):raise SourceShareError('shared growth actor mismatch')
             if 'recovery_parallel_action' in ref:

@@ -35,7 +35,8 @@ def _cause(ref):
             validate_policy_investment_action(ref['policy_investment_action'],topic,driver,ref['action'],ref['phase'],ref.get('policy_cause'))
         if 'growth_parallel_action' in ref:
             proof=ref['growth_parallel_action']
-            validate_growth_parallel_action(proof,topic,driver,ref['action'],ref['phase'],ref.get('demand_scope'),ref.get('service_name'),ref.get('market_entry'))
+            validate_growth_parallel_action(proof,topic,driver,ref['action'],ref['phase'],ref.get('demand_scope'),ref.get('service_name'),ref.get('market_entry'),ref.get('investment_project'))
+            validate_investment_event_key(ref)
             expression=proof['source_expression'][slice(*proof['cause_span'])]
             proofs.append(('growth_parallel_action',{'source_expression':expression,'expression_sha256':sha256(expression.encode()).hexdigest()}))
         if 'recovery_parallel_action' in ref:
@@ -125,7 +126,7 @@ def common_cause_comparisons(themes,candidates=None):
             if 'policy_investment_action' in ref:source['policy_investment_action']=deepcopy(ref['policy_investment_action'])
             if 'policy_parallel_action' in ref:source['policy_parallel_action']=deepcopy(ref['policy_parallel_action'])
             if 'growth_parallel_action' in ref:
-                source.update({k:deepcopy(ref[k]) for k in ('growth_parallel_action','service_name','service_event_key','market_entry') if k in ref})
+                source.update({k:deepcopy(ref[k]) for k in ('growth_parallel_action','service_name','service_event_key','market_entry','investment_project','investment_event_key') if k in ref})
             if 'recovery_parallel_action' in ref:
                 source['recovery_parallel_action']=deepcopy(ref['recovery_parallel_action'])
                 source.update({k:deepcopy(ref[k]) for k in ('investment_project','investment_event_key') if k in ref})

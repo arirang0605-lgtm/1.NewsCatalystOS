@@ -83,6 +83,31 @@ function renderCommonCauseComparison(card,theme,candidates,comparisons){
   }
   card.append(box);
 }
+function renderCompanyTimelines(parent,timeline,term,search){
+  if(!term||!timeline)return;
+  const direct=new Set(Object.entries(search||{}).filter(([,v])=>v.match_kind==="DIRECT_COMPANY").map(([id])=>id));
+  const companies=(timeline.companies||[]).filter(c=>c.candidate_ids.some(id=>direct.has(id)));
+  if(!companies.length)return;
+  const labels={ECONOMIC_ACTION_FIRST_OBSERVED:"경제 행동 최초 관측",SOURCE_REPORTED_FOLLOWUP:"같은 행동의 후속 단계 보도",EVENT_STAGE_UPDATE:"같은 사건의 단계 갱신",ADDITIONAL_SOURCE:"같은 사건의 추가 근거",RELATION_CONTEXT_ADDED:"공급망 관계 맥락 추가"};
+  for(const company of companies){
+    const card=node("article","finding");card.append(node("h4","","기업별 경제 변화 타임라인 · "+company.display_names.join(" / ")));
+    card.append(node("p","","당사자 경제 행동 "+company.distinct_economic_actions+"개 · 기간 내 첫 관측 행동 "+company.new_actions_in_period+"개 · 공급망 관계 맥락 "+company.related_action_contexts+"개"));
+    if(company.identity_status!=="IDENTIFIED")card.append(node("p","","미식별 출처 이름 · 다른 테마와 기업 동일성 미확인"));
+    card.append(node("p","","추가 보도·이름 연결은 새 경제 행동이 아닙니다. 자료가 없는 날짜는 약화·무효를 뜻하지 않습니다."));
+    for(const entry of company.entries){
+      const box=node("details","finding-detail");
+      box.append(node("summary","",entry.observed_at+" · "+(entry.in_period?labels[entry.change_kind]:"기간 이전 근거")+" · "+actionLabel(entry)));
+      box.append(node("p","",entry.theme_name+" · "+(entry.company_participation==="SUPPLY_CHAIN_CONTEXT"?"공급망 관계 기업 · 직접 행동 주체 아님":"출처의 사건 당사자")));
+      box.append(node("p","",entry.cause.source_expression?"저장된 원인 표현: “"+entry.cause.source_expression+"”":"원인 유형: "+(economicDriverLabels[entry.economic_driver]||"미확인")+" · 원문 근거 미확인"));
+      if(entry.extraction_method==="AI_SOURCE_SPAN_MATCHED")box.append(node("p","","AI 해석의 원문 근거 · 독립 사실 확인 아님"));
+      if(entry.identity_available_at)box.append(node("p","","기업 식별 연결 확보: "+entry.identity_available_at+" · 사건의 최초 관측과 별도"));
+      box.append(node("p","","출처 가용: "+entry.source_available_at+" · 최초 기록: "+entry.recorded_at+" · 선택 판본: "+entry.decision_at));
+      const a=node("a","source-link","이 사건·역할의 출처");a.href=entry.source_url;a.target="_blank";a.rel="noopener noreferrer";box.append(a);
+      renderEventImpactPaths(box,entry);card.append(box);
+    }
+    parent.append(card);
+  }
+}
 function renderItems(){
   if(!currentData)return;
   const term=$("item-filter").value.trim().toLocaleLowerCase();
@@ -158,6 +183,7 @@ function renderThemes(term){
   const search=companySearchResults(currentData.company_search?.candidates,term);
   const themes=(currentData.themes||[]).filter(x=>matchesTheme(x,term,candidates.filter(c=>c.theme_id===x.theme_id),currentData.theme_changes?.[x.theme_id],currentData.theme_presentations?.[x.theme_id])||candidates.some(c=>c.theme_id===x.theme_id&&["DIRECT_COMPANY","AMBIGUOUS_NAME"].includes(search[c.candidate_id]?.match_kind)));
   $("theme-total").textContent=themes.length+"개";$("themes").replaceChildren();
+  renderCompanyTimelines($("themes"),currentData.company_timelines,term,search);
   if(!themes.length)$("themes").append(node("p","empty-small",currentData.theme_status==="UNAVAILABLE"?"테마 기록을 읽지 못했습니다. 뉴스 분석 기록은 계속 표시합니다.":"이 시점·검색 조건에 해당하는 테마 후보가 없습니다."));
   const labels={CANDIDATE:"관찰 후보",EMERGING:"형성 중",EXPANDING:"확산",WEAKENING:"약화",INVALIDATED:"무효",REACTIVATED:"재활성화"};
   for(const theme of themes){

@@ -72,6 +72,9 @@ function renderReportedRecoveryContract(parent,source){
 function renderReportedRecoveryDelivery(parent,source){
   if(source.economic_driver==="DEMAND_RECOVERY"&&source.action==="DELIVERY_START"&&source.phase==="SOURCE_REPORTED")parent.append(node("p","","회복 원인의 납품·공급 개시 보도 · 체결·재개와 출처별 행동 단계를 구별하며 완납·물량·매출·수혜 확인이 아닙니다."));
 }
+function renderReportedRecoveryProduction(parent,source){
+  if(source.economic_driver==="DEMAND_RECOVERY"&&source.action==="PRODUCTION_START"&&source.phase==="SOURCE_REPORTED")parent.append(node("p","","회복 원인의 생산·양산 개시 보도 · 증설·재개·체결·납품과 출처별 단계를 구별하며 생산능력·물량·상업 납품·매출·수혜 확인이 아닙니다."));
+}
 function renderCommonCauseComparison(card,theme,candidates,comparisons,period){
   const comparison=comparisons?.[theme.theme_id],cs=candidates.filter(c=>c.theme_id===theme.theme_id);
   if(!comparison||comparison.theme_id!==theme.theme_id||comparison.decision_at!==theme.decision_at||!cs.length||cs.some(c=>c.theme_snapshot_sha256!==comparison.theme_snapshot_sha256||c.decision_at!==comparison.decision_at))return;
@@ -85,7 +88,7 @@ function renderCommonCauseComparison(card,theme,candidates,comparisons,period){
         group.append(node("p","","인접 문장의 명시적 원인 연결 · 출처 보도이며 독립 사실 확인 아님"),node("p","","원인 문장: "+source.cause.cause_expression),node("p","","행동 문장: "+source.cause.action_expression));
         if(source.cause.demand_scope)group.append(node("p","","명시 수요처: "+(source.cause.demand_scope.status==="EXPLICIT"?source.cause.demand_scope.destination:"복수·불명확 · 공동 수요처 미확인")+" · 고객회사·계약·수혜 확인 아님"));
       }
-      renderReportedContractAmount(group,source.cause);renderReportedDemandReduction(group,source);renderReportedRecoveryContract(group,source);renderReportedRecoveryDelivery(group,source);
+      renderReportedContractAmount(group,source.cause);renderReportedDemandReduction(group,source);renderReportedRecoveryContract(group,source);renderReportedRecoveryDelivery(group,source);renderReportedRecoveryProduction(group,source);
       const contextOnly=source.company_participation==="SUPPLY_CHAIN_CONTEXT";
       group.append(node("p","",(contextOnly?"공급망으로 연결된 사건 · 이 기업의 직접 행동 확인 아님 · ":"")+actionLabel(source)+" · 사건 "+source.event_id));
       if(contextOnly)group.append(node("p","","사건 당사자: "+source.event_entity_ids.join(" · ")));
@@ -119,8 +122,9 @@ function renderCrossProductDemand(parent,comparison,term="",search={}){
     const recoveryProducts=[...group.products,...(group.removed_products||[]),...(group.removed_action_contexts||[])];
     const recoveryContract=recovering&&recoveryProducts.some(p=>p.actions.some(a=>a.sources.some(s=>s.action==="CONTRACT")));
     const recoveryDelivery=recovering&&recoveryProducts.some(p=>p.actions.some(a=>a.sources.some(s=>s.action==="DELIVERY_START")));
+    const recoveryProduction=recovering&&recoveryProducts.some(p=>p.actions.some(a=>a.sources.some(s=>s.action==="PRODUCTION_START")));
     card.append(node("h4","",(group.status==="PERIOD_CONTEXT_ONLY"?"복수 제품의 과거 비교 맥락 · ":decreasing?"복수 제품 수요 감소 공통 원인 후보 · ":recovering?"복수 제품 수요·주문 회복 공통 원인 후보 · ":"복수 제품 공통 원인 후보 · ")+group.destination_expressions.join(" / ")));
-    card.append(node("p","",decreasing?"같은 명시 수요처의 수요 감소 보도를 비교한 가설 · 실제 생산량·매출·손실의 독립 확인이 아닙니다. 경제적 감소 방향과 근거 철회에 따른 후보 상태는 구별합니다. 거래·수혜·대장주 확정이 아닙니다.":recoveryDelivery?"같은 명시 수요처의 수요·주문 회복에 따른 체결·재개·납품/공급 개시 근거를 단계별로 비교한 가설 · 개시 보도는 완납·물량·매출·수혜·시장 전체 회복의 독립 확인이 아닙니다.":recoveryContract?"같은 명시 수요처의 수요·주문 회복에 따른 계약 체결·공급 재개 근거를 단계별로 비교한 가설 · 실제 이행·납품·물량·매출·수혜·시장 전체 회복의 독립 확인이 아닙니다.":recovering?"같은 명시 수요처의 수요·주문 회복과 공급·생산 재개 보도를 비교한 가설 · 수요/주문 근거를 구별하며 실제 물량·매출·수혜·시장 전체 회복의 독립 확인이 아닙니다. 경제 회복과 근거의 재활성화 상태는 구별합니다.":"같은 명시 수요처의 수요 증가 보도를 비교한 가설 · 기존 제품별 테마는 유지합니다. 거래·수혜·대장주 확정이 아닙니다."));
+    card.append(node("p","",decreasing?"같은 명시 수요처의 수요 감소 보도를 비교한 가설 · 실제 생산량·매출·손실의 독립 확인이 아닙니다. 경제적 감소 방향과 근거 철회에 따른 후보 상태는 구별합니다. 거래·수혜·대장주 확정이 아닙니다.":recoveryProduction?"같은 명시 수요처의 수요·주문 회복에 따른 생산 개시·체결·재개·납품 근거를 단계별로 비교한 가설 · 생산 개시 보도는 증설·물량·상업 납품·매출·수혜·시장 전체 회복의 독립 확인이 아닙니다.":recoveryDelivery?"같은 명시 수요처의 수요·주문 회복에 따른 체결·재개·납품/공급 개시 근거를 단계별로 비교한 가설 · 개시 보도는 완납·물량·매출·수혜·시장 전체 회복의 독립 확인이 아닙니다.":recoveryContract?"같은 명시 수요처의 수요·주문 회복에 따른 계약 체결·공급 재개 근거를 단계별로 비교한 가설 · 실제 이행·납품·물량·매출·수혜·시장 전체 회복의 독립 확인이 아닙니다.":recovering?"같은 명시 수요처의 수요·주문 회복과 공급·생산 재개 보도를 비교한 가설 · 수요/주문 근거를 구별하며 실제 물량·매출·수혜·시장 전체 회복의 독립 확인이 아닙니다. 경제 회복과 근거의 재활성화 상태는 구별합니다.":"같은 명시 수요처의 수요 증가 보도를 비교한 가설 · 기존 제품별 테마는 유지합니다. 거래·수혜·대장주 확정이 아닙니다."));
     card.append(node("p","","독립 행동 "+group.distinct_action_groups+"개 · 식별된 기업 "+group.identified_company_count+"개 · 미식별 기업 맥락 "+group.unresolved_company_contexts+"개 (테마 간 동일 기업으로 합치지 않음)"));
     const change=group.period_change;
     if(change?.status==="READY"){
@@ -142,7 +146,7 @@ function renderCrossProductDemand(parent,comparison,term="",search={}){
         box.append(node("h5","",action.display_name),node("p","",action.identity_status==="IDENTIFIED"?"식별된 사건 당사자":"출처 이름 맥락 · 기업 동일성 미확인"));
         for(const source of action.sources){
           box.append(node("p","",actionLabel(source)+" · "+(source.in_period?"기간 내 관측 근거":"기간 이전 맥락")),node("p","","원문 원인: "+source.cause.source_expression));
-          renderReportedContractAmount(box,source.cause);renderReportedDemandReduction(box,source);renderReportedRecoveryContract(box,source);renderReportedRecoveryDelivery(box,source);
+          renderReportedContractAmount(box,source.cause);renderReportedDemandReduction(box,source);renderReportedRecoveryContract(box,source);renderReportedRecoveryDelivery(box,source);renderReportedRecoveryProduction(box,source);
           if(source.demand_recovery_cause)box.append(node("p","","회복 원문 근거: "+(source.demand_recovery_cause.basis==="ORDER"?"주문":"수요")+" · “"+source.demand_recovery_cause.source_expression+"” · SHA: "+source.demand_recovery_cause.expression_sha256));
           if(source.conflicting)box.append(node("p","","상충 보도가 있는 사건 · 해소 또는 수혜 확정 아님"));
           box.append(node("p","","출처 근거 수준: "+source.evidence_level+" · 독립 사실 확인 아님"));
@@ -177,7 +181,7 @@ function renderCompanyTimelines(parent,timeline,term,search){
       if(!entry.in_period&&entry.period_evidence_kinds?.length)box.append(node("p","","기간 이전 대상 사건 · 아래 새 근거를 이해하기 위한 맥락"));
       box.append(node("p","",entry.theme_name+" · "+(entry.company_participation==="SUPPLY_CHAIN_CONTEXT"?"공급망 관계 기업 · 직접 행동 주체 아님":"출처의 사건 당사자")));
       box.append(node("p","",entry.cause.source_expression?"저장된 원인 표현: “"+entry.cause.source_expression+"”":"원인 유형: "+(economicDriverLabels[entry.economic_driver]||"미확인")+" · 원문 근거 미확인"));
-      renderReportedContractAmount(box,entry.cause);renderReportedDemandReduction(box,entry);renderReportedRecoveryContract(box,entry);renderReportedRecoveryDelivery(box,entry);
+      renderReportedContractAmount(box,entry.cause);renderReportedDemandReduction(box,entry);renderReportedRecoveryContract(box,entry);renderReportedRecoveryDelivery(box,entry);renderReportedRecoveryProduction(box,entry);
       if(entry.extraction_method==="AI_SOURCE_SPAN_MATCHED")box.append(node("p","","AI 해석의 원문 근거 · 독립 사실 확인 아님"));
       if(entry.identity_available_at)box.append(node("p","","기업 식별 연결 확보: "+entry.identity_available_at+" · 사건의 최초 관측과 별도"));
       box.append(node("p","","출처 가용: "+entry.source_available_at+" · 최초 기록: "+entry.recorded_at+" · 선택 판본: "+entry.decision_at));

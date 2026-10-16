@@ -43,13 +43,17 @@ def company_search_context(themes,candidates):
             names.add(official)
             for m in identity.get('matches',[]):
                 if m['entity_id']==official:names.update((m['source_name'],m['issuer_name']))
+        directory=c.get('official_name_context',{})
+        directory_name=None
+        if directory.get('status')=='MATCHED' and directory['proof']['entity_id']==c['entity_id']:
+            directory_name=directory['proof']['issuer_name'];names.add(directory_name)
         owner=official or 'SOURCE_NAME:'+search_term(c['entity_id'])
         for name in sorted(names):
             key=search_term(name)
             if not key:continue
             is_id=bool(ID.fullmatch(name)) and name==official
-            entry['keys'].append({'value':key,'kind':'OFFICIAL_ID' if is_id else 'EXACT_NAME',
-                                  'ambiguous':not is_id and identity.get('status')=='AMBIGUOUS'})
+            entry['keys'].append({'value':key,'kind':'OFFICIAL_ID' if is_id else 'OFFICIAL_DIRECTORY_NAME' if name==directory_name else 'EXACT_NAME',
+                                  'ambiguous':not is_id and (identity.get('status')=='AMBIGUOUS' or (name==directory_name and directory.get('name_ambiguous',False)))})
             owners.setdefault(key,set()).add(owner)
         entry['identity_status']='OFFICIAL_ID_AVAILABLE' if official else 'SOURCE_NAME_ONLY'
         fields=('event_id','action','phase','source_url','evidence_sha256','source_available_at','recorded_at')

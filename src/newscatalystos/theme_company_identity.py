@@ -40,7 +40,9 @@ def ensure_identities(candidates, contexts, root, *, at):
             saved=_read_report(path,at)
             if any(saved[k]!=v for k,v in key.items()):raise SourceShareError('identity publication collision')
             output.append('CACHE_HIT')
-    return {'created':output.count('CREATED'),'cache_hits':output.count('CACHE_HIT')}
+    from .theme_official_names import ensure_official_names
+    official=ensure_official_names(candidates,contexts,root,at=at,directory_sha256=fingerprint)
+    return {'created':output.count('CREATED')+official['created'],'cache_hits':output.count('CACHE_HIT')+official['cache_hits']}
 
 
 def _read_report(path, now):
@@ -89,7 +91,9 @@ def resolve_candidates(candidates, root, *, as_of, now=None):
                 'source_name':r['source_name'],'matches':r['matches'],
                 'receipt_sha256':sha256(encoded(r)).hexdigest()}
             if r['matches']:candidate['resolved_entity_id']=r['matches'][0]['entity_id']
-    return result,skipped
+    from .theme_official_names import resolve_official_names
+    result,name_skipped=resolve_official_names(result,root,as_of=as_of,now=present)
+    return result,skipped+name_skipped
 
 
 def resolve_stored_candidates(theme_root, config, output_root, *, now=None):
@@ -100,7 +104,7 @@ def resolve_stored_candidates(theme_root, config, output_root, *, now=None):
     at=now or datetime.now(timezone.utc)
     themes=ThemeStore(theme_root).search(now=at)
     candidates=json.loads(build_theme_bundle(themes,decision_at=at,now=at,include_company_candidates=True))['CompanyCandidates']
-    if not any(not ID.fullmatch(c['entity_id']) for c in candidates):return {'created':0,'cache_hits':0}
+    if not candidates or (all(ID.fullmatch(c['entity_id']) for c in candidates) and not Path(config).exists()):return {'created':0,'cache_hits':0}
     contexts=load_directory(config,now=at)
     return ensure_identities(candidates,contexts,output_root,at=at)
 

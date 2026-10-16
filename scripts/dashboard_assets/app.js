@@ -194,6 +194,12 @@ function renderThemes(term){
       card.append(node("p","",display+" · "+(company.supply_chain_links?.length?"공급망 근거 연결":"테마 연관")+" · 수혜 미확정"));
       const candidate=candidates.find(c=>c.theme_id===theme.theme_id&&c.entity_id===company.entity_id);
       if(candidate){
+        const directoryName=candidate.official_name_context;
+        if(directoryName?.status==="MATCHED"&&directoryName.proof.entity_id===candidate.entity_id){
+          card.append(node("p","finding-detail","공식 명부 이름: "+directoryName.proof.issuer_name+" · 기사 명시 이름 아님"));
+          card.append(node("p","finding-detail","명부 가용: "+directoryName.proof.available_at+" · 이름 연결 확보: "+directoryName.decision_at));
+          if(directoryName.name_ambiguous)card.append(node("p","finding-detail","같은 명부 이름의 다른 기업 ID 존재 · 이름만으로 식별 미확정"));
+        }
         const match=search[candidate.candidate_id];
         if(match&&match.status==="READY"&&match.theme_snapshot_sha256===candidate.theme_snapshot_sha256&&match.decision_at===candidate.decision_at&&match.entity_id===candidate.entity_id&&match.theme_id===candidate.theme_id){
           const label=companySearchLabel(match.match_kind);

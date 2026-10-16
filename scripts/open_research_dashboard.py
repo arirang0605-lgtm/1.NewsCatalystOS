@@ -15,6 +15,8 @@ import webbrowser
 PROJECT = Path(__file__).resolve().parent.parent
 if str(PROJECT / "src") not in sys.path:
     sys.path.insert(0, str(PROJECT / "src"))
+if str(PROJECT) not in sys.path:
+    sys.path.insert(0, str(PROJECT))
 
 from newscatalystos.research_dashboard import KST, NoteStore, build_period, scan_saved_analysis, period_as_of
 from newscatalystos.source_share import SourceShareError
@@ -29,6 +31,8 @@ from newscatalystos.cross_product_period import period_cross_product
 from newscatalystos.comparison_export import pack_comparison_export,query_comparison_export
 from newscatalystos.theme_company_candidates import inclusion_presentations
 from newscatalystos.company_search import company_search_context,match_company_search
+from newscatalystos.federated_news_search import TitleSearchWorkspace,search_completed_workspaces
+from scripts.run_feed_triage import _registry
 from newscatalystos.common_cause_comparison import common_cause_comparisons
 from newscatalystos.company_timeline import company_timelines,select_timelines,timeline_evidence_view
 from newscatalystos.timeline_counterevidence import targeted_counterevidence
@@ -37,11 +41,13 @@ ASSETS = Path(__file__).resolve().parent / "dashboard_assets"
 
 
 class DashboardServer(ThreadingHTTPServer):
-    def __init__(self, port: int, reports: Path, notes: Path, documents: Path | None = None, *, evidence_base: Path | None = None):
+    def __init__(self, port: int, reports: Path, notes: Path, documents: Path | None = None, *,
+                 evidence_base: Path | None = None, news_search_workspaces=None):
         super().__init__(("127.0.0.1", port), Handler)
         self.reports = reports
         self.documents = documents
         self.evidence_base = evidence_base
+        self.news_search_workspaces = news_search_workspaces
         self.notes = NoteStore(notes)
 
 
@@ -76,6 +82,28 @@ class Handler(BaseHTTPRequestHandler):
             self._json(403, {"error": "local browser origin required"})
             return
         url = urlsplit(self.path)
+        if url.path == "/api/news-search":
+            # Existing SHA-acknowledged source metadata only; no network, AI,
+            # new search index, body storage, or unverified company promotion.
+            if self.server.news_search_workspaces is None:
+                self._json(503, {"error": "saved news search not configured"})
+                return
+            query = parse_qs(url.query)
+            try:
+                semiconductor_only = query.get("semiconductor_only", ["0"])[0]
+                if semiconductor_only not in {"0", "1"}:
+                    raise ValueError("invalid semiconductor option")
+                result = search_completed_workspaces(
+                    self.server.news_search_workspaces, query.get("q", [""])[0],
+                    registry_reader=_registry,
+                    source_id=query.get("source_id", [None])[0],
+                    semiconductor_only=semiconductor_only == "1",
+                    limit=int(query.get("limit", ["20"])[0]),
+                )
+                self._json(200, result)
+            except (SourceShareError, OSError, ValueError, TypeError, sqlite3.Error):
+                self._json(400, {"error": "invalid saved news search"})
+            return
         if url.path=="/api/comparison-export":
             query=parse_qs(url.query)
             try:
@@ -300,8 +328,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--evidence-base",type=Path,
                         default=Path.home()/"Library/Application Support/NewsCatalystOS")
     options = parser.parse_args(argv)
+    base = options.evidence_base
+    workspaces = (
+        TitleSearchWorkspace("core", base / "providers/authorized_sources.json",
+                             base / "state/incremental_feeds.sqlite3", base / "inbox/feed_triage"),
+        TitleSearchWorkspace("motir", base / "providers/motir_authorized_sources.json",
+                             base / "state/motir_incremental_feeds.sqlite3", base / "inbox/motir_feed_triage"),
+    )
     server = DashboardServer(options.port, options.reports_root, options.notes_root, options.document_reports_root,
-                             evidence_base=options.evidence_base)
+                             evidence_base=base, news_search_workspaces=workspaces)
     url = f"http://127.0.0.1:{server.server_port}/"
     print(f"NewsCatalystOS dashboard: {url}", flush=True)
     if not options.no_browser:

@@ -652,3 +652,30 @@ function renderCompanyIdentities(term){
     card.append(link,node("p","finding-detail","식별 기록: "+row.decision_at));place.append(card);
   }
 }
+
+async function searchStoredNews(event){
+  event.preventDefault();
+  const message=$("news-search-status"),place=$("news-search-results");
+  const phrase=$("news-search-query").value.trim();
+  if(phrase.length<2||phrase.length>80){message.textContent="2~80자 검색어를 입력하세요.";return}
+  place.replaceChildren();message.textContent="기존 저장 뉴스 제목을 검색하고 있습니다.";
+  try{
+    const params=new URLSearchParams({q:phrase,semiconductor_only:$("news-semiconductor-only").checked?"1":"0",limit:"20"});
+    const response=await fetch("/api/news-search?"+params);
+    if(!response.ok)throw new Error("저장 뉴스 검색을 수행할 수 없습니다.");
+    const result=await response.json();
+    message.textContent="일치 "+result.matched_document_versions+"개 자료 판본 중 "+result.keyword_hits+"개 표시 · "+(result.coverage_complete?"허용 출처 확인 완료":"일부 출처 조회 불가 · 부분 결과")+" · 중복 제목은 별도 자료 판본이며 같은 경제 사건임이 확인된 것은 아닙니다.";
+    if(!result.results.length){place.append(node("p","empty-small","일치하는 저장 뉴스 제목이 없습니다."));return}
+    for(const item of result.results){
+      const card=node("article","finding");
+      card.append(node("h4","",item.headline),
+        node("p","finding-detail",item.provider_id+" · 출처 가용: "+item.source_available_at+" · "+(item.semiconductor_keyword_candidate?"반도체 단어 후보":"일반 제목 맥락")),
+        node("p","finding-detail","RSS 제목 메타데이터 · 기사 본문 미포함 · 사실/거래/수혜 확인 아님"));
+      const link=node("a","source-link","저장 뉴스의 원래 출처 ↗");
+      link.href=item.source_url;link.target="_blank";link.rel="noopener noreferrer";
+      card.append(link);place.append(card);
+    }
+    if(result.has_more_matches)place.append(node("p","fineprint","검색 결과는 최신 20개까지 표시합니다."));
+  }catch(error){message.textContent=error.message||"저장 뉴스 검색 실패";}
+}
+$("news-search-form").addEventListener("submit",searchStoredNews);

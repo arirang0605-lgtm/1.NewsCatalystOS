@@ -310,7 +310,7 @@ def _parallel_actions(action_text, cause, actors, *, include_investment_executio
             start=source_line.find(part,offset);end=start+len(part)
             if start<0:return None
             matches=[]
-            for kind in ('BUSINESS_START','CAPACITY_ADDITION','INVESTMENT_EXECUTION'):
+            for kind in ('BUSINESS_START','CAPACITY_ADDITION','INVESTMENT_EXECUTION','PRODUCTION_START','CONTRACT'):
                 claim=_commercial_claim(source_line,cause,actors,kind,action_span=(start,end))
                 if claim and claim['phase']=='SOURCE_REPORTED' and claim['actors']==sorted(actors):
                     if kind=='BUSINESS_START' and len(business_start_names(part))!=1:continue
@@ -322,7 +322,7 @@ def _parallel_actions(action_text, cause, actors, *, include_investment_executio
                 'action_span':[start,end],'action_expression':part,
                 'action':kind,'actors':sorted(actors),'phase':'SOURCE_REPORTED'}
             offset=end
-        return claims if set(claims) in ({'BUSINESS_START','CAPACITY_ADDITION'}, {'BUSINESS_START','INVESTMENT_EXECUTION'}) else None
+        return claims if len(claims)==2 and 'BUSINESS_START' in claims else None
     supported={'CONTRACT','INVESTMENT','PRODUCTION_START','CAPACITY_ADDITION'}
     if include_investment_execution:supported.add('INVESTMENT_EXECUTION')
     patterns=[(kind,pattern) for kind,pattern in ACTIONS if kind in supported]
@@ -574,7 +574,7 @@ def _commercial_claim(line, cause, company_names, action, scope=None, *, action_
 
 
 def policy_parallel_actions(text, *, company_names=()):
-    """Original spans for a bounded service-start and capacity-addition pair."""
+    """Original spans for a named service start and one bounded corporate action."""
     if (not isinstance(text,str) or not 0<len(text)<=800 or any(ord(c)<32 for c in text)
             or _DEMAND_DENIAL.search(text) or UNCERTAIN.search(text) or PAST.search(text)):
         return None
@@ -600,14 +600,16 @@ def policy_capacity_action(text, *, company_names=(), include_parallel=True):
     return {'source_expression':text,'expression_sha256':sha256(text.encode()).hexdigest(),
         'actors':claim['actors'],'phase':'PLANNED' if '대비' in match['connector'] else claim['phase']}
 
-def policy_contract_action(text, *, company_names=()):
+def policy_contract_action(text, *, company_names=(), include_parallel=True):
     """Bound the existing commercial-action decision to one literal policy clause."""
     if not isinstance(text,str) or not 0<len(text)<=800 or any(ord(c)<32 for c in text):return None
     policies=policy_causes(text)
     if len(policies)!=1:return None
     topic,match,policy=policies[0]
     claim=_commercial_claim(text,(topic,match),company_names,'CONTRACT')
-    if claim is None:return None
+    if claim is None:
+        parallel=policy_parallel_actions(text,company_names=company_names) if include_parallel else None
+        return parallel.get('CONTRACT') if parallel else None
     return {'source_expression':text,'expression_sha256':sha256(text.encode()).hexdigest(),
         'actors':claim['actors'],'phase':'PLANNED' if '대비' in match['connector'] else claim['phase']}
 
@@ -784,7 +786,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         policy_parallel=(policy_parallel_actions(line,company_names=company_names) if policy and include_policy_parallel and include_parallel_actions and line==evidence_line else None)
         if (policy and include_policy_parallel and include_parallel_actions and re.search(r'\s+및\s+',action_text)
                 and any(k=='BUSINESS_START' and re.search(pattern,action_text,re.I) for k,pattern in ACTIONS)
-                and any(k in {'CAPACITY_ADDITION','INVESTMENT_EXECUTION'} and re.search(pattern,action_text,re.I) for k,pattern in ACTIONS)
+                and any(k in {'CAPACITY_ADDITION','INVESTMENT_EXECUTION','PRODUCTION_START','CONTRACT'} and re.search(pattern,action_text,re.I) for k,pattern in ACTIONS)
                 and policy_parallel is None):continue
         if policy_parallel and 'INVESTMENT_EXECUTION' in policy_parallel and not include_investment_execution:policy_parallel=None
         if policy_parallel:commercial_claims.update({k:{'actors':v['actors'],'phase':v['phase']} for k,v in policy_parallel.items()})
@@ -853,7 +855,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
             if policy and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','BUSINESS_START'}:
                 continue
             policy_investment=(policy_investment_action(line,company_names=company_names,include_parallel=include_policy_parallel and include_parallel_actions) if policy and action=='INVESTMENT_EXECUTION' and include_policy_investment_actions else None)
-            policy_contract=(policy_contract_action(line,company_names=company_names) if policy and action=='CONTRACT' and include_policy_contract_actions else None)
+            policy_contract=(policy_contract_action(line,company_names=company_names,include_parallel=include_policy_parallel and include_parallel_actions) if policy and action=='CONTRACT' and include_policy_contract_actions else None)
             policy_capacity=(policy_capacity_action(line,company_names=company_names,include_parallel=include_policy_parallel and include_parallel_actions) if policy and action=='CAPACITY_ADDITION' and include_policy_capacity_actions else None)
             if recovery and (action not in {'SUPPLY_RESUMPTION','CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY','BUSINESS_START'} or not commercial_claims.get(action)):continue
             if recovery and action=='MARKET_ENTRY' and scope and scope['status']=='EXPLICIT':

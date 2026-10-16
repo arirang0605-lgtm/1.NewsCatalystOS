@@ -186,8 +186,8 @@ function renderReportedPolicyService(parent,source){
   if(proof)parent.append(node("p","","정책: "+proof.policy_name+" · 관할: "+proof.jurisdiction+" · "+proof.restriction+" · "+proof.change+" · 대상국: "+(proof.destination||"원문 미명시")),node("p","","정책 원문: “"+proof.source_expression+"” · SHA: "+proof.expression_sha256));
 }
 function renderSharedPolicyAction(parent,source){
-  const p=source.policy_parallel_action||source.recovery_parallel_action;if(!p)return;
-  parent.append(node("p","","같은 원인·당사자의 병렬 행동 · 같은 회사를 새 기업으로 세지 않습니다."),node("p","","원문: “"+p.source_expression+"” · SHA: "+p.expression_sha256),node("p","","이 행동 원문: “"+p.action_expression+"” · 범위 "+p.action_span.join("–")+(source.recovery_parallel_action?" · 회복 원인 범위 ":" · 정책 범위 ")+p.cause_span.join("–")));
+  const p=source.policy_parallel_action||source.recovery_parallel_action||source.growth_parallel_action;if(!p)return;
+  parent.append(node("p","","같은 원인·당사자의 병렬 행동 · 같은 회사를 새 기업으로 세지 않습니다."),node("p","","원문: “"+p.source_expression+"” · SHA: "+p.expression_sha256),node("p","","이 행동 원문: “"+p.action_expression+"” · 범위 "+p.action_span.join("–")+(source.recovery_parallel_action?" · 회복 원인 범위 ":source.growth_parallel_action?" · 성장 원인 범위 ":" · 정책 범위 ")+p.cause_span.join("–")));
 }
 function renderCrossProductDemand(parent,comparison,term="",search={}){
   if(!comparison)return;

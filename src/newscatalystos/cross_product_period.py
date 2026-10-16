@@ -104,10 +104,12 @@ def period_cross_product(store,selected,current,*,since,as_of,now,query='',ident
                         'after_snapshot':{'sha256':sha256(_bytes(latest)).hexdigest(),'decision_at':latest['decision_at']},
                         'stored_stage_link':deepcopy(link)})
             service_contexts=[]
-            for product in ((fresh or {}).get('products',[]) if group.get('economic_driver') in {'DEMAND_RECOVERY','POLICY_ENABLEMENT'} else []):
+            for product in (fresh or {}).get('products',[]):
+                growth_sources={s['event_id'] for a in product['actions'] for s in a['sources'] if 'growth_parallel_action' in s}
+                if group.get('economic_driver') not in {'DEMAND_RECOVERY','POLICY_ENABLEMENT'} and not growth_sources:continue
                 prior=by_before.get(product['theme_id']);latest=by_after[product['theme_id']]
                 if prior is None:continue
-                service_starts={s['event_id'] for a in product['actions'] for s in a['sources'] if s['action']=='BUSINESS_START'}
+                service_starts={s['event_id'] for a in product['actions'] for s in a['sources'] if s['action']=='BUSINESS_START' and (not growth_sources or s['event_id'] in growth_sources)}
                 find,known,_=_groups(prior,latest)
                 def service_context(kind,event,old_refs,new_refs,link=None):
                     return {'kind':kind,'theme_id':product['theme_id'],'action_group_id':find(event),

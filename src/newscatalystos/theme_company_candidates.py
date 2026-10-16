@@ -38,8 +38,10 @@ def company_candidates(theme):
             reason=f"{ref['topic']} 관련 {ACTION_LABELS.get(ref['action'],ref['action'])} 근거에 기업이 포함됨"
             if policy:
                 reason+=f" · 보도된 원인: {policy['source_expression']}"
+            if ref.get('investment_project'):reason+=' · 명시 프로젝트: '+ref['investment_project']['project_name']
             basis.append({'kind':'SOURCE_REPORTED_PARTICIPANT' if reported else 'INFERRED_ASSOCIATION',
                 'reason':reason,
+                **({'investment_project':ref['investment_project']} if 'investment_project' in ref else {}),
                 **({'policy_cause':policy} if policy else {}),
                 'event_id':ref['event_id'], 'topic':ref['topic'], 'action':ref['action'],
                 'phase':ref['phase'], 'evidence_level':ref['evidence_level'],
@@ -48,6 +50,11 @@ def company_candidates(theme):
                 'source_binding':ref.get('source_binding'),
                 'source_available_at':ref['source_available_at'], 'recorded_at':ref['recorded_at'],
                 'identity_evidence': [m for m in ref.get('company_mappings',[]) if m['entity_id']==entity]})
+        for link in theme.get('investment_stage_links',[]):
+            if entity not in link['entity_ids']:continue
+            basis.append({'kind':'SOURCE_REPORTED_INVESTMENT_STAGES',
+                'reason':link['project_name']+' · 투자 결정 → 집행 보도 연결 · 실제 지출·거래·수혜는 독립 확인되지 않음',
+                'source_urls':[s['source_url'] for s in link['sources']],**link})
         for link in links:
             basis.append({'kind':'INFERRED_ASSOCIATION' if link['relation_kind']=='THEMATIC_ASSOCIATION'
                           else 'SOURCE_REPORTED_SUPPLY_RELATION',

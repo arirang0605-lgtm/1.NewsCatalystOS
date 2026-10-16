@@ -201,6 +201,9 @@ def build_theme_bundle(themes: list[dict], *, decision_at: datetime, now=None,
         _must_sha(row['theme_id'],'theme identity')
         row_at=_when(row['decision_at'],'theme decision')
         for ref in row['source_refs']:
+            if 'investment_project' in ref:
+                from .theme_emergence import validate_investment_project
+                validate_investment_project(ref['investment_project'],ref['action'])
             if 'policy_cause' in ref:
                 from .theme_emergence import validate_policy_cause
                 validate_policy_cause(ref['policy_cause'],ref['topic'])
@@ -240,6 +243,46 @@ def build_theme_bundle(themes: list[dict], *, decision_at: datetime, now=None,
                            <=_when(link['decision_at'],'followup decision')
                        for plan in plans for start in starts):
                 raise SourceShareError('service followup must retain both source claims')
+        if row.get('investment_stage_links'):
+            from .theme_emergence import _investment_pairs, _investment_key
+            observations=[{'event_id':ref['event_id'],'polarity':ref['polarity'],
+                'supersedes_event_id':ref['supersedes_event_id'],
+                'source_available_at':ref['source_available_at'],
+                'change':{**ref,'source_paragraph_sha256':ref['evidence_sha256']}}
+                for ref in row['source_refs'] if ref['event_id'] in row['event_ids']
+                and ref['event_id'] not in row['conflicting_event_ids']
+                and ref['event_id'] not in row['invalidated_event_ids']]
+            latest={}
+            rank={'OFFICIAL_SOURCE':4,'REPORTED':3,'INFERRED':2,'UNVERIFIED':1,'UNKNOWN':0}
+            for obs in observations:
+                if obs['polarity']!='SUPPORT':continue
+                def quality(r):
+                    c=r['change']
+                    return (rank[c['evidence_level']],len(c.get('company_mappings',[])),len(c['entity_ids']),
+                            _when(c['recorded_at'],'recorded'))
+                old=latest.get(obs['event_id'])
+                if old is None or quality(obs)>=quality(old):latest[obs['event_id']]=obs
+            pairs=_investment_pairs([o for o in observations if o['event_id'] in latest
+                and o['change']['phase']==latest[o['event_id']]['change']['phase']
+                and _investment_key(o)==_investment_key(latest[o['event_id']])])
+            for link in row['investment_stage_links']:
+                if (link.get('status')!='SOURCE_REPORTED_EXECUTION' or link.get('is_execution_confirmed') is not False
+                        or not _when(link['decision_at'],'investment link')<=row_at):
+                    raise SourceShareError('invalid investment execution claim')
+                expected=[]
+                for decision,execution in pairs:
+                    refs=[r['change'] for r in (decision,execution)]
+                    expected.append({'decision_event_id':decision['event_id'],'execution_event_id':execution['event_id'],
+                        'project_name':execution['change']['investment_project']['project_name'],
+                        'entity_ids':execution['change']['entity_ids'],'status':'SOURCE_REPORTED_EXECUTION',
+                        'is_execution_confirmed':False,'decision_at':link['decision_at'],
+                        'sources':[{'event_id':r['event_id'],'source_url':r['source_url'],
+                            'evidence_sha256':r['evidence_sha256'],'project_evidence':r['investment_project']} for r in refs]})
+                    if link==expected[-1] and any(_when(r['recorded_at'],'recorded')>
+                            _when(link['decision_at'],'investment link') for r in refs):
+                        raise SourceShareError('future investment stage evidence')
+                if link not in expected:
+                    raise SourceShareError('investment link must retain unambiguous source claims')
         validate_theme_relations(row,at)
         allowed={'THEMATIC_ONLY','SOURCE_BACKED_CONTEXT'} if row['schema_version']==RELATION_SCHEMA else {'THEMATIC_ONLY'}
         if any(link.get('relation_kind') not in allowed or link.get('revenue_contribution') is not None

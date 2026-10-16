@@ -128,7 +128,7 @@ function renderThemes(term){
       const candidate=candidates.find(c=>c.theme_id===theme.theme_id&&c.entity_id===company.entity_id);
       if(candidate){
         const reasons=node("details","finding-detail");reasons.append(node("summary","","기업 포함 이유·수혜 경로·불확실성"));
-        const kinds={SOURCE_REPORTED_PARTICIPANT:"출처에 등장한 당사자",SOURCE_REPORTED_SUPPLY_RELATION:"출처에 보고된 공급 관계",INFERRED_ASSOCIATION:"추론한 연관"};
+        const kinds={SOURCE_REPORTED_INVESTMENT_STAGES:"같은 투자 프로젝트의 단계 보도",SOURCE_REPORTED_PARTICIPANT:"출처에 등장한 당사자",SOURCE_REPORTED_SUPPLY_RELATION:"출처에 보고된 공급 관계",INFERRED_ASSOCIATION:"추론한 연관"};
         for(const basis of candidate.inclusion_basis){
           reasons.append(node("p","",(kinds[basis.kind]||basis.kind)+" · "+basis.reason+(basis.phase?" · "+(economicPhaseLabels[basis.phase]||basis.phase):"")));
           for(const url of basis.source_urls||(basis.source_url?[basis.source_url]:[])){const a=node("a","source-link","포함 근거 원문");a.href=url;a.target="_blank";a.rel="noopener noreferrer";reasons.append(a)}
@@ -216,10 +216,21 @@ function renderThemes(term){
     const details=node("details",""),summary=node("summary","","근거와 상태 이력");details.append(summary);
     const actions=economicActionLabels;
     const phases=economicPhaseLabels;
+    renderInvestmentStages(details,theme.investment_stage_links);
     for(const followup of theme.event_followups||[])details.append(node("p","finding-detail",followup.service_name+" · 계획 → 개시 보도 연결 · 독립 사건 1개 · 실제 실현·매출·수혜는 미확인"));
     for(const ref of theme.source_refs){const link=node("a","source-link",(ref.entity_ids?.join(", ")||"기업 미식별")+" · "+(ref.topic||theme.provisional_name)+" · "+(actions[ref.action]||ref.action)+" · "+(phases[ref.phase]||ref.phase)+" · "+(ref.content_scope==="RSS_TITLE_METADATA"?"제목 근거 · ":"")+ref.evidence_level+(ref.extraction_method?" · AI 해석/제목 대조":""));link.href=ref.source_url;link.target="_blank";link.rel="noopener noreferrer";details.append(link)}
     for(const item of theme.history)details.append(node("p","finding-detail",item.decision_at+" · "+(labels[item.status]||item.status)));
     card.append(details);$("themes").append(card);
+  }
+}
+
+function renderInvestmentStages(parent,links){
+  for(const link of links||[]){
+    parent.append(node("p","finding-detail",link.project_name+" · 투자 결정 → 집행 보도 연결 · 실제 지출·거래·수혜는 독립 확인되지 않음"));
+    for(const [i,source] of link.sources.entries()){
+      const a=node("a","source-link",(i===0?"투자 결정 근거":"투자 집행 근거")+" · "+source.project_evidence.source_expression);
+      a.href=source.source_url;a.target="_blank";a.rel="noopener noreferrer";parent.append(a);
+    }
   }
 }
 
@@ -234,6 +245,7 @@ function renderThemeChanges(card,change,labels){
     const text=direction+"된 사건: "+(ref?(ref.entity_ids.join(", ")||"기업 미식별")+" · "+ref.topic+" · "+(economicActionLabels[ref.action]||ref.action):"근거 설명 미확인")+(event.kind==="FOLLOWUP_OBSERVATION"?" · 기존 행동의 후속 보도":"");
     if(ref){const link=node("a","source-link",text);link.href=ref.source_url;link.target="_blank";link.rel="noopener noreferrer";box.append(link)}else box.append(node("p","",text));
   }
+  renderInvestmentStages(box,change.investment_stage_links_added);
   for(const item of change.companies.added)box.append(node("p","","기업 포함: "+item.entity_id+" · "+({NEW_EVENT_PARTICIPANT:"새 경제 행동의 당사자",SUPPLY_CONTEXT:"공급 관계 근거 추가",EXISTING_EVENT_COMPANY_CONTEXT:"기존 사건의 기업 식별 보완"}[item.kind]||item.kind)));
   for(const item of change.companies.removed)box.append(node("p","","활성 근거에서 제외된 기업: "+item.entity_id));
   for(const item of change.companies.identity_updates)box.append(node("p","","기업 식별 갱신: "+item.from_entity_id+" → "+item.to_entity_id+" · 기업 확산에 포함하지 않음"));

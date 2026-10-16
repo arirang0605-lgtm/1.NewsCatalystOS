@@ -11,7 +11,7 @@ import sqlite3
 import re
 from urllib.parse import urlsplit, quote
 
-from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized, explicit_topic_aliases, policy_causes, policy_cause_key
+from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized, explicit_topic_aliases, policy_causes, policy_cause_key, investment_project
 from .evidence_archive import _private_root
 from .incremental_ingest import _check_state_path
 from .source_share import SourceShareError, _when, _must_sha
@@ -55,13 +55,20 @@ def validate_policy_cause(proof, topic):
         raise SourceShareError('policy cause does not match source expression')
 
 
+def validate_investment_project(proof, action):
+    if (not isinstance(proof,dict) or not _text(proof.get('source_expression'),120)
+            or investment_project(proof['source_expression'],action)!=proof):
+        raise SourceShareError('invalid explicit investment project')
+
+
 def validate_change(change):
-    if (not isinstance(change,dict) or set(change)-{'original_entity_ids','service_name','extraction_method','topic_alias_evidence','policy_cause'}!=CHANGE_KEYS
+    if (not isinstance(change,dict) or set(change)-{'original_entity_ids','service_name','extraction_method','topic_alias_evidence','policy_cause','investment_project'}!=CHANGE_KEYS
             or not _text(change['topic'],80) or change['economic_driver'] not in DRIVERS
             or change['action'] not in ACTIONS or change['evidence_level'] not in QUALITIES
             or change['phase'] not in {'SOURCE_REPORTED','ADOPTED_NOT_YET_EFFECTIVE','PLANNED'}
             or change['verified_economic_effect'] is not False):
         raise SourceShareError('invalid source economic change')
+    if 'investment_project' in change:validate_investment_project(change['investment_project'],change['action'])
     if 'extraction_method' in change and change['extraction_method']!='AI_SOURCE_SPAN_MATCHED':
         raise SourceShareError('unsupported economic extraction method')
     if 'service_name' in change and (change['action']!='BUSINESS_START'
@@ -209,12 +216,34 @@ def _service_key(row):
             tuple(sorted(change['industry_tags'])))
 
 
+def _investment_key(row):
+    change=row['change'];proof=change.get('investment_project')
+    entities=resolved_entities(row)
+    if (not proof or row['polarity']!='SUPPORT' or len(entities)!=1
+            or change['action'] not in {'INVESTMENT','INVESTMENT_EXECUTION'}
+            or change['evidence_level'] not in {'REPORTED','OFFICIAL_SOURCE'}):return None
+    return (normalized(proof['project_name']),tuple(entities),topic_key(change['topic']),
+            change['economic_driver'],tuple(sorted(change['industry_tags'])),
+            tuple(policy_cause_key(change['policy_cause'])) if 'policy_cause' in change else None)
+
+
+def _investment_pairs(rows):
+    return _stage_pairs(rows,_investment_key,
+        lambda c:c['action']=='INVESTMENT' and c['phase']=='SOURCE_REPORTED',
+        lambda c:c['action']=='INVESTMENT_EXECUTION' and c['phase']=='SOURCE_REPORTED')
+
+
 def _service_pairs(rows):
+    return _stage_pairs(rows,_service_key,lambda c:c['phase']=='PLANNED',
+                        lambda c:c['phase']=='SOURCE_REPORTED')
+
+
+def _stage_pairs(rows,key_fn,first_stage,next_stage):
     blocked={r['supersedes_event_id'] or r['event_id'] for r in rows
              if r['polarity'] in {'RETRACT','CONTRADICT'}}
     groups={}
     for row in rows:
-        key=_service_key(row)
+        key=key_fn(row)
         if key is not None and row['event_id'] not in blocked:
             group=groups.setdefault(key,{})
             old=group.get(row['event_id'])
@@ -228,8 +257,8 @@ def _service_pairs(rows):
                 group[row['event_id']]=row
     pairs=[]
     for group in groups.values():
-        plans=[r for r in group.values() if r['change']['phase']=='PLANNED']
-        starts=[r for r in group.values() if r['change']['phase']=='SOURCE_REPORTED']
+        plans=[r for r in group.values() if first_stage(r['change'])]
+        starts=[r for r in group.values() if next_stage(r['change'])]
         # Multiple plans/starts could be separate regions or versions. Without
         # an explicit disambiguator retain each observation independently.
         if (len(plans)==len(starts)==1 and plans[0]['event_id']!=starts[0]['event_id']
@@ -281,7 +310,7 @@ class ThemeStore:
             stored=[(json.loads(raw),theme) for raw,theme in
                     db.execute('SELECT payload,theme_id FROM observations ORDER BY recorded_at,rowid')]
             assignments={row['event_id']:theme for row,theme in stored}
-            pairs=_service_pairs([row for row,_ in stored]+observations)
+            pairs=_service_pairs([row for row,_ in stored]+observations)+_investment_pairs([row for row,_ in stored]+observations)
             for plan,start in pairs:
                 plan_theme=assignments.get(plan['event_id'],_theme_id(plan))
                 # Existing theme IDs/history are never moved or overwritten.
@@ -414,7 +443,19 @@ def _snapshot(theme_id, rows, at, previous):
         'decision_at':at.isoformat(),
         'evidence_sha256':[plan['change']['source_paragraph_sha256'],start['change']['source_paragraph_sha256']]}
         for plan,start in pairs]
-    realized_plans={plan['event_id'] for plan,_ in pairs}
+    investment_pairs=_investment_pairs([r for r,_ in rows if r['event_id'] in active_by_id
+        and r['event_id'] not in conflicts
+        and r['change']['phase']==active_by_id[r['event_id']]['change']['phase']
+        and _investment_key(r)==_investment_key(active_by_id[r['event_id']])])
+    investment_links=[{'decision_event_id':decision['event_id'],'execution_event_id':execution['event_id'],
+        'project_name':execution['change']['investment_project']['project_name'],
+        'entity_ids':resolved_entities(execution),'status':'SOURCE_REPORTED_EXECUTION',
+        'is_execution_confirmed':False,'decision_at':at.isoformat(),
+        'sources':[{'event_id':r['event_id'],'source_url':r['source_url'],
+                    'evidence_sha256':r['change']['source_paragraph_sha256'],
+                    'project_evidence':r['change']['investment_project']} for r in (decision,execution)]}
+        for decision,execution in investment_pairs]
+    realized_plans={plan['event_id'] for plan,_ in pairs+investment_pairs}
     independent=[r for r in active if r['event_id'] not in realized_plans]
     entities=sorted({e for row in active for e in resolved_entities(row)})
     industries=sorted({e for row in active for e in row['change']['industry_tags']})
@@ -451,6 +492,7 @@ def _snapshot(theme_id, rows, at, previous):
            **({'company_mappings':row['company_mappings']} if 'company_mappings' in row else {}),
            **({'source_binding':row['source_binding']} if 'source_binding' in row else {}),
            **({'content_scope':row['content_scope']} if 'content_scope' in row else {}),
+           **({'investment_project':row['change']['investment_project']} if 'investment_project' in row['change'] else {}),
            **({'service_name':row['change']['service_name']} if 'service_name' in row['change'] else {}),
            **({'topic_alias_evidence':row['change']['topic_alias_evidence']} if 'topic_alias_evidence' in row['change'] else {}),
            **({'policy_cause':row['change']['policy_cause']} if 'policy_cause' in row['change'] else {}),
@@ -474,6 +516,7 @@ def _snapshot(theme_id, rows, at, previous):
             'event_ids':sorted(r['event_id'] for r in active if e in resolved_entities(r)),
             'revenue_contribution':None} for e in entities],
         'source_refs':refs,'history':history,
+        **({'investment_stage_links':investment_links} if investment_links else {}),
         **({'event_followups':followups} if followups else {}),
         'scores':{'distinct_economic_events':len(independent),'distinct_claim_origins':len(sources),
                   'company_breadth':len(entities),'industry_breadth':len(industries),

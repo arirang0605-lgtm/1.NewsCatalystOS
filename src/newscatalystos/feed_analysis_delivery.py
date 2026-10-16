@@ -114,17 +114,24 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
             raise SourceShareError("bounded title economic changes required")
         for change in changes:
             validate_change(change)
+            if 'investment_project' in change:
+                from .economic_changes import extract_economic_changes
+                if not any(all(c.get(k)==change.get(k) for k in
+                        ('topic','action','phase','economic_driver','investment_project','entity_ids'))
+                        for c in extract_economic_changes(row['headline'],company_names=change['entity_ids'])):
+                    raise SourceShareError('investment project is not in the saved source title')
             if 'policy_cause' in change:
                 from .economic_changes import extract_economic_changes
-                extracted=extract_economic_changes(row['headline'],company_names=change['entity_ids'])
+                options=dict(company_names=change['entity_ids'],include_investment_projects='investment_project' in change)
+                extracted=extract_economic_changes(row['headline'],**options)
                 if change['action']=='INVESTMENT':
-                    extracted+=extract_economic_changes(row['headline'],company_names=change['entity_ids'],
+                    extracted+=extract_economic_changes(row['headline'],**options,
                                                         include_investment_execution=False)
                 if 'destination' not in change['policy_cause']:
-                    extracted+=extract_economic_changes(row['headline'],company_names=change['entity_ids'],
+                    extracted+=extract_economic_changes(row['headline'],**options,
                                                         include_policy_destinations=False)
                     if change['action']=='INVESTMENT':
-                        extracted+=extract_economic_changes(row['headline'],company_names=change['entity_ids'],
+                        extracted+=extract_economic_changes(row['headline'],**options,
                             include_policy_destinations=False,include_investment_execution=False)
                 if not any(all(c.get(k)==change.get(k) for k in (
                         'topic','action','phase','economic_driver','policy_cause')) for c in extracted):

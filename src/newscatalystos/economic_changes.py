@@ -38,6 +38,26 @@ _BUSINESS_CONTEXT = re.compile(
 _BUSINESS_PLAN = re.compile(r'예정|계획|추진|준비|검토|목표|예고|나선다|나설|앞두|앞둔')
 
 
+def investment_project(text, action):
+    """One literally named investment target; never infer from issuer/product."""
+    if action not in {'INVESTMENT','INVESTMENT_EXECUTION'}:return None
+    names=list(re.finditer(_QUOTED_NAME,text))
+    if len(names)!=1:return None
+    match=names[0];name=match.group()[1:-1].strip()
+    if (not re.search(r'(?:공장|시설|설비|라인|프로젝트)$',name)
+            or re.search(r'[,·/]| 및 |와 |과 ',name)
+            or re.fullmatch(r'(?:(?:신규|새|신|반도체|HBM|DRAM|NAND)\s*)*(?:공장|시설|설비|라인|프로젝트)',name,re.I)
+            or re.search(r'취소|철회|보류|중단|지연|부인|무산|않|못|지난해|지난달|과거|이미'
+                         r'|여부|설명회|가능성|전망|예상|위한|위해|기준',text)):
+        return None
+    verb=r'(?:결정|확정)' if action=='INVESTMENT' else '집행'
+    tail=re.match(r'\s*투자(?:를)?\s*'+verb+r'(?=$|[\s,.!]|했|하|해|한|할|됐|되|된)',text[match.end():])
+    if tail is None:return None
+    expression=text[match.start():match.end()+tail.end()]
+    return {'project_name':name,'source_expression':expression,
+            'expression_sha256':sha256(expression.encode()).hexdigest()}
+
+
 def business_start_phase(text):
     """Explicit service/business operation claim; intention is not operation."""
     if not re.search(BUSINESS_ACTION, text) or _BUSINESS_CONTEXT.search(text):
@@ -333,7 +353,8 @@ def investment_execution_phase(text):
 
 
 def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True,
-                             include_policy_causes=True, include_policy_destinations=True, include_investment_execution=True):
+                             include_policy_causes=True, include_policy_destinations=True, include_investment_execution=True,
+                             include_investment_projects=True):
     """Return bounded source claims, including policy adoption before its effect.
 
     Corporate actions without an explicit common demand cause retain their own
@@ -495,9 +516,10 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
             if key in seen:
                 continue
             seen.add(key)
+            project=investment_project(action_text,action) if include_investment_projects else None
             changes.append({'topic':topic, 'economic_driver':driver, 'action':action,
                 'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
-                         else 'PLANNED' if demand_planned
+                         else 'PLANNED' if demand_planned or (project and _BUSINESS_PLAN.search(action_text))
                          else execution_phase if action == 'INVESTMENT_EXECUTION'
                          else business_phase if action == 'BUSINESS_START'
                          else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line)
@@ -506,6 +528,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 'entity_ids':companies,
                 **({'policy_cause':policy[2]} if policy else {}),
                 **({'topic_alias_evidence':alias} if alias and alias['canonical_topic'] not in TOPIC_ALIASES else {}),
+                **({'investment_project':project} if project else {}),
                 **({'service_name':names[0]} if action=='BUSINESS_START' and len(names)==1 else {}),
                 **({'original_entity_ids':original_companies} if companies!=original_companies else {}),
                 'industry_tags':['SEMICONDUCTOR'] if re.search(r'반도체|HBM|DRAM|NAND|메모리|EUV|DUV|극자외선|심자외선',line,re.I) else [],

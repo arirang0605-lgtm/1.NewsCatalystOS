@@ -98,6 +98,7 @@ def _reports(root,documents,now):
 def _change_matches(change,ref):
     if change.get('topic_alias_evidence')!=ref.get('topic_alias_evidence'):return False
     if change.get('policy_cause')!=ref.get('policy_cause'):return False
+    if change.get('investment_project')!=ref.get('investment_project'):return False
     if any(change.get(k)!=ref.get(k) for k in ('topic','action','phase','economic_driver')):return False
     if change['source_paragraph_sha256']!=ref['evidence_sha256']:return False
     event=economic_observation(change,origin_reference=ref['origin_reference'],source_url=ref['source_url'],
@@ -170,7 +171,8 @@ def _body_source(ref,row,jobs,at,now):
 
 def _clause(text,change,entity,ref,*,include_investment_execution=True):
     names=[m['source_name'] for m in ref.get('company_mappings',[]) if m['entity_id']==entity] or [entity]
-    options=dict(company_names=change['entity_ids'],include_investment_execution=include_investment_execution)
+    options=dict(company_names=change['entity_ids'],include_investment_execution=include_investment_execution,
+                 include_investment_projects='investment_project' in change)
     matches=[]
     for sentence in re.split(r'(?<=[.!?。])\s+',text):
         for clause in company_clauses(sentence,change['entity_ids'],include_investment_execution=include_investment_execution):
@@ -192,7 +194,8 @@ def _clause(text,change,entity,ref,*,include_investment_execution=True):
                 candidates+=extract_economic_changes(clause,**options,include_order_growth=False,include_parallel_actions=False)
             for found in candidates:
                 if (all(found[k]==change[k] for k in ('topic','economic_driver','action','phase'))
-                        and found.get('policy_cause')==change.get('policy_cause')):
+                        and found.get('policy_cause')==change.get('policy_cause')
+                        and ('investment_project' not in change or found.get('investment_project')==change['investment_project'])):
                     matches.append(clause);break
     matches=list(dict.fromkeys(matches))
     if len(matches)!=1 and include_investment_execution and change['action']=='INVESTMENT':

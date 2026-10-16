@@ -14,6 +14,7 @@ REASONS={
     'ACTIVE_EVENTS_REMOVED':'기존 활성 사건이 제외됐습니다. 철회·정정 근거를 함께 확인하세요.',
     'CONTRADICTION':'기존 사건에 상충하는 근거가 추가됐습니다.',
     'RETRACTION':'특정 기존 사건을 대상으로 한 철회·정정 근거가 추가됐습니다.',
+    'REPORTED_INVESTMENT_EXECUTION':'같은 명시 투자 프로젝트의 결정→집행 보도를 연결했습니다. 실제 지출·거래·수혜 확정은 아닙니다.',
     'REPORTED_REALIZATION':'계획과 개시 보도를 연결했습니다. 실제 실현·매출·수혜 확정은 아닙니다.',
     'IDENTITY_UPDATED':'같은 사건의 기업 식별 근거가 바뀌었습니다. 새 기업 확산으로 세지 않습니다.',
     'COMPANY_CONTEXT':'기존 사건의 기업·공급 관계 설명이 추가 또는 변경됐습니다.',
@@ -44,6 +45,9 @@ def _groups(before,after):
     for theme in (before or {},after):
         for link in theme.get('event_followups',[]):
             a,b=find(link['planned_event_id']),find(link['realization_event_id'])
+            parent[max(a,b)]=min(a,b)
+        for link in theme.get('investment_stage_links',[]):
+            a,b=find(link['decision_event_id']),find(link['execution_event_id'])
             parent[max(a,b)]=min(a,b)
     old={find(e) for e in (before or {}).get('event_ids',[])}
     new={find(e) for e in after['event_ids']}
@@ -102,6 +106,8 @@ def _difference(before,after):
     company_removed=[company_row(e,old_companies[e],'EXCLUDED_FROM_ACTIVE_CONTEXT') for e in sorted(removed)]
     old_followups={(l['planned_event_id'],l['realization_event_id']) for l in old.get('event_followups',[])}
     followups=[l for l in after.get('event_followups',[]) if (l['planned_event_id'],l['realization_event_id']) not in old_followups]
+    old_investments={(l['decision_event_id'],l['execution_event_id']) for l in old.get('investment_stage_links',[])}
+    investments=[l for l in after.get('investment_stage_links',[]) if (l['decision_event_id'],l['execution_event_id']) not in old_investments]
     codes=[]
     if before is None:codes.append('FIRST_OBSERVED')
     if new_groups-old_groups:codes.append('NEW_ECONOMIC_EVENTS')
@@ -109,6 +115,7 @@ def _difference(before,after):
     for polarity,code in [('CONTRADICT','CONTRADICTION'),('RETRACT','RETRACTION')]:
         if any(r['polarity']==polarity for r in refs_added):codes.append(code)
     if followups:codes.append('REPORTED_REALIZATION')
+    if investments:codes.append('REPORTED_INVESTMENT_EXECUTION')
     if identity or any(c['kind']=='EXISTING_EVENT_COMPANY_CONTEXT' for c in company_added):codes.append('IDENTITY_UPDATED')
     if company_added or company_removed or old.get('supply_chain_evidence',[])!=after.get('supply_chain_evidence',[]):
         codes.append('COMPANY_CONTEXT')
@@ -121,6 +128,7 @@ def _difference(before,after):
             'companies':{'added':company_added,'removed':company_removed,'identity_updates':identity,
                          'new_event_participant_count':sum(c['kind']=='NEW_EVENT_PARTICIPANT' for c in company_added)},
             'sources':{'added':refs_added,'removed':refs_removed},'followups_added':followups,
+            **({'investment_stage_links_added':investments} if investments else {}),
             'reasons':[{'code':code,'text':REASONS[code]} for code in codes]}
 
 

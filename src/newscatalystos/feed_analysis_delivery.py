@@ -37,7 +37,7 @@ def _text(value: object, name: str, limit: int) -> str:
 def _source_changes(headline,change):
     """Match current claims or pre-market-entry clauses without rewriting data."""
     from .economic_changes import extract_economic_changes
-    options=dict(company_names=change['entity_ids'],include_adjacent_demand='adjacent_demand_cause' in change,include_demand_recovery='demand_recovery_cause' in change,include_product_prices='product_price_cause' in change,include_resumption=(change['action']=='SUPPLY_RESUMPTION' or 'demand_recovery_cause' in change))
+    options=dict(company_names=change['entity_ids'],include_adjacent_demand='adjacent_demand_cause' in change,include_adjacent_scopes='demand_scope' in change,include_demand_recovery='demand_recovery_cause' in change,include_product_prices='product_price_cause' in change,include_resumption=(change['action']=='SUPPLY_RESUMPTION' or 'demand_recovery_cause' in change))
     rows=extract_economic_changes(headline,**options)
     if change['action']!='MARKET_ENTRY' and '진출' in headline:
         rows+=extract_economic_changes(headline,**options,include_market_entry=False)
@@ -147,7 +147,7 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
                         for c in _source_changes(row['headline'],change)):
                     raise SourceShareError('demand scope is not in the saved source title')
             if 'adjacent_demand_cause' in change:
-                if not any(all(c.get(k)==change.get(k) for k in ('topic','economic_driver','action','phase','entity_ids','source_paragraph_sha256','adjacent_demand_cause')) for c in _source_changes(row['headline'],change)):
+                if not any(all(c.get(k)==change.get(k) for k in ('topic','economic_driver','action','phase','entity_ids','source_paragraph_sha256','adjacent_demand_cause','demand_scope')) for c in _source_changes(row['headline'],change)):
                     raise SourceShareError('adjacent demand is not in the saved source')
             if 'investment_project' in change:
                 from .economic_changes import extract_economic_changes
@@ -157,7 +157,7 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
                     raise SourceShareError('investment project is not in the saved source title')
             if 'policy_cause' in change:
                 from .economic_changes import extract_economic_changes
-                options=dict(company_names=change['entity_ids'],include_adjacent_demand='adjacent_demand_cause' in change,include_investment_projects='investment_project' in change,
+                options=dict(company_names=change['entity_ids'],include_adjacent_demand='adjacent_demand_cause' in change,include_adjacent_scopes='demand_scope' in change,include_investment_projects='investment_project' in change,
                              include_demand_recovery='demand_recovery_cause' in change,include_product_prices='product_price_cause' in change,include_resumption=(change['action']=='SUPPLY_RESUMPTION' or 'demand_recovery_cause' in change))
                 extracted=extract_economic_changes(row['headline'],**options)
                 if change['action']=='INVESTMENT':

@@ -70,6 +70,7 @@ function renderCommonCauseComparison(card,theme,candidates,comparisons,period){
     for(const source of row.sources){
       if(source.cause?.kind==="adjacent_demand_cause"){
         group.append(node("p","","인접 문장의 명시적 원인 연결 · 출처 보도이며 독립 사실 확인 아님"),node("p","","원인 문장: "+source.cause.cause_expression),node("p","","행동 문장: "+source.cause.action_expression));
+        if(source.cause.demand_scope)group.append(node("p","","명시 수요처: "+(source.cause.demand_scope.status==="EXPLICIT"?source.cause.demand_scope.destination:"복수·불명확 · 공동 수요처 미확인")+" · 고객회사·계약·수혜 확인 아님"));
       }
       const contextOnly=source.company_participation==="SUPPLY_CHAIN_CONTEXT";
       group.append(node("p","",(contextOnly?"공급망으로 연결된 사건 · 이 기업의 직접 행동 확인 아님 · ":"")+actionLabel(source)+" · 사건 "+source.event_id));

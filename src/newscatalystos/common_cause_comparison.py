@@ -16,7 +16,7 @@ def _cause(ref):
     try:
         if 'adjacent_demand_cause' in ref:
             proof=ref['adjacent_demand_cause']
-            validate_adjacent_demand(proof,topic,driver,ref['action'],[proof['source_actor']],ref['evidence_sha256'])
+            validate_adjacent_demand(proof,topic,driver,ref['action'],[proof['source_actor']],ref['evidence_sha256'],scope=ref.get('demand_scope'))
             proofs.append(('adjacent_demand_cause',proof))
         if 'demand_scope' in ref:
             validate_demand_scope(ref['demand_scope'],topic,driver)
@@ -40,7 +40,8 @@ def _cause(ref):
             **({'cause_expression':proof['cause_expression'],'action_expression':proof['action_expression'],
                 'cause_span':proof['cause_span'],'action_span':proof['action_span'],
                 'cause_sha256':proof['cause_sha256'],'action_sha256':proof['action_sha256'],
-                'paragraph_sha256':proof['paragraph_sha256']} if kind=='adjacent_demand_cause' else {})}
+                'paragraph_sha256':proof['paragraph_sha256'],
+                **({'demand_scope':deepcopy(ref['demand_scope'])} if 'demand_scope' in ref else {})} if kind=='adjacent_demand_cause' else {})}
 
 
 

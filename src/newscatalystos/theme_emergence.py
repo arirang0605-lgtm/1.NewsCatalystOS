@@ -114,13 +114,15 @@ def validate_investment_event_key(row):
         raise SourceShareError('invalid explicit investment event key')
 
 
-def validate_adjacent_demand(proof,topic,driver,action,entities,paragraph_sha):
+def validate_adjacent_demand(proof,topic,driver,action,entities,paragraph_sha,*,scope=None):
     from .adjacent_demand import parse_adjacent_demand
     if not isinstance(proof,dict):raise SourceShareError('invalid adjacent demand proof')
     parsed=parse_adjacent_demand(proof.get('source_expression'))
     if (parsed is None or {**parsed,'paragraph_sha256':paragraph_sha}!=proof
         or topic!=parsed['product'] or driver!='DEMAND_EXPANSION' or action!='CAPACITY_ADDITION'
         or entities!=[parsed['source_actor']]):raise SourceShareError('invalid adjacent demand binding')
+    scoped=parse_demand_scope(parsed['cause_expression'])
+    if scope!=(scoped[2] if scoped else None):raise SourceShareError('adjacent demand scope mismatch')
 
 
 def validate_change(change):
@@ -138,7 +140,7 @@ def validate_change(change):
         validate_market_entry(change.get('market_entry'),change['action'])
     if 'adjacent_demand_cause' in change:
         if change['phase']!='SOURCE_REPORTED':raise SourceShareError('adjacent action phase mismatch')
-        validate_adjacent_demand(change['adjacent_demand_cause'],change['topic'],change['economic_driver'],change['action'],change['entity_ids'],change['source_paragraph_sha256'])
+        validate_adjacent_demand(change['adjacent_demand_cause'],change['topic'],change['economic_driver'],change['action'],change['entity_ids'],change['source_paragraph_sha256'],scope=change.get('demand_scope'))
     if 'demand_scope' in change:validate_demand_scope(change['demand_scope'],change['topic'],change['economic_driver'])
     if 'investment_project' in change:validate_investment_project(change['investment_project'],change['action'])
     if 'extraction_method' in change and change['extraction_method']!='AI_SOURCE_SPAN_MATCHED':
@@ -398,7 +400,9 @@ class ThemeStore:
                     assignments[start['event_id']]=plan_theme
             for row in observations:
                 raw=_bytes(row);digest=sha256(raw).hexdigest()
-                theme_id=assignments.get(row['event_id'],_theme_id(row))
+                # Metadata variants in one batch retain one event assignment,
+                # just like a variant received in a later ingest call.
+                theme_id=assignments.setdefault(row['event_id'],_theme_id(row))
                 cursor=db.execute('INSERT OR IGNORE INTO observations VALUES(?,?,?,?)',
                                   (digest,theme_id,raw,at.isoformat()))
                 if cursor.rowcount:

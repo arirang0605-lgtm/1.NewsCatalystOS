@@ -38,7 +38,7 @@ def period_cross_product(store,selected,current,*,since,as_of,now,query='',ident
         cs=_candidates(after,as_of,now,identity_root);prior_cs=_candidates(before,cutoff,now,identity_root)
         end=cross_product_demand(after,cs,common_cause_comparisons(after,cs),as_of=as_of,since=since,_min_products=1)
         start=cross_product_demand(before,prior_cs,common_cause_comparisons(before,prior_cs),as_of=cutoff,_min_products=1)
-        def direction_key(g):return (g['destination_key'],g.get('economic_driver','DEMAND_EXPANSION'))
+        def direction_key(g):return (g['group_id'] if g.get('economic_driver')=='POLICY_ENABLEMENT' else g['destination_key'],g.get('economic_driver','DEMAND_EXPANSION'))
         ends={direction_key(g):g for g in end['groups']};starts={direction_key(g):g for g in start['groups']}
         selected_ids={t['theme_id'] for t in selected}
         direct=set();search_keys={}
@@ -65,6 +65,7 @@ def period_cross_product(store,selected,current,*,since,as_of,now,query='',ident
             tids={p['theme_id'] for p in all_products}
             if not tids.intersection(selected_ids) or max(len(left['products']),len(right['products']))<2:continue
             group=fresh or {**old,'products':[],'distinct_action_groups':0,'identified_company_count':0,'unresolved_company_contexts':0}
+            if not fresh and group.get('economic_driver')=='POLICY_ENABLEMENT':group['source_actor_name_count']=0
             is_current=len(right['products'])>=2 and len(right['action_group_ids'])>=2
             group['status']='COMMON_CAUSE_HYPOTHESIS' if is_current else 'PERIOD_CONTEXT_ONLY'
             for product in group['products']:
@@ -130,7 +131,20 @@ def period_cross_product(store,selected,current,*,since,as_of,now,query='',ident
                     old_refs=[r for r in prior['source_refs'] if r['polarity']=='SUPPORT' and r['event_id']==event]
                     new_refs=[r for r in latest['source_refs'] if r['polarity']=='SUPPORT' and r['event_id']==event and r['phase']=='SOURCE_REPORTED']
                     if old_refs and new_refs:service_contexts.append(service_context('EXISTING_EVENT_UPDATE',event,old_refs,new_refs))
-            known_stage_groups={c['action_group_id'] for c in stage_contexts+service_contexts}
+            policy_contexts=[]
+            for product in ((fresh or {}).get('products',[]) if group.get('economic_driver')=='POLICY_ENABLEMENT' else []):
+                prior=by_before.get(product['theme_id']);latest=by_after[product['theme_id']]
+                if prior is None:continue
+                find,known,_=_groups(prior,latest)
+                for event in sorted({s['event_id'] for a in product['actions'] for s in a['sources']}):
+                    if find(event) not in known or find(event) in left['action_group_ids']:continue
+                    old_refs=[r for r in prior['source_refs'] if r['polarity']=='SUPPORT' and r['event_id']==event]
+                    new_refs=[r for r in latest['source_refs'] if r['polarity']=='SUPPORT' and r['event_id']==event and r['phase']=='SOURCE_REPORTED']
+                    if old_refs and new_refs:policy_contexts.append({'theme_id':product['theme_id'],'action_group_id':find(event),
+                        'before_snapshot':{'sha256':sha256(_bytes(prior)).hexdigest(),'decision_at':prior['decision_at']},
+                        'after_snapshot':{'sha256':sha256(_bytes(latest)).hexdigest(),'decision_at':latest['decision_at']},
+                        'sources':deepcopy(old_refs+new_refs)})
+            known_stage_groups={c['action_group_id'] for c in stage_contexts+service_contexts+policy_contexts}
             change={'status':'READY','baseline':'LATEST_STRICTLY_BEFORE_SINCE','since':since.isoformat(),'as_of':as_of.isoformat(),
                 'before':left,'after':right,'is_current_candidate':is_current,
                 'formed_in_period':len(left['products'])<2 and is_current,
@@ -149,6 +163,9 @@ def period_cross_product(store,selected,current,*,since,as_of,now,query='',ident
                 if not left['products']:
                     change['baseline']=('RECORDED_ACTION_STAGE_CONTEXT' if stage_contexts else
                         'RECORDED_SERVICE_EVENT_CONTEXT' if any(c['kind']=='EXISTING_EVENT_UPDATE' for c in service_contexts) else 'RECORDED_SERVICE_PLAN_CONTEXT')
+            if policy_contexts and change['status']=='READY':
+                change['existing_policy_action_contexts']=sorted(policy_contexts,key=lambda c:(c['theme_id'],c['action_group_id']))
+                if not left['products']:change['baseline']='RECORDED_POLICY_EVENT_CONTEXT'
             group['period_change']=change
             group['search_keys']=sorted({k for p in group['products']+removed+removed_action_contexts for a in p['actions'] for k in search_keys.get(a['candidate_id'],set())})
             exact=any(a['candidate_id'] in direct for p in group['products']+removed+removed_action_contexts for a in p['actions'])

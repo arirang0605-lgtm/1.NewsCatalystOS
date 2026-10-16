@@ -1,8 +1,8 @@
-"""Query-only shared-end-use hypotheses across pinned semiconductor themes."""
+"""Query-only shared demand or policy hypotheses across pinned semiconductor themes."""
 from copy import deepcopy
 from hashlib import sha256
-from .theme_emergence import _bytes,validate_demand_scope,validate_demand_recovery,validate_market_entry,validate_service_event_key,_text,topic_key
-from .economic_changes import normalized
+from .theme_emergence import _bytes,validate_demand_scope,validate_demand_recovery,validate_market_entry,validate_service_event_key,validate_policy_cause,_text,topic_key
+from .economic_changes import normalized,policy_cause_key
 from .common_cause_comparison import common_cause_comparisons
 from .company_search import company_search_context,match_company_search
 from .theme_company_identity import ID
@@ -23,7 +23,7 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
     for theme in themes:
         tid=theme['theme_id']
         driver=theme['economic_driver']
-        if driver not in {'DEMAND_EXPANSION','DEMAND_CONTRACTION','DEMAND_RECOVERY'} or theme['industry_tags']!=['SEMICONDUCTOR']:continue
+        if driver not in {'DEMAND_EXPANSION','DEMAND_CONTRACTION','DEMAND_RECOVERY','POLICY_ENABLEMENT'} or theme['industry_tags']!=['SEMICONDUCTOR']:continue
         products={p for p in PRODUCTS if topic_key(p) in {topic_key(x) for x in theme['topic_aliases']}}
         if len(products)!=1:continue
         product=next(iter(products));digest=sha256(_bytes(theme)).hexdigest()
@@ -44,6 +44,7 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                 if resolved and not ID.fullmatch(resolved):resolved=None
                 for source in row['sources']:
                     if source['company_participation']!='SOURCE_EVENT_ACTOR':continue
+                    if driver=='POLICY_ENABLEMENT' and (source['action']!='PRODUCTION_START' or source['phase']!='SOURCE_REPORTED'):continue
                     if driver=='DEMAND_CONTRACTION' and (source['action']!='SUPPLY_REDUCTION' or source['phase']!='SOURCE_REPORTED'):continue
                     if driver=='DEMAND_RECOVERY' and (source['action'] not in {'SUPPLY_RESUMPTION','CONTRACT','DELIVERY_START','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','MARKET_ENTRY','BUSINESS_START'} or source['phase']!='SOURCE_REPORTED'):continue
                     if (source['event_id'] not in set(theme['event_ids'])-set(theme['invalidated_event_ids'])
@@ -55,8 +56,15 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                         and topic_key(r.get('topic',''))==topic_key(product) and r.get('economic_driver')==driver]
                     for ref in refs:
                         scope=ref.get('demand_scope')
-                        if not scope or scope['status']!='EXPLICIT':continue
-                        validate_demand_scope(scope,ref['topic'],driver)
+                        if driver=='POLICY_ENABLEMENT':
+                            policy=ref.get('policy_cause')
+                            validate_policy_cause(policy,ref['topic'])
+                            if not policy['policy_name'] or not policy['jurisdiction']:continue
+                            key=sha256(_bytes(policy_cause_key(policy))).hexdigest()
+                        else:
+                            if not scope or scope['status']!='EXPLICIT':continue
+                            validate_demand_scope(scope,ref['topic'],driver)
+                            key=normalized(scope['destination'])
                         if driver=='DEMAND_RECOVERY':
                             proof=ref.get('demand_recovery_cause')
                             validate_demand_recovery(proof,ref['topic'],driver,ref['action'])
@@ -67,7 +75,6 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                                 if not _text(ref['service_name'],80):raise SourceShareError('invalid explicit service name')
                                 validate_service_event_key(ref)
                         if source['cause']['status']!='STORED_EXPRESSION':continue
-                        key=normalized(scope['destination'])
                         item=items.setdefault(key,{'product':product,'theme_id':tid,'theme_snapshot_sha256':digest,
                             'decision_at':theme['decision_at'],'theme_status':theme['status'],
                             'conflicting_event_ids':list(theme['conflicting_event_ids']),
@@ -80,19 +87,27 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                             'company_key':resolved or 'UNRESOLVED:'+candidate['candidate_id'],
                             'identity_status':'IDENTIFIED' if resolved else 'SOURCE_NAME_ONLY',
                             'display_name':row['display_name'],'action_group_id':row['action_group_id'],'sources':{}})
-                        observation={**deepcopy(source),'demand_scope':deepcopy(scope),
+                        observation={**deepcopy(source),
+                            **({'policy_cause':deepcopy(policy)} if driver=='POLICY_ENABLEMENT' else {'demand_scope':deepcopy(scope)}),
                             'in_period':since is None or _when(source['recorded_at'],'recorded')>=since,
                             **({'demand_recovery_cause':deepcopy(proof)} if driver=='DEMAND_RECOVERY' else {}),
                             **({'market_entry':deepcopy(ref['market_entry'])} if driver=='DEMAND_RECOVERY' and ref['action']=='MARKET_ENTRY' else {}),
                             **({k:deepcopy(ref[k]) for k in ('service_name','service_event_key') if k in ref} if driver=='DEMAND_RECOVERY' and ref['action']=='BUSINESS_START' else {})}
                         action['sources'][sha256(_bytes(observation)).hexdigest()]=observation
             for key,item in items.items():
-                scope=next(iter(next(iter(item['actions'].values()))['sources'].values()))['demand_scope']
-                identity=['CROSS_PRODUCT_DEMAND',key]+([driver] if driver!='DEMAND_EXPANSION' else [])
-                group=grouped.setdefault((key,driver),{'destination_key':key,'destination_expressions':set(),
-                    'group_id':sha256(_bytes(identity)).hexdigest(),'products':[],
-                    **({'economic_driver':driver} if driver!='DEMAND_EXPANSION' else {})})
-                group['destination_expressions'].add(scope['destination'])
+                first=next(iter(next(iter(item['actions'].values()))['sources'].values()))
+                if driver=='POLICY_ENABLEMENT':
+                    policy=first['policy_cause']
+                    group=grouped.setdefault((key,driver),{'policy_cause_key':policy_cause_key(policy),
+                        'group_id':sha256(_bytes(['CROSS_PRODUCT_POLICY',policy_cause_key(policy)])).hexdigest(),
+                        'economic_driver':driver,'products':[]})
+                else:
+                    scope=first['demand_scope']
+                    identity=['CROSS_PRODUCT_DEMAND',key]+([driver] if driver!='DEMAND_EXPANSION' else [])
+                    group=grouped.setdefault((key,driver),{'destination_key':key,'destination_expressions':set(),
+                        'group_id':sha256(_bytes(identity)).hexdigest(),'products':[],
+                        **({'economic_driver':driver} if driver!='DEMAND_EXPANSION' else {})})
+                    group['destination_expressions'].add(scope['destination'])
                 for a in item['actions'].values():a['sources']=sorted(a['sources'].values(),key=lambda s:(s['recorded_at'],s['event_id'],s['source_url']))
                 item['actions']=list(item['actions'].values());group['products'].append(item)
         except (SourceShareError,ValueError,TypeError,KeyError):result['unavailable_theme_ids'].append(tid)
@@ -102,7 +117,11 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
         actions=[a for p in group['products'] for a in p['actions']]
         groups={a['action_group_id'] for a in actions}
         if len({p['product'] for p in group['products']})<_min_products or len(groups)<_min_products:continue
-        group.update(destination_expressions=sorted(group['destination_expressions']),
+        if group.get('economic_driver')=='POLICY_ENABLEMENT':
+            # Literal names are contexts, not independently resolved companies.
+            group['source_actor_name_count']=len({normalized(a['display_name']) for a in actions})
+        else:group['destination_expressions']=sorted(group['destination_expressions'])
+        group.update(
             products=sorted(group['products'],key=lambda p:(p['product'],p['theme_id'])),
             distinct_action_groups=len(groups),identified_company_count=len({a['company_key'] for a in actions if a['identity_status']=='IDENTIFIED'}),
             unresolved_company_contexts=len({a['company_key'] for a in actions if a['identity_status']=='SOURCE_NAME_ONLY'}),

@@ -89,7 +89,7 @@ def validate_product_price(proof,topic,driver):
 
 
 def validate_demand_recovery(proof,topic,driver,action):
-    if (driver!='DEMAND_RECOVERY' or action not in {'SUPPLY_RESUMPTION','CONTRACT','PRODUCTION_START'} or not isinstance(proof,dict)
+    if (driver!='DEMAND_RECOVERY' or action not in {'SUPPLY_RESUMPTION','CONTRACT','PRODUCTION_START','CAPACITY_ADDITION'} or not isinstance(proof,dict)
             or not _text(proof.get('source_expression'),160)
             or demand_recovery_cause(proof['source_expression'])!=proof or proof['product']!=topic):
         raise SourceShareError('invalid reported demand/order recovery cause')

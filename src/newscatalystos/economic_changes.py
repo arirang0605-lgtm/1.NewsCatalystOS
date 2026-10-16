@@ -718,7 +718,14 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                                  for n,p in TOPICS):continue
             if policy and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}:
                 continue
-            if recovery and (action not in {'SUPPLY_RESUMPTION','CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','DELIVERY_START','CUSTOMER_ACQUISITION'} or not commercial_claims.get(action)):continue
+            if recovery and (action not in {'SUPPLY_RESUMPTION','CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY'} or not commercial_claims.get(action)):continue
+            if recovery and action=='MARKET_ENTRY' and scope and scope['status']=='EXPLICIT':
+                # A geographic/sector market is not a demand destination. Only
+                # a literal end-use + same-product target can contradict it.
+                product='(?:'+'|'.join(re.escape(t) for t in TOPIC_ALIASES.get(cause[0],(cause[0],)))+')'
+                target=commercial_claims[action]['market_entry']['market_name']
+                scoped_target=re.fullmatch(r'(.+?)용\s+'+product,target,re.I)
+                if scoped_target and normalized(scoped_target[1])!=normalized(scope['destination']):continue
             if action=='SUPPLY_RESUMPTION' and not (cause and not contraction and not policy and not price):continue
             if price_drop and action!='SUPPLY_REDUCTION':continue
             if (order_cause or (price and not price_drop)) and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'}:

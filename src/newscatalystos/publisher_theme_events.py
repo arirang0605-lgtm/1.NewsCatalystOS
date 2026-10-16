@@ -34,6 +34,10 @@ def observations_from_context(context):
         change['entity_ids']=sorted(set(change['entity_ids']))
         if change['action']=='CONTRACT' and context.edge.relation_kind=='ANNOUNCED_SUPPLY_PLAN':
             change['phase']='PLANNED'
+            if change.get('adjacent_demand_cause',{}).get('action')=='CONTRACT':
+                # Retain this source path's existing supply-plan classification.
+                change.pop('adjacent_demand_cause');change.pop('demand_scope',None)
+                change['economic_driver']='UNKNOWN'
         result.append(economic_observation(change,origin_reference=context.source_url,
             source_url=context.source_url,source_id=context.edge.source_id,
             source_available_at=context.edge.available_at.isoformat(),source_binding={

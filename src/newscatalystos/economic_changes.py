@@ -570,7 +570,7 @@ def investment_execution_phase(text):
 
 def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True,
                              include_policy_causes=True, include_policy_destinations=True, include_investment_execution=True,
-                             include_investment_projects=True, include_new_customers=True, include_delivery_start=True, include_demand_scopes=True, include_market_entry=True, include_product_prices=True, include_resumption=True, include_demand_recovery=True, include_adjacent_demand=True, include_adjacent_scopes=True):
+                             include_investment_projects=True, include_new_customers=True, include_delivery_start=True, include_demand_scopes=True, include_market_entry=True, include_product_prices=True, include_resumption=True, include_demand_recovery=True, include_adjacent_demand=True, include_adjacent_scopes=True, include_adjacent_contracts=True):
     """Return bounded source claims, including policy adoption before its effect.
 
     Corporate actions without an explicit common demand cause retain their own
@@ -590,6 +590,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     include_demand_recovery=False reads earlier causes without reinterpretation.
     include_adjacent_demand=False matches saved pre-adjacency claims unchanged.
     include_adjacent_scopes=False matches earlier adjacency proofs without scope enrichment.
+    include_adjacent_contracts=False matches earlier capacity-only adjacency extraction.
     """
     if (not isinstance(company_names,(list,tuple)) or len(company_names)>100
             or any(not isinstance(n,str) or not n.strip() or len(n)>120 for n in company_names)):
@@ -864,5 +865,5 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     result=[c for i,c in enumerate(changes) if i not in conflicting_scopes]
     if include_adjacent_demand:
         from .adjacent_demand import attach_adjacent_demand
-        result=attach_adjacent_demand(text,result,company_names,include_scopes=include_adjacent_scopes and include_demand_scopes)
+        result=attach_adjacent_demand(text,result,company_names,include_scopes=include_adjacent_scopes and include_demand_scopes,include_contracts=include_adjacent_contracts)
     return result

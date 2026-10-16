@@ -15,7 +15,7 @@ PROJECT = Path(__file__).resolve().parent.parent
 if str(PROJECT / "src") not in sys.path:
     sys.path.insert(0, str(PROJECT / "src"))
 
-from newscatalystos.research_dashboard import KST, NoteStore, build_period, scan_saved_analysis
+from newscatalystos.research_dashboard import KST, NoteStore, build_period, scan_saved_analysis, period_as_of
 from newscatalystos.source_share import SourceShareError
 from newscatalystos.theme_emergence import ThemeStore, period_activity
 from newscatalystos.standard_delivery import build_theme_bundle
@@ -70,12 +70,14 @@ class Handler(BaseHTTPRequestHandler):
             view = query.get("view", ["day"])[0]
             selected = query.get("date", [datetime.now(KST).date().isoformat()])[0]
             try:
-                records, source_info = scan_saved_analysis(self.server.reports, document_root=self.server.documents)
+                now = datetime.now(timezone.utc)
+                at = period_as_of(view, selected, now=now)
+                records, source_info = scan_saved_analysis(self.server.reports, document_root=self.server.documents,
+                                                            now=now, as_of=at)
                 data = build_period(records, self.server.notes.read(), view, selected,
-                                    source_info=source_info)
+                                    source_info=source_info, now=now)
                 activity=query.get('theme_activity',['all'])[0]
                 if activity not in {'all','changed','new','updated'}:raise ValueError('invalid theme activity')
-                now = datetime.now(timezone.utc)
                 start = datetime.fromisoformat(data['start']).replace(tzinfo=KST)
                 end = datetime.fromisoformat(data["end"]).replace(tzinfo=KST) + timedelta(days=1) - timedelta(microseconds=1)
                 try:

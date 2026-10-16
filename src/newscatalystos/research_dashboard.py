@@ -49,9 +49,26 @@ def _bounds(view: str, selected: date) -> tuple[date, date]:
     return start, next_month - timedelta(days=1)
 
 
-def scan_saved_analysis(root: Path, *, document_root: Path | None = None, now: datetime | None = None) -> tuple[list[dict], dict]:
+def period_as_of(view: str, selected: str, *, now: datetime | None = None) -> datetime:
+    """One KST period boundary for findings, themes and company evidence."""
+    _, end = _bounds(view, _day(selected))
+    finish = datetime.combine(end, datetime.min.time(), tzinfo=KST) + timedelta(days=1, microseconds=-1)
+    current = _instant((now or datetime.now(timezone.utc)).isoformat())
+    return min(finish, current).astimezone(timezone.utc)
+
+
+def _available_as_of(row: dict, at: datetime) -> bool:
+    # Includes provenance of a retained prior AI summary/directory enrichment.
+    return all(_instant(row[k]) <= at for k in (
+        'available_at', 'analysis_available_at', 'source_available_at',
+        'ai_summary_available_at', 'company_identity_analysis_available_at') if row.get(k))
+
+
+def scan_saved_analysis(root: Path, *, document_root: Path | None = None, now: datetime | None = None,
+                        as_of: datetime | None = None) -> tuple[list[dict], dict]:
     """Read existing core/MOTIR reports only; filename digest is local integrity, not producer attestation."""
     now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    at = min(now, _instant(as_of.isoformat())) if as_of is not None else now
     records: dict[tuple[str, str], dict] = {}
     seen_reports = 0
     skipped = 0
@@ -74,11 +91,11 @@ def scan_saved_analysis(root: Path, *, document_root: Path | None = None, now: d
                     raise SourceShareError("saved report digest mismatch")
                 data = _json(raw, "saved feed analysis")
                 checked = _validate_report(data, now)
-                if checked is None:
+                if checked is None or checked > at:
                     continue
                 for row in data["results"]:
                     available = _instant(row["analysis_available_at"])
-                    if available > now:
+                    if available > at or _instant(row['source_available_at']) > at:
                         continue
                     # A saved report can only establish availability at its own
                     # producer check time; never place a later found row earlier.
@@ -143,7 +160,7 @@ def scan_saved_analysis(root: Path, *, document_root: Path | None = None, now: d
             except (SourceShareError, OSError, ValueError, TypeError, KeyError, json.JSONDecodeError):
                 skipped += 1
     if document_root is not None:
-        body_records, body_info = scan_saved_documents(document_root, list(records.values()), now=now)
+        body_records, body_info = scan_saved_documents(document_root, list(records.values()), now=now, as_of=at)
         for row in body_records:
             records[("motir_document", row["event_id"])] = row
         seen_reports += body_info["saved_reports_seen"]
@@ -155,15 +172,18 @@ def scan_saved_analysis(root: Path, *, document_root: Path | None = None, now: d
     }
 
 
-def scan_saved_documents(root: Path, headlines: list[dict], *, now: datetime) -> tuple[list[dict], dict]:
+def scan_saved_documents(root: Path, headlines: list[dict], *, now: datetime,
+                         as_of: datetime | None = None) -> tuple[list[dict], dict]:
     records = {}
+    at = min(now, _instant(as_of.isoformat())) if as_of is not None else now
     seen = skipped = 0
     root = Path(root)
     if not root.exists():
         return [], {"saved_reports_seen": 0, "saved_reports_skipped": 0}
     if root.is_symlink() or root.resolve() != root or not root.is_dir():
         raise SourceShareError("unsafe document dashboard root")
-    titles = {row.get("source_event_sha256"): row["headline"] for row in headlines}
+    titles = {row.get("source_event_sha256"): row["headline"] for row in headlines
+              if _available_as_of(row, at) and (as_of is None or row.get('available_at'))}
     for folder in sorted(root.iterdir()):
         if re.fullmatch(r"[0-9a-f]{64}", folder.name) is None or folder.is_symlink():
             continue
@@ -181,6 +201,8 @@ def scan_saved_documents(root: Path, headlines: list[dict], *, now: datetime) ->
                 data = consume_motir_document_analysis(path, match.group(1), now=now)
                 ai = data.get("ai_analysis") or {}
                 available = _instant(data["analysis_available_at"])
+                if available > at or _instant(data['source_available_at']) > at:
+                    continue
                 row = {"scope": "motir_document", "event_id": data["analysis_event_sha256"],
                     "source_event_sha256": data["source_event_sha256"],
                     "content_scope": data["content_scope"],
@@ -230,9 +252,11 @@ def _period_key(view: str, selected: date) -> str:
 
 
 def build_period(records: list[dict], notes: list[dict], view: str, selected: str,
-                 *, source_info: dict | None = None) -> dict:
+                 *, source_info: dict | None = None, now: datetime | None = None) -> dict:
     start, end = _bounds(view, _day(selected))
-    chosen = [x for x in records if start.isoformat() <= x["day"] <= end.isoformat()]
+    at = period_as_of(view, selected, now=now)
+    chosen = [x for x in records if start.isoformat() <= x["day"] <= end.isoformat()
+              and _available_as_of(x, at)]
     chosen.sort(key=lambda x: (x["available_at"], x["event_id"]), reverse=True)
     counts = _count(chosen)
     children = []
@@ -279,6 +303,7 @@ def build_period(records: list[dict], notes: list[dict], view: str, selected: st
         feedback.append("이 기간에 저장된 분석 기록이 없습니다.")
     return {
         "view": view, "period": key, "start": start.isoformat(), "end": end.isoformat(),
+        "as_of": at.isoformat(),
         "counts": counts, "feedback": feedback, "children": children,
         "items": chosen, "notes": own, "inherited_notes": inherited,
         "source": source_info or {},

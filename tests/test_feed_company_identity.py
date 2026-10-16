@@ -70,6 +70,7 @@ def test_existing_event_enriched_without_duplicates_and_with_pit(tmp_path, monke
     assert info['saved_reports_skipped'] == 0
     assert cards[0]['company_identity'] == identity
     assert scan_saved_analysis(work.parent, now=first_time)[0][0]['company_identity'] is None
+    assert scan_saved_analysis(work.parent, now=at, as_of=first_time)[0][0]['company_identity'] is None
     rows['one'] = replace(rows['one'], local_context_verified_at=at+timedelta(seconds=1))
     at += timedelta(minutes=1)
     code, replay = tick()

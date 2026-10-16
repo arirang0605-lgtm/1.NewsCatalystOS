@@ -137,7 +137,7 @@ function renderThemes(term){
           evidenceBody.replaceChildren(node("p","","저장 근거를 읽고 있습니다."));
           try{
             const end=new Date(currentData.end+"T23:59:59.999+09:00");
-            const at=new Date(Math.min(end.getTime(),Date.now())).toISOString();
+            const at=currentData.as_of||new Date(Math.min(end.getTime(),Date.now())).toISOString();
             const params=new URLSearchParams({theme_id:theme.theme_id,entity_id:company.entity_id,as_of:at});
             const response=await fetch("/api/company-evidence?"+params);
             if(!response.ok)throw new Error("unavailable");

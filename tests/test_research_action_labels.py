@@ -81,7 +81,7 @@ def test_saved_report_projection_multi_action_one_record_and_readonly(tmp_path):
     before=fingerprint(tmp_path)
     rows,source=scan_saved_analysis(args['reports_root'],document_root=args['document_root'],now=args['now'])
     assert len(rows)==1 and rows[0]['category'] is None and len(rows[0]['economic_changes'])==2
-    data=build_period(rows,[],'day',rows[0]['day'],source_info=source)
+    data=build_period(rows,[],'day',rows[0]['day'],source_info=source,now=args['now'])
     assert data['counts']['items']==1 and len(data['items'])==1
     result=present(data['items'][0],['투자 결정','계약 체결'],theme)
     assert result['label']=='계약 · 출처 보도 / 투자 결정 · 출처 보도'

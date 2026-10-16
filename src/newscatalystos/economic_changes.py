@@ -292,7 +292,7 @@ def company_clauses(sentence, company_names=(), *, include_investment_execution=
     return [sentence[a:b].strip(' ,;') for a,b in zip(cuts,cuts[1:])]
 
 
-def _parallel_actions(action_text, cause, actors, *, include_investment_execution=True, source_line=None, scope=None, supported_actions=None, source_action_counts=(2,), include_function_services=True):
+def _parallel_actions(action_text, cause, actors, *, include_investment_execution=True, source_line=None, scope=None, supported_actions=None, source_action_counts=(2,), include_function_services=True, include_delivery_customer=True):
     """A bounded nominal 'action 및 action' list shares an explicit subject/cause.
 
     None preserves the ordinary single-action path; [] leaves an ambiguous
@@ -325,7 +325,11 @@ def _parallel_actions(action_text, cause, actors, *, include_investment_executio
                 'action_span':[start,end],'action_expression':part,
                 'action':kind,'actors':sorted(actors),'phase':'SOURCE_REPORTED'}
             offset=end
-        return claims if len(claims)==len(parts) and 'BUSINESS_START' in claims else None
+        # Admit this exact service-free pair only after both full source slices
+        # passed the same actor/cause/phase checks; other combinations stay closed.
+        delivery_customer=(include_delivery_customer and len(parts)==2
+                           and set(claims)=={'DELIVERY_START','CUSTOMER_ACQUISITION'})
+        return claims if len(claims)==len(parts) and ('BUSINESS_START' in claims or delivery_customer) else None
     supported={'CONTRACT','INVESTMENT','PRODUCTION_START','CAPACITY_ADDITION'}
     if include_investment_execution:supported.add('INVESTMENT_EXECUTION')
     patterns=[(kind,pattern) for kind,pattern in ACTIONS if kind in supported]
@@ -580,8 +584,8 @@ def _commercial_claim(line, cause, company_names, action, scope=None, *, action_
             **({'market_entry':market} if market else {})}
 
 
-def policy_parallel_actions(text, *, company_names=(), include_three_actions=True, include_function_services=True):
-    """Original spans for a concrete service and complete policy-response actions."""
+def policy_parallel_actions(text, *, company_names=(), include_three_actions=True, include_function_services=True, include_delivery_customer=True):
+    """Original spans for bounded, complete policy-response actions."""
     if (not isinstance(text,str) or not 0<len(text)<=800 or any(ord(c)<32 for c in text)
             or _DEMAND_DENIAL.search(text) or UNCERTAIN.search(text) or PAST.search(text)):
         return None
@@ -592,12 +596,12 @@ def policy_parallel_actions(text, *, company_names=(), include_three_actions=Tru
     if subject is None:return None
     actors,tail=subject
     return _parallel_actions(tail,cause,actors,source_line=text,
-        include_function_services=include_function_services,
+        include_function_services=include_function_services,include_delivery_customer=include_delivery_customer,
         source_action_counts=(2,3) if include_three_actions else (2,))
 
 
 
-def recovery_parallel_actions(text, *, company_names=(), include_three_actions=True, include_function_services=True):
+def recovery_parallel_actions(text, *, company_names=(), include_three_actions=True, include_function_services=True, include_delivery_customer=True):
     """Reuse literal action spans for one recovery cause and one source actor."""
     if (not isinstance(text,str) or not 0<len(text)<=800 or any(ord(c)<32 for c in text)
             or _DEMAND_DENIAL.search(text) or UNCERTAIN.search(text) or PAST.search(text)):
@@ -613,13 +617,13 @@ def recovery_parallel_actions(text, *, company_names=(), include_three_actions=T
     if subject is None:return None
     actors,tail=subject
     return _parallel_actions(tail,cause,actors,source_line=text,scope=scope,
-        include_function_services=include_function_services,
+        include_function_services=include_function_services,include_delivery_customer=include_delivery_customer,
         source_action_counts=(2,3) if include_three_actions else (2,),
         supported_actions=('BUSINESS_START','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY',
             'PRODUCTION_START','CONTRACT','CAPACITY_ADDITION','INVESTMENT_EXECUTION','SUPPLY_RESUMPTION'))
 
 
-def growth_parallel_actions(text, *, company_names=(), include_three_actions=True, include_function_services=True):
+def growth_parallel_actions(text, *, company_names=(), include_three_actions=True, include_function_services=True, include_delivery_customer=True):
     """Bind existing growth and commercial grammars to complete source spans."""
     if (not isinstance(text,str) or not 0<len(text)<=800 or any(ord(c)<32 for c in text)
             or _DEMAND_DENIAL.search(text) or UNCERTAIN.search(text) or PAST.search(text)):
@@ -635,13 +639,13 @@ def growth_parallel_actions(text, *, company_names=(), include_three_actions=Tru
     if subject is None:return None
     actors,tail=subject
     return _parallel_actions(tail,cause,actors,source_line=text,scope=scope,
-        include_function_services=include_function_services,
+        include_function_services=include_function_services,include_delivery_customer=include_delivery_customer,
         source_action_counts=(2,3) if include_three_actions else (2,),
         supported_actions=('BUSINESS_START','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY',
             'PRODUCTION_START','CONTRACT','CAPACITY_ADDITION','INVESTMENT_EXECUTION','SUPPLY_RESUMPTION'))
 
 
-def price_parallel_actions(text, *, company_names=(), include_three_actions=True, include_function_services=True):
+def price_parallel_actions(text, *, company_names=(), include_three_actions=True, include_function_services=True, include_delivery_customer=True):
     """Bind existing product-price and action grammars to original source spans."""
     if (not isinstance(text,str) or not 0<len(text)<=800 or any(ord(c)<32 for c in text)
             or _DEMAND_DENIAL.search(text) or UNCERTAIN.search(text) or PAST.search(text)):
@@ -658,7 +662,7 @@ def price_parallel_actions(text, *, company_names=(), include_three_actions=True
     if subject is None:return None
     actors,tail=subject
     return _parallel_actions(tail,cause,actors,source_line=text,scope=scope,
-        include_function_services=include_function_services,
+        include_function_services=include_function_services,include_delivery_customer=include_delivery_customer,
         source_action_counts=(2,3) if include_three_actions else (2,),
         supported_actions=('BUSINESS_START','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY',
             'PRODUCTION_START','CONTRACT','CAPACITY_ADDITION','INVESTMENT_EXECUTION'))
@@ -793,7 +797,7 @@ def investment_execution_phase(text):
     return 'PLANNED' if re.search(r'계획|예정|추진|검토|방침|결정|확정',text) else 'SOURCE_REPORTED'
 
 
-def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True, include_function_parallel=True, include_function_service_actions=True,
+def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True, include_function_parallel=True, include_function_service_actions=True, include_delivery_customer_parallel=True,
                              include_policy_causes=True, include_policy_destinations=True, include_policy_capacity_actions=True, include_policy_contract_actions=True, include_policy_investment_actions=True, include_policy_services=True, include_policy_parallel=True, include_policy_three_actions=True, include_recovery_parallel=True, include_recovery_three_actions=True, include_growth_parallel=True, include_growth_three_actions=True, include_order_services=True, include_price_services=True, include_price_parallel=True, include_price_three_actions=True, include_investment_execution=True,
                              include_investment_projects=True, include_new_customers=True, include_delivery_start=True, include_demand_scopes=True, include_market_entry=True, include_product_prices=True, include_resumption=True, include_demand_recovery=True, include_adjacent_demand=True, include_adjacent_scopes=True, include_adjacent_contracts=True, include_adjacent_amounts=True, include_adjacent_reductions=True):
     """Return bounded source claims, including policy adoption before its effect.
@@ -805,6 +809,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     include_parallel_actions=False likewise preserves the prior single-action reader.
     include_function_parallel=False preserves parallel clauses requiring a source-named service.
     include_function_service_actions=False reads standalone services without new source-span enrichment.
+    include_delivery_customer_parallel=False preserves the earlier service-required parallel path.
     include_policy_causes=False matches old policy-only records without rewriting them.
     include_policy_destinations=False reads earlier policy causes without reinterpreting scope.
     include_policy_capacity_actions=False reads older capacity phases without enriching or rewriting them.
@@ -931,7 +936,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         commercial_claims={kind:_commercial_claim(line,cause,company_names,kind,scope)
             for kind,enabled in [('CUSTOMER_ACQUISITION',include_new_customers),('DELIVERY_START',include_delivery_start),('MARKET_ENTRY',include_market_entry),('SUPPLY_RESUMPTION',include_resumption and bool(cause) and not price and not policy),('CONTRACT',bool(recovery)),('PRODUCTION_START',bool(recovery)),('CAPACITY_ADDITION',bool(recovery)),('INVESTMENT',bool(recovery)),('INVESTMENT_EXECUTION',bool(recovery) and include_investment_execution),('BUSINESS_START',bool(recovery) or (bool(policy) and include_policy_services))]
             if enabled and not contraction}
-        policy_parallel=(policy_parallel_actions(line,company_names=company_names,include_three_actions=include_policy_three_actions,include_function_services=include_function_parallel) if policy and include_policy_parallel and include_parallel_actions and line==evidence_line else None)
+        policy_parallel=(policy_parallel_actions(line,company_names=company_names,include_three_actions=include_policy_three_actions,include_function_services=include_function_parallel,include_delivery_customer=include_delivery_customer_parallel) if policy and include_policy_parallel and include_parallel_actions and line==evidence_line else None)
         if (policy and include_policy_parallel and include_parallel_actions and re.search(r'\s+및\s+',action_text)
                 and any(k=='BUSINESS_START' and re.search(pattern,action_text,re.I) for k,pattern in ACTIONS)
                 and any(k in {'CAPACITY_ADDITION','INVESTMENT_EXECUTION','PRODUCTION_START','CONTRACT','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY'} and re.search(pattern,action_text,re.I) for k,pattern in ACTIONS)
@@ -942,7 +947,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         if (policy_parallel and len(policy_parallel)==3 and 'INVESTMENT_EXECUTION' in policy_parallel
                 and not include_investment_projects
                 and investment_project(policy_parallel['INVESTMENT_EXECUTION']['action_expression'],'INVESTMENT_EXECUTION')):policy_parallel=None
-        recovery_parallel=(recovery_parallel_actions(line,company_names=company_names,include_three_actions=include_recovery_three_actions,include_function_services=include_function_parallel)
+        recovery_parallel=(recovery_parallel_actions(line,company_names=company_names,include_three_actions=include_recovery_three_actions,include_function_services=include_function_parallel,include_delivery_customer=include_delivery_customer_parallel)
             if recovery and include_recovery_parallel and include_parallel_actions and include_demand_scopes and line==evidence_line else None)
         if recovery_parallel and any(k in recovery_parallel and not enabled for k,enabled in (
                 ('DELIVERY_START',include_delivery_start),('CUSTOMER_ACQUISITION',include_new_customers),
@@ -951,7 +956,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         if (recovery_parallel and 'INVESTMENT_EXECUTION' in recovery_parallel and not include_investment_projects
                 and investment_project(recovery_parallel['INVESTMENT_EXECUTION']['action_expression'],'INVESTMENT_EXECUTION')):recovery_parallel=None
         growth=bool(cause and not (policy or contraction or recovery or price))
-        growth_parallel=(growth_parallel_actions(line,company_names=company_names,include_three_actions=include_growth_three_actions,include_function_services=include_function_parallel)
+        growth_parallel=(growth_parallel_actions(line,company_names=company_names,include_three_actions=include_growth_three_actions,include_function_services=include_function_parallel,include_delivery_customer=include_delivery_customer_parallel)
             if growth and include_growth_parallel and include_parallel_actions and include_demand_scopes and line==evidence_line else None)
         if growth_parallel and any(k in growth_parallel and not enabled for k,enabled in (
                 ('DELIVERY_START',include_delivery_start),('CUSTOMER_ACQUISITION',include_new_customers),
@@ -965,7 +970,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 and any(k=='BUSINESS_START' and re.search(p,action_text,re.I) for k,p in ACTIONS)
                 and any(k in {'DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY','PRODUCTION_START','CONTRACT','CAPACITY_ADDITION','INVESTMENT_EXECUTION','SUPPLY_RESUMPTION'} and re.search(p,action_text,re.I) for k,p in ACTIONS)
                 and growth_parallel is None):continue
-        price_parallel=(price_parallel_actions(line,company_names=company_names,include_three_actions=include_price_three_actions,include_function_services=include_function_parallel)
+        price_parallel=(price_parallel_actions(line,company_names=company_names,include_three_actions=include_price_three_actions,include_function_services=include_function_parallel,include_delivery_customer=include_delivery_customer_parallel)
             if price and not price_drop and include_price_parallel and include_parallel_actions and include_demand_scopes and line==evidence_line else None)
         if price_parallel and any(k in price_parallel and not enabled for k,enabled in (
                 ('DELIVERY_START',include_delivery_start),('CUSTOMER_ACQUISITION',include_new_customers),
@@ -998,6 +1003,15 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
             if include_function_service_actions and (recovery or policy) and line==evidence_line else None)
         function_service=function_service['BUSINESS_START'] if function_service else None
         shared_parallel=policy_parallel or recovery_parallel or growth_parallel or price_parallel
+        # The new delivery/customer list is atomic. A third or incomplete part
+        # must not fall back to an unrelated legacy keyword action.
+        if (include_delivery_customer_parallel and include_parallel_actions and shared_parallel is None
+                and ((policy and include_policy_parallel) or (recovery and include_recovery_parallel)
+                     or (growth and include_growth_parallel) or (price and not price_drop and include_price_parallel))
+                and re.search(r'\s+및\s+',action_text)
+                and all(any(k==kind and re.search(pattern,action_text,re.I) for k,pattern in ACTIONS)
+                        for kind in ('DELIVERY_START','CUSTOMER_ACQUISITION'))):
+            continue
         if shared_parallel:commercial_claims.update({k:{'actors':v['actors'],'phase':v['phase'],
             **({'market_entry':market_entry(v['action_expression'])} if k=='MARKET_ENTRY' else {})}
             for k,v in shared_parallel.items()})

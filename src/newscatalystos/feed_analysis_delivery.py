@@ -221,7 +221,7 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
             if (change["source_paragraph_sha256"] != title
                     or change["evidence_level"] != "REPORTED"):
                 raise SourceShareError("economic change must retain title evidence scope")
-        # A report carrying a three-part or function-service group cannot downgrade
+        # A report carrying a new bounded action group cannot downgrade
         # one sibling to a pre-feature keyword claim by removing its span proof.
         # Reports wholly predating this feature still use their legacy path.
         from .economic_changes import price_parallel_actions,growth_parallel_actions,recovery_parallel_actions,policy_parallel_actions,business_start_names
@@ -233,9 +233,9 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
                 proof=sibling.get(proof_key)
                 if not proof:continue
                 parsed=parser(proof['source_expression'],company_names=proof['actors'])
-                # Newly supported function pairs need the same sibling binding;
+                # Function-service and delivery/customer pairs need sibling binding;
                 # preserve the older named two-action report contract.
-                if len(parsed)!=3 and business_start_names(parsed['BUSINESS_START']['action_expression']):continue
+                if len(parsed)!=3 and 'BUSINESS_START' in parsed and business_start_names(parsed['BUSINESS_START']['action_expression']):continue
                 for change in changes:
                     if (proof_key not in change and change['action'] in parsed
                             and all(change.get(k)==sibling.get(k) for k in

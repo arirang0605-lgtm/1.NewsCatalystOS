@@ -46,8 +46,10 @@ def company_candidates(theme):
                 reason+=' · 보도된 수요처 범위: '+ref['demand_scope']['source_expression']
                 if ref['demand_scope']['status']=='UNRESOLVED':reason+=' (복수·불명확, 공통 수요처 미확인)'
             if ref.get('investment_project'):reason+=' · 명시 프로젝트: '+ref['investment_project']['project_name']
+            if ref.get('demand_recovery_cause') and ref.get('service_name'):reason+=' · 명시 서비스: '+ref['service_name']
             basis.append({'kind':'SOURCE_REPORTED_PARTICIPANT' if reported else 'INFERRED_ASSOCIATION',
                 'reason':reason,
+                **({'service_name':ref['service_name']} if ref.get('demand_recovery_cause') and 'service_name' in ref else {}),
                 **({'investment_project':ref['investment_project']} if 'investment_project' in ref else {}),
                 **({'policy_cause':policy} if policy else {}),
                 **({'demand_scope':ref['demand_scope']} if 'demand_scope' in ref else {}),
@@ -77,6 +79,8 @@ def company_candidates(theme):
         stages=sorted({link['product_stage'] for link in links})
         uncertainties=['출처에 등장하거나 관계가 보도됐다는 사실만으로 실제 수혜·투자 매력을 확정할 수 없음',
                        '매출 기여·재무·현재 가격 평가는 연결되지 않아 미확인']
+        if any(r.get('demand_recovery_cause') and r['action']=='BUSINESS_START' for r in refs):
+            uncertainties.append('회복 원인의 사업·서비스 개시는 출처 보도/계획이며 실제 고객·계약·매출·수혜는 독립 확인되지 않음')
         if any(r.get('demand_recovery_cause') and r['action']=='CUSTOMER_ACQUISITION' for r in refs):
             uncertainties.append('회복 원인의 신규 고객 확보는 출처 보도/계획이며 계약 체결·납품·거래 조건·매출·수혜는 독립 확인되지 않음')
         if any(r.get('demand_recovery_cause') and r['action']=='DELIVERY_START' for r in refs):

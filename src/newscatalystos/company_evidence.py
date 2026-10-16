@@ -102,6 +102,7 @@ def _change_matches(change,ref):
     if change.get('demand_scope')!=ref.get('demand_scope'):return False
     if change.get('market_entry')!=ref.get('market_entry'):return False
     if change.get('demand_recovery_cause')!=ref.get('demand_recovery_cause'):return False
+    if change.get('demand_recovery_cause') and change.get('service_name')!=ref.get('service_name'):return False
     if change.get('product_price_cause')!=ref.get('product_price_cause'):return False
     if any(change.get(k)!=ref.get(k) for k in ('topic','action','phase','economic_driver')):return False
     if change['source_paragraph_sha256']!=ref['evidence_sha256']:return False
@@ -204,6 +205,7 @@ def _clause(text,change,entity,ref,*,include_investment_execution=True,include_n
                         and found.get('market_entry')==change.get('market_entry')
                         and found.get('product_price_cause')==change.get('product_price_cause')
                         and found.get('demand_recovery_cause')==change.get('demand_recovery_cause')
+                        and (not change.get('demand_recovery_cause') or found.get('service_name')==change.get('service_name'))
                         and ('investment_project' not in change or found.get('investment_project')==change['investment_project'])):
                     matches.append(clause);break
     matches=list(dict.fromkeys(matches))

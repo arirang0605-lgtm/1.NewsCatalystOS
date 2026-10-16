@@ -61,7 +61,7 @@ def _demand_action_claim(event):
     for change in extract_economic_changes(event['quote'],company_names=event['actors']):
         causes={m.group() for pattern in (_DEMAND,_ORDER_EXPANSION,_DEMAND_RECOVERY) for m in pattern.finditer(event['quote'])}
         causes.add(change.get('demand_scope',{}).get('source_expression'))
-        if (change['action'] in {'SUPPLY_RESUMPTION','CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY'} and event['action']==change['action']
+        if (change['action'] in {'SUPPLY_RESUMPTION','CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY','BUSINESS_START'} and event['action']==change['action']
                 and event['driver']==change['economic_driver'] and event['phase']==change['phase']
                 and topic_key(event['topic'])==topic_key(change['topic'])
                 and sorted(set(event['actors']))==sorted(change['entity_ids'])
@@ -196,7 +196,7 @@ def changes_from_events(events, title_sha):
         'source_paragraph_sha256':title_sha,'evidence_level':'REPORTED',
         'verified_economic_effect':False,'extraction_method':'AI_SOURCE_SPAN_MATCHED',
         **({k:v for k,v in ((_demand_action_claim(e) if e['action']=='SUPPLY_RESUMPTION' or e['driver']=='DEMAND_RECOVERY' else _price_claim(e)) or {}).items() if k in {
-            'topic','product_price_cause','demand_recovery_cause','demand_scope','market_entry','investment_project'}}
+            'topic','product_price_cause','demand_recovery_cause','demand_scope','market_entry','investment_project','service_name'}}
            if e['driver'] in {'PRODUCT_PRICE_INCREASE','PRODUCT_PRICE_DECREASE'} or e['action']=='SUPPLY_RESUMPTION' or e['driver']=='DEMAND_RECOVERY' else {})} for e in events]
 
 

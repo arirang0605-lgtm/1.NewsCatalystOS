@@ -182,7 +182,7 @@ def _theme_id(row):
         proof=c['policy_cause']
         # A named law does not identify the same individual permit for two actors.
         key.append(['REPORTED_POLICY',policy_cause_key(proof)]
-                   if proof['policy_name'] and proof['jurisdiction'] and proof['change']!='승인' else row['event_id'])
+                   if proof['policy_name'] and proof['jurisdiction'] and not proof['restriction'].endswith('허가') else row['event_id'])
     if c['economic_driver']=='UNKNOWN':
         key.append(row['event_id'] if row.get('content_scope')=='RSS_TITLE_METADATA'
                    else row['origin_reference'])

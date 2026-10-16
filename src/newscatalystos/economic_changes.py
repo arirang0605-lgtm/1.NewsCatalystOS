@@ -261,7 +261,7 @@ _POLICY_CAUSE = re.compile(
     r'(?<![가-힣A-Za-z0-9])(?:(?P<jurisdiction>미국|한국|일본|중국|EU|유럽연합)\s+)?'
     r'(?:(?P<name>'+_QUOTED_NAME+r')\s+)?(?P<topic>'+_DEMAND_TOPIC+r')\s+'
     r'(?:(?P<restriction>수출\s*규제|수입\s*규제|생산\s*규제)\s*(?P<change>완화|폐지)'
-    r'|(?P<permit>수출\s*허가|수입\s*허가|생산\s*허가)\s*(?P<approval>승인))'
+    r'|(?P<permit>수출\s*허가|수입\s*허가|생산\s*허가)\s*(?P<approval>승인|취득))'
     r'(?P<connector>(?:으)?로(?:\s*인해)?|에\s*(?:따라|대응해|대비해))(?=$|[\s,])', re.I)
 
 

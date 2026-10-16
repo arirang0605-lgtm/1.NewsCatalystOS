@@ -12,7 +12,7 @@ PRODUCTS={'HBM','DRAM','NAND'}
 BINDING=('event_id','source_url','evidence_sha256','recorded_at','source_binding','action','phase','source_available_at')
 
 
-def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=''):
+def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query='',_min_products=2):
     as_of=_when(as_of.isoformat(),'comparison end')
     since=_when(since.isoformat(),'comparison start') if since else None
     result={'as_of':as_of.isoformat(),'since':since.isoformat() if since else None,
@@ -84,7 +84,7 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
     for key,group in sorted(grouped.items()):
         actions=[a for p in group['products'] for a in p['actions']]
         groups={a['action_group_id'] for a in actions}
-        if len({p['product'] for p in group['products']})<2 or len(groups)<2:continue
+        if len({p['product'] for p in group['products']})<_min_products or len(groups)<_min_products:continue
         group.update(destination_expressions=sorted(group['destination_expressions']),
             products=sorted(group['products'],key=lambda p:(p['product'],p['theme_id'])),
             distinct_action_groups=len(groups),identified_company_count=len({a['company_key'] for a in actions if a['identity_status']=='IDENTIFIED'}),

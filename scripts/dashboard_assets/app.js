@@ -97,18 +97,31 @@ function renderThemeActionOrder(card,period){
 function renderCrossProductDemand(parent,comparison,term="",search={}){
   if(!comparison)return;
   if(comparison.status==="PARTIAL")parent.append(node("p","fineprint","일부 제품의 선택 판본·근거를 확인할 수 없어 해당 비교는 미확인으로 남겼습니다."));
+  if(comparison.period_status==="UNAVAILABLE")parent.append(node("p","fineprint","기간 비교 자료를 읽지 못했습니다. 현재 후보군은 유지하고 변화는 미확인으로 표시합니다."));
   for(const group of comparison.groups||[]){
     const direct=group.products.some(p=>p.actions.some(a=>search[a.candidate_id]?.match_kind==="DIRECT_COMPANY"));
     if(term&&!direct&&!JSON.stringify(group).normalize("NFKC").toLowerCase().includes(term.normalize("NFKC").toLowerCase()))continue;
     const card=node("article","finding");
-    card.append(node("h4","","복수 제품 공통 원인 후보 · "+group.destination_expressions.join(" / ")));
+    card.append(node("h4","",(group.status==="PERIOD_CONTEXT_ONLY"?"복수 제품의 과거 비교 맥락 · ":"복수 제품 공통 원인 후보 · ")+group.destination_expressions.join(" / ")));
     card.append(node("p","","같은 명시 수요처의 수요 증가 보도를 비교한 가설 · 기존 제품별 테마는 유지합니다. 거래·수혜·대장주 확정이 아닙니다."));
     card.append(node("p","","독립 행동 "+group.distinct_action_groups+"개 · 식별된 기업 "+group.identified_company_count+"개 · 미식별 기업 맥락 "+group.unresolved_company_contexts+"개 (테마 간 동일 기업으로 합치지 않음)"));
-    for(const product of group.products){
+    const change=group.period_change;
+    if(change?.status==="READY"){
+      card.append(node("p","",(change.formed_in_period?"기간 내 복수 제품 형성 · 기준점 대비 (전체 이력 최초 확정 아님) · ":"")+"새 제품: "+(change.new_products.join(" · ")||"없음")+" · 새 독립 행동 "+change.new_action_group_ids.length+"개 · 제외 행동 "+change.removed_action_group_ids.length+"개"));
+      card.append(node("p","","비교 기준: "+change.baseline+" · 기간 시작 "+change.since+" · 기간 말 "+change.as_of+" · 자료 부재만으로 약화·무효를 추정하지 않습니다."));
+      const baseline=node("details","finding-detail");baseline.append(node("summary","","기간 직전 제품·판본 기준"));
+      for(const pin of change.before.theme_snapshots)baseline.append(node("p","",pin.theme_id+" · "+pin.decision_at+" · SHA: "+pin.sha256));
+      card.append(baseline);
+    }else if(change)card.append(node("p","","기간 변화 미확인 · 기준 판본/근거를 확인할 수 없습니다. 현재 근거와 구분합니다."));
+    for(const product of [...group.products,...(group.removed_products||[]),...(group.removed_action_contexts||[])]){
       const box=node("details","finding-detail");box.append(node("summary","",product.product+" · "+product.theme_status));
+      const contextLabel={EXISTING_PRODUCT_CONTEXT:"기존 비교 맥락 · 활동 필터의 새 테마로 세지 않음",HISTORICAL_REMOVED_PRODUCT:"현재 제품 후보에서 제외된 과거 근거",HISTORICAL_REMOVED_ACTION:"현재 행동에서 제외된 과거 근거"}[product.context_kind];
+      if(contextLabel)box.append(node("p","",contextLabel));
+      if(product.current_snapshot)box.append(node("p","","현재 상태: "+product.current_theme_status+" · 현재 판본: "+product.current_snapshot.decision_at+" · SHA: "+product.current_snapshot.sha256));
       box.append(node("p","","제품별 테마: "+product.theme_id+" · 판본: "+product.decision_at+" · SHA: "+product.theme_snapshot_sha256));
       if(product.invalidated_event_ids.length)box.append(node("p","","현재 제외된 사건 "+product.invalidated_event_ids.length+"개 · 기존 제품별 철회 근거도 확인하세요."));
       for(const action of product.actions){
+        if(change?.status==="READY"&&action.period_action_group_ids?.some(id=>change.new_action_group_ids.includes(id)))box.append(node("p","","기간 내 새 독립 행동 · 단순 추가 보도/식별 갱신과 구분"));
         box.append(node("h5","",action.display_name),node("p","",action.identity_status==="IDENTIFIED"?"식별된 사건 당사자":"출처 이름 맥락 · 기업 동일성 미확인"));
         for(const source of action.sources){
           box.append(node("p","",actionLabel(source)+" · "+(source.in_period?"기간 내 관측 근거":"기간 이전 맥락")),node("p","","원문 원인: "+source.cause.source_expression));

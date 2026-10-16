@@ -76,7 +76,7 @@ def test_unscoped_recovery_still_forms_same_product_theme(tmp_path,operation):
     assert all('demand_scope' not in r for r in theme['source_refs'])
 
 
-@pytest.mark.parametrize('variant',['계획','목표','결정','의향','취소','전망','past','actor','pronoun','product','growth','policy','second_recovery','third','scope','unnamed','anticipatory'])
+@pytest.mark.parametrize('variant',['계획','목표','결정','의향','취소','전망','past','actor','pronoun','product','growth','policy','second_recovery','duplicate','scope','unnamed','anticipatory'])
 def test_ambiguous_or_mixed_scopes_do_not_gain_shared_actuals(operation,variant):
     article=text(operation)
     if variant=='past': article=article.replace('「별빛검사」','지난해 「별빛검사」')
@@ -86,7 +86,7 @@ def test_ambiguous_or_mixed_scopes_do_not_gain_shared_actuals(operation,variant)
     elif variant=='growth': article=article.replace('및 ','및 DRAM 수요 증가로 ')
     elif variant=='policy': article=article.replace('및 ','및 미국 ‘첨단칩통제법’ HBM 수출 규제 완화로 ')
     elif variant=='second_recovery': article=article.replace('및 ','및 스마트폰용 HBM 수요 회복으로 ')
-    elif variant=='third': article+=' 및 생산 개시'
+    elif variant=='duplicate': article+=' 및 '+operation[1]
     elif variant=='scope': article=article.replace('AI 서버용','AI 서버 및 스마트폰용')
     elif variant=='unnamed': article=article.replace('「별빛검사」','검사')
     elif variant=='anticipatory': article=article.replace('회복으로','회복에 대비해')

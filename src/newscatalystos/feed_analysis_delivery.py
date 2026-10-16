@@ -219,9 +219,10 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
         # A report carrying a three-part source group cannot silently downgrade
         # one sibling to a pre-feature keyword claim by removing its span proof.
         # Reports wholly predating this feature still use their legacy path.
-        from .economic_changes import price_parallel_actions,growth_parallel_actions
+        from .economic_changes import price_parallel_actions,growth_parallel_actions,recovery_parallel_actions
         for proof_key,parser in (('price_parallel_action',price_parallel_actions),
-                                 ('growth_parallel_action',growth_parallel_actions)):
+                                 ('growth_parallel_action',growth_parallel_actions),
+                                 ('recovery_parallel_action',recovery_parallel_actions)):
             for sibling in changes:
                 proof=sibling.get(proof_key)
                 if not proof:continue

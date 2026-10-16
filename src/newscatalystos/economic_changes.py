@@ -302,7 +302,7 @@ def _parallel_actions(action_text, cause, actors, *, include_investment_executio
     if source_line is not None:
         # A bounded shared clause: every original slice must independently pass
         # one complete literal grammar, with the same source actor and cause.
-        # Growth and price opt into three parts; other callers retain two.
+        # Growth, recovery and price opt into three parts; policy retains two.
         if len(parts) not in source_action_counts or len(actors)!=1:return None
         base=source_line.find(action_text.strip().rstrip('.。!'),cause[1].end())
         if base<0:return None
@@ -593,7 +593,7 @@ def policy_parallel_actions(text, *, company_names=()):
 
 
 
-def recovery_parallel_actions(text, *, company_names=()):
+def recovery_parallel_actions(text, *, company_names=(), include_three_actions=True):
     """Reuse literal action spans for one recovery cause and one source actor."""
     if (not isinstance(text,str) or not 0<len(text)<=800 or any(ord(c)<32 for c in text)
             or _DEMAND_DENIAL.search(text) or UNCERTAIN.search(text) or PAST.search(text)):
@@ -609,6 +609,7 @@ def recovery_parallel_actions(text, *, company_names=()):
     if subject is None:return None
     actors,tail=subject
     return _parallel_actions(tail,cause,actors,source_line=text,scope=scope,
+        source_action_counts=(2,3) if include_three_actions else (2,),
         supported_actions=('BUSINESS_START','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY',
             'PRODUCTION_START','CONTRACT','CAPACITY_ADDITION','INVESTMENT_EXECUTION','SUPPLY_RESUMPTION'))
 
@@ -760,7 +761,7 @@ def investment_execution_phase(text):
 
 
 def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True,
-                             include_policy_causes=True, include_policy_destinations=True, include_policy_capacity_actions=True, include_policy_contract_actions=True, include_policy_investment_actions=True, include_policy_services=True, include_policy_parallel=True, include_recovery_parallel=True, include_growth_parallel=True, include_growth_three_actions=True, include_order_services=True, include_price_services=True, include_price_parallel=True, include_price_three_actions=True, include_investment_execution=True,
+                             include_policy_causes=True, include_policy_destinations=True, include_policy_capacity_actions=True, include_policy_contract_actions=True, include_policy_investment_actions=True, include_policy_services=True, include_policy_parallel=True, include_recovery_parallel=True, include_recovery_three_actions=True, include_growth_parallel=True, include_growth_three_actions=True, include_order_services=True, include_price_services=True, include_price_parallel=True, include_price_three_actions=True, include_investment_execution=True,
                              include_investment_projects=True, include_new_customers=True, include_delivery_start=True, include_demand_scopes=True, include_market_entry=True, include_product_prices=True, include_resumption=True, include_demand_recovery=True, include_adjacent_demand=True, include_adjacent_scopes=True, include_adjacent_contracts=True, include_adjacent_amounts=True, include_adjacent_reductions=True):
     """Return bounded source claims, including policy adoption before its effect.
 
@@ -775,6 +776,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     include_policy_contract_actions=False likewise preserves older contract phases and proof absence.
     include_policy_investment_actions=False likewise reads older investment phases unchanged.
     include_policy_services=False preserves the older policy action boundary without service starts.
+    include_recovery_three_actions=False preserves the earlier two-action recovery path.
     include_recovery_parallel=False preserves pre-shared-recovery stored clauses.
     include_growth_three_actions=False preserves the earlier two-action growth path.
     include_growth_parallel=False preserves pre-shared-growth stored clauses.
@@ -901,7 +903,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         if policy_parallel and any(k in policy_parallel and not enabled for k,enabled in (
                 ('INVESTMENT_EXECUTION',include_investment_execution),('DELIVERY_START',include_delivery_start),
                 ('CUSTOMER_ACQUISITION',include_new_customers),('MARKET_ENTRY',include_market_entry))):policy_parallel=None
-        recovery_parallel=(recovery_parallel_actions(line,company_names=company_names)
+        recovery_parallel=(recovery_parallel_actions(line,company_names=company_names,include_three_actions=include_recovery_three_actions)
             if recovery and include_recovery_parallel and include_parallel_actions and include_demand_scopes and line==evidence_line else None)
         if recovery_parallel and any(k in recovery_parallel and not enabled for k,enabled in (
                 ('DELIVERY_START',include_delivery_start),('CUSTOMER_ACQUISITION',include_new_customers),
@@ -934,7 +936,8 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         # A three-part service list is atomic: an incomplete service noun must
         # not let the legacy keyword path promote a different part to actual.
         if (((price and not price_drop and include_price_parallel and include_price_three_actions and price_parallel is None)
-                or (growth and include_growth_parallel and include_growth_three_actions and growth_parallel is None))
+                or (growth and include_growth_parallel and include_growth_three_actions and growth_parallel is None)
+                or (recovery and include_recovery_parallel and include_recovery_three_actions and recovery_parallel is None))
                 and len(re.split(r'\s+및\s+',action_text))==3
                 and re.search(r'(?:서비스|사업)(?:을|를|가|는)?(?=\s|$)',action_text)):continue
         # Do not fall back to the legacy single-action claim for an ambiguous pair.

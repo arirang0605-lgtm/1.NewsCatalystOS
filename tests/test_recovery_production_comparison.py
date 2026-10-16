@@ -62,7 +62,7 @@ def test_recovery_delivery_only_current_period_and_export_bytes_are_preserved(tm
  text(product='DRAM',actor='그 회사'),text(product='DRAM',actor='새빛소재',scope='모바일'),text(product='DRAM',actor='새빛소재',scope='AI 서버 및 모바일'),
  growth(product='DRAM',actor='새빛소재'),decline(product='DRAM',actor='새빛소재'),
  '새빛소재, AI 서버용 DRAM 가격 하락으로 생산 축소',
- '새빛소재, DRAM 생산 개시',text(product='DRAM',actor='새빛소재',tail='생산능력을 확대했다'),
+ '새빛소재, DRAM 생산 개시',text(product='DRAM',actor='새빛소재',tail='생산능력 확대 계획'), # Actual additions now have positive coverage in test_recovery_capacity_comparison.
 ])
 def test_plans_intentions_denials_other_drivers_scopes_or_unclear_actors_do_not_join_actual_production(tmp_path,other):
  rows=extract_economic_changes(other)

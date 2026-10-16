@@ -59,7 +59,7 @@ def test_decline_bytes_and_existing_growth_pins_are_preserved(tmp_path):
  text(product='DRAM',actor='새빛소재',tail='생산 재개 계획'),text(product='DRAM',actor='새빛소재',tail='생산 재개 결정'),text(product='DRAM',actor='새빛소재',tail='공급 재개 목표'),
  '새빛소재, DRAM 공급을 재개했다',
  '새빛소재, AI 서버용 DRAM 가격 하락으로 생산 축소',
- text(product='DRAM',actor='새빛소재',tail='생산능력을 확대했다'),
+ text(product='DRAM',actor='새빛소재',tail='생산능력 확대 계획'), # Actual additions now have positive coverage in test_recovery_capacity_comparison.
 ])
 def test_growth_decline_plans_price_general_restart_or_other_scope_do_not_borrow_recovery(tmp_path,other):
  if other=='새빛소재, DRAM 공급을 재개했다':

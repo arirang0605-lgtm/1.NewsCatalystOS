@@ -7,8 +7,8 @@
 
 AGENTS.md → PROJECT_STATE.md → DECISIONS.md → NEXT_TASK.md와 실제 Git 상태를 확인한다. 최신 사용자 지시를 우선하고 기존 변경을 보존한다.
 
-최신 기능: 0c72358의 동일 명시 정책 실제 공급계약 체결 복수 제품 비교. 기존 policy key/proof·상업 실제/계획 판정·직접 당사자·SHA/PIT·core/period를 재사용한다. policy_contract_action은 기존 함수의 체결 절 원문/해시/당사자/단계이며 검증된 SOURCE_REPORTED만 새 비교에 포함한다. 과거 proof 없는 판본의 단계/바이트는 보존한다. 계약 체결/이행·납품·매출을 구별하며 미명시 상대방/규모/수혜를 만들지 않는다. 변경 경로229 PASS(신규71), 기존SHA39+명시 투자 후속SHA1·표준 v3·policy_capacity_action/구판/구형 별칭 결측 보호. 운영 소스8개 반영·고정 실자료3사례/DB/설정/내보내기 보존. 새 정책 체결 양성은 합성 검증.
+최신 기능: bd61387의 동일 명시 정책 실제 납품 개시 복수 제품 비교. 기존 DELIVERY_START/SOURCE_REPORTED·상업 실제/계획·policy key/proof·직접 당사자·SHA/PIT·core/period를 재사용한다. 정책 원문/해시와 각 개시 행동을 기존 기간/검색/HTTP/화면/고정 JSON에 전달한다. 개시/완납/물량/매출·수혜를 구별하며 미명시 고객회사/ID·확정 관계를 만들지 않는다. 변경 경로211 PASS(신규63), 기존SHA42+명시 투자 후속SHA1·표준 v3·계약/능력 proof/구판 소비/구형 별칭 결측 보호. 운영 소스2개 반영·고정 실자료3사례/DB/설정/내보내기 보존. 새 정책 납품 개시 양성은 합성 검증.
 
-다음: 동일 명시 정책의 실제 납품 개시 DELIVERY_START/SOURCE_REPORTED. 합성 HBM/DRAM의 같은 정책→신규 고객에 납품 시작은 제품별 비교2개/복수 제품0개다. 기존 정책 proof/key·상업 단계/core/period 재사용. 체결/개시/완납/매출을 구별하며 미명시 고객·물량/수혜를 추정하지 않는다. NEXT_TASK 참고.
+다음: 동일 명시 정책의 실제 신규 고객 확보 CUSTOMER_ACQUISITION/SOURCE_REPORTED. 합성 HBM/DRAM 같은 정책→신규 고객 확보는 제품별 비교2개/복수 제품0개다. 기존 정책 proof/key·상업 단계/core/period 재사용. 미명시 고객실명/ID·관계/규모·계약 이행/납품/매출·수혜를 추정하지 않는다. NEXT_TASK 참고.
 
 저장 후보·ID·점수·구판/PIT·표준 bytes·사용자 변경·비밀·사용권·예산·무인 운영·실주문 금지를 유지한다. 새 수집/유료AI·운영 DB replay·동일 상태 반복 검증·일일 설정/상대 프로젝트 변경 금지. 전체 제품 완료는 명시된 완료 조건과 실제 증거로 별도 판단한다.

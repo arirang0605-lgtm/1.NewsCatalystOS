@@ -485,6 +485,13 @@ def _commercial_claim(line, cause, company_names, action, scope=None):
         topics=TOPIC_ALIASES.get(cause[0],(cause[0],))
         product='(?:'+'|'.join(re.escape(t) for t in topics)+')'
         phrase=r'(?:'+product+r'\s*)?생산능력(?:을)?\s*(?:확대|증설)'
+    if action=='INVESTMENT':
+        topics=TOPIC_ALIASES.get(cause[0],(cause[0],))
+        product='(?:'+'|'.join(re.escape(t) for t in topics)+')'
+        project=investment_project(tail,action)
+        if project and any(n not in {cause[0],'반도체'} and re.search(p,project['project_name'],re.I) for n,p in TOPICS):return None
+        target=re.escape(next(re.finditer(_QUOTED_NAME,tail)).group()) if project else r'(?:(?:신규|새로)\s*)?(?:공장|시설|설비)'
+        phrase=r'(?:'+product+r'\s*)?'+target+r'\s+투자(?:를)?\s*(?:결정|확정)'
     if action=='SUPPLY_RESUMPTION':
         topics=TOPIC_ALIASES.get(cause[0],(cause[0],))
         product='(?:'+'|'.join(re.escape(t) for t in topics)+')'
@@ -499,7 +506,7 @@ def _commercial_claim(line, cause, company_names, action, scope=None):
         phrase=re.escape(market['source_expression'])
     ending=r'(?P<ending>(?:했다|했습니다|한다|했으며|했고|하고|하며|했지만|할)|에\s*성공(?:했다|했고)?)?'
     plan=r'(?P<plan>\s*(?:예정|계획|목표|추진|검토|방침)(?:이다)?)?'
-    if action in {'SUPPLY_RESUMPTION','CONTRACT','PRODUCTION_START','CAPACITY_ADDITION'}:
+    if action in {'SUPPLY_RESUMPTION','CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT'}:
         plan=r'(?P<plan>\s*(?:예정|계획|목표|추진|검토|방침|결정)(?:이다|했다)?)?'
     match=re.fullmatch(phrase+ending+plan,tail.strip(),re.I)
     if match is None:return None
@@ -645,7 +652,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         cut_phase=price_curtailment_phase(action_text,price[0]) if price_drop else None
         if price_drop and cut_phase is None:continue
         commercial_claims={kind:_commercial_claim(line,cause,company_names,kind,scope)
-            for kind,enabled in [('CUSTOMER_ACQUISITION',include_new_customers),('DELIVERY_START',include_delivery_start),('MARKET_ENTRY',include_market_entry),('SUPPLY_RESUMPTION',include_resumption and bool(cause) and not price and not policy),('CONTRACT',bool(recovery)),('PRODUCTION_START',bool(recovery)),('CAPACITY_ADDITION',bool(recovery))]
+            for kind,enabled in [('CUSTOMER_ACQUISITION',include_new_customers),('DELIVERY_START',include_delivery_start),('MARKET_ENTRY',include_market_entry),('SUPPLY_RESUMPTION',include_resumption and bool(cause) and not price and not policy),('CONTRACT',bool(recovery)),('PRODUCTION_START',bool(recovery)),('CAPACITY_ADDITION',bool(recovery)),('INVESTMENT',bool(recovery))]
             if enabled and not contraction}
         commercial_claim=next((c for c in commercial_claims.values() if c),None)
         if commercial_claim and policy:policy_actors=set(commercial_claim['actors'])
@@ -708,7 +715,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                                  for n,p in TOPICS):continue
             if policy and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}:
                 continue
-            if recovery and (action not in {'SUPPLY_RESUMPTION','CONTRACT','PRODUCTION_START','CAPACITY_ADDITION'} or not commercial_claims.get(action)):continue
+            if recovery and (action not in {'SUPPLY_RESUMPTION','CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT'} or not commercial_claims.get(action)):continue
             if action=='SUPPLY_RESUMPTION' and not (cause and not contraction and not policy and not price):continue
             if price_drop and action!='SUPPLY_REDUCTION':continue
             if (order_cause or (price and not price_drop)) and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'}:
@@ -754,7 +761,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 # Explicit source-named actors anchor separate clause events even
                 # when their names came from the pinned directory, not a suffix rule.
                 original_companies=companies[:]
-            if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'} or (recovery and action in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION'}):
+            if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'} or (recovery and action in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT'}):
                 companies=commercial_claims[action]['actors'];original_companies=companies[:]
             key = (alias['canonical_topic'] if alias else topic, driver, action, tuple(original_companies),
                    tuple(policy_cause_key(policy[2])) if policy else None)
@@ -771,7 +778,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
                          else 'PLANNED' if demand_planned or (project and _BUSINESS_PLAN.search(action_text))
                          else cut_phase if price_drop
-                         else commercial_claims[action]['phase'] if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'} or (recovery and action in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION'})
+                         else commercial_claims[action]['phase'] if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'} or (recovery and action in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT'})
                          else execution_phase if action == 'INVESTMENT_EXECUTION'
                          else business_phase if action == 'BUSINESS_START'
                          else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line)

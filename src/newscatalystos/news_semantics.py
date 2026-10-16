@@ -61,7 +61,7 @@ def _demand_action_claim(event):
     for change in extract_economic_changes(event['quote'],company_names=event['actors']):
         causes={m.group() for pattern in (_DEMAND,_ORDER_EXPANSION,_DEMAND_RECOVERY) for m in pattern.finditer(event['quote'])}
         causes.add(change.get('demand_scope',{}).get('source_expression'))
-        if (change['action'] in {'SUPPLY_RESUMPTION','CONTRACT','PRODUCTION_START','CAPACITY_ADDITION'} and event['action']==change['action']
+        if (change['action'] in {'SUPPLY_RESUMPTION','CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT'} and event['action']==change['action']
                 and event['driver']==change['economic_driver'] and event['phase']==change['phase']
                 and topic_key(event['topic'])==topic_key(change['topic'])
                 and sorted(set(event['actors']))==sorted(change['entity_ids'])

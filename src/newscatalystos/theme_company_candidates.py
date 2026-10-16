@@ -35,7 +35,7 @@ def company_candidates(theme):
         for ref in refs:
             reported=ref['evidence_level'] in {'OFFICIAL_SOURCE','REPORTED'}
             policy=ref.get('policy_cause')
-            action_label=('생산능력 확대' if ref.get('demand_recovery_cause') and ref['action']=='CAPACITY_ADDITION' else ACTION_LABELS.get(ref['action'],ref['action']))
+            action_label=({'CAPACITY_ADDITION':'생산능력 확대','INVESTMENT':'투자 결정'}.get(ref['action']) if ref.get('demand_recovery_cause') else None) or ACTION_LABELS.get(ref['action'],ref['action'])
             reason=f"{ref['topic']} 관련 {action_label} 근거에 기업이 포함됨"
             if policy:
                 reason+=f" · 보도된 원인: {policy['source_expression']}"
@@ -77,6 +77,8 @@ def company_candidates(theme):
         stages=sorted({link['product_stage'] for link in links})
         uncertainties=['출처에 등장하거나 관계가 보도됐다는 사실만으로 실제 수혜·투자 매력을 확정할 수 없음',
                        '매출 기여·재무·현재 가격 평가는 연결되지 않아 미확인']
+        if any(r.get('demand_recovery_cause') and r['action']=='INVESTMENT' for r in refs):
+            uncertainties.append('회복 원인의 투자 결정은 출처 보도이며 실제 집행·지출·투자금·생산량·매출·수혜는 독립 확인되지 않음')
         if any(r.get('demand_recovery_cause') and r['action']=='CAPACITY_ADDITION' for r in refs):
             uncertainties.append('회복 원인의 생산능력 확대는 출처 보도이며 증설 수치·투자금·실제 생산량·판매·매출·수혜는 독립 확인되지 않음')
         if any(r.get('demand_recovery_cause') and r['action']=='PRODUCTION_START' for r in refs):

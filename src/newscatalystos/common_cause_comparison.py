@@ -1,4 +1,5 @@
 """Query-only company/action comparison from the selected immutable snapshot."""
+import json
 from copy import deepcopy
 from hashlib import sha256
 from .theme_emergence import (_bytes,topic_key,validate_demand_scope,
@@ -34,9 +35,51 @@ def _cause(ref):
             'source_expression':proof['source_expression'],'expression_sha256':proof['expression_sha256']}
 
 
-def common_cause_comparisons(themes):
+
+def _event_impact_paths(theme,company,ref,candidate,snapshot_sha,graph_bindings):
+    if (not candidate or candidate['entity_id']!=company['entity_id']
+            or candidate['theme_id']!=theme['theme_id']
+            or candidate['theme_snapshot_sha256']!=snapshot_sha
+            or candidate['decision_at']!=theme['decision_at']
+            or ref['event_id'] not in candidate['event_ids']):return []
+    paths=[]
+    for link in company.get('supply_chain_links',[]):
+        if (ref['event_id'] not in link['event_ids'] or ref['source_url'] not in link['source_urls']
+                or not ref.get('source_binding') or ref['source_binding']!=graph_bindings.get(link['graph_sha256'])):continue
+        basis=any(b.get('kind') in {'SOURCE_REPORTED_SUPPLY_RELATION','INFERRED_ASSOCIATION'}
+            and all(b.get(k)==v for k,v in link.items()) for b in candidate['inclusion_basis'])
+        projection={'role':link['role'],'counterparty_id':link['counterparty_id'],
+            'product_stage':link['product_stage'],'category':link['impact_category'],
+            'evidence_level':link['impact_evidence_level'],
+            'graph_sha256':link['graph_sha256'],'relation_sha256':link['relation_sha256']}
+        if not basis or projection not in candidate['benefit_paths']:continue
+        fields=('role','counterparty_id','product_stage','relation_kind','impact_category',
+                'impact_evidence_level','graph_sha256','relation_sha256','source_available_at','linked_at','link_scope')
+        paths.append({**{k:link[k] for k in fields},'event_id':ref['event_id'],
+            'entity_id':company['entity_id'],'source_urls':[ref['source_url']],
+            'conflicting':ref['event_id'] in link['conflicting_event_ids'],
+            'verified_real_transaction':False,'verified_real_benefit':False,'revenue_contribution':None})
+    return paths
+
+
+def common_cause_comparisons(themes,candidates=None):
     output={}
     for theme in themes:
+        snapshot_sha=sha256(_bytes(theme)).hexdigest()
+        linked=any(c.get('supply_chain_links') for c in theme['company_links'])
+        if linked:
+            from .theme_supply_chain import validate_theme_relations
+            from .theme_company_candidates import company_candidates
+            from .source_share import _when
+            validate_theme_relations(theme,_when(theme['decision_at'],'comparison decision'))
+            graph_bindings={}
+            for item in theme['supply_chain_evidence']:
+                graph=json.loads(item['graph_payload'])
+                graph_bindings[item['payload_sha256']]={'source_event_sha256':graph['event_sha256'],
+                    'document_sha256':graph['edges'][0]['document_sha256']}
+            cs=company_candidates(theme) if candidates is None else candidates
+            by_entity={c['entity_id']:c for c in cs if c['theme_id']==theme['theme_id']}
+        else:by_entity={}
         active=set(theme['event_ids'])-set(theme['invalidated_event_ids'])
         find,_,_=_groups(None,theme)
         grouped={};excluded=0
@@ -55,12 +98,20 @@ def common_cause_comparisons(themes):
                 extraction_method=ref.get('extraction_method'),
                 conflicting=ref['event_id'] in theme['conflicting_event_ids'])
             for company in theme['company_links']:
-                if company['entity_id'] not in ref['entity_ids'] or ref['event_id'] not in company['event_ids']:continue
+                if ref['event_id'] not in company['event_ids']:continue
+                actor=company['entity_id'] in ref['entity_ids']
+                paths=_event_impact_paths(theme,company,ref,by_entity.get(company['entity_id']),snapshot_sha,graph_bindings) if linked else []
+                if not actor and not paths:continue
+                company_source=deepcopy(source)
+                company_source.update(impact_paths=paths,impact_path_status='LINKED' if paths else 'UNKNOWN',
+                    company_participation='SOURCE_EVENT_ACTOR' if actor else 'SUPPLY_CHAIN_CONTEXT',
+                    event_entity_ids=list(ref['entity_ids']))
+                if not actor:company_source['cause']={'status':'COUNTERPARTY_CAUSE_NOT_ATTRIBUTED','source_expression':None}
                 key=(company['entity_id'],find(ref['event_id']))
                 row=grouped.setdefault(key,{'entity_id':company['entity_id'],
                     'action_group_id':key[1],'sources':{},'source_names':set()})
                 row['source_names'].update(m['source_name'] for m in ref.get('company_mappings',[]) if m['entity_id']==company['entity_id'])
-                row['sources'][sha256(_bytes(source)).hexdigest()]=source
+                row['sources'][sha256(_bytes(company_source)).hexdigest()]=company_source
         rows=[]
         for key,row in sorted(grouped.items()):
             sources=sorted(row['sources'].values(),key=lambda s:(s['source_available_at'],s['recorded_at'],s['event_id'],s['source_url']))
@@ -68,7 +119,7 @@ def common_cause_comparisons(themes):
                 'action_group_id':row['action_group_id'],'event_ids':sorted({s['event_id'] for s in sources}),
                 'sources':sources,'distinct_event_count':len({s['event_id'] for s in sources})})
         output[theme['theme_id']]={'theme_id':theme['theme_id'],
-            'theme_snapshot_sha256':sha256(_bytes(theme)).hexdigest(),'decision_at':theme['decision_at'],
+            'theme_snapshot_sha256':snapshot_sha,'decision_at':theme['decision_at'],
             'economic_driver':theme['economic_driver'],'rows':rows,
             'distinct_action_groups':len({r['action_group_id'] for r in rows}),
             'excluded_incompatible_refs':excluded,'verified_real_transaction':False,'verified_real_benefit':False}

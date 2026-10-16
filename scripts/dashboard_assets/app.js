@@ -39,6 +39,24 @@ function companySearchResults(context,query){
   return Object.fromEntries(Object.entries(context||{}).map(([id,e])=>[id,{...e,match_kind:!term?"UNFILTERED":direct.has(id)?"DIRECT_COMPANY":ambiguous.has(id)?"AMBIGUOUS_NAME":themes.has(e.theme_id)?"RELATED_THEME":"TEXT_CONTEXT"}]));
 }
 function companySearchLabel(kind){return {DIRECT_COMPANY:"검색 기업명·식별자와 정확히 일치 · 거래·수혜 확인 아님",AMBIGUOUS_NAME:"동일 이름 복수 기업 · 식별 미확정",RELATED_THEME:"같은 테마의 연관 기업 · 검색 기업과 직접 관계 미확인",TEXT_CONTEXT:"검색어가 포함된 테마 맥락 · 기업 직접 일치 아님"}[kind]||""}
+function renderEventImpactPaths(parent,source){
+  const paths=source.impact_paths||[];
+  if(!paths.length){parent.append(node("p","","분석상 테마 연관 · 영향 경로 미확인"));return}
+  const relationLabels={REPORTED_DIRECT_TRANSACTION:"출처에 보고된 거래 관계",ANNOUNCED_SUPPLY_PLAN:"발표된 공급 계획",THEMATIC_ASSOCIATION:"분석상 테마 연관"};
+  const impactLabels={POTENTIAL_BENEFICIARY_UNVERIFIED:"잠재 수혜 · 추론",POTENTIAL_DAMAGE_UNVERIFIED:"잠재 피해 · 추론",ANNOUNCED_SUPPLY_PLAN_UNVERIFIED:"계획 단계 · 실현 미확인",EFFECT_DIRECTION_UNKNOWN:"영향 방향 미확인",UNKNOWN_RELATIONSHIP:"영향 경로 미확인",THEMATIC_ONLY:"단순 테마 연관"};
+  const stages={MEMORY_DRAM:"DRAM 메모리",MEMORY_NAND:"NAND 메모리",MEMORY_HBM:"HBM 메모리",WAFER_FAB:"웨이퍼 제조",FAB_EQUIPMENT:"반도체 제조 장비",MATERIALS:"소재",COMPONENTS:"부품",SUBSTRATES:"기판",ADVANCED_PACKAGING:"첨단 패키징",TESTING:"테스트"};
+  for(const path of paths){
+    const box=node("div","finding-detail");
+    box.append(node("p","",(relationLabels[path.relation_kind]||"관계 미확인")+" · "+(impactLabels[path.impact_category]||"영향 미확인")));
+    box.append(node("p","",(stages[path.product_stage]||path.product_stage)+" · "+(path.role==="supplier"?"공급자":"고객")+" · 상대 기업 "+path.counterparty_id));
+    box.append(node("p","","독립 확인된 실거래·매출 기여·수혜 아님"));
+    if(path.conflicting)box.append(node("p","","상충 근거가 있는 영향 경로"));
+    for(const url of path.source_urls){const a=node("a","source-link","이 사건 공급망 관계의 출처");a.href=url;a.target="_blank";a.rel="noopener noreferrer";box.append(a)}
+    box.append(node("p","","관계 출처 가용: "+path.source_available_at+" · 연결 확보: "+path.linked_at));
+    const proof=node("details","");proof.append(node("summary","","관계·원본 그래프 근거"),node("p","","관계 SHA: "+path.relation_sha256),node("p","","원본 그래프 SHA: "+path.graph_sha256));box.append(proof);
+    parent.append(box);
+  }
+}
 function renderCommonCauseComparison(card,theme,candidates,comparisons){
   const comparison=comparisons?.[theme.theme_id],cs=candidates.filter(c=>c.theme_id===theme.theme_id);
   if(!comparison||comparison.theme_id!==theme.theme_id||comparison.decision_at!==theme.decision_at||!cs.length||cs.some(c=>c.theme_snapshot_sha256!==comparison.theme_snapshot_sha256||c.decision_at!==comparison.decision_at))return;
@@ -47,7 +65,9 @@ function renderCommonCauseComparison(card,theme,candidates,comparisons){
   for(const row of comparison.rows){
     const group=node("div","finding-detail");group.append(node("h5","",row.display_name),node("p","","연결 사건 "+row.distinct_event_count+"개 · 출처 근거 "+row.sources.length+"개"));
     for(const source of row.sources){
-      group.append(node("p","",actionLabel(source)+" · 사건 "+source.event_id));
+      const contextOnly=source.company_participation==="SUPPLY_CHAIN_CONTEXT";
+      group.append(node("p","",(contextOnly?"공급망으로 연결된 사건 · 이 기업의 직접 행동 확인 아님 · ":"")+actionLabel(source)+" · 사건 "+source.event_id));
+      if(contextOnly)group.append(node("p","","사건 당사자: "+source.event_entity_ids.join(" · ")));
       group.append(node("p","",source.cause.status==="STORED_EXPRESSION"?"저장된 원인 표현: “"+source.cause.source_expression+"”":"원인 유형: "+(economicDriverLabels[comparison.economic_driver]||"공통 원인 미확인")+" · 원문 근거 미확인"));
       group.append(node("p","",source.extraction_method==="AI_SOURCE_SPAN_MATCHED"?"AI 해석의 원문 근거 · 독립 사실 확인 아님":({OFFICIAL_SOURCE:"공식 출처 보도 · 독립 사실 확인 아님",REPORTED:"출처 보도 · 독립 사실 확인 아님",INFERRED:"추론 · 독립 사실 확인 아님"}[source.evidence_level]||"미확인 근거")));
       if(source.conflicting)group.append(node("p","","상충 근거가 있는 사건"));
@@ -55,6 +75,7 @@ function renderCommonCauseComparison(card,theme,candidates,comparisons){
       group.append(node("p","",({RSS_TITLE_METADATA:"RSS 제목 근거",LICENSED_ARTICLE_TEXT:"허가 본문 근거"}[source.content_scope]||"저장 근거")));
       group.append(node("p","","출처 가용: "+source.source_available_at+" · 관측: "+source.recorded_at+" · 판본: "+comparison.decision_at));
       group.append(node("p","","근거 SHA: "+source.evidence_sha256));
+      renderEventImpactPaths(group,source);
     }
     box.append(group);
   }

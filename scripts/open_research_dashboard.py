@@ -97,7 +97,7 @@ class Handler(BaseHTTPRequestHandler):
                     bundle=json.loads(build_theme_bundle(data["themes"], decision_at=min(end, now), now=now,
                                                          include_company_candidates=True))
                     data['company_candidates']=bundle['CompanyCandidates']
-                    data['common_cause_comparisons']=common_cause_comparisons(data['themes'])
+                    data['common_cause_comparisons']=common_cause_comparisons(data['themes'],data['company_candidates'])
                     data['theme_presentations']={t['theme_id']:theme_presentation(t) for t in data['themes']}
                     try:
                         research=enrich_candidates(data['company_candidates'],self.server.documents/'era_assessments',
@@ -188,7 +188,7 @@ class Handler(BaseHTTPRequestHandler):
                                                identity_root=root.parent/'theme_company_identity')
                     filter_research(research,themes,query.get('q',[''])[0])
                     selected={c['theme_id'] for c in research['CompanyCandidates']}
-                    research['common_cause_comparisons']=common_cause_comparisons([t for t in themes if t['theme_id'] in selected])
+                    research['common_cause_comparisons']=common_cause_comparisons([t for t in themes if t['theme_id'] in selected],research['CompanyCandidates'])
                     research['company_inclusion_presentations']=inclusion_presentations(themes,research['CompanyCandidates'])
                     payload=json.dumps(research,ensure_ascii=False,allow_nan=False).encode()
                 self._send(200, payload,

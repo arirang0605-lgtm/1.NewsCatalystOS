@@ -87,16 +87,35 @@ def period_cross_product(store,selected,current,*,since,as_of,now,query='',ident
                 (removed if removed_product else removed_action_contexts).append(product)
             group['removed_products']=removed
             group['removed_action_contexts']=removed_action_contexts
+            # Existing named decisions remain one economic action when execution
+            # becomes eligible here; reuse the stored stage links and _groups roots.
+            stage_contexts=[]
+            for product in ((fresh or {}).get('products',[]) if group.get('economic_driver')=='DEMAND_RECOVERY' else []):
+                prior=by_before.get(product['theme_id']);latest=by_after[product['theme_id']]
+                if prior is None:continue
+                executions={s['event_id'] for a in product['actions'] for s in a['sources'] if s['action']=='INVESTMENT_EXECUTION'}
+                find,known,_=_groups(prior,latest)
+                for link in latest.get('investment_stage_links',[]):
+                    if (link['execution_event_id'] not in executions or link['execution_event_id'] in prior['event_ids']
+                        or link['decision_event_id'] not in prior['event_ids'] or find(link['execution_event_id']) not in known):continue
+                    stage_contexts.append({'theme_id':product['theme_id'],'action_group_id':find(link['execution_event_id']),
+                        'before_snapshot':{'sha256':sha256(_bytes(prior)).hexdigest(),'decision_at':prior['decision_at']},
+                        'after_snapshot':{'sha256':sha256(_bytes(latest)).hexdigest(),'decision_at':latest['decision_at']},
+                        'stored_stage_link':deepcopy(link)})
+            known_stage_groups={c['action_group_id'] for c in stage_contexts}
             change={'status':'READY','baseline':'LATEST_STRICTLY_BEFORE_SINCE','since':since.isoformat(),'as_of':as_of.isoformat(),
                 'before':left,'after':right,'is_current_candidate':is_current,
                 'formed_in_period':len(left['products'])<2 and is_current,
                 'new_products':sorted(set(right['products'])-set(left['products'])),
                 'removed_product_codes':sorted(set(left['products'])-set(right['products'])),
-                'new_action_group_ids':sorted(set(right['action_group_ids'])-set(left['action_group_ids'])),
+                'new_action_group_ids':sorted(set(right['action_group_ids'])-set(left['action_group_ids'])-known_stage_groups),
                 'removed_action_group_ids':sorted(set(left['action_group_ids'])-set(right['action_group_ids']))}
             if tids.intersection(missing|unavailable):
                 change={'status':'UNAVAILABLE','reason':'BASELINE_OR_PRODUCT_EVIDENCE_UNAVAILABLE','is_current_candidate':is_current}
             elif not left['products']:change['baseline']='NO_PRIOR_RECORDED_SCOPE'
+            if stage_contexts and change['status']=='READY':
+                change['investment_stage_contexts']=sorted(stage_contexts,key=lambda c:(c['theme_id'],c['action_group_id']))
+                if not left['products']:change['baseline']='RECORDED_INVESTMENT_DECISION_CONTEXT'
             group['period_change']=change
             group['search_keys']=sorted({k for p in group['products']+removed+removed_action_contexts for a in p['actions'] for k in search_keys.get(a['candidate_id'],set())})
             exact=any(a['candidate_id'] in direct for p in group['products']+removed+removed_action_contexts for a in p['actions'])

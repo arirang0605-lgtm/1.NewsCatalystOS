@@ -236,6 +236,11 @@ def build_theme_bundle(themes: list[dict], *, decision_at: datetime, now=None,
                 from .theme_emergence import validate_policy_investment_action
                 validate_policy_investment_action(ref['policy_investment_action'],ref['topic'],ref['economic_driver'],ref['action'],ref['phase'],ref.get('policy_cause'))
                 if ref['policy_investment_action'].get('investment_project')!=ref.get('investment_project'):raise SourceShareError('policy investment project mismatch')
+            if 'function_service_action' in ref:
+                from .theme_emergence import validate_function_service_action
+                validate_function_service_action(ref['function_service_action'],ref['topic'],ref['economic_driver'],ref['action'],ref['phase'],ref.get('policy_cause'),ref.get('demand_recovery_cause'),ref.get('demand_scope'),ref.get('service_name'))
+                actors={m['source_name']:m['entity_id'] for m in ref.get('company_mappings',[])}
+                if not all(actors.get(a,a) in ref['entity_ids'] for a in ref['function_service_action']['actors']):raise SourceShareError('function service actor mismatch')
             if 'price_service_action' in ref:
                 from .theme_emergence import validate_price_service_action
                 validate_price_service_action(ref['price_service_action'],ref['topic'],ref['economic_driver'],ref['action'],ref['phase'],ref.get('product_price_cause'),ref.get('demand_scope'),ref.get('service_name'))

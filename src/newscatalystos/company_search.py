@@ -68,6 +68,7 @@ def company_search_context(themes,candidates):
             if 'policy_contract_action' in source:record['policy_contract_action']=deepcopy(source['policy_contract_action'])
             if 'policy_investment_action' in source:record['policy_investment_action']=deepcopy(source['policy_investment_action'])
             if 'policy_parallel_action' in source:record['policy_parallel_action']=deepcopy(source['policy_parallel_action'])
+            if 'function_service_action' in source:record['function_service_action']=deepcopy(source['function_service_action'])
             if 'price_service_action' in source:
                 record.update({k:deepcopy(source[k]) for k in ('price_service_action','service_name','service_event_key','product_price_cause') if k in source})
             if 'order_service_action' in source:

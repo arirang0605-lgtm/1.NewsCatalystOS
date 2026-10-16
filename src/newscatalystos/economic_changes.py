@@ -664,16 +664,22 @@ def price_parallel_actions(text, *, company_names=(), include_three_actions=True
             'PRODUCTION_START','CONTRACT','CAPACITY_ADDITION','INVESTMENT_EXECUTION'))
 
 
-def _single_service_actions(text,pattern,company_names):
+def _single_service_actions(text,pattern,company_names,*,policy=False):
     """Reuse the existing cause and whole-service claim on literal source spans."""
     if (not isinstance(text,str) or not 0<len(text)<=800 or any(ord(c)<32 for c in text)
             or _DEMAND_DENIAL.search(text) or UNCERTAIN.search(text) or PAST.search(text)):
         return None
-    if (len(list(pattern.finditer(text)))!=1 or policy_causes(text)
-            or any(p.search(text) for p in (_DEMAND,_ORDER_EXPANSION,_DEMAND_RECOVERY,_DEMAND_CONTRACTION,_PRODUCT_PRICE) if p is not pattern)):return None
-    cause=_demand_topic(text,company_names,pattern)
-    if cause is None:return None
-    scope=demand_scope(text,cause[1],company_names)
+    patterns=(_DEMAND,_ORDER_EXPANSION,_DEMAND_RECOVERY,_DEMAND_CONTRACTION,_PRODUCT_PRICE)
+    if policy:
+        policies=policy_causes(text)
+        if len(policies)!=1 or any(p.search(text) for p in patterns):return None
+        cause=policies[0][:2];scope=None
+    else:
+        if (len(list(pattern.finditer(text)))!=1 or policy_causes(text)
+                or any(p.search(text) for p in patterns if p is not pattern)):return None
+        cause=_demand_topic(text,company_names,pattern)
+        if cause is None:return None
+        scope=demand_scope(text,cause[1],company_names)
     if scope and scope['status']!='EXPLICIT':return None
     claim=_commercial_claim(text,cause,company_names,'BUSINESS_START',scope)
     if claim is None or len(claim['actors'])!=1:return None
@@ -695,6 +701,19 @@ def price_service_actions(text, *, company_names=()):
         proof=actions['BUSINESS_START']
         price=product_price_cause(text[slice(*proof['cause_span'])])
         if price and price['change']=='INCREASE':return actions
+    return None
+
+
+def function_service_actions(text, *, company_names=()):
+    """Bound an existing unnamed recovery/policy service to its source clause."""
+    if not isinstance(text,str):return None
+    actions=_single_service_actions(text,_DEMAND_RECOVERY,company_names,policy=bool(policy_causes(text)))
+    if actions:
+        tail=actions['BUSINESS_START']['action_expression']
+        # This proof is for one whole service, not a nominal action list that
+        # happens to end with a function description. Parallel spans own those.
+        if re.search(r'\s+및\s+',tail):return None
+        if not business_start_names(tail) and len(business_start_functions(tail))==1:return actions
     return None
 
 
@@ -767,7 +786,7 @@ def investment_execution_phase(text):
     return 'PLANNED' if re.search(r'계획|예정|추진|검토|방침|결정|확정',text) else 'SOURCE_REPORTED'
 
 
-def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True, include_function_parallel=True,
+def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True, include_function_parallel=True, include_function_service_actions=True,
                              include_policy_causes=True, include_policy_destinations=True, include_policy_capacity_actions=True, include_policy_contract_actions=True, include_policy_investment_actions=True, include_policy_services=True, include_policy_parallel=True, include_policy_three_actions=True, include_recovery_parallel=True, include_recovery_three_actions=True, include_growth_parallel=True, include_growth_three_actions=True, include_order_services=True, include_price_services=True, include_price_parallel=True, include_price_three_actions=True, include_investment_execution=True,
                              include_investment_projects=True, include_new_customers=True, include_delivery_start=True, include_demand_scopes=True, include_market_entry=True, include_product_prices=True, include_resumption=True, include_demand_recovery=True, include_adjacent_demand=True, include_adjacent_scopes=True, include_adjacent_contracts=True, include_adjacent_amounts=True, include_adjacent_reductions=True):
     """Return bounded source claims, including policy adoption before its effect.
@@ -778,6 +797,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     it must not be used to rewrite old events with newly interpreted causes.
     include_parallel_actions=False likewise preserves the prior single-action reader.
     include_function_parallel=False preserves parallel clauses requiring a source-named service.
+    include_function_service_actions=False reads standalone services without new source-span enrichment.
     include_policy_causes=False matches old policy-only records without rewriting them.
     include_policy_destinations=False reads earlier policy causes without reinterpreting scope.
     include_policy_capacity_actions=False reads older capacity phases without enriching or rewriting them.
@@ -967,6 +987,9 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         price_service=price_service['BUSINESS_START'] if price_service else None
         single_service=order_service or price_service
         if single_service:commercial_claims['BUSINESS_START']={'actors':single_service['actors'],'phase':single_service['phase']}
+        function_service=(function_service_actions(line,company_names=company_names)
+            if include_function_service_actions and (recovery or policy) and line==evidence_line else None)
+        function_service=function_service['BUSINESS_START'] if function_service else None
         shared_parallel=policy_parallel or recovery_parallel or growth_parallel or price_parallel
         if shared_parallel:commercial_claims.update({k:{'actors':v['actors'],'phase':v['phase'],
             **({'market_entry':market_entry(v['action_expression'])} if k=='MARKET_ENTRY' else {})}
@@ -1150,6 +1173,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 **({'recovery_parallel_action':recovery_parallel[action]} if recovery_parallel else {}),
                 **({'growth_parallel_action':growth_parallel[action]} if growth_parallel else {}),
                 **({'price_parallel_action':price_parallel[action]} if price_parallel else {}),
+                **({'function_service_action':function_service} if function_service and action=='BUSINESS_START' else {}),
                 **({'order_service_action':order_service} if order_service else {}),
                 **({'price_service_action':price_service} if price_service else {}),
                 **({'policy_contract_action':policy_contract} if policy_contract else {}),

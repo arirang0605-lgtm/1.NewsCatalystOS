@@ -1,7 +1,7 @@
 """Query-only shared demand or policy hypotheses across pinned semiconductor themes."""
 from copy import deepcopy
 from hashlib import sha256
-from .theme_emergence import _bytes,validate_demand_scope,validate_demand_recovery,validate_market_entry,validate_service_event_key,validate_policy_cause,validate_policy_capacity_action,validate_policy_contract_action,validate_policy_investment_action,validate_policy_parallel_action,validate_recovery_parallel_action,validate_growth_parallel_action,validate_order_service_action,validate_investment_project,validate_investment_event_key,_text,topic_key
+from .theme_emergence import _bytes,validate_demand_scope,validate_demand_recovery,validate_market_entry,validate_service_event_key,validate_policy_cause,validate_policy_capacity_action,validate_policy_contract_action,validate_policy_investment_action,validate_policy_parallel_action,validate_recovery_parallel_action,validate_growth_parallel_action,validate_order_service_action,validate_function_service_action,validate_investment_project,validate_investment_event_key,_text,topic_key
 from .economic_changes import normalized,policy_cause_key
 from .common_cause_comparison import common_cause_comparisons
 from .company_search import company_search_context,match_company_search
@@ -55,6 +55,10 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                         and row['entity_id'] in r['entity_ids'] and r.get('industry_tags')==['SEMICONDUCTOR']
                         and topic_key(r.get('topic',''))==topic_key(product) and r.get('economic_driver')==driver]
                     for ref in refs:
+                        if 'function_service_action' in ref:
+                            validate_function_service_action(ref['function_service_action'],ref['topic'],driver,ref['action'],ref['phase'],ref.get('policy_cause'),ref.get('demand_recovery_cause'),ref.get('demand_scope'),ref.get('service_name'))
+                            actors={m['source_name']:m['entity_id'] for m in ref.get('company_mappings',[])}
+                            if not all(actors.get(a,a) in ref['entity_ids'] for a in ref['function_service_action']['actors']):raise SourceShareError('function service actor mismatch')
                         scope=ref.get('demand_scope')
                         if driver=='POLICY_ENABLEMENT':
                             policy=ref.get('policy_cause')
@@ -65,9 +69,9 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                                 actors={m['source_name']:m['entity_id'] for m in ref.get('company_mappings',[])}
                                 if not all(actors.get(a,a) in ref['entity_ids'] for a in ref['policy_parallel_action']['actors']):raise SourceShareError('shared action actor mismatch')
                             if ref['action']=='BUSINESS_START':
-                                # A validated parallel proof also carries a concrete
+                                # A validated service proof also carries a concrete
                                 # function without asserting a source-named identity.
-                                if not ref.get('service_name') and 'policy_parallel_action' not in ref:continue
+                                if not ref.get('service_name') and 'policy_parallel_action' not in ref and 'function_service_action' not in ref:continue
                                 if ref.get('service_name') is not None and not _text(ref['service_name'],80):raise SourceShareError('invalid explicit service name')
                                 validate_service_event_key(ref)
                             if ref['action']=='MARKET_ENTRY':validate_market_entry(ref.get('market_entry'),ref['action'])
@@ -117,9 +121,9 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                             if not scope['source_expression'].endswith(proof['source_expression']):continue
                             if ref['action']=='MARKET_ENTRY':validate_market_entry(ref.get('market_entry'),ref['action'])
                             if ref['action']=='BUSINESS_START':
-                                # A validated parallel proof also carries a concrete
+                                # A validated service proof also carries a concrete
                                 # function without asserting a source-named identity.
-                                if not ref.get('service_name') and 'recovery_parallel_action' not in ref:continue
+                                if not ref.get('service_name') and 'recovery_parallel_action' not in ref and 'function_service_action' not in ref:continue
                                 if ref.get('service_name') is not None and not _text(ref['service_name'],80):raise SourceShareError('invalid explicit service name')
                                 validate_service_event_key(ref)
                         if source['cause']['status']!='STORED_EXPRESSION':continue

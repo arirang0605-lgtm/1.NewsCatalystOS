@@ -3,7 +3,7 @@ import json
 from copy import deepcopy
 from hashlib import sha256
 from .theme_emergence import (_bytes,topic_key,validate_demand_scope,
-    validate_demand_recovery,validate_product_price,validate_policy_cause,validate_policy_capacity_action,validate_policy_contract_action,validate_policy_investment_action,validate_policy_parallel_action,validate_recovery_parallel_action,validate_growth_parallel_action,validate_price_parallel_action,validate_order_service_action,validate_price_service_action,validate_investment_event_key,validate_adjacent_demand)
+    validate_demand_recovery,validate_product_price,validate_policy_cause,validate_policy_capacity_action,validate_policy_contract_action,validate_policy_investment_action,validate_policy_parallel_action,validate_recovery_parallel_action,validate_growth_parallel_action,validate_price_parallel_action,validate_order_service_action,validate_price_service_action,validate_function_service_action,validate_investment_event_key,validate_adjacent_demand)
 from .theme_changes import _groups
 from .source_share import SourceShareError
 
@@ -33,6 +33,8 @@ def _cause(ref):
             validate_policy_contract_action(ref['policy_contract_action'],topic,driver,ref['action'],ref['phase'],ref.get('policy_cause'))
         if 'policy_investment_action' in ref:
             validate_policy_investment_action(ref['policy_investment_action'],topic,driver,ref['action'],ref['phase'],ref.get('policy_cause'))
+        if 'function_service_action' in ref:
+            validate_function_service_action(ref['function_service_action'],topic,driver,ref['action'],ref['phase'],ref.get('policy_cause'),ref.get('demand_recovery_cause'),ref.get('demand_scope'),ref.get('service_name'))
         if 'price_service_action' in ref:
             validate_price_service_action(ref['price_service_action'],topic,driver,ref['action'],ref['phase'],ref.get('product_price_cause'),ref.get('demand_scope'),ref.get('service_name'))
         if 'order_service_action' in ref:
@@ -135,6 +137,7 @@ def common_cause_comparisons(themes,candidates=None):
             if 'policy_contract_action' in ref:source['policy_contract_action']=deepcopy(ref['policy_contract_action'])
             if 'policy_investment_action' in ref:source['policy_investment_action']=deepcopy(ref['policy_investment_action'])
             if 'policy_parallel_action' in ref:source['policy_parallel_action']=deepcopy(ref['policy_parallel_action'])
+            if 'function_service_action' in ref:source['function_service_action']=deepcopy(ref['function_service_action'])
             if 'price_service_action' in ref:
                 source.update({k:deepcopy(ref[k]) for k in ('price_service_action','service_name','service_event_key','product_price_cause') if k in ref})
             if 'order_service_action' in ref:

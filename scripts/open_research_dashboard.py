@@ -26,6 +26,7 @@ from newscatalystos.theme_company_candidates import inclusion_presentations
 from newscatalystos.company_search import company_search_context,match_company_search
 from newscatalystos.common_cause_comparison import common_cause_comparisons
 from newscatalystos.company_timeline import company_timelines,select_timelines
+from newscatalystos.timeline_counterevidence import targeted_counterevidence
 
 ASSETS = Path(__file__).resolve().parent / "dashboard_assets"
 
@@ -112,7 +113,9 @@ class Handler(BaseHTTPRequestHandler):
                     context=company_search_context(data['themes'],data['company_candidates'])
                     data['company_search']={'query':query.get('q',[''])[0],'candidates':match_company_search(context,query.get('q',[''])[0])}
                     timeline=company_timelines(data['themes'],data['company_candidates'],context,data['common_cause_comparisons'],as_of=min(end,now),since=min(start,now))
-                    data['company_timelines']=select_timelines(timeline,data['company_search']['candidates'],query.get('q',[''])[0])
+                    timeline,timeline_context=targeted_counterevidence(ThemeStore(self.server.documents/'theme_history'),data['themes'],timeline,context,as_of=min(end,now),now=now,since=min(start,now),identity_root=self.server.documents/'theme_company_identity') if self.server.documents else (timeline,context)
+                    data['timeline_search_context']=timeline_context
+                    data['company_timelines']=select_timelines(timeline,match_company_search(timeline_context,query.get('q',[''])[0]),query.get('q',[''])[0])
                     data['company_inclusion_presentations']=inclusion_presentations(data['themes'],data['company_candidates'])
                     data['theme_activity']={row['theme_id']:period_activity(row,start) for row in data['themes']}
                     data['theme_activity_filter']=activity
@@ -129,6 +132,7 @@ class Handler(BaseHTTPRequestHandler):
                 except (SourceShareError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
                     data["themes"], data["theme_status"] = [], "UNAVAILABLE"
                     data['company_candidates']=[]
+                    data['timeline_search_context']={}
                     data['company_timelines']={'status':'UNAVAILABLE','companies':[]}
                     data['common_cause_comparisons']={}
                     data['company_inclusion_presentations']={}
@@ -194,7 +198,9 @@ class Handler(BaseHTTPRequestHandler):
                     selected={c['theme_id'] for c in research['CompanyCandidates']}
                     research['common_cause_comparisons']=common_cause_comparisons([t for t in themes if t['theme_id'] in selected],research['CompanyCandidates'])
                     timeline=company_timelines(themes,research['CompanyCandidates'],research['company_search']['candidates'],research['common_cause_comparisons'],as_of=at,since=_when(query['since'][0],'period start') if 'since' in query else None)
-                    research['company_timelines']=select_timelines(timeline,research['company_search']['candidates'],query.get('q',[''])[0])
+                    timeline,timeline_context=targeted_counterevidence(ThemeStore(self.server.documents/'theme_history'),themes,timeline,research['company_search']['candidates'],as_of=at,now=now,since=_when(query['since'][0],'period start') if 'since' in query else None,identity_root=root.parent/'theme_company_identity') if self.server.documents else (timeline,research['company_search']['candidates'])
+                    research['timeline_search_context']=timeline_context
+                    research['company_timelines']=select_timelines(timeline,match_company_search(timeline_context,query.get('q',[''])[0]),query.get('q',[''])[0])
                     research['company_inclusion_presentations']=inclusion_presentations(themes,research['CompanyCandidates'])
                     payload=json.dumps(research,ensure_ascii=False,allow_nan=False).encode()
                 self._send(200, payload,

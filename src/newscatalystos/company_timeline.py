@@ -51,6 +51,7 @@ def company_timelines(themes,candidates,context,comparisons,*,as_of,since=None):
                 'theme_id':theme['theme_id'],'theme_name':theme_presentation(theme)['name'],
                 'theme_snapshot_sha256':snapshot,'decision_at':theme['decision_at'],
                 'economic_driver':theme['economic_driver'],'cause':cause,'action_group_id':find(source['event_id']),
+                'current_activity':'ACTIVE','counterevidence':[],
                 'identity_available_at':identity['decision_at'] if identified and not ID.fullmatch(c['entity_id']) else None}
             company['entries'][sha256(_bytes(entry)).hexdigest()]=entry
     result=[]
@@ -84,6 +85,11 @@ def select_timelines(timeline,matches,query):
     if not query.strip():return result
     direct={cid for cid,v in matches.items() if v['match_kind']=='DIRECT_COMPANY'}
     result['companies']=[c for c in result['companies'] if direct.intersection(c['candidate_ids'])]
+    from .company_search import search_term
+    entities={v['entity_id'] for cid,v in matches.items() if cid in direct}
+    if 'counterevidence_unresolved' in result:
+        result['counterevidence_unresolved']=[e for e in result['counterevidence_unresolved'] if entities.intersection(e['entity_ids']) or any(search_term(query)==search_term(x) for x in e['entity_ids'])]
     if not result['companies']:
+        if result.get('counterevidence_unresolved'):result['status']='TARGET_UNRESOLVED';return result
         result['status']='AMBIGUOUS_NAME' if any(v['match_kind']=='AMBIGUOUS_NAME' for v in matches.values()) else 'NO_EXACT_COMPANY_MATCH'
     return result

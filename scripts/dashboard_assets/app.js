@@ -201,6 +201,28 @@ function renderCompanyTimelines(parent,timeline,term,search){
     parent.append(box);
   }
 }
+function comparisonExportURL(pin,term){
+  const params=new URLSearchParams({as_of:pin.as_of,activity:pin.activity,q:term.trim()});
+  if(pin.since)params.set("since",pin.since);
+  return "/api/comparison-export?"+params.toString();
+}
+async function downloadComparison(){
+  const pin=currentData?.comparison_export?.query;if(!pin)return;
+  const button=$("comparison-export"),message=$("comparison-export-status");button.disabled=true;
+  message.textContent="고정 조회 결과를 준비하는 중…";
+  try{
+    const response=await fetch(comparisonExportURL(pin,$("item-filter").value),{cache:"no-store"});
+    if(!response.ok)throw new Error("비교 결과를 내보내지 못했습니다.");
+    const bytes=await response.arrayBuffer(),digest=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",bytes)),b=>b.toString(16).padStart(2,"0")).join("");
+    if(digest!==response.headers.get("X-Content-SHA256"))throw new Error("비교 결과 SHA가 일치하지 않습니다.");
+    const result=JSON.parse(new TextDecoder().decode(bytes)),preview=$("comparison-export-preview");
+    preview.replaceChildren(node("h4","","내보낸 비교 결과"));
+    renderCrossProductDemand(preview,result.comparison);
+    const url=URL.createObjectURL(new Blob([bytes],{type:"application/json"})),link=document.createElement("a");
+    link.href=url;link.download="comparison_export_"+digest+".json";document.body.append(link);link.click();link.remove();URL.revokeObjectURL(url);
+    message.textContent="로컬 파일 내려받기 · SHA-256 "+digest+" · 외부 소비·연동 완료를 의미하지 않습니다.";
+  }catch(error){message.textContent=error.message||"내보내기 실패"}finally{button.disabled=!currentData?.comparison_export}
+}
 function renderItems(){
   if(!currentData)return;
   const term=$("item-filter").value.trim().toLocaleLowerCase();
@@ -244,6 +266,7 @@ function renderItems(){
 }
 function render(data){
   currentData=data;shown=20;
+  $("comparison-export").disabled=!data.comparison_export;$("comparison-export-status").textContent="";$("comparison-export-preview").replaceChildren();
   $("period-kind").textContent={day:"DAILY VIEW",week:"WEEKLY REVIEW",month:"MONTHLY REVIEW"}[data.view];
   $("period-title").textContent=data.view==="day"?niceDate(data.start):data.view==="week"?"주간 조사 돌아보기":"월간 조사 돌아보기";
   $("period-range").textContent=data.start===data.end?data.start:data.start+" ~ "+data.end;
@@ -268,6 +291,7 @@ $("theme-sort").addEventListener("change",()=>load());
 $("timeline-activity").addEventListener("change",()=>load());
 $("date").addEventListener("change",event=>{if(event.target.value){state.date=event.target.value;load()}});
 $("previous").addEventListener("click",()=>shift(-1));$("next").addEventListener("click",()=>shift(1));$("today").addEventListener("click",()=>{state.date=new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"});load()});
+$("comparison-export").addEventListener("click",downloadComparison);
 $("item-filter").addEventListener("input",()=>{shown=20;renderItems()});$("more-items").addEventListener("click",()=>{shown+=20;renderItems()});
 $("note-text").addEventListener("input",event=>{$("note-count").textContent=event.target.value.length+" / 2000"});
 $("note-form").addEventListener("submit",async event=>{event.preventDefault();const text=$("note-text").value.trim();if(!text)return;status("메모를 저장하는 중…");try{const response=await fetch("/api/notes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({view:state.view,date:state.date,text})});if(!response.ok)throw new Error("메모를 저장하지 못했습니다.");$("note-text").value="";$("note-count").textContent="0 / 2000";await load()}catch(error){status(error.message,true)}});

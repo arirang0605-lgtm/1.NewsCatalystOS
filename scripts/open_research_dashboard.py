@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import sqlite3
+from hashlib import sha256
 from pathlib import Path
 import sys
 from urllib.parse import parse_qs, urlsplit
@@ -25,6 +26,7 @@ from newscatalystos.theme_changes import compare_themes
 from newscatalystos.theme_action_order import order_theme_actions
 from newscatalystos.cross_product_demand import cross_product_demand
 from newscatalystos.cross_product_period import period_cross_product
+from newscatalystos.comparison_export import pack_comparison_export,query_comparison_export
 from newscatalystos.theme_company_candidates import inclusion_presentations
 from newscatalystos.company_search import company_search_context,match_company_search
 from newscatalystos.common_cause_comparison import common_cause_comparisons
@@ -51,7 +53,7 @@ class Handler(BaseHTTPRequestHandler):
         origin = self.headers.get("Origin")
         return origin is None or origin == f"http://{host}"
 
-    def _send(self, status: int, body: bytes, kind: str) -> None:
+    def _send(self, status: int, body: bytes, kind: str, headers=None) -> None:
         self.send_response(status)
         self.send_header("Content-Type", kind)
         self.send_header("Content-Length", str(len(body)))
@@ -61,6 +63,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Security-Policy",
                          "default-src 'none'; style-src 'self'; script-src 'self'; "
                          "connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'")
+        for key,value in (headers or {}).items():self.send_header(key,value)
         self.end_headers()
         self.wfile.write(body)
 
@@ -73,6 +76,23 @@ class Handler(BaseHTTPRequestHandler):
             self._json(403, {"error": "local browser origin required"})
             return
         url = urlsplit(self.path)
+        if url.path=="/api/comparison-export":
+            query=parse_qs(url.query)
+            try:
+                from newscatalystos.source_share import _when
+                now=datetime.now(timezone.utc)
+                at=_when(query['as_of'][0],'as of')
+                root=(self.server.documents/'theme_history') if self.server.documents else Path('/nonexistent-nc-themes')
+                payload=query_comparison_export(ThemeStore(root),as_of=at,
+                    since=_when(query['since'][0],'since') if 'since' in query else None,
+                    activity=query.get('activity',['all'])[0],query=query.get('q',[''])[0],now=now,
+                    identity_root=self.server.documents/'theme_company_identity' if self.server.documents else None)
+                digest=sha256(payload).hexdigest()
+                self._send(200,payload,'application/json; charset=utf-8',{
+                    'Content-Disposition':'attachment; filename="comparison_export_'+digest+'.json"','X-Content-SHA256':digest})
+            except (SourceShareError,OSError,ValueError,KeyError,TypeError,sqlite3.Error):
+                self._json(400,{'error':'invalid pinned comparison query'})
+            return
         if url.path == "/api/period":
             query = parse_qs(url.query)
             view = query.get("view", ["day"])[0]
@@ -120,6 +140,9 @@ class Handler(BaseHTTPRequestHandler):
                     data['cross_product_demand']=cross_product_demand(data['themes'],data['company_candidates'],data['common_cause_comparisons'],as_of=min(end,now),since=start,query=query.get('q',[''])[0])
                     if self.server.documents:
                         data['cross_product_demand']=period_cross_product(ThemeStore(self.server.documents/'theme_history'),data['themes'],data['cross_product_demand'],since=start,as_of=min(end,now),now=now,query=query.get('q',[''])[0],identity_root=self.server.documents/'theme_company_identity')
+                    if start<=now:
+                        export=pack_comparison_export(data['themes'],data['cross_product_demand'],as_of=min(end,now),since=start,activity=activity,query=query.get('q',[''])[0],now=now)
+                        data['comparison_export']={'query':json.loads(export)['query'],'sha256':sha256(export).hexdigest()}
                     context=company_search_context(data['themes'],data['company_candidates'])
                     data['company_search']={'query':query.get('q',[''])[0],'candidates':match_company_search(context,query.get('q',[''])[0])}
                     timeline=company_timelines(data['themes'],data['company_candidates'],context,data['common_cause_comparisons'],as_of=min(end,now),since=min(start,now))
@@ -214,6 +237,8 @@ class Handler(BaseHTTPRequestHandler):
                     research['cross_product_demand']=cross_product_demand(themes,all_candidates,common_cause_comparisons(themes,all_candidates),as_of=at,since=_when(query['since'][0],'period start') if 'since' in query else None,query=query.get('q',[''])[0])
                     if self.server.documents:
                         research['cross_product_demand']=period_cross_product(ThemeStore(self.server.documents/'theme_history'),themes,research['cross_product_demand'],since=_when(query['since'][0],'period start') if 'since' in query else None,as_of=at,now=now,query=query.get('q',[''])[0],identity_root=self.server.documents/'theme_company_identity')
+                    export=pack_comparison_export(themes,research['cross_product_demand'],as_of=at,since=_when(query['since'][0],'since') if 'since' in query else None,activity=query.get('activity',['all'])[0],query=query.get('q',[''])[0],now=now)
+                    research['comparison_export']={'query':json.loads(export)['query'],'sha256':sha256(export).hexdigest()}
                     filter_research(research,themes,query.get('q',[''])[0])
                     selected={c['theme_id'] for c in research['CompanyCandidates']}
                     research['common_cause_comparisons']=common_cause_comparisons([t for t in themes if t['theme_id'] in selected],research['CompanyCandidates'])

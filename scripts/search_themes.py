@@ -26,12 +26,24 @@ def main(argv=None):
     p.add_argument('--with-financials',action='store_true',help='return optional EraLeader financial context as company_research.v1')
     p.add_argument('--assessment-root',type=Path,default=Path.home()/'Library/Application Support/NewsCatalystOS/document_analysis/era_assessments')
     p.add_argument('--identity-root',type=Path,help='candidate identity receipts; defaults next to assessment cache')
+    p.add_argument('--comparison',action='store_true',help='pinned read-only cross-product/period query, separate from standard v3')
     p.add_argument('--changes',action='store_true',help='compare theme evidence before --since and at --as-of')
     args=p.parse_args(argv)
+    if args.comparison and (args.changes or args.with_financials or args.company_candidates):
+        p.error('--comparison cannot be combined with standard, financial or changes modes')
     if args.changes and (not args.since or args.with_financials or args.company_candidates):
         p.error('--changes requires --since and cannot be combined with company output modes')
     now=datetime.now(timezone.utc)
     at=_when(args.as_of,'as of') if args.as_of else now
+    if args.comparison:
+        from newscatalystos.comparison_export import query_comparison_export,publish_comparison_export
+        payload=query_comparison_export(ThemeStore(args.root),as_of=at,
+            since=_when(args.since,'since') if args.since else None,activity=args.activity,query=args.query,now=now,
+            identity_root=args.identity_root or args.assessment_root.parent/'theme_company_identity')
+        if args.export_root:
+            print(json.dumps(publish_comparison_export(payload,args.export_root,now=now),ensure_ascii=False))
+        else:print(payload.decode(),end='')
+        return 0
     if args.changes:
         from newscatalystos.theme_changes import compare_themes
         from newscatalystos.theme_emergence import _bytes

@@ -227,13 +227,44 @@ def company_clauses(sentence, company_names=()):
     return [sentence[a:b].strip(' ,;') for a,b in zip(cuts,cuts[1:])]
 
 
-def extract_economic_changes(text, *, company_names=(), include_order_growth=True):
+def _parallel_actions(action_text, cause, actors):
+    """A bounded nominal 'action 및 action' list shares an explicit subject/cause.
+
+    None preserves the ordinary single-action path; [] leaves an ambiguous
+    multi-action claim unclassified. Never carry subjects over finite clauses.
+    """
+    parts=re.split(r'\s+및\s+',action_text.strip().rstrip('.。!'))
+    supported={'CONTRACT','INVESTMENT','PRODUCTION_START','CAPACITY_ADDITION'}
+    patterns=[(kind,pattern) for kind,pattern in ACTIONS if kind in supported]
+    if len(parts)<2 or not all(any(re.search(p,part,re.I) for _,p in patterns) for part in parts):return None
+    if not cause:return None
+    if not actors or len(parts)>4:return []
+    # Each item must be an entire, explicit action phrase. Extra topics,
+    # subjects, dates, objectives and unresolved plan scope are not inherited.
+    syntax={
+        'CONTRACT':r'(?:공급|납품|수주)\s*계약(?:을)?\s*(?:체결|수주)',
+        'INVESTMENT':r'(?:(?:신규|새로)\s*)?(?:(?:공장|시설|설비)\s*)?투자(?:를)?\s*(?:결정|확정)',
+        'PRODUCTION_START':r'(?:양산|생산)(?:을)?\s*(?:시작|개시)',
+        'CAPACITY_ADDITION':r'(?:생산능력|생산량|공급량)(?:을)?\s*(?:증가|확대|증설)',
+    }
+    kinds=[]
+    for index,part in enumerate(parts):
+        ending=r'(?:했다|한다|했고|했으며|하고|하며|했지만)?' if index==len(parts)-1 else r'(?:했다|한다)?'
+        matches=[kind for kind,pattern in patterns if re.search(pattern,part,re.I)
+                 and re.fullmatch(syntax[kind]+ending,part)]
+        if len(matches)!=1:return []
+        kinds.append(matches[0])
+    return list(dict.fromkeys(kinds))
+
+
+def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True):
     """Return bounded source claims, including policy adoption before its effect.
 
     Corporate actions without an explicit common demand cause retain their own
     supply/capacity driver. A price-only article is not a capacity event.
     include_order_growth=False is only for matching pre-existing stored evidence;
     it must not be used to rewrite old events with newly interpreted causes.
+    include_parallel_actions=False likewise preserves the prior single-action reader.
     """
     if (not isinstance(company_names,(list,tuple)) or len(company_names)>100
             or any(not isinstance(n,str) or not n.strip() or len(n)>120 for n in company_names)):
@@ -297,57 +328,66 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         demand_planned=bool(cause and '대비' in cause[1]['connector'])
         action = next((name for name, pattern in ACTIONS if re.search(pattern, action_text, re.I)
                        and (name!='BUSINESS_START' or business_phase)), None)
-        if order_cause and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT'}:
+        actors=[n for n in set(company_names)|set(COMPANIES.findall(line))
+                if n not in _NON_COMPANY_TERMS and cause and mentions_name(line[:cause[1].start()],n)]
+        parallel=_parallel_actions(action_text,cause,actors) if include_parallel_actions else None
+        actions=[action] if parallel is None else parallel
+        if parallel and (re.search(r'계획|예정|추진|전망|예상|지난달|과거|이미',line)
+                         or _DEMAND_DENIAL.search(line)):
             continue
-        functions=business_start_functions(action_text) if action=='BUSINESS_START' else []
-        topic=demand or next((name for name,pattern in TOPICS
-            if re.search(pattern,evidence_line,re.I)),None) or (names[0] if len(names)==1 else None)
-        # Existing named/known topics retain their event identity.
-        topic=topic or (functions[0] if len(functions)==1 else None)
-        if topic is None or action is None:
-            continue
-        alias=next((p for p in alias_proofs if normalized(topic) in
-                    {normalized(p['canonical_topic']),normalized(p['abbreviation'])}),None)
-        if alias is None and any(normalized(topic) in {normalized(m['name']),normalized(m['abbreviation'])}
-                                for m in TECH_ALIAS_PAIR.finditer(evidence_line)):
-            continue  # Conflicting definitions, issuer names or reserved acronyms.
-        if contraction and (action!='SUPPLY_REDUCTION' or not re.search(
-                r'반도체|HBM|DRAM|NAND|메모리|EUV|DUV|극자외선|심자외선',line,re.I)):
-            continue
-        driver = ('POLICY_ENABLEMENT' if action == 'POLICY_CHANGE' else
-                  'DEMAND_CONTRACTION' if contraction else
-                  'SUPPLY_CONTRACTION' if action == 'SUPPLY_REDUCTION' else
-                  'DEMAND_EXPANSION' if demand else
-                  'CAPACITY_EXPANSION' if action in {'PRODUCTION_START','CAPACITY_ADDITION'}
-                      or (action == 'INVESTMENT' and re.search(r'공장|생산|증설', line)) else 'UNKNOWN')
-        companies = sorted(set(COMPANIES.findall(evidence_line)))
-        companies = [x for x in companies if x not in _NON_COMPANY_TERMS][:30]
-        original_companies=companies[:]
-        for name in company_names:
-            if mentions_name(line,name) and not any(normalized(x)==normalized(name) for x in companies):
-                companies.append(name)
-        companies=sorted(set(companies[:30]))
-        if scoped:
-            # Explicit source-named actors anchor separate clause events even
-            # when their names came from the pinned directory, not a suffix rule.
+        for action in actions:
+            if order_cause and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT'}:
+                continue
+            functions=business_start_functions(action_text) if action=='BUSINESS_START' else []
+            topic=demand or next((name for name,pattern in TOPICS
+                if re.search(pattern,evidence_line,re.I)),None) or (names[0] if len(names)==1 else None)
+            # Existing named/known topics retain their event identity.
+            topic=topic or (functions[0] if len(functions)==1 else None)
+            if topic is None or action is None:
+                continue
+            alias=next((p for p in alias_proofs if normalized(topic) in
+                        {normalized(p['canonical_topic']),normalized(p['abbreviation'])}),None)
+            if alias is None and any(normalized(topic) in {normalized(m['name']),normalized(m['abbreviation'])}
+                                    for m in TECH_ALIAS_PAIR.finditer(evidence_line)):
+                continue  # Conflicting definitions, issuer names or reserved acronyms.
+            if contraction and (action!='SUPPLY_REDUCTION' or not re.search(
+                    r'반도체|HBM|DRAM|NAND|메모리|EUV|DUV|극자외선|심자외선',line,re.I)):
+                continue
+            driver = ('POLICY_ENABLEMENT' if action == 'POLICY_CHANGE' else
+                      'DEMAND_CONTRACTION' if contraction else
+                      'SUPPLY_CONTRACTION' if action == 'SUPPLY_REDUCTION' else
+                      'DEMAND_EXPANSION' if demand else
+                      'CAPACITY_EXPANSION' if action in {'PRODUCTION_START','CAPACITY_ADDITION'}
+                          or (action == 'INVESTMENT' and re.search(r'공장|생산|증설', line)) else 'UNKNOWN')
+            companies = sorted(set(COMPANIES.findall(evidence_line)))
+            companies = [x for x in companies if x not in _NON_COMPANY_TERMS][:30]
             original_companies=companies[:]
-        key = (alias['canonical_topic'] if alias else topic, driver, action, tuple(original_companies))
-        if key in seen:
-            continue
-        seen.add(key)
-        changes.append({'topic':topic, 'economic_driver':driver, 'action':action,
-            'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
-                     else 'PLANNED' if demand_planned
-                     else business_phase if action == 'BUSINESS_START'
-                     else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line)
-                         or ((scoped or reduction_mentioned or order_mentioned) and re.search(r'계획|추진|검토',line)) else 'SOURCE_REPORTED'),
-            'entity_ids':companies,
-            **({'topic_alias_evidence':alias} if alias and alias['canonical_topic'] not in TOPIC_ALIASES else {}),
-            **({'service_name':names[0]} if action=='BUSINESS_START' and len(names)==1 else {}),
-            **({'original_entity_ids':original_companies} if companies!=original_companies else {}),
-            'industry_tags':['SEMICONDUCTOR'] if re.search(r'반도체|HBM|DRAM|NAND|메모리|EUV|DUV|극자외선|심자외선',line,re.I) else [],
-            'source_paragraph_sha256':sha256(paragraph.strip().encode()).hexdigest(),
-            'evidence_level':'OFFICIAL_SOURCE', 'verified_economic_effect':False})
-        if len(changes) >= 30:
-            break
+            for name in company_names:
+                if mentions_name(line,name) and not any(normalized(x)==normalized(name) for x in companies):
+                    companies.append(name)
+            companies=sorted(set(companies[:30]))
+            if scoped:
+                # Explicit source-named actors anchor separate clause events even
+                # when their names came from the pinned directory, not a suffix rule.
+                original_companies=companies[:]
+            key = (alias['canonical_topic'] if alias else topic, driver, action, tuple(original_companies))
+            if key in seen:
+                continue
+            seen.add(key)
+            changes.append({'topic':topic, 'economic_driver':driver, 'action':action,
+                'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
+                         else 'PLANNED' if demand_planned
+                         else business_phase if action == 'BUSINESS_START'
+                         else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line)
+                             or ((scoped or reduction_mentioned or order_mentioned) and re.search(r'계획|추진|검토',line)) else 'SOURCE_REPORTED'),
+                'entity_ids':companies,
+                **({'topic_alias_evidence':alias} if alias and alias['canonical_topic'] not in TOPIC_ALIASES else {}),
+                **({'service_name':names[0]} if action=='BUSINESS_START' and len(names)==1 else {}),
+                **({'original_entity_ids':original_companies} if companies!=original_companies else {}),
+                'industry_tags':['SEMICONDUCTOR'] if re.search(r'반도체|HBM|DRAM|NAND|메모리|EUV|DUV|극자외선|심자외선',line,re.I) else [],
+                'source_paragraph_sha256':sha256(paragraph.strip().encode()).hexdigest(),
+                'evidence_level':'OFFICIAL_SOURCE', 'verified_economic_effect':False})
+            if len(changes) >= 30:
+                break
+        if len(changes)>=30:break
     return changes

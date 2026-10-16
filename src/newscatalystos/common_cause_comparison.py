@@ -41,6 +41,7 @@ def _cause(ref):
                 'cause_span':proof['cause_span'],'action_span':proof['action_span'],
                 'cause_sha256':proof['cause_sha256'],'action_sha256':proof['action_sha256'],
                 'paragraph_sha256':proof['paragraph_sha256'],
+                **({'contract_amount':deepcopy(proof['contract_amount'])} if 'contract_amount' in proof else {}),
                 **({'demand_scope':deepcopy(ref['demand_scope'])} if 'demand_scope' in ref else {})} if kind=='adjacent_demand_cause' else {})}
 
 

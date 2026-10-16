@@ -1,7 +1,7 @@
 """Query-only shared demand or policy hypotheses across pinned semiconductor themes."""
 from copy import deepcopy
 from hashlib import sha256
-from .theme_emergence import _bytes,validate_demand_scope,validate_demand_recovery,validate_market_entry,validate_service_event_key,validate_policy_cause,validate_policy_capacity_action,_text,topic_key
+from .theme_emergence import _bytes,validate_demand_scope,validate_demand_recovery,validate_market_entry,validate_service_event_key,validate_policy_cause,validate_policy_capacity_action,validate_policy_contract_action,_text,topic_key
 from .economic_changes import normalized,policy_cause_key
 from .common_cause_comparison import common_cause_comparisons
 from .company_search import company_search_context,match_company_search
@@ -44,7 +44,7 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                 if resolved and not ID.fullmatch(resolved):resolved=None
                 for source in row['sources']:
                     if source['company_participation']!='SOURCE_EVENT_ACTOR':continue
-                    if driver=='POLICY_ENABLEMENT' and (source['action'] not in {'PRODUCTION_START','CAPACITY_ADDITION'} or source['phase']!='SOURCE_REPORTED'):continue
+                    if driver=='POLICY_ENABLEMENT' and (source['action'] not in {'PRODUCTION_START','CAPACITY_ADDITION','CONTRACT'} or source['phase']!='SOURCE_REPORTED'):continue
                     if driver=='DEMAND_CONTRACTION' and (source['action']!='SUPPLY_REDUCTION' or source['phase']!='SOURCE_REPORTED'):continue
                     if driver=='DEMAND_RECOVERY' and (source['action'] not in {'SUPPLY_RESUMPTION','CONTRACT','DELIVERY_START','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','MARKET_ENTRY','BUSINESS_START'} or source['phase']!='SOURCE_REPORTED'):continue
                     if (source['event_id'] not in set(theme['event_ids'])-set(theme['invalidated_event_ids'])
@@ -65,6 +65,11 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                                 validate_policy_capacity_action(ref['policy_capacity_action'],ref['topic'],driver,ref['action'],ref['phase'],policy)
                                 actors={m['source_name']:m['entity_id'] for m in ref.get('company_mappings',[])}
                                 if not all(actors.get(a,a) in ref['entity_ids'] for a in ref['policy_capacity_action']['actors']):raise SourceShareError('policy capacity actor mismatch')
+                            if ref['action']=='CONTRACT':
+                                if 'policy_contract_action' not in ref:continue
+                                validate_policy_contract_action(ref['policy_contract_action'],ref['topic'],driver,ref['action'],ref['phase'],policy)
+                                actors={m['source_name']:m['entity_id'] for m in ref.get('company_mappings',[])}
+                                if not all(actors.get(a,a) in ref['entity_ids'] for a in ref['policy_contract_action']['actors']):raise SourceShareError('policy contract actor mismatch')
                             key=sha256(_bytes(policy_cause_key(policy))).hexdigest()
                         else:
                             if not scope or scope['status']!='EXPLICIT':continue
@@ -93,7 +98,7 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                             'identity_status':'IDENTIFIED' if resolved else 'SOURCE_NAME_ONLY',
                             'display_name':row['display_name'],'action_group_id':row['action_group_id'],'sources':{}})
                         observation={**deepcopy(source),
-                            **({'policy_cause':deepcopy(policy),**({'policy_capacity_action':deepcopy(ref['policy_capacity_action'])} if ref['action']=='CAPACITY_ADDITION' else {})} if driver=='POLICY_ENABLEMENT' else {'demand_scope':deepcopy(scope)}),
+                            **({'policy_cause':deepcopy(policy),**({'policy_capacity_action':deepcopy(ref['policy_capacity_action'])} if ref['action']=='CAPACITY_ADDITION' else {}),**({'policy_contract_action':deepcopy(ref['policy_contract_action'])} if ref['action']=='CONTRACT' else {})} if driver=='POLICY_ENABLEMENT' else {'demand_scope':deepcopy(scope)}),
                             'in_period':since is None or _when(source['recorded_at'],'recorded')>=since,
                             **({'demand_recovery_cause':deepcopy(proof)} if driver=='DEMAND_RECOVERY' else {}),
                             **({'market_entry':deepcopy(ref['market_entry'])} if driver=='DEMAND_RECOVERY' and ref['action']=='MARKET_ENTRY' else {}),

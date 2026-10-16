@@ -11,7 +11,7 @@ import sqlite3
 import re
 from urllib.parse import urlsplit, quote
 
-from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized, explicit_topic_aliases, policy_causes, policy_cause_key, investment_project, parse_demand_scope, market_entry, product_price_cause, demand_recovery_cause, policy_capacity_action
+from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized, explicit_topic_aliases, policy_causes, policy_cause_key, investment_project, parse_demand_scope, market_entry, product_price_cause, demand_recovery_cause, policy_capacity_action, policy_contract_action
 from .evidence_archive import _private_root
 from .incremental_ingest import _check_state_path
 from .source_share import SourceShareError, _when, _must_sha
@@ -65,6 +65,17 @@ def validate_policy_capacity_action(proof,topic,driver,action,phase,policy):
     parsed=policy_causes(proof['source_expression'])
     if parsed[0][0]!=topic or parsed[0][2]!=policy:
         raise SourceShareError('policy capacity action cause mismatch')
+
+def validate_policy_contract_action(proof,topic,driver,action,phase,policy):
+    if (driver!='POLICY_ENABLEMENT' or action!='CONTRACT' or not isinstance(proof,dict)
+            or not isinstance(proof.get('actors'),list) or not proof['actors'] or len(proof['actors'])>30
+            or any(not _text(a) for a in proof['actors'])
+            or policy_contract_action(proof.get('source_expression'),company_names=proof['actors'])!=proof
+            or proof['phase']!=phase):
+        raise SourceShareError('invalid reported policy contract action')
+    parsed=policy_causes(proof['source_expression'])
+    if parsed[0][0]!=topic or parsed[0][2]!=policy:
+        raise SourceShareError('policy contract action cause mismatch')
 
 
 def validate_investment_project(proof, action):
@@ -138,7 +149,7 @@ def validate_adjacent_demand(proof,topic,driver,action,entities,paragraph_sha,*,
 
 
 def validate_change(change):
-    if (not isinstance(change,dict) or set(change)-{'adjacent_demand_cause','original_entity_ids','service_name','service_event_key','investment_event_key','extraction_method','topic_alias_evidence','policy_cause','policy_capacity_action','investment_project','demand_scope','market_entry','product_price_cause','demand_recovery_cause'}!=CHANGE_KEYS
+    if (not isinstance(change,dict) or set(change)-{'adjacent_demand_cause','original_entity_ids','service_name','service_event_key','investment_event_key','extraction_method','topic_alias_evidence','policy_cause','policy_capacity_action','policy_contract_action','investment_project','demand_scope','market_entry','product_price_cause','demand_recovery_cause'}!=CHANGE_KEYS
             or not _text(change['topic'],80) or change['economic_driver'] not in DRIVERS
             or change['action'] not in ACTIONS or change['evidence_level'] not in QUALITIES
             or change['phase'] not in {'SOURCE_REPORTED','ADOPTED_NOT_YET_EFFECTIVE','PLANNED'}
@@ -153,6 +164,9 @@ def validate_change(change):
     if 'policy_capacity_action' in change:
         validate_policy_capacity_action(change['policy_capacity_action'],change['topic'],change['economic_driver'],change['action'],change['phase'],change.get('policy_cause'))
         if not set(change['policy_capacity_action']['actors']).issubset(change.get('original_entity_ids',change['entity_ids'])):raise SourceShareError('policy capacity actors mismatch')
+    if 'policy_contract_action' in change:
+        validate_policy_contract_action(change['policy_contract_action'],change['topic'],change['economic_driver'],change['action'],change['phase'],change.get('policy_cause'))
+        if not set(change['policy_contract_action']['actors']).issubset(change.get('original_entity_ids',change['entity_ids'])):raise SourceShareError('policy contract actors mismatch')
     if 'adjacent_demand_cause' in change:
         if change['phase']!='SOURCE_REPORTED':raise SourceShareError('adjacent action phase mismatch')
         validate_adjacent_demand(change['adjacent_demand_cause'],change['topic'],change['economic_driver'],change['action'],change['entity_ids'],change['source_paragraph_sha256'],scope=change.get('demand_scope'))
@@ -604,6 +618,7 @@ def _snapshot(theme_id, rows, at, previous):
            **({'topic_alias_evidence':row['change']['topic_alias_evidence']} if 'topic_alias_evidence' in row['change'] else {}),
            **({'policy_cause':row['change']['policy_cause']} if 'policy_cause' in row['change'] else {}),
            **({'policy_capacity_action':row['change']['policy_capacity_action']} if 'policy_capacity_action' in row['change'] else {}),
+           **({'policy_contract_action':row['change']['policy_contract_action']} if 'policy_contract_action' in row['change'] else {}),
            'phase':row['change']['phase'],'polarity':row['polarity'],
            'supersedes_event_id':row['supersedes_event_id']} for row,seen in rows]
     history=(previous['history'][:] if previous else [])

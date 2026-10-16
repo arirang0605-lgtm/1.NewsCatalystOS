@@ -157,7 +157,7 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
                     raise SourceShareError('investment project is not in the saved source title')
             if 'policy_cause' in change:
                 from .economic_changes import extract_economic_changes
-                options=dict(include_policy_capacity_actions='policy_capacity_action' in change,company_names=change['entity_ids'],include_adjacent_demand='adjacent_demand_cause' in change,include_adjacent_reductions=change.get('adjacent_demand_cause',{}).get('action')=='SUPPLY_REDUCTION',include_adjacent_contracts=change['action']=='CONTRACT',include_adjacent_amounts='contract_amount' in change.get('adjacent_demand_cause',{}),include_adjacent_scopes='demand_scope' in change,include_investment_projects='investment_project' in change,
+                options=dict(include_policy_contract_actions='policy_contract_action' in change,include_policy_capacity_actions='policy_capacity_action' in change,company_names=change['entity_ids'],include_adjacent_demand='adjacent_demand_cause' in change,include_adjacent_reductions=change.get('adjacent_demand_cause',{}).get('action')=='SUPPLY_REDUCTION',include_adjacent_contracts=change['action']=='CONTRACT',include_adjacent_amounts='contract_amount' in change.get('adjacent_demand_cause',{}),include_adjacent_scopes='demand_scope' in change,include_investment_projects='investment_project' in change,
                              include_demand_recovery='demand_recovery_cause' in change,include_product_prices='product_price_cause' in change,include_resumption=(change['action']=='SUPPLY_RESUMPTION' or 'demand_recovery_cause' in change))
                 extracted=extract_economic_changes(row['headline'],**options)
                 if change['action']=='INVESTMENT':
@@ -176,7 +176,7 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
                 if change['action']!='CUSTOMER_ACQUISITION':
                     extracted+=extract_economic_changes(row['headline'],**options,include_new_customers=False)
                 if not any(all(c.get(k)==change.get(k) for k in (
-                        'topic','action','phase','economic_driver','policy_cause','policy_capacity_action')) for c in extracted):
+                        'topic','action','phase','economic_driver','policy_cause','policy_capacity_action','policy_contract_action')) for c in extracted):
                     raise SourceShareError('policy response is not in the saved source title')
             if 'topic_alias_evidence' in change:
                 import re

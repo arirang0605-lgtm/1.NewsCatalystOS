@@ -229,6 +229,9 @@ def build_theme_bundle(themes: list[dict], *, decision_at: datetime, now=None,
             if 'policy_capacity_action' in ref:
                 from .theme_emergence import validate_policy_capacity_action
                 validate_policy_capacity_action(ref['policy_capacity_action'],ref['topic'],ref['economic_driver'],ref['action'],ref['phase'],ref.get('policy_cause'))
+            if 'policy_contract_action' in ref:
+                from .theme_emergence import validate_policy_contract_action
+                validate_policy_contract_action(ref['policy_contract_action'],ref['topic'],ref['economic_driver'],ref['action'],ref['phase'],ref.get('policy_cause'))
             if 'policy_cause' in ref:
                 from .theme_emergence import validate_policy_cause
                 validate_policy_cause(ref['policy_cause'],ref['topic'])

@@ -606,7 +606,7 @@ def investment_execution_phase(text):
 
 
 def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True,
-                             include_policy_causes=True, include_policy_destinations=True, include_policy_capacity_actions=True, include_policy_contract_actions=True, include_policy_investment_actions=True, include_investment_execution=True,
+                             include_policy_causes=True, include_policy_destinations=True, include_policy_capacity_actions=True, include_policy_contract_actions=True, include_policy_investment_actions=True, include_policy_services=True, include_investment_execution=True,
                              include_investment_projects=True, include_new_customers=True, include_delivery_start=True, include_demand_scopes=True, include_market_entry=True, include_product_prices=True, include_resumption=True, include_demand_recovery=True, include_adjacent_demand=True, include_adjacent_scopes=True, include_adjacent_contracts=True, include_adjacent_amounts=True, include_adjacent_reductions=True):
     """Return bounded source claims, including policy adoption before its effect.
 
@@ -620,6 +620,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     include_policy_capacity_actions=False reads older capacity phases without enriching or rewriting them.
     include_policy_contract_actions=False likewise preserves older contract phases and proof absence.
     include_policy_investment_actions=False likewise reads older investment phases unchanged.
+    include_policy_services=False preserves the older policy action boundary without service starts.
     include_investment_execution=False reads earlier investment decisions and clause boundaries.
     include_new_customers=False matches old actions/clauses without reclassifying saved events.
     include_delivery_start=False reads earlier records without changing their clause boundaries.
@@ -728,7 +729,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         cut_phase=price_curtailment_phase(action_text,price[0]) if price_drop else None
         if price_drop and cut_phase is None:continue
         commercial_claims={kind:_commercial_claim(line,cause,company_names,kind,scope)
-            for kind,enabled in [('CUSTOMER_ACQUISITION',include_new_customers),('DELIVERY_START',include_delivery_start),('MARKET_ENTRY',include_market_entry),('SUPPLY_RESUMPTION',include_resumption and bool(cause) and not price and not policy),('CONTRACT',bool(recovery)),('PRODUCTION_START',bool(recovery)),('CAPACITY_ADDITION',bool(recovery)),('INVESTMENT',bool(recovery)),('INVESTMENT_EXECUTION',bool(recovery) and include_investment_execution),('BUSINESS_START',bool(recovery))]
+            for kind,enabled in [('CUSTOMER_ACQUISITION',include_new_customers),('DELIVERY_START',include_delivery_start),('MARKET_ENTRY',include_market_entry),('SUPPLY_RESUMPTION',include_resumption and bool(cause) and not price and not policy),('CONTRACT',bool(recovery)),('PRODUCTION_START',bool(recovery)),('CAPACITY_ADDITION',bool(recovery)),('INVESTMENT',bool(recovery)),('INVESTMENT_EXECUTION',bool(recovery) and include_investment_execution),('BUSINESS_START',bool(recovery) or (bool(policy) and include_policy_services))]
             if enabled and not contraction}
         commercial_claim=next((c for c in commercial_claims.values() if c),None)
         if commercial_claim and policy:policy_actors=set(commercial_claim['actors'])
@@ -791,7 +792,8 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                     if not before or after-before:continue
                 if cause and any(n not in {cause[0],'반도체'} and re.search(p,action_text,re.I)
                                  for n,p in TOPICS):continue
-            if policy and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}:
+            if policy and action=='BUSINESS_START' and (not include_policy_services or not commercial_claims.get(action)):continue
+            if policy and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','BUSINESS_START'}:
                 continue
             policy_investment=(policy_investment_action(line,company_names=company_names) if policy and action=='INVESTMENT_EXECUTION' and include_policy_investment_actions else None)
             policy_contract=(policy_contract_action(line,company_names=company_names) if policy and action=='CONTRACT' and include_policy_contract_actions else None)
@@ -849,14 +851,14 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 # Explicit source-named actors anchor separate clause events even
                 # when their names came from the pinned directory, not a suffix rule.
                 original_companies=companies[:]
-            if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'} or (recovery and action in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','BUSINESS_START'}):
+            if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'} or (recovery and action in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','BUSINESS_START'}) or (policy and action=='BUSINESS_START'):
                 companies=commercial_claims[action]['actors'];original_companies=companies[:]
             project=investment_project(action_text,action) if include_investment_projects else None
             key = (alias['canonical_topic'] if alias else topic, driver, action, tuple(original_companies),
                    tuple(policy_cause_key(policy[2])) if policy else None)
             if action=='MARKET_ENTRY':key+=('MARKET_ENTRY',normalized(commercial_claims[action]['market_entry']['market_name']))
             service_event_key=None
-            if recovery and action=='BUSINESS_START' and len(names)==1:
+            if (recovery or (policy and include_policy_services)) and action=='BUSINESS_START' and len(names)==1:
                 # The first claim keeps its legacy identity. Explicit siblings
                 # in this source need their own stable, source-bounded identity.
                 name=normalized(names[0])
@@ -880,7 +882,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
                          else policy_investment['phase'] if policy_investment else policy_contract['phase'] if policy_contract else policy_capacity['phase'] if policy_capacity else 'PLANNED' if demand_planned or (project and _BUSINESS_PLAN.search(action_text))
                          else cut_phase if price_drop
-                         else commercial_claims[action]['phase'] if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'} or (recovery and action in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','BUSINESS_START'})
+                         else commercial_claims[action]['phase'] if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'} or (recovery and action in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','BUSINESS_START'}) or (policy and action=='BUSINESS_START')
                          else execution_phase if action == 'INVESTMENT_EXECUTION'
                          else business_phase if action == 'BUSINESS_START'
                          else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line)

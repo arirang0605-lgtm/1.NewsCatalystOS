@@ -113,6 +113,8 @@ def common_cause_comparisons(themes,candidates=None):
             if 'policy_capacity_action' in ref:source['policy_capacity_action']=deepcopy(ref['policy_capacity_action'])
             if 'policy_contract_action' in ref:source['policy_contract_action']=deepcopy(ref['policy_contract_action'])
             if 'policy_investment_action' in ref:source['policy_investment_action']=deepcopy(ref['policy_investment_action'])
+            if ref.get('economic_driver')=='POLICY_ENABLEMENT' and ref['action']=='BUSINESS_START':
+                source.update({k:deepcopy(ref[k]) for k in ('service_name','service_event_key') if k in ref})
             source.update(cause=_cause(ref),content_scope=ref.get('content_scope','UNSPECIFIED'),
                 extraction_method=ref.get('extraction_method'),
                 conflicting=ref['event_id'] in theme['conflicting_event_ids'])

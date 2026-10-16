@@ -67,6 +67,8 @@ def company_search_context(themes,candidates):
             if 'policy_capacity_action' in source:record['policy_capacity_action']=deepcopy(source['policy_capacity_action'])
             if 'policy_contract_action' in source:record['policy_contract_action']=deepcopy(source['policy_contract_action'])
             if 'policy_investment_action' in source:record['policy_investment_action']=deepcopy(source['policy_investment_action'])
+            if source.get('economic_driver')=='POLICY_ENABLEMENT' and source['action']=='BUSINESS_START':
+                record.update({k:deepcopy(source[k]) for k in ('service_name','service_event_key') if k in source})
             record.update(entity_id=c['entity_id'],company_participation=source['company_participation'],
                 event_entity_ids=list(source['event_entity_ids']),evidence_level=source['evidence_level'],
                 extraction_method=source.get('extraction_method'),source_binding=deepcopy(source.get('source_binding')),

@@ -104,10 +104,10 @@ def period_cross_product(store,selected,current,*,since,as_of,now,query='',ident
                         'after_snapshot':{'sha256':sha256(_bytes(latest)).hexdigest(),'decision_at':latest['decision_at']},
                         'stored_stage_link':deepcopy(link)})
             service_contexts=[]
-            for product in ((fresh or {}).get('products',[]) if group.get('economic_driver')=='DEMAND_RECOVERY' else []):
+            for product in ((fresh or {}).get('products',[]) if group.get('economic_driver') in {'DEMAND_RECOVERY','POLICY_ENABLEMENT'} else []):
                 prior=by_before.get(product['theme_id']);latest=by_after[product['theme_id']]
                 if prior is None:continue
-                starts={s['event_id'] for a in product['actions'] for s in a['sources'] if s['action']=='BUSINESS_START'}
+                service_starts={s['event_id'] for a in product['actions'] for s in a['sources'] if s['action']=='BUSINESS_START'}
                 find,known,_=_groups(prior,latest)
                 def service_context(kind,event,old_refs,new_refs,link=None):
                     return {'kind':kind,'theme_id':product['theme_id'],'action_group_id':find(event),
@@ -117,7 +117,7 @@ def period_cross_product(store,selected,current,*,since,as_of,now,query='',ident
                         **({'stored_followup':deepcopy(link)} if link else {})}
                 for link in latest.get('event_followups',[]):
                     event=link['realization_event_id']
-                    if (event not in starts or event in prior['event_ids'] or link['planned_event_id'] not in prior['event_ids']
+                    if (event not in service_starts or event in prior['event_ids'] or link['planned_event_id'] not in prior['event_ids']
                         or find(event) not in known):continue
                     old_refs=[r for r in prior['source_refs'] if r['polarity']=='SUPPORT' and r['event_id']==link['planned_event_id']
                         and r['phase']=='PLANNED' and r['evidence_sha256']==link['evidence_sha256'][0]]
@@ -126,7 +126,7 @@ def period_cross_product(store,selected,current,*,since,as_of,now,query='',ident
                     if old_refs and new_refs:service_contexts.append(service_context('STORED_SERVICE_FOLLOWUP',event,old_refs,new_refs,link))
                 # An already-known event becoming eligible is a metadata/stage
                 # update, never an invented two-event realization link.
-                for event in sorted(starts.intersection(prior['event_ids'])):
+                for event in sorted(service_starts.intersection(prior['event_ids'])):
                     if find(event) in left['action_group_ids']:continue
                     old_refs=[r for r in prior['source_refs'] if r['polarity']=='SUPPORT' and r['event_id']==event]
                     new_refs=[r for r in latest['source_refs'] if r['polarity']=='SUPPORT' and r['event_id']==event and r['phase']=='SOURCE_REPORTED']
@@ -137,7 +137,7 @@ def period_cross_product(store,selected,current,*,since,as_of,now,query='',ident
                 if prior is None:continue
                 find,known,_=_groups(prior,latest)
                 for event in sorted({s['event_id'] for a in product['actions'] for s in a['sources']}):
-                    if find(event) not in known or find(event) in left['action_group_ids']:continue
+                    if find(event) not in known or find(event) in left['action_group_ids'] or find(event) in {c['action_group_id'] for c in service_contexts}:continue
                     old_refs=[r for r in prior['source_refs'] if r['polarity']=='SUPPORT' and r['event_id']==event]
                     new_refs=[r for r in latest['source_refs'] if r['polarity']=='SUPPORT' and r['event_id']==event and r['phase']=='SOURCE_REPORTED']
                     if old_refs and new_refs:policy_contexts.append({'theme_id':product['theme_id'],'action_group_id':find(event),

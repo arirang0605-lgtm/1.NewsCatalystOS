@@ -133,7 +133,8 @@ def validate_service_event_key(row):
     if 'service_event_key' not in row:return
     key=row['service_event_key']
     name=row.get('service_name')
-    if (row.get('action')!='BUSINESS_START' or row.get('economic_driver')!='DEMAND_RECOVERY'
+    if (row.get('action')!='BUSINESS_START' or row.get('economic_driver') not in {'DEMAND_RECOVERY','POLICY_ENABLEMENT'}
+            or (row.get('economic_driver')=='POLICY_ENABLEMENT' and not isinstance(row.get('policy_cause'),dict))
             or not _text(name,80) or key!=sha256(normalized(name).encode()).hexdigest()):
         raise SourceShareError('invalid explicit service event key')
 
@@ -210,7 +211,7 @@ def validate_change(change):
     if 'policy_cause' in change:
         validate_policy_cause(change['policy_cause'],change['topic'])
         if change['economic_driver']!='POLICY_ENABLEMENT' or change['action'] not in {
-                'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}:
+                'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','BUSINESS_START'}:
             raise SourceShareError('policy cause must describe a corporate response')
 
 
@@ -341,8 +342,10 @@ def _service_key(row):
             or not name or len(entities)!=1
             or name in {normalized(x) for x in ('AI','인공지능','신규','맞춤','서비스',*KNOWN_TOPICS)}):
         return None
+    if change['economic_driver']=='POLICY_ENABLEMENT' and not change.get('policy_cause'):return None
     return (name,tuple(entities),topic_key(change['topic']),change['economic_driver'],
-            tuple(sorted(change['industry_tags'])))+_demand_key(row)
+            tuple(sorted(change['industry_tags'])))+_demand_key(row)+(
+                (tuple(policy_cause_key(change['policy_cause'])),) if change['economic_driver']=='POLICY_ENABLEMENT' else ())
 
 
 def _investment_key(row):

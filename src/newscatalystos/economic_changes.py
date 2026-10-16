@@ -596,6 +596,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     seen = {}
     conflicting_scopes = set()
     first_services = {}
+    first_projects = {}
     units=((paragraph,clause,len(clauses)>1) for paragraph in text.splitlines()
            if paragraph.strip() and len(paragraph)<=5000
            for sentence in re.split(r'(?<=[.!?。])\s+',paragraph.strip()) if sentence.strip()
@@ -796,6 +797,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 original_companies=companies[:]
             if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'} or (recovery and action in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','BUSINESS_START'}):
                 companies=commercial_claims[action]['actors'];original_companies=companies[:]
+            project=investment_project(action_text,action) if include_investment_projects else None
             key = (alias['canonical_topic'] if alias else topic, driver, action, tuple(original_companies),
                    tuple(policy_cause_key(policy[2])) if policy else None)
             if action=='MARKET_ENTRY':key+=('MARKET_ENTRY',normalized(commercial_claims[action]['market_entry']['market_name']))
@@ -807,6 +809,12 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 first=first_services.setdefault(key,name)
                 if name!=first:service_event_key=sha256(name.encode()).hexdigest()
                 key+=('SOURCE_NAMED_SERVICE',name)
+            investment_event_key=None
+            if recovery and project:
+                name=normalized(project['project_name'])
+                first=first_projects.setdefault(key,name)
+                if name!=first:investment_event_key=sha256(name.encode()).hexdigest()
+                key+=('SOURCE_NAMED_INVESTMENT',name)
             if key in seen:
                 index=seen[key]
                 prior=changes[index].get('demand_scope')
@@ -814,7 +822,6 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 if scope_key(prior)!=scope_key(scope):conflicting_scopes.add(index)
                 continue
             seen[key]=len(changes)
-            project=investment_project(action_text,action) if include_investment_projects else None
             changes.append({'topic':topic, 'economic_driver':driver, 'action':action,
                 'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
                          else 'PLANNED' if demand_planned or (project and _BUSINESS_PLAN.search(action_text))
@@ -832,6 +839,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 **({'product_price_cause':price_proof} if price_proof else {}),
                 **({'topic_alias_evidence':alias} if alias and alias['canonical_topic'] not in TOPIC_ALIASES else {}),
                 **({'investment_project':project} if project else {}),
+                **({'investment_event_key':investment_event_key} if investment_event_key else {}),
                 **({'demand_scope':scope} if scope else {}),
                 **({'market_entry':commercial_claims[action]['market_entry']} if action=='MARKET_ENTRY' else {}),
                 **({'service_name':names[0]} if action=='BUSINESS_START' and len(names)==1 else {}),

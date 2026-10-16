@@ -201,6 +201,9 @@ def build_theme_bundle(themes: list[dict], *, decision_at: datetime, now=None,
         _must_sha(row['theme_id'],'theme identity')
         row_at=_when(row['decision_at'],'theme decision')
         for ref in row['source_refs']:
+            if 'investment_event_key' in ref:
+                from .theme_emergence import validate_investment_event_key
+                validate_investment_event_key(ref)
             if 'service_event_key' in ref:
                 from .theme_emergence import validate_service_event_key
                 validate_service_event_key(ref)

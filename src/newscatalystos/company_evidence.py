@@ -104,6 +104,7 @@ def _change_matches(change,ref):
     if change.get('demand_recovery_cause')!=ref.get('demand_recovery_cause'):return False
     if change.get('demand_recovery_cause') and change.get('service_name')!=ref.get('service_name'):return False
     if change.get('service_event_key')!=ref.get('service_event_key'):return False
+    if change.get('investment_event_key')!=ref.get('investment_event_key'):return False
     if change.get('product_price_cause')!=ref.get('product_price_cause'):return False
     if any(change.get(k)!=ref.get(k) for k in ('topic','action','phase','economic_driver')):return False
     if change['source_paragraph_sha256']!=ref['evidence_sha256']:return False
@@ -167,11 +168,11 @@ def _body_source(ref,row,jobs,at,now):
                     or receipt.provider_id!=binding['article_provider_id']
                     or receipt.document_id!=binding['source_url'].split('/')[-2]
                     or receipt.archived_at.isoformat()!=binding['article_archived_at']):return None,'SOURCE_MISMATCH'
-            if 'service_event_key' in ref:
+            if 'service_event_key' in ref or 'investment_event_key' in ref:
                 from .economic_changes import extract_economic_changes
                 names=sorted({n for c in row.get('economic_changes',[]) for n in c['entity_ids']})
                 if not any(all(found.get(k)==ref.get(k) for k in
-                        ('topic','action','phase','economic_driver','service_name','service_event_key'))
+                        ('topic','action','phase','economic_driver','service_name','service_event_key','investment_project','investment_event_key'))
                         and found['source_paragraph_sha256']==ref['evidence_sha256']
                         for found in extract_economic_changes(raw.decode(),company_names=names)):
                     return None,'SOURCE_MISMATCH'
@@ -188,9 +189,9 @@ def _clause(text,change,entity,ref,*,include_investment_execution=True,include_n
     options=dict(company_names=change['entity_ids'],include_investment_execution=include_investment_execution,
                  include_demand_recovery='demand_recovery_cause' in change,include_resumption=(change['action']=='SUPPLY_RESUMPTION' or 'demand_recovery_cause' in change),include_demand_scopes='demand_scope' in change,include_product_prices='product_price_cause' in change,
                  include_investment_projects='investment_project' in change,include_new_customers=include_new_customers,include_delivery_start=include_delivery_start,include_market_entry=include_market_entry)
-    if 'service_event_key' in change and ref.get('content_scope')=='RSS_TITLE_METADATA':
+    if ('service_event_key' in change or 'investment_event_key' in change) and ref.get('content_scope')=='RSS_TITLE_METADATA':
         if not any(all(found.get(k)==change.get(k) for k in
-                ('topic','action','phase','economic_driver','service_name','service_event_key','source_paragraph_sha256'))
+                ('topic','action','phase','economic_driver','service_name','service_event_key','investment_project','investment_event_key','source_paragraph_sha256'))
                 for found in extract_economic_changes(text,**options)):return None
     matches=[]
     for sentence in re.split(r'(?<=[.!?。])\s+',text):

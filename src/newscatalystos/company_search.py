@@ -2,6 +2,7 @@
 import json
 import unicodedata
 from hashlib import sha256
+from copy import deepcopy
 from .theme_emergence import _bytes
 from .source_share import SourceShareError
 from .theme_company_identity import ID
@@ -14,6 +15,14 @@ def search_term(value):
 
 def company_search_context(themes,candidates):
     by_theme={t['theme_id']:t for t in themes};output={};owners={}
+    from .common_cause_comparison import common_cause_comparisons
+    linked=[t for t in themes if any(c.get('supply_chain_links') for c in t['company_links'])]
+    comparisons=common_cause_comparisons(linked,candidates)
+    documents={}
+    for theme in linked:
+        for item in theme['supply_chain_evidence']:
+            edge=json.loads(item['graph_payload'])['edges'][0]
+            documents[(theme['theme_id'],item['payload_sha256'])]=edge.get('source_document_id')
     for c in candidates:
         t=by_theme.get(c['theme_id'])
         entry={k:c[k] for k in ('theme_id','entity_id','theme_snapshot_sha256','decision_at')}
@@ -44,8 +53,24 @@ def company_search_context(themes,candidates):
             owners.setdefault(key,set()).add(owner)
         entry['identity_status']='OFFICIAL_ID_AVAILABLE' if official else 'SOURCE_NAME_ONLY'
         fields=('event_id','action','phase','source_url','evidence_sha256','source_available_at','recorded_at')
-        entry['sources']=sorted({ _bytes({k:r[k] for k in fields}) for r in refs})
-        entry['sources']=[json.loads(raw) for raw in entry['sources']]
+        if t['theme_id'] in comparisons:
+            sources=[s for row in comparisons[t['theme_id']]['rows'] if row['entity_id']==c['entity_id'] for s in row['sources']]
+        else:
+            sources=[{**r,'company_participation':'SOURCE_EVENT_ACTOR','event_entity_ids':r['entity_ids'],'impact_paths':[]} for r in refs]
+        entry['sources']=[]
+        for source in sources:
+            record={k:source[k] for k in fields}
+            record.update(entity_id=c['entity_id'],company_participation=source['company_participation'],
+                event_entity_ids=list(source['event_entity_ids']),evidence_level=source['evidence_level'],
+                extraction_method=source.get('extraction_method'),source_binding=deepcopy(source.get('source_binding')),
+                impact_paths=[])
+            for path in source['impact_paths']:
+                binding=source['source_binding']
+                record['impact_paths'].append({**deepcopy(path),'document_id':documents.get((t['theme_id'],path['graph_sha256'])),
+                    'document_sha256':binding['document_sha256'],'source_event_sha256':binding['source_event_sha256']})
+            entry['sources'].append(record)
+        entry['sources']=[json.loads(raw) for raw in sorted({_bytes(r) for r in entry['sources']})]
+        entry['source_status']='AVAILABLE' if entry['sources'] else 'NOT_AVAILABLE_AS_OF'
     for entry in output.values():
         for key in entry['keys']:
             key['ambiguous']=key['ambiguous'] or (key['kind']!='OFFICIAL_ID' and len(owners[key['value']])>1)

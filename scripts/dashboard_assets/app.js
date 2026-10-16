@@ -53,7 +53,9 @@ function renderEventImpactPaths(parent,source){
     if(path.conflicting)box.append(node("p","","상충 근거가 있는 영향 경로"));
     for(const url of path.source_urls){const a=node("a","source-link","이 사건 공급망 관계의 출처");a.href=url;a.target="_blank";a.rel="noopener noreferrer";box.append(a)}
     box.append(node("p","","관계 출처 가용: "+path.source_available_at+" · 연결 확보: "+path.linked_at));
-    const proof=node("details","");proof.append(node("summary","","관계·원본 그래프 근거"),node("p","","관계 SHA: "+path.relation_sha256),node("p","","원본 그래프 SHA: "+path.graph_sha256));box.append(proof);
+    const proof=node("details","");proof.append(node("summary","","관계·원본 그래프 근거"),node("p","","관계 SHA: "+path.relation_sha256),node("p","","원본 그래프 SHA: "+path.graph_sha256));
+    if(path.document_sha256)proof.append(node("p","","원본 문서 SHA: "+path.document_sha256),node("p","","문서 ID: "+(path.document_id||"미확인")));
+    box.append(proof);
     parent.append(box);
   }
 }
@@ -201,7 +203,12 @@ function renderThemes(term){
             const sources=node("details","finding-detail");sources.append(node("summary","","이 기업의 사건·출처 근거"));
             if(!match.sources.length)sources.append(node("p","","이 판본의 활성 사건 근거 없음"));
             for(const source of match.sources){
-              sources.append(node("p","",actionLabel(source)+" · 사건 "+source.event_id));
+              const relationOnly=source.company_participation==="SUPPLY_CHAIN_CONTEXT";
+              sources.append(node("p","",(relationOnly?"공급망 관계 기업 · 직접 행동 주체 아님 · 연결 사건: ":"출처의 사건 당사자 · ")+actionLabel(source)+" · 사건 "+source.event_id));
+              if(relationOnly)sources.append(node("p","","사건 당사자: "+source.event_entity_ids.join(" · ")));
+              sources.append(node("p","",source.extraction_method==="AI_SOURCE_SPAN_MATCHED"?"AI 해석의 원문 근거 · 독립 사실 확인 아님":({OFFICIAL_SOURCE:"공식 출처 보도",REPORTED:"출처 보도",INFERRED:"추론"}[source.evidence_level]||"근거 수준 미확인")));
+              sources.append(node("p","","출처 가용: "+source.source_available_at+" · 관측: "+source.recorded_at));
+              if(source.impact_paths?.length)renderEventImpactPaths(sources,source);
               const a=node("a","source-link","이 기업 사건의 출처");a.href=source.source_url;a.target="_blank";a.rel="noopener noreferrer";sources.append(a);
             }
             card.append(sources);

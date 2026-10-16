@@ -5,7 +5,7 @@ from hashlib import sha256
 from .economic_changes import normalized
 from .source_share import SourceShareError, _when
 from .standard_delivery import build_theme_bundle
-from .theme_emergence import _bytes, topic_key
+from .theme_emergence import _bytes, topic_key, theme_presentation
 
 SCHEMA='newscatalyst.theme_changes.v1'
 REASONS={
@@ -148,7 +148,7 @@ def compare_themes(store, *, since, as_of, query='', activity='all', now=None):
               'first_detected_at':after['first_detected_at'],'before':_summary(before),'after':_summary(after),
               **change,'status_transitions':transitions,'verified_vs_inferred':'THEME_HYPOTHESIS'}
         if activity!='all' and state not in ({'new','updated'} if activity=='changed' else {activity}):continue
-        text=normalized(_bytes([item,before,after]).decode())
+        text=normalized(_bytes([item,before,after]).decode()+' '+theme_presentation(after)['name'])
         if not any(term in text for term in {normalized(query),topic_key(query)}):continue
         results.append(item)
     return {'schema':SCHEMA,'since':start.isoformat(),'as_of':end.isoformat(),

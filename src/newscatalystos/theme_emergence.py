@@ -91,6 +91,28 @@ def topic_key(topic):
                  if key in {normalized(alias) for alias in aliases}),key)
 
 
+def theme_presentation(theme):
+    """Read-only label from this snapshot's active source refs, never a rename."""
+    at=_when(theme['decision_at'],'theme display decision')
+    active=set(theme['event_ids'])-set(theme['invalidated_event_ids'])
+    scopes={}
+    for ref in theme['source_refs']:
+        proof=ref.get('policy_cause')
+        if (not proof or ref['event_id'] not in active or ref['polarity']!='SUPPORT'
+                or _when(ref['recorded_at'],'recorded')>at
+                or _when(ref['source_available_at'],'source')>at):continue
+        validate_policy_cause(proof,ref['topic'])
+        label=' · '.join((proof['jurisdiction'] or '관할 미확인',
+                         proof['policy_name'] or '정책명 미확인',
+                         proof['restriction']+' '+proof['change']))
+        scopes[(ref['topic'],label)]={'topic':ref['topic'],'label':label}
+    labels=[scopes[key] for key in sorted(scopes)]
+    name=(' / '.join(x['topic']+' · '+x['label'] for x in labels)+' · '+DRIVERS[theme['economic_driver']]
+          if labels else theme['provisional_name'])
+    return {'name':name,'stored_name':theme['provisional_name'],
+            'policy_scopes':labels,'as_of':theme['decision_at']}
+
+
 
 def economic_observation(change, *, origin_reference, source_url, source_id,
                          source_available_at, polarity='SUPPORT', supersedes_event_id=None,
@@ -329,7 +351,8 @@ class ThemeStore:
             queries={normalized(query),topic_key(query)}
             selected=[row for row in latest.values()
                 if (activity=='all' or period_activity(row,start) in ({'new','updated'} if activity=='changed' else {activity}))
-                and any(q in normalized(json.dumps(row,ensure_ascii=False)) for q in queries)]
+                and any(q in normalized(json.dumps(row,ensure_ascii=False)+' '+theme_presentation(row)['name'])
+                        for q in queries)]
             # Show the most recently changed candidates first, stably on ties.
             return sorted(selected,key=lambda row:(row['decision_at'],row['theme_id']),reverse=True)
         finally:db.close()

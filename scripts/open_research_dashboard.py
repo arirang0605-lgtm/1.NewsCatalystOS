@@ -17,7 +17,7 @@ if str(PROJECT / "src") not in sys.path:
 
 from newscatalystos.research_dashboard import KST, NoteStore, build_period, scan_saved_analysis, period_as_of
 from newscatalystos.source_share import SourceShareError
-from newscatalystos.theme_emergence import ThemeStore, period_activity
+from newscatalystos.theme_emergence import ThemeStore, period_activity, theme_presentation
 from newscatalystos.standard_delivery import build_theme_bundle
 from newscatalystos.article_company_identity import search_article_identities
 from newscatalystos.era_company_assessment import enrich_candidates
@@ -94,6 +94,7 @@ class Handler(BaseHTTPRequestHandler):
                     bundle=json.loads(build_theme_bundle(data["themes"], decision_at=min(end, now), now=now,
                                                          include_company_candidates=True))
                     data['company_candidates']=bundle['CompanyCandidates']
+                    data['theme_presentations']={t['theme_id']:theme_presentation(t) for t in data['themes']}
                     try:
                         research=enrich_candidates(data['company_candidates'],self.server.documents/'era_assessments',
                                                    as_of=min(end,now),now=now,

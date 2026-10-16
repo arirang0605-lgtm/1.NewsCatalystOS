@@ -109,7 +109,9 @@ def filter_research(research, themes, query):
     from .economic_changes import normalized
     if not isinstance(query,str) or len(query)>200:raise SourceShareError('invalid company research query')
     term=normalized(query)
-    matching_themes={t['theme_id'] for t in themes if term in normalized(encoded(t).decode())}
+    from .theme_emergence import theme_presentation
+    matching_themes={t['theme_id'] for t in themes
+                     if term in normalized(encoded(t).decode()+' '+theme_presentation(t)['name'])}
     research['CompanyCandidates']=[c for c in research['CompanyCandidates']
         if c['theme_id'] in matching_themes or term in normalized(encoded(c).decode())]
     return research

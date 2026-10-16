@@ -21,7 +21,8 @@ function categoryLabel(item){
 const actionSearchTerms={POLICY_CHANGE:"정책 변화 규제 허가",BUSINESS_START:"사업 개시 서비스 개시 사업 시작 서비스 시작",PRODUCTION_START:"생산 개시 생산 시작 양산 가동",CAPACITY_ADDITION:"생산능력 확대 생산량 확대 공급량 확대 증설",SUPPLY_REDUCTION:"공급 축소 생산 축소 감산 공급 중단",CONTRACT:"계약 체결 공급계약 납품계약 수주",INVESTMENT:"투자 결정 투자 확정"};
 function actionSearchText(changes){return (changes||[]).map(c=>[c.action,actionLabel(c),actionSearchTerms[c.action]||""].join(" ")).join(" ")}
 function matchesFinding(item,term){return !term||[item.headline,item.provider,item.category||"",savedCategoryLabel(item),categoryLabel(item),actionSearchText(item.economic_changes),JSON.stringify(item.economic_changes||[]),JSON.stringify(item.company_identity||{})].join(" ").toLocaleLowerCase().includes(term)}
-function matchesTheme(theme,term,candidates,changes){return !term||[JSON.stringify(theme),JSON.stringify(changes||{}),JSON.stringify(candidates||[]),actionSearchText(theme.source_refs)].join(" ").toLocaleLowerCase().includes(term)}
+function themeTitle(theme,presentation){return presentation?.name||theme.provisional_name}
+function matchesTheme(theme,term,candidates,changes,presentation){return !term||[themeTitle(theme,presentation),JSON.stringify(theme),JSON.stringify(changes||{}),JSON.stringify(candidates||[]),actionSearchText(theme.source_refs)].join(" ").toLocaleLowerCase().includes(term)}
 function renderItems(){
   if(!currentData)return;
   const term=$("item-filter").value.trim().toLocaleLowerCase();
@@ -94,7 +95,7 @@ load();
 
 function renderThemes(term){
   const candidates=currentData.company_candidates||[];
-  const themes=(currentData.themes||[]).filter(x=>matchesTheme(x,term,candidates.filter(c=>c.theme_id===x.theme_id),currentData.theme_changes?.[x.theme_id]));
+  const themes=(currentData.themes||[]).filter(x=>matchesTheme(x,term,candidates.filter(c=>c.theme_id===x.theme_id),currentData.theme_changes?.[x.theme_id],currentData.theme_presentations?.[x.theme_id]));
   $("theme-total").textContent=themes.length+"개";$("themes").replaceChildren();
   if(!themes.length)$("themes").append(node("p","empty-small",currentData.theme_status==="UNAVAILABLE"?"테마 기록을 읽지 못했습니다. 뉴스 분석 기록은 계속 표시합니다.":"이 시점·검색 조건에 해당하는 테마 후보가 없습니다."));
   const labels={CANDIDATE:"관찰 후보",EMERGING:"형성 중",EXPANDING:"확산",WEAKENING:"약화",INVALIDATED:"무효",REACTIVATED:"재활성화"};
@@ -103,7 +104,9 @@ function renderThemes(term){
     meta.append(node("span","pill",labels[theme.status]||theme.status),node("span","","사건 후보 "+theme.scores.distinct_economic_events+" · 기업 "+theme.scores.company_breadth));
     const activity=currentData.theme_activity?.[theme.theme_id];
     if(activity==="new"||activity==="updated")meta.append(node("span","pill",activity==="new"?"기간 내 신규":"기간 내 갱신"));
-    card.append(meta,node("h4","",theme.provisional_name),node("p","finding-detail","최초 발견: "+theme.first_detected_at),node("p","finding-detail","최근 근거: "+theme.last_evidence_at));
+    const title=themeTitle(theme,currentData.theme_presentations?.[theme.theme_id]);
+    card.append(meta,node("h4","",title),node("p","finding-detail","최초 발견: "+theme.first_detected_at),node("p","finding-detail","최근 근거: "+theme.last_evidence_at));
+    if(title!==theme.provisional_name){const saved=node("details","finding-detail");saved.append(node("summary","","저장 당시 테마명"),node("p","",theme.provisional_name));card.append(saved)}
     renderThemeChanges(card,currentData.theme_changes?.[theme.theme_id],labels);
     if(theme.topic_aliases?.length>1)card.append(node("p","finding-detail","같은 주제 표기: "+theme.topic_aliases.join(" · ")));
     for(const ref of theme.source_refs.filter(r=>r.topic_alias_evidence)){

@@ -236,6 +236,11 @@ def build_theme_bundle(themes: list[dict], *, decision_at: datetime, now=None,
                 from .theme_emergence import validate_policy_investment_action
                 validate_policy_investment_action(ref['policy_investment_action'],ref['topic'],ref['economic_driver'],ref['action'],ref['phase'],ref.get('policy_cause'))
                 if ref['policy_investment_action'].get('investment_project')!=ref.get('investment_project'):raise SourceShareError('policy investment project mismatch')
+            if 'order_service_action' in ref:
+                from .theme_emergence import validate_order_service_action
+                validate_order_service_action(ref['order_service_action'],ref['topic'],ref['economic_driver'],ref['action'],ref['phase'],ref.get('demand_scope'),ref.get('service_name'))
+                actors=dict(zip(ref.get('original_entity_ids',ref['entity_ids']),ref['entity_ids']))
+                if not all(actors.get(a,a) in ref['entity_ids'] for a in ref['order_service_action']['actors']):raise SourceShareError('order service actor mismatch')
             if 'growth_parallel_action' in ref:
                 from .theme_emergence import validate_growth_parallel_action
                 validate_growth_parallel_action(ref['growth_parallel_action'],ref['topic'],ref['economic_driver'],ref['action'],ref['phase'],ref.get('demand_scope'),ref.get('service_name'),ref.get('market_entry'),ref.get('investment_project'))

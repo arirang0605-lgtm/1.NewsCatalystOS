@@ -107,7 +107,7 @@ def period_cross_product(store,selected,current,*,since,as_of,now,query='',ident
                         'stored_stage_link':deepcopy(link)})
             service_contexts=[]
             for product in (fresh or {}).get('products',[]):
-                growth_sources={s['event_id'] for a in product['actions'] for s in a['sources'] if 'growth_parallel_action' in s}
+                growth_sources={s['event_id'] for a in product['actions'] for s in a['sources'] if 'growth_parallel_action' in s or 'order_service_action' in s}
                 if group.get('economic_driver') not in {'DEMAND_RECOVERY','POLICY_ENABLEMENT'} and not growth_sources:continue
                 prior=by_before.get(product['theme_id']);latest=by_after[product['theme_id']]
                 if prior is None:continue

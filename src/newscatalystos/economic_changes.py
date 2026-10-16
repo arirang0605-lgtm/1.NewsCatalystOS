@@ -684,6 +684,13 @@ def _single_service_actions(text,pattern,company_names,*,policy=False):
     claim=_commercial_claim(text,cause,company_names,'BUSINESS_START',scope)
     if claim is None or len(claim['actors'])!=1:return None
     _,tail=_cause_subject(text,cause,set(company_names)|set(COMPANIES.findall(text)),scope)
+    # A function may contain several objects, but an earlier economic predicate
+    # joined with '및' belongs to another action, not to the service's object.
+    # Reuse the existing action patterns; source-named services keep their names.
+    service=re.search(BUSINESS_ACTION,tail)
+    if (not business_start_names(tail) and re.search(r'\s+및\s+',tail) and service
+            and any(re.search(pattern,tail[:service.start()],re.I) for _,pattern in ACTIONS)):
+        return None
     start=text.find(tail,cause[1].end())
     return {'BUSINESS_START':{'source_expression':text,'expression_sha256':sha256(text.encode()).hexdigest(),
         'cause_span':[cause[1].start(),cause[1].end()],'action_span':[start,start+len(tail)],
@@ -1174,8 +1181,8 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 **({'growth_parallel_action':growth_parallel[action]} if growth_parallel else {}),
                 **({'price_parallel_action':price_parallel[action]} if price_parallel else {}),
                 **({'function_service_action':function_service} if function_service and action=='BUSINESS_START' else {}),
-                **({'order_service_action':order_service} if order_service else {}),
-                **({'price_service_action':price_service} if price_service else {}),
+                **({'order_service_action':order_service} if order_service and action=='BUSINESS_START' else {}),
+                **({'price_service_action':price_service} if price_service and action=='BUSINESS_START' else {}),
                 **({'policy_contract_action':policy_contract} if policy_contract else {}),
                 **({'policy_investment_action':policy_investment} if policy_investment else {}),
                 **({'demand_recovery_cause':recovery_proof} if recovery_proof else {}),

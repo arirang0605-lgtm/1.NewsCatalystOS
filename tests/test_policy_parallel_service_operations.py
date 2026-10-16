@@ -65,7 +65,7 @@ def test_literal_pair_keeps_legacy_id_company_count_and_source_spans(tmp_path, o
     assert view(themes, candidates, comparisons, query='무관회사')['groups'] == []
 
 
-@pytest.mark.parametrize('variant', ['계획', '목표', '결정', '의향', '취소', '전망', 'past', 'actor', 'pronoun', 'product', 'policy', 'third', 'unnamed', 'anticipatory'])
+@pytest.mark.parametrize('variant', ['계획', '목표', '결정', '의향', '취소', '전망', 'past', 'actor', 'pronoun', 'product', 'policy', 'duplicate', 'unnamed', 'anticipatory'])
 def test_ambiguous_scopes_do_not_inherit_actual_pair(operation, variant):
     article = text(operation)
     if variant == 'past': article = article.replace('「별빛검사」', '지난해 「별빛검사」')
@@ -73,7 +73,7 @@ def test_ambiguous_scopes_do_not_inherit_actual_pair(operation, variant):
     elif variant == 'pronoun': article = article.replace('및 ', '및 그 회사는 ')
     elif variant == 'product': article = article.replace('및 ', '및 DRAM ')
     elif variant == 'policy': article = article.replace('및 ', '및 일본 ‘별도통제법’ HBM 생산 규제 완화로 ')
-    elif variant == 'third': article += ' 및 생산능력 확대'
+    elif variant == 'duplicate': article += ' 및 '+operation[1]
     elif variant == 'unnamed': article = article.replace('「별빛검사」', '검사')
     elif variant == 'anticipatory': article = article.replace('완화로', '완화에 대비해')
     else: article += ' ' + variant

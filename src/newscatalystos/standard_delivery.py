@@ -263,7 +263,7 @@ def build_theme_bundle(themes: list[dict], *, decision_at: datetime, now=None,
                 if not all(actors.get(a,a) in ref['entity_ids'] for a in ref['recovery_parallel_action']['actors']):raise SourceShareError('shared recovery actor mismatch')
             if 'policy_parallel_action' in ref:
                 from .theme_emergence import validate_policy_parallel_action
-                validate_policy_parallel_action(ref['policy_parallel_action'],ref['topic'],ref['economic_driver'],ref['action'],ref['phase'],ref.get('policy_cause'),ref.get('service_name'),ref.get('market_entry'))
+                validate_policy_parallel_action(ref['policy_parallel_action'],ref['topic'],ref['economic_driver'],ref['action'],ref['phase'],ref.get('policy_cause'),ref.get('service_name'),ref.get('market_entry'),ref.get('investment_project'))
             if 'policy_cause' in ref:
                 from .theme_emergence import validate_policy_cause
                 validate_policy_cause(ref['policy_cause'],ref['topic'])

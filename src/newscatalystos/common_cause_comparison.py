@@ -53,7 +53,7 @@ def _cause(ref):
             validate_recovery_parallel_action(ref['recovery_parallel_action'],topic,driver,ref['action'],ref['phase'],ref.get('demand_recovery_cause'),ref.get('demand_scope'),ref.get('service_name'),ref.get('market_entry'),ref.get('investment_project'))
             validate_investment_event_key(ref)
         if 'policy_parallel_action' in ref:
-            validate_policy_parallel_action(ref['policy_parallel_action'],topic,driver,ref['action'],ref['phase'],ref.get('policy_cause'),ref.get('service_name'),ref.get('market_entry'))
+            validate_policy_parallel_action(ref['policy_parallel_action'],topic,driver,ref['action'],ref['phase'],ref.get('policy_cause'),ref.get('service_name'),ref.get('market_entry'),ref.get('investment_project'))
         if 'policy_cause' in ref:
             if driver!='POLICY_ENABLEMENT':raise SourceShareError('different cause')
             validate_policy_cause(ref['policy_cause'],topic)

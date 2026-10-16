@@ -66,7 +66,7 @@ def test_original_spans_two_actions_first_legacy_id_and_no_extra_company(tmp_pat
  '「별빛검사」 서비스 개시 및 새빛소재는 신규 공장 투자 집행','「별빛검사」 서비스 개시 및 그 회사는 신규 공장 투자 집행',
  '「별빛검사」 서비스 개시 및 DRAM 신규 공장 투자 집행','「별빛검사」 서비스 개시 및 신규 공장 투자 집행 취소',
  '지난해 「별빛검사」 서비스 개시 및 신규 공장 투자 집행','「별빛검사」 서비스 개시 및 신규 공장 투자 집행 전망',
- '「별빛검사」 서비스 개시 및 신규 공장 투자 집행 및 생산 시작','검사 서비스 개시 및 신규 공장 투자 집행',
+ '「별빛검사」 서비스 개시 및 신규 공장 투자 집행 및 신규 공장 투자 집행','검사 서비스 개시 및 신규 공장 투자 집행',
  '「별빛검사」 서비스 개시했고 신규 공장 투자 집행','「별빛검사」 서비스 개시 및 일본 ‘별도통제법’ HBM 생산 규제 완화로 신규 공장 투자 집행'])
 def test_ambiguous_plan_scope_actor_product_or_cause_is_not_inherited(tmp_path,tail):
  from test_policy_production_comparison import text as policy_text

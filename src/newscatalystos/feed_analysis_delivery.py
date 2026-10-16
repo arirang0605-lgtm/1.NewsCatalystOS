@@ -181,7 +181,7 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
                     raise SourceShareError('investment project is not in the saved source title')
             if 'policy_cause' in change:
                 from .economic_changes import extract_economic_changes
-                options=dict(include_price_parallel='price_parallel_action' in change,include_price_services='price_service_action' in change,include_order_services='order_service_action' in change,include_growth_parallel='growth_parallel_action' in change,include_recovery_parallel='recovery_parallel_action' in change,include_policy_parallel='policy_parallel_action' in change,include_policy_services=(change['action']=='BUSINESS_START' and 'policy_cause' in change),include_policy_investment_actions=('policy_investment_action' in change or ('policy_cause' in change and 'investment_event_key' in change)),include_policy_contract_actions='policy_contract_action' in change,include_policy_capacity_actions='policy_capacity_action' in change,company_names=change['entity_ids'],include_adjacent_demand='adjacent_demand_cause' in change,include_adjacent_reductions=change.get('adjacent_demand_cause',{}).get('action')=='SUPPLY_REDUCTION',include_adjacent_contracts=change['action']=='CONTRACT',include_adjacent_amounts='contract_amount' in change.get('adjacent_demand_cause',{}),include_adjacent_scopes='demand_scope' in change,include_investment_projects='investment_project' in change,
+                options=dict(include_price_parallel='price_parallel_action' in change,include_price_services='price_service_action' in change,include_order_services='order_service_action' in change,include_growth_parallel='growth_parallel_action' in change,include_recovery_parallel='recovery_parallel_action' in change,include_policy_parallel='policy_parallel_action' in change,include_policy_services=(change['action']=='BUSINESS_START' and 'policy_cause' in change),include_policy_investment_actions=('policy_investment_action' in change or ('policy_cause' in change and 'investment_event_key' in change)),include_policy_contract_actions='policy_contract_action' in change,include_policy_capacity_actions='policy_capacity_action' in change,company_names=change['entity_ids'],include_adjacent_demand='adjacent_demand_cause' in change,include_adjacent_reductions=change.get('adjacent_demand_cause',{}).get('action')=='SUPPLY_REDUCTION',include_adjacent_contracts=change['action']=='CONTRACT',include_adjacent_amounts='contract_amount' in change.get('adjacent_demand_cause',{}),include_adjacent_scopes='demand_scope' in change,include_investment_projects=('investment_project' in change or 'policy_parallel_action' in change),
                              include_demand_recovery='demand_recovery_cause' in change,include_product_prices='product_price_cause' in change,include_resumption=(change['action']=='SUPPLY_RESUMPTION' or 'demand_recovery_cause' in change or 'growth_parallel_action' in change))
                 extracted=extract_economic_changes(row['headline'],**options)
                 if change['action']=='INVESTMENT':
@@ -219,10 +219,11 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
         # A report carrying a three-part source group cannot silently downgrade
         # one sibling to a pre-feature keyword claim by removing its span proof.
         # Reports wholly predating this feature still use their legacy path.
-        from .economic_changes import price_parallel_actions,growth_parallel_actions,recovery_parallel_actions
+        from .economic_changes import price_parallel_actions,growth_parallel_actions,recovery_parallel_actions,policy_parallel_actions
         for proof_key,parser in (('price_parallel_action',price_parallel_actions),
                                  ('growth_parallel_action',growth_parallel_actions),
-                                 ('recovery_parallel_action',recovery_parallel_actions)):
+                                 ('recovery_parallel_action',recovery_parallel_actions),
+                                 ('policy_parallel_action',policy_parallel_actions)):
             for sibling in changes:
                 proof=sibling.get(proof_key)
                 if not proof:continue
@@ -231,7 +232,7 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
                 for change in changes:
                     if (proof_key not in change and change['action'] in parsed
                             and all(change.get(k)==sibling.get(k) for k in
-                                    ('topic','economic_driver','entity_ids','phase','demand_scope'))):
+                                    ('topic','economic_driver','entity_ids','phase','demand_scope','policy_cause'))):
                         # An earlier standalone clause may legitimately have kept
                         # this action's first identity during source deduplication.
                         native=_source_changes(row['headline'],dict(change,**{proof_key:proof}))

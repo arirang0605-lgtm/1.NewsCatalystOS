@@ -11,7 +11,7 @@ import sqlite3
 import re
 from urllib.parse import urlsplit, quote
 
-from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized, explicit_topic_aliases, policy_causes, policy_cause_key, investment_project, parse_demand_scope, market_entry, product_price_cause, demand_recovery_cause, policy_capacity_action, policy_contract_action, policy_investment_action, policy_parallel_actions, recovery_parallel_actions, growth_parallel_actions, order_service_actions, demand_scope, _DEMAND_RECOVERY, _DEMAND, _ORDER_EXPANSION
+from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized, explicit_topic_aliases, policy_causes, policy_cause_key, investment_project, parse_demand_scope, market_entry, product_price_cause, demand_recovery_cause, policy_capacity_action, policy_contract_action, policy_investment_action, policy_parallel_actions, recovery_parallel_actions, growth_parallel_actions, order_service_actions, price_service_actions, demand_scope, _DEMAND_RECOVERY, _DEMAND, _ORDER_EXPANSION, _PRODUCT_PRICE
 from .evidence_archive import _private_root
 from .incremental_ingest import _check_state_path
 from .source_share import SourceShareError, _when, _must_sha
@@ -149,6 +149,16 @@ def validate_order_service_action(proof,topic,driver,action,phase,scope=None,ser
         raise SourceShareError('order service cause or destination mismatch')
 
 
+def validate_price_service_action(proof,topic,driver,action,phase,price,scope=None,service_name=None):
+    if driver!='PRODUCT_PRICE_INCREASE' or action!='BUSINESS_START':raise SourceShareError('different price service action')
+    validate_product_price(price,topic,driver)
+    _validate_parallel_action(proof,action,phase,price_service_actions,service_name,None,phases=('PLANNED','SOURCE_REPORTED'))
+    expression=proof['source_expression'];match=_PRODUCT_PRICE.search(expression)
+    if (product_price_cause(match.group())!=price
+            or demand_scope(expression,match,proof['actors'])!=scope):
+        raise SourceShareError('price service cause or destination mismatch')
+
+
 def validate_investment_project(proof, action):
     if (not isinstance(proof,dict) or not _text(proof.get('source_expression'),120)
             or investment_project(proof['source_expression'],action)!=proof):
@@ -193,7 +203,8 @@ def validate_service_event_key(row):
     if 'service_event_key' not in row:return
     key=row['service_event_key']
     name=row.get('service_name')
-    if (row.get('action')!='BUSINESS_START' or row.get('economic_driver') not in {'DEMAND_RECOVERY','POLICY_ENABLEMENT','DEMAND_EXPANSION'}
+    if (row.get('action')!='BUSINESS_START' or row.get('economic_driver') not in {'DEMAND_RECOVERY','POLICY_ENABLEMENT','DEMAND_EXPANSION','PRODUCT_PRICE_INCREASE'}
+            or (row.get('economic_driver')=='PRODUCT_PRICE_INCREASE' and not isinstance(row.get('price_service_action'),dict))
             or (row.get('economic_driver')=='DEMAND_EXPANSION' and not isinstance(row.get('growth_parallel_action'),dict) and not isinstance(row.get('order_service_action'),dict))
             or (row.get('economic_driver')=='POLICY_ENABLEMENT' and not isinstance(row.get('policy_cause'),dict))
             or not _text(name,80) or key!=sha256(normalized(name).encode()).hexdigest()):
@@ -225,7 +236,7 @@ def validate_adjacent_demand(proof,topic,driver,action,entities,paragraph_sha,*,
 
 
 def validate_change(change):
-    if (not isinstance(change,dict) or set(change)-{'adjacent_demand_cause','original_entity_ids','service_name','service_event_key','investment_event_key','extraction_method','topic_alias_evidence','policy_cause','policy_capacity_action','policy_contract_action','policy_investment_action','policy_parallel_action','recovery_parallel_action','growth_parallel_action','order_service_action','investment_project','demand_scope','market_entry','product_price_cause','demand_recovery_cause'}!=CHANGE_KEYS
+    if (not isinstance(change,dict) or set(change)-{'adjacent_demand_cause','original_entity_ids','service_name','service_event_key','investment_event_key','extraction_method','topic_alias_evidence','policy_cause','policy_capacity_action','policy_contract_action','policy_investment_action','policy_parallel_action','recovery_parallel_action','growth_parallel_action','order_service_action','price_service_action','investment_project','demand_scope','market_entry','product_price_cause','demand_recovery_cause'}!=CHANGE_KEYS
             or not _text(change['topic'],80) or change['economic_driver'] not in DRIVERS
             or change['action'] not in ACTIONS or change['evidence_level'] not in QUALITIES
             or change['phase'] not in {'SOURCE_REPORTED','ADOPTED_NOT_YET_EFFECTIVE','PLANNED'}
@@ -247,6 +258,9 @@ def validate_change(change):
         validate_policy_investment_action(change['policy_investment_action'],change['topic'],change['economic_driver'],change['action'],change['phase'],change.get('policy_cause'))
         if not set(change['policy_investment_action']['actors']).issubset(change.get('original_entity_ids',change['entity_ids'])):raise SourceShareError('policy investment actors mismatch')
         if change['policy_investment_action'].get('investment_project')!=change.get('investment_project'):raise SourceShareError('policy investment project mismatch')
+    if 'price_service_action' in change:
+        validate_price_service_action(change['price_service_action'],change['topic'],change['economic_driver'],change['action'],change['phase'],change.get('product_price_cause'),change.get('demand_scope'),change.get('service_name'))
+        if not set(change['price_service_action']['actors']).issubset(change.get('original_entity_ids',change['entity_ids'])):raise SourceShareError('price service actors mismatch')
     if 'order_service_action' in change:
         validate_order_service_action(change['order_service_action'],change['topic'],change['economic_driver'],change['action'],change['phase'],change.get('demand_scope'),change.get('service_name'))
         if not set(change['order_service_action']['actors']).issubset(change.get('original_entity_ids',change['entity_ids'])):raise SourceShareError('order service actors mismatch')
@@ -718,6 +732,7 @@ def _snapshot(theme_id, rows, at, previous):
            **({'recovery_parallel_action':row['change']['recovery_parallel_action']} if 'recovery_parallel_action' in row['change'] else {}),
            **({'growth_parallel_action':row['change']['growth_parallel_action']} if 'growth_parallel_action' in row['change'] else {}),
            **({'order_service_action':row['change']['order_service_action']} if 'order_service_action' in row['change'] else {}),
+           **({'price_service_action':row['change']['price_service_action']} if 'price_service_action' in row['change'] else {}),
            'phase':row['change']['phase'],'polarity':row['polarity'],
            'supersedes_event_id':row['supersedes_event_id']} for row,seen in rows]
     history=(previous['history'][:] if previous else [])

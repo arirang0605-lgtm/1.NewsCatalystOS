@@ -1,7 +1,7 @@
 """Query-only shared-end-use hypotheses across pinned semiconductor themes."""
 from copy import deepcopy
 from hashlib import sha256
-from .theme_emergence import _bytes,validate_demand_scope,validate_demand_recovery,topic_key
+from .theme_emergence import _bytes,validate_demand_scope,validate_demand_recovery,validate_market_entry,topic_key
 from .economic_changes import normalized
 from .common_cause_comparison import common_cause_comparisons
 from .company_search import company_search_context,match_company_search
@@ -45,7 +45,7 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                 for source in row['sources']:
                     if source['company_participation']!='SOURCE_EVENT_ACTOR':continue
                     if driver=='DEMAND_CONTRACTION' and (source['action']!='SUPPLY_REDUCTION' or source['phase']!='SOURCE_REPORTED'):continue
-                    if driver=='DEMAND_RECOVERY' and (source['action'] not in {'SUPPLY_RESUMPTION','CONTRACT','DELIVERY_START','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION'} or source['phase']!='SOURCE_REPORTED'):continue
+                    if driver=='DEMAND_RECOVERY' and (source['action'] not in {'SUPPLY_RESUMPTION','CONTRACT','DELIVERY_START','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','MARKET_ENTRY'} or source['phase']!='SOURCE_REPORTED'):continue
                     if (source['event_id'] not in set(theme['event_ids'])-set(theme['invalidated_event_ids'])
                         or _when(source['recorded_at'],'recorded')>as_of
                         or _when(source['source_available_at'],'source available')>as_of):continue
@@ -61,6 +61,7 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                             proof=ref.get('demand_recovery_cause')
                             validate_demand_recovery(proof,ref['topic'],driver,ref['action'])
                             if not scope['source_expression'].endswith(proof['source_expression']):continue
+                            if ref['action']=='MARKET_ENTRY':validate_market_entry(ref.get('market_entry'),ref['action'])
                         if source['cause']['status']!='STORED_EXPRESSION':continue
                         key=normalized(scope['destination'])
                         item=items.setdefault(key,{'product':product,'theme_id':tid,'theme_snapshot_sha256':digest,
@@ -77,7 +78,8 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                             'display_name':row['display_name'],'action_group_id':row['action_group_id'],'sources':{}})
                         observation={**deepcopy(source),'demand_scope':deepcopy(scope),
                             'in_period':since is None or _when(source['recorded_at'],'recorded')>=since,
-                            **({'demand_recovery_cause':deepcopy(proof)} if driver=='DEMAND_RECOVERY' else {})}
+                            **({'demand_recovery_cause':deepcopy(proof)} if driver=='DEMAND_RECOVERY' else {}),
+                            **({'market_entry':deepcopy(ref['market_entry'])} if driver=='DEMAND_RECOVERY' and ref['action']=='MARKET_ENTRY' else {})}
                         action['sources'][sha256(_bytes(observation)).hexdigest()]=observation
             for key,item in items.items():
                 scope=next(iter(next(iter(item['actions'].values()))['sources'].values()))['demand_scope']

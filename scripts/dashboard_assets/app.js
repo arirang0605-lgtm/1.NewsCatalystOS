@@ -3,6 +3,7 @@ const $=id=>document.getElementById(id);
 let currentData=null,shown=20;
 const economicPhaseLabels={SOURCE_REPORTED:"출처 보도",ADOPTED_NOT_YET_EFFECTIVE:"의결 · 시행 전",PLANNED:"계획 단계"};
 const economicActionLabels={SUPPLY_RESUMPTION:"생산·공급 재개",MARKET_ENTRY:"시장 진출",DELIVERY_START:"납품·공급 개시",POLICY_CHANGE:"정책 변화",BUSINESS_START:"사업·서비스 개시",PRODUCTION_START:"생산 개시",CAPACITY_ADDITION:"생산능력 확대",SUPPLY_REDUCTION:"공급 축소",CONTRACT:"계약",INVESTMENT:"투자 결정",INVESTMENT_EXECUTION:"투자 집행",CUSTOMER_ACQUISITION:"신규 고객 확보"};
+const economicDriverLabels={DEMAND_RECOVERY:"수요·주문 회복",DEMAND_EXPANSION:"수요 확대",DEMAND_CONTRACTION:"수요·주문 축소",PRODUCT_PRICE_INCREASE:"제품 가격 상승",PRODUCT_PRICE_DECREASE:"제품 가격 하락",POLICY_ENABLEMENT:"정책 기반 확대",CAPACITY_EXPANSION:"생산능력 확대",SUPPLY_CONTRACTION:"공급 축소",UNKNOWN:"공통 원인 미확인"};
 function node(tag,cls,value){const x=document.createElement(tag);if(cls)x.className=cls;if(value!==undefined)x.textContent=value;return x}
 function status(message,error=false){$("status").textContent=message;$("status").className=error?"error":""}
 function shift(amount){const [y,m,d]=state.date.split("-").map(Number),day=new Date(Date.UTC(y,m-1,d));if(state.view==="month")day.setUTCMonth(day.getUTCMonth()+amount);else day.setUTCDate(day.getUTCDate()+amount*(state.view==="week"?7:1));state.date=day.toISOString().slice(0,10);load()}
@@ -38,6 +39,27 @@ function companySearchResults(context,query){
   return Object.fromEntries(Object.entries(context||{}).map(([id,e])=>[id,{...e,match_kind:!term?"UNFILTERED":direct.has(id)?"DIRECT_COMPANY":ambiguous.has(id)?"AMBIGUOUS_NAME":themes.has(e.theme_id)?"RELATED_THEME":"TEXT_CONTEXT"}]));
 }
 function companySearchLabel(kind){return {DIRECT_COMPANY:"검색 기업명·식별자와 정확히 일치 · 거래·수혜 확인 아님",AMBIGUOUS_NAME:"동일 이름 복수 기업 · 식별 미확정",RELATED_THEME:"같은 테마의 연관 기업 · 검색 기업과 직접 관계 미확인",TEXT_CONTEXT:"검색어가 포함된 테마 맥락 · 기업 직접 일치 아님"}[kind]||""}
+function renderCommonCauseComparison(card,theme,candidates,comparisons){
+  const comparison=comparisons?.[theme.theme_id],cs=candidates.filter(c=>c.theme_id===theme.theme_id);
+  if(!comparison||comparison.theme_id!==theme.theme_id||comparison.decision_at!==theme.decision_at||!cs.length||cs.some(c=>c.theme_snapshot_sha256!==comparison.theme_snapshot_sha256||c.decision_at!==comparison.decision_at))return;
+  const box=node("details","finding-detail");box.append(node("summary","","공통 원인 · 기업별 행동·출처 비교"));
+  box.append(node("p","","독립 행동 묶음 "+comparison.distinct_action_groups+"개 · 같은 사건의 여러 보도는 별도 행동으로 세지 않습니다. 공통 원인은 테마 가설이며 거래·수혜 확인이 아닙니다."));
+  for(const row of comparison.rows){
+    const group=node("div","finding-detail");group.append(node("h5","",row.display_name),node("p","","연결 사건 "+row.distinct_event_count+"개 · 출처 근거 "+row.sources.length+"개"));
+    for(const source of row.sources){
+      group.append(node("p","",actionLabel(source)+" · 사건 "+source.event_id));
+      group.append(node("p","",source.cause.status==="STORED_EXPRESSION"?"저장된 원인 표현: “"+source.cause.source_expression+"”":"원인 유형: "+(economicDriverLabels[comparison.economic_driver]||"공통 원인 미확인")+" · 원문 근거 미확인"));
+      group.append(node("p","",source.extraction_method==="AI_SOURCE_SPAN_MATCHED"?"AI 해석의 원문 근거 · 독립 사실 확인 아님":({OFFICIAL_SOURCE:"공식 출처 보도 · 독립 사실 확인 아님",REPORTED:"출처 보도 · 독립 사실 확인 아님",INFERRED:"추론 · 독립 사실 확인 아님"}[source.evidence_level]||"미확인 근거")));
+      if(source.conflicting)group.append(node("p","","상충 근거가 있는 사건"));
+      const a=node("a","source-link","이 행동·원인 근거의 출처");a.href=source.source_url;a.target="_blank";a.rel="noopener noreferrer";group.append(a);
+      group.append(node("p","",({RSS_TITLE_METADATA:"RSS 제목 근거",LICENSED_ARTICLE_TEXT:"허가 본문 근거"}[source.content_scope]||"저장 근거")));
+      group.append(node("p","","출처 가용: "+source.source_available_at+" · 관측: "+source.recorded_at+" · 판본: "+comparison.decision_at));
+      group.append(node("p","","근거 SHA: "+source.evidence_sha256));
+    }
+    box.append(group);
+  }
+  card.append(box);
+}
 function renderItems(){
   if(!currentData)return;
   const term=$("item-filter").value.trim().toLocaleLowerCase();
@@ -138,8 +160,9 @@ function renderThemes(term){
       detail.append(node("p","","출처 가용: "+ref.source_available_at+" · 연결 확보: "+ref.recorded_at));
       detail.append(node("p","","병기 구간 SHA: "+proof.expression_sha256));card.append(detail);
     }
-    const drivers={DEMAND_RECOVERY:"수요·주문 회복",DEMAND_EXPANSION:"수요 확대",DEMAND_CONTRACTION:"수요·주문 축소",PRODUCT_PRICE_INCREASE:"제품 가격 상승",PRODUCT_PRICE_DECREASE:"제품 가격 하락",POLICY_ENABLEMENT:"정책 기반 확대",CAPACITY_EXPANSION:"생산능력 확대",SUPPLY_CONTRACTION:"공급 축소",UNKNOWN:"공통 원인 미확인"};
-    card.append(node("p","finding-detail",theme.economic_driver==="UNKNOWN"?"명시된 공통 원인이 없어 개별 사건으로 관찰합니다.":"같은 주제에서 "+(drivers[theme.economic_driver]||theme.economic_driver)+"에 연결된 독립 행동 "+theme.scores.distinct_economic_events+"개를 묶었습니다. 원인 연결은 테마 가설입니다."));
+
+    card.append(node("p","finding-detail",theme.economic_driver==="UNKNOWN"?"명시된 공통 원인이 없어 개별 사건으로 관찰합니다.":"같은 주제에서 "+(economicDriverLabels[theme.economic_driver]||theme.economic_driver)+"에 연결된 독립 행동 "+theme.scores.distinct_economic_events+"개를 묶었습니다. 원인 연결은 테마 가설입니다."));
+    renderCommonCauseComparison(card,theme,candidates,currentData.common_cause_comparisons);
     const relationLabels={REPORTED_DIRECT_TRANSACTION:"출처에 보고된 직접 계약",ANNOUNCED_SUPPLY_PLAN:"공급 계획"};
     const impactLabels={POTENTIAL_BENEFICIARY_UNVERIFIED:"잠재 수혜 (추론)",POTENTIAL_DAMAGE_UNVERIFIED:"잠재 피해 (추론)",ANNOUNCED_SUPPLY_PLAN_UNVERIFIED:"계획 단계 · 실현 미확인",UNKNOWN_RELATIONSHIP:"영향 경로 미확인",EFFECT_DIRECTION_UNKNOWN:"영향 방향 미확인",THEMATIC_ONLY:"단순 테마 연관"};
     for(const company of theme.company_links){

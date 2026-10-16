@@ -24,6 +24,7 @@ from newscatalystos.era_company_assessment import enrich_candidates
 from newscatalystos.theme_changes import compare_themes
 from newscatalystos.theme_company_candidates import inclusion_presentations
 from newscatalystos.company_search import company_search_context,match_company_search
+from newscatalystos.common_cause_comparison import common_cause_comparisons
 
 ASSETS = Path(__file__).resolve().parent / "dashboard_assets"
 
@@ -96,6 +97,7 @@ class Handler(BaseHTTPRequestHandler):
                     bundle=json.loads(build_theme_bundle(data["themes"], decision_at=min(end, now), now=now,
                                                          include_company_candidates=True))
                     data['company_candidates']=bundle['CompanyCandidates']
+                    data['common_cause_comparisons']=common_cause_comparisons(data['themes'])
                     data['theme_presentations']={t['theme_id']:theme_presentation(t) for t in data['themes']}
                     try:
                         research=enrich_candidates(data['company_candidates'],self.server.documents/'era_assessments',
@@ -124,6 +126,7 @@ class Handler(BaseHTTPRequestHandler):
                 except (SourceShareError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
                     data["themes"], data["theme_status"] = [], "UNAVAILABLE"
                     data['company_candidates']=[]
+                    data['common_cause_comparisons']={}
                     data['company_inclusion_presentations']={}
                     data['company_search']={'query':'','candidates':{}}
                 self._json(200, data)
@@ -184,6 +187,8 @@ class Handler(BaseHTTPRequestHandler):
                     research=enrich_candidates(json.loads(payload)['CompanyCandidates'],root,as_of=at,now=now,
                                                identity_root=root.parent/'theme_company_identity')
                     filter_research(research,themes,query.get('q',[''])[0])
+                    selected={c['theme_id'] for c in research['CompanyCandidates']}
+                    research['common_cause_comparisons']=common_cause_comparisons([t for t in themes if t['theme_id'] in selected])
                     research['company_inclusion_presentations']=inclusion_presentations(themes,research['CompanyCandidates'])
                     payload=json.dumps(research,ensure_ascii=False,allow_nan=False).encode()
                 self._send(200, payload,

@@ -60,7 +60,7 @@ def test_pinned_policy_contract_has_own_identity_and_literal_proofs(tmp_path,res
  text(product='DRAM',actor='새빛소재',name=''),text(product='DRAM',actor='새빛소재',tail='공급계약 체결 계획'),
  text(product='DRAM',actor='새빛소재',tail='공급계약 체결 예정'),text(product='DRAM',actor='새빛소재',tail='공급계약 체결 전망'),
  text(product='DRAM',actor='새빛소재',tail='공급계약 체결 취소'),text(product='DRAM',actor='새빛소재',tail='공급계약 체결 보도를 부인했다'),
- text(product='DRAM',actor='그 회사'),text(product='DRAM',actor='새빛소재',tail='신규 고객 확보'),
+ text(product='DRAM',actor='그 회사'),text(product='DRAM',actor='새빛소재',tail='신규 공장 투자를 집행했다'),
  text(product='DRAM',actor='새빛소재',tail='신규 공장 투자 결정'),growth(product='DRAM',actor='새빛소재'),
  text(product='DRAM',actor='새빛소재').replace('완화로','완화에 대비해'),
  '미국 ‘첨단칩통제법’ DRAM 수출 규제 완화로 공급계약 체결',

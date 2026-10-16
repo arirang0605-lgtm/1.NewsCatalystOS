@@ -8,7 +8,7 @@ from hashlib import sha256
 from .theme_emergence import _bytes
 
 SCHEMA = 'newscatalyst.theme_company_candidate.v1'
-ACTION_LABELS = {'MARKET_ENTRY':'시장 진출', 'DELIVERY_START':'납품·공급 개시', 'CUSTOMER_ACQUISITION':'신규 고객 확보', 'CONTRACT':'계약', 'INVESTMENT':'투자', 'INVESTMENT_EXECUTION':'투자 집행', 'CAPACITY_ADDITION':'설비 확대',
+ACTION_LABELS = {'SUPPLY_RESUMPTION':'생산·공급 재개', 'MARKET_ENTRY':'시장 진출', 'DELIVERY_START':'납품·공급 개시', 'CUSTOMER_ACQUISITION':'신규 고객 확보', 'CONTRACT':'계약', 'INVESTMENT':'투자', 'INVESTMENT_EXECUTION':'투자 집행', 'CAPACITY_ADDITION':'설비 확대',
                  'PRODUCTION_START':'생산 시작', 'SUPPLY_REDUCTION':'공급 축소',
                  'POLICY_CHANGE':'정책 변화', 'BUSINESS_START':'사업·서비스 시작'}
 RELATION_LABELS = {'REPORTED_DIRECT_TRANSACTION':'출처에 보고된 거래 관계',
@@ -80,6 +80,8 @@ def company_candidates(theme):
             uncertainties.append('가격 하락 대응의 감산 결정·계획은 실제 감산 이행이나 매출·이익 감소 확인이 아님')
         if any(r['action']=='MARKET_ENTRY' for r in refs):
             uncertainties.append('시장 진출은 출처 보도이며 고객·계약·실제 판매·매출·수혜는 독립 확인되지 않음')
+        if any(r['action']=='SUPPLY_RESUMPTION' for r in refs):
+            uncertainties.append('생산·공급 재개는 출처 보도이며 이전 중단 이력·실제 판매·매출·수혜는 독립 확인되지 않음')
         if any(r['action']=='DELIVERY_START' for r in refs):
             uncertainties.append('납품·공급 개시는 출처 보도이며 실제 납품·계약 이행·매출·수혜는 독립 확인되지 않음')
         if any(r['action']=='CUSTOMER_ACQUISITION' for r in refs):

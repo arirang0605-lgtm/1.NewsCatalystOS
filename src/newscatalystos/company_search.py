@@ -72,6 +72,8 @@ def company_search_context(themes,candidates):
                 record.update({k:deepcopy(source[k]) for k in ('price_service_action','service_name','service_event_key','product_price_cause') if k in source})
             if 'order_service_action' in source:
                 record.update({k:deepcopy(source[k]) for k in ('order_service_action','service_name','service_event_key') if k in source})
+            if 'price_parallel_action' in source:
+                record.update({k:deepcopy(source[k]) for k in ('price_parallel_action','product_price_cause','service_name','service_event_key','market_entry','investment_project','investment_event_key') if k in source})
             if 'growth_parallel_action' in source:
                 record.update({k:deepcopy(source[k]) for k in ('growth_parallel_action','service_name','service_event_key','market_entry','investment_project','investment_event_key') if k in source})
             if 'recovery_parallel_action' in source:

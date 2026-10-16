@@ -3,7 +3,7 @@ import json
 from copy import deepcopy
 from hashlib import sha256
 from .theme_emergence import (_bytes,topic_key,validate_demand_scope,
-    validate_demand_recovery,validate_product_price,validate_policy_cause,validate_policy_capacity_action,validate_policy_contract_action,validate_policy_investment_action,validate_policy_parallel_action,validate_recovery_parallel_action,validate_growth_parallel_action,validate_order_service_action,validate_price_service_action,validate_investment_event_key,validate_adjacent_demand)
+    validate_demand_recovery,validate_product_price,validate_policy_cause,validate_policy_capacity_action,validate_policy_contract_action,validate_policy_investment_action,validate_policy_parallel_action,validate_recovery_parallel_action,validate_growth_parallel_action,validate_price_parallel_action,validate_order_service_action,validate_price_service_action,validate_investment_event_key,validate_adjacent_demand)
 from .theme_changes import _groups
 from .source_share import SourceShareError
 
@@ -46,6 +46,9 @@ def _cause(ref):
             validate_investment_event_key(ref)
             expression=proof['source_expression'][slice(*proof['cause_span'])]
             proofs.append(('growth_parallel_action',{'source_expression':expression,'expression_sha256':sha256(expression.encode()).hexdigest()}))
+        if 'price_parallel_action' in ref:
+            validate_price_parallel_action(ref['price_parallel_action'],topic,driver,ref['action'],ref['phase'],ref.get('product_price_cause'),ref.get('demand_scope'),ref.get('service_name'),ref.get('market_entry'),ref.get('investment_project'))
+            validate_investment_event_key(ref)
         if 'recovery_parallel_action' in ref:
             validate_recovery_parallel_action(ref['recovery_parallel_action'],topic,driver,ref['action'],ref['phase'],ref.get('demand_recovery_cause'),ref.get('demand_scope'),ref.get('service_name'),ref.get('market_entry'),ref.get('investment_project'))
             validate_investment_event_key(ref)
@@ -136,6 +139,8 @@ def common_cause_comparisons(themes,candidates=None):
                 source.update({k:deepcopy(ref[k]) for k in ('price_service_action','service_name','service_event_key','product_price_cause') if k in ref})
             if 'order_service_action' in ref:
                 source.update({k:deepcopy(ref[k]) for k in ('order_service_action','service_name','service_event_key') if k in ref})
+            if 'price_parallel_action' in ref:
+                source.update({k:deepcopy(ref[k]) for k in ('price_parallel_action','product_price_cause','service_name','service_event_key','market_entry','investment_project','investment_event_key') if k in ref})
             if 'growth_parallel_action' in ref:
                 source.update({k:deepcopy(ref[k]) for k in ('growth_parallel_action','service_name','service_event_key','market_entry','investment_project','investment_event_key') if k in ref})
             if 'recovery_parallel_action' in ref:

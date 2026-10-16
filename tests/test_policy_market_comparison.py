@@ -63,7 +63,7 @@ def test_pinned_policy_market_has_own_identity_and_literal_proofs(tmp_path,restr
  text(product='DRAM',actor='새빛소재',name=''),text(product='DRAM',actor='새빛소재',tail='미국 시장 진출 계획'),
  text(product='DRAM',actor='새빛소재',tail='미국 시장 진출 예정'),text(product='DRAM',actor='새빛소재',tail='미국 시장 진출 전망'),
  text(product='DRAM',actor='새빛소재',tail='미국 시장 진출 취소'),text(product='DRAM',actor='새빛소재',tail='미국 시장 진출 보도를 부인했다'),
- text(product='DRAM',actor='그 회사'),text(product='DRAM',actor='새빛소재',tail='신규 공장 투자를 집행했다'),
+ text(product='DRAM',actor='그 회사'),text(product='DRAM',actor='새빛소재',tail='생산 시작 계획'),
  text(product='DRAM',actor='새빛소재',tail='신규 공장 투자 결정'),growth(product='DRAM',actor='새빛소재'),
  text(product='DRAM',actor='새빛소재').replace('완화로','완화에 대비해'),
  '미국 ‘첨단칩통제법’ DRAM 수출 규제 완화로 미국 시장 진출',

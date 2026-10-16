@@ -567,6 +567,19 @@ def policy_contract_action(text, *, company_names=()):
     return {'source_expression':text,'expression_sha256':sha256(text.encode()).hexdigest(),
         'actors':claim['actors'],'phase':'PLANNED' if '대비' in match['connector'] else claim['phase']}
 
+def policy_investment_action(text, *, company_names=()):
+    """Bound the existing commercial-action decision to one literal policy clause."""
+    if not isinstance(text,str) or not 0<len(text)<=800 or any(ord(c)<32 for c in text):return None
+    policies=policy_causes(text)
+    if len(policies)!=1:return None
+    topic,match,policy=policies[0]
+    claim=_commercial_claim(text,(topic,match),company_names,'INVESTMENT_EXECUTION')
+    if claim is None:return None
+    project=investment_project(text[match.end():],'INVESTMENT_EXECUTION')
+    return {'source_expression':text,'expression_sha256':sha256(text.encode()).hexdigest(),
+        'actors':claim['actors'],'phase':'PLANNED' if '대비' in match['connector'] else claim['phase'],
+        **({'investment_project':project} if project else {})}
+
 
 def price_curtailment_phase(text,topic):
     """A reported cut versus a planned cut; a decision is not physical execution."""
@@ -593,7 +606,7 @@ def investment_execution_phase(text):
 
 
 def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True,
-                             include_policy_causes=True, include_policy_destinations=True, include_policy_capacity_actions=True, include_policy_contract_actions=True, include_investment_execution=True,
+                             include_policy_causes=True, include_policy_destinations=True, include_policy_capacity_actions=True, include_policy_contract_actions=True, include_policy_investment_actions=True, include_investment_execution=True,
                              include_investment_projects=True, include_new_customers=True, include_delivery_start=True, include_demand_scopes=True, include_market_entry=True, include_product_prices=True, include_resumption=True, include_demand_recovery=True, include_adjacent_demand=True, include_adjacent_scopes=True, include_adjacent_contracts=True, include_adjacent_amounts=True, include_adjacent_reductions=True):
     """Return bounded source claims, including policy adoption before its effect.
 
@@ -606,6 +619,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     include_policy_destinations=False reads earlier policy causes without reinterpreting scope.
     include_policy_capacity_actions=False reads older capacity phases without enriching or rewriting them.
     include_policy_contract_actions=False likewise preserves older contract phases and proof absence.
+    include_policy_investment_actions=False likewise reads older investment phases unchanged.
     include_investment_execution=False reads earlier investment decisions and clause boundaries.
     include_new_customers=False matches old actions/clauses without reclassifying saved events.
     include_delivery_start=False reads earlier records without changing their clause boundaries.
@@ -779,6 +793,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                                  for n,p in TOPICS):continue
             if policy and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}:
                 continue
+            policy_investment=(policy_investment_action(line,company_names=company_names) if policy and action=='INVESTMENT_EXECUTION' and include_policy_investment_actions else None)
             policy_contract=(policy_contract_action(line,company_names=company_names) if policy and action=='CONTRACT' and include_policy_contract_actions else None)
             policy_capacity=(policy_capacity_action(line,company_names=company_names) if policy and action=='CAPACITY_ADDITION' and include_policy_capacity_actions else None)
             if recovery and (action not in {'SUPPLY_RESUMPTION','CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY','BUSINESS_START'} or not commercial_claims.get(action)):continue
@@ -849,7 +864,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 if name!=first:service_event_key=sha256(name.encode()).hexdigest()
                 key+=('SOURCE_NAMED_SERVICE',name)
             investment_event_key=None
-            if recovery and project:
+            if (recovery or (policy and include_policy_investment_actions)) and project:
                 name=normalized(project['project_name'])
                 first=first_projects.setdefault(key,name)
                 if name!=first:investment_event_key=sha256(name.encode()).hexdigest()
@@ -863,7 +878,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
             seen[key]=len(changes)
             changes.append({'topic':topic, 'economic_driver':driver, 'action':action,
                 'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
-                         else policy_contract['phase'] if policy_contract else policy_capacity['phase'] if policy_capacity else 'PLANNED' if demand_planned or (project and _BUSINESS_PLAN.search(action_text))
+                         else policy_investment['phase'] if policy_investment else policy_contract['phase'] if policy_contract else policy_capacity['phase'] if policy_capacity else 'PLANNED' if demand_planned or (project and _BUSINESS_PLAN.search(action_text))
                          else cut_phase if price_drop
                          else commercial_claims[action]['phase'] if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'} or (recovery and action in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','BUSINESS_START'})
                          else execution_phase if action == 'INVESTMENT_EXECUTION'
@@ -876,6 +891,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 **({'policy_cause':policy[2]} if policy else {}),
                 **({'policy_capacity_action':policy_capacity} if policy_capacity else {}),
                 **({'policy_contract_action':policy_contract} if policy_contract else {}),
+                **({'policy_investment_action':policy_investment} if policy_investment else {}),
                 **({'demand_recovery_cause':recovery_proof} if recovery_proof else {}),
                 **({'product_price_cause':price_proof} if price_proof else {}),
                 **({'topic_alias_evidence':alias} if alias and alias['canonical_topic'] not in TOPIC_ALIASES else {}),

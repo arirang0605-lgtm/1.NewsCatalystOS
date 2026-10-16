@@ -91,7 +91,7 @@ def period_cross_product(store,selected,current,*,since,as_of,now,query='',ident
             # Existing named decisions remain one economic action when execution
             # becomes eligible here; reuse the stored stage links and _groups roots.
             stage_contexts=[]
-            for product in ((fresh or {}).get('products',[]) if group.get('economic_driver')=='DEMAND_RECOVERY' else []):
+            for product in ((fresh or {}).get('products',[]) if group.get('economic_driver') in {'DEMAND_RECOVERY','POLICY_ENABLEMENT'} else []):
                 prior=by_before.get(product['theme_id']);latest=by_after[product['theme_id']]
                 if prior is None:continue
                 executions={s['event_id'] for a in product['actions'] for s in a['sources'] if s['action']=='INVESTMENT_EXECUTION'}

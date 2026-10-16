@@ -302,7 +302,7 @@ def _parallel_actions(action_text, cause, actors, *, include_investment_executio
     if source_line is not None:
         # A bounded shared clause: every original slice must independently pass
         # one complete literal grammar, with the same source actor and cause.
-        # Only the price path opts into three parts; other callers retain two.
+        # Growth and price opt into three parts; other callers retain two.
         if len(parts) not in source_action_counts or len(actors)!=1:return None
         base=source_line.find(action_text.strip().rstrip('.。!'),cause[1].end())
         if base<0:return None
@@ -613,8 +613,8 @@ def recovery_parallel_actions(text, *, company_names=()):
             'PRODUCTION_START','CONTRACT','CAPACITY_ADDITION','INVESTMENT_EXECUTION','SUPPLY_RESUMPTION'))
 
 
-def growth_parallel_actions(text, *, company_names=()):
-    """Bind existing growth and commercial grammars to the original two spans."""
+def growth_parallel_actions(text, *, company_names=(), include_three_actions=True):
+    """Bind existing growth and commercial grammars to complete source spans."""
     if (not isinstance(text,str) or not 0<len(text)<=800 or any(ord(c)<32 for c in text)
             or _DEMAND_DENIAL.search(text) or UNCERTAIN.search(text) or PAST.search(text)):
         return None
@@ -629,6 +629,7 @@ def growth_parallel_actions(text, *, company_names=()):
     if subject is None:return None
     actors,tail=subject
     return _parallel_actions(tail,cause,actors,source_line=text,scope=scope,
+        source_action_counts=(2,3) if include_three_actions else (2,),
         supported_actions=('BUSINESS_START','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY',
             'PRODUCTION_START','CONTRACT','CAPACITY_ADDITION','INVESTMENT_EXECUTION','SUPPLY_RESUMPTION'))
 
@@ -759,7 +760,7 @@ def investment_execution_phase(text):
 
 
 def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True,
-                             include_policy_causes=True, include_policy_destinations=True, include_policy_capacity_actions=True, include_policy_contract_actions=True, include_policy_investment_actions=True, include_policy_services=True, include_policy_parallel=True, include_recovery_parallel=True, include_growth_parallel=True, include_order_services=True, include_price_services=True, include_price_parallel=True, include_price_three_actions=True, include_investment_execution=True,
+                             include_policy_causes=True, include_policy_destinations=True, include_policy_capacity_actions=True, include_policy_contract_actions=True, include_policy_investment_actions=True, include_policy_services=True, include_policy_parallel=True, include_recovery_parallel=True, include_growth_parallel=True, include_growth_three_actions=True, include_order_services=True, include_price_services=True, include_price_parallel=True, include_price_three_actions=True, include_investment_execution=True,
                              include_investment_projects=True, include_new_customers=True, include_delivery_start=True, include_demand_scopes=True, include_market_entry=True, include_product_prices=True, include_resumption=True, include_demand_recovery=True, include_adjacent_demand=True, include_adjacent_scopes=True, include_adjacent_contracts=True, include_adjacent_amounts=True, include_adjacent_reductions=True):
     """Return bounded source claims, including policy adoption before its effect.
 
@@ -775,6 +776,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     include_policy_investment_actions=False likewise reads older investment phases unchanged.
     include_policy_services=False preserves the older policy action boundary without service starts.
     include_recovery_parallel=False preserves pre-shared-recovery stored clauses.
+    include_growth_three_actions=False preserves the earlier two-action growth path.
     include_growth_parallel=False preserves pre-shared-growth stored clauses.
     include_order_services=False preserves reports without standalone order services.
     include_price_three_actions=False preserves the earlier two-action price path.
@@ -908,7 +910,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         if (recovery_parallel and 'INVESTMENT_EXECUTION' in recovery_parallel and not include_investment_projects
                 and investment_project(recovery_parallel['INVESTMENT_EXECUTION']['action_expression'],'INVESTMENT_EXECUTION')):recovery_parallel=None
         growth=bool(cause and not (policy or contraction or recovery or price))
-        growth_parallel=(growth_parallel_actions(line,company_names=company_names)
+        growth_parallel=(growth_parallel_actions(line,company_names=company_names,include_three_actions=include_growth_three_actions)
             if growth and include_growth_parallel and include_parallel_actions and include_demand_scopes and line==evidence_line else None)
         if growth_parallel and any(k in growth_parallel and not enabled for k,enabled in (
                 ('DELIVERY_START',include_delivery_start),('CUSTOMER_ACQUISITION',include_new_customers),
@@ -931,10 +933,10 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 and investment_project(price_parallel['INVESTMENT_EXECUTION']['action_expression'],'INVESTMENT_EXECUTION')):price_parallel=None
         # A three-part service list is atomic: an incomplete service noun must
         # not let the legacy keyword path promote a different part to actual.
-        if (price and not price_drop and include_price_parallel and include_price_three_actions
+        if (((price and not price_drop and include_price_parallel and include_price_three_actions and price_parallel is None)
+                or (growth and include_growth_parallel and include_growth_three_actions and growth_parallel is None))
                 and len(re.split(r'\s+및\s+',action_text))==3
-                and re.search(r'(?:서비스|사업)(?:을|를|가|는)?(?=\s|$)',action_text)
-                and price_parallel is None):continue
+                and re.search(r'(?:서비스|사업)(?:을|를|가|는)?(?=\s|$)',action_text)):continue
         # Do not fall back to the legacy single-action claim for an ambiguous pair.
         # Stored pre-feature reports explicitly disable this path when reread.
         if (price and not price_drop and include_price_parallel and re.search(r'\s+및\s+',action_text)
@@ -1009,7 +1011,9 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
             execution_phase=investment_execution_phase(execution_text) if action=='INVESTMENT_EXECUTION' else None
             if action=='INVESTMENT_EXECUTION':
                 if execution_phase is None or re.search(r'지난해|지난달|과거|이미|지난\s*\d+월',line):continue
-                if cause and not policy and not price and not recovery:
+                # Three validated source spans already distinguish the actor
+                # from a customer/counterparty in another action's own slice.
+                if cause and not policy and not price and not recovery and not (growth_parallel and len(growth_parallel)==3):
                     known=set(company_names)|set(COMPANIES.findall(line))
                     before={n for n in known if mentions_name(line[:cause[1].start()],n)}
                     after={n for n in known if mentions_name(action_text,n)}
@@ -1086,6 +1090,16 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 # The first claim keeps its legacy identity. Explicit siblings
                 # in this source need their own stable, source-bounded identity.
                 name=normalized(names[0])
+                if growth_parallel and len(growth_parallel)==3 and key in seen:
+                    # A legacy standalone demand service uses the bare key.
+                    # Reuse its first identity when the same explicit name
+                    # appears later, and give a different name a sibling key.
+                    prior_name=changes[seen[key]].get('service_name')
+                    if prior_name:
+                        prior_name=normalized(prior_name)
+                        first_services.setdefault(key,prior_name)
+                        if changes[seen[key]]['phase']==commercial_claims[action]['phase']:
+                            seen.setdefault(key+('SOURCE_NAMED_SERVICE',prior_name),seen[key])
                 first=first_services.setdefault(key,name)
                 if name!=first:service_event_key=sha256(name.encode()).hexdigest()
                 key+=('SOURCE_NAMED_SERVICE',name)

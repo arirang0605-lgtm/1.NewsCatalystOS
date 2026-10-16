@@ -94,3 +94,36 @@ def select_timelines(timeline,matches,query):
         if result.get('counterevidence_unresolved'):result['status']='TARGET_UNRESOLVED';return result
         result['status']='AMBIGUOUS_NAME' if any(v['match_kind']=='AMBIGUOUS_NAME' for v in matches.values()) else 'NO_EXACT_COMPANY_MATCH'
     return result
+
+
+def timeline_evidence_view(timeline,activity='all'):
+    """Project validated observations only; retained action totals describe full context.
+
+    Without a lower bound, observed means every observation available at as_of.
+    Old target sources remain attached to new counterevidence as supporting context.
+    """
+    if activity not in {'all','observed'}:raise ValueError('invalid timeline activity')
+    result=deepcopy(timeline);result['evidence_filter']=activity
+    for company in result['companies']:
+        visible=[];counts={}
+        for entry in company['entries']:
+            kinds=[]
+            if entry['in_period']:kinds.append(entry['change_kind'])
+            direct=[p for p in entry['counterevidence'] if p['in_period']]
+            related=[p for p in entry['relation_counterevidence'] if p['context_in_period']]
+            kinds.extend('DIRECT_RETRACTION' if p['polarity']=='RETRACT' else 'DIRECT_CONTRADICTION' for p in direct)
+            kinds.extend('RELATION_EVENT_CONTEXT' for p in related)
+            for kind in kinds:counts[kind]=counts.get(kind,0)+1
+            entry['period_evidence_kinds']=kinds
+            if activity=='observed':
+                if not kinds:continue
+                entry['counterevidence']=direct;entry['relation_counterevidence']=related
+            visible.append(entry)
+        company['entries']=visible
+        company['period_evidence_counts']=counts
+        company['period_evidence_status']='NEW_EVIDENCE' if counts else 'NO_NEW_EVIDENCE'
+    if activity=='observed' and result.get('counterevidence_unresolved'):
+        since=_when(result['since'],'timeline start') if result.get('since') else None
+        result['counterevidence_unresolved']=[p for p in result['counterevidence_unresolved']
+            if since is None or _when(p['recorded_at'],'counter recorded')>=since]
+    return result

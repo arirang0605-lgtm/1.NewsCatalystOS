@@ -93,9 +93,11 @@ function renderCompanyTimelines(parent,timeline,term,search){
     card.append(node("p","","현재 활성 당사자 경제 행동 "+company.distinct_economic_actions+"개 · 기간 내 첫 관측 행동 "+company.new_actions_in_period+"개 · 공급망 관계 맥락 "+company.related_action_contexts+"개"+(company.historical_target_actions?" · 제외된 과거 행동 "+company.historical_target_actions+"개":"")+(company.historical_relation_contexts?" · 활성 제외 사건의 관계 맥락 "+company.historical_relation_contexts+"개":"")));
     if(company.identity_status!=="IDENTIFIED")card.append(node("p","","미식별 출처 이름 · 다른 테마와 기업 동일성 미확인"));
     card.append(node("p","","추가 보도·이름 연결은 새 경제 행동이 아닙니다. 자료가 없는 날짜는 약화·무효를 뜻하지 않습니다."));
+    if(company.period_evidence_status==="NO_NEW_EVIDENCE")card.append(node("p","","선택 기간 새 근거 없음 · 약화·무효를 뜻하지 않습니다."));
     for(const entry of company.entries){
       const box=node("details","finding-detail");
       box.append(node("summary","",entry.observed_at+" · "+(entry.in_period?labels[entry.change_kind]:"기간 이전 근거")+" · "+actionLabel(entry)+(entry.counterevidence?.length?" · 반대 근거 "+entry.counterevidence.length+"건":"")+(entry.relation_counterevidence?.length?" · 관계 사건 맥락 "+entry.relation_counterevidence.length+"건":"")));
+      if(!entry.in_period&&entry.period_evidence_kinds?.length)box.append(node("p","","기간 이전 대상 사건 · 아래 새 근거를 이해하기 위한 맥락"));
       box.append(node("p","",entry.theme_name+" · "+(entry.company_participation==="SUPPLY_CHAIN_CONTEXT"?"공급망 관계 기업 · 직접 행동 주체 아님":"출처의 사건 당사자")));
       box.append(node("p","",entry.cause.source_expression?"저장된 원인 표현: “"+entry.cause.source_expression+"”":"원인 유형: "+(economicDriverLabels[entry.economic_driver]||"미확인")+" · 원문 근거 미확인"));
       if(entry.extraction_method==="AI_SOURCE_SPAN_MATCHED")box.append(node("p","","AI 해석의 원문 근거 · 독립 사실 확인 아님"));
@@ -104,14 +106,14 @@ function renderCompanyTimelines(parent,timeline,term,search){
       const a=node("a","source-link","이 사건·역할의 출처");a.href=entry.source_url;a.target="_blank";a.rel="noopener noreferrer";box.append(a);
       if(entry.current_activity==="EXCLUDED_BY_STORED_RETRACTION")box.append(node("p","","저장된 철회·정정에 따라 현재 활성 사건에서 제외 · 당시 관측 사실은 보존"));
       for(const proof of entry.counterevidence||[]){
-        box.append(node("p","",proof.polarity==="RETRACT"?"대상 사건의 철회·정정 근거 · 실거래 취소 확정 아님":"대상 사건의 상충 보도 · 실거래 취소 확정 아님"));
+        box.append(node("p","",(proof.in_period?"기간 내 새 직접 반대 근거 · ":"기간 이전 직접 반대 근거 · ")+(proof.polarity==="RETRACT"?"대상 사건의 철회·정정 근거 · 실거래 취소 확정 아님":"대상 사건의 상충 보도 · 실거래 취소 확정 아님")));
         const a=node("a","source-link","이 사건을 명시한 반대 근거 출처");a.href=proof.source_url;a.target="_blank";a.rel="noopener noreferrer";box.append(a);
         box.append(node("p","","대상 사건: "+proof.target_event_id+" · 근거 수준: "+({OFFICIAL_SOURCE:"공식 출처 보도",REPORTED:"출처 보도",INFERRED:"추론"}[proof.evidence_level]||"미확인")));
         box.append(node("p","","출처 가용: "+proof.source_available_at+" · 관측: "+proof.recorded_at));
         if(proof.reason)box.append(node("p","","원문 문서 ID 미확인 · 저장 출처 해시로 연결"));
       }
       for(const proof of entry.relation_counterevidence||[]){
-        box.append(node("p","","관계 사건 맥락 · 이 기업의 직접 행동 철회·실거래 취소·수혜 소멸 확정 아님"));
+        box.append(node("p","",(proof.context_in_period?"기간 내 새 관계 사건 맥락 · ":"기간 이전 관계 사건 맥락 · ")+"이 기업의 직접 행동 철회·실거래 취소·수혜 소멸 확정 아님"));
         box.append(node("p","",(proof.polarity==="RETRACT"?"연결 사건의 철회·정정 근거":"연결 사건의 상충 보도")+" · 원래 당사자 "+proof.target_actor_ids.join(" · ")));
         if(entry.current_activity==="RELATION_EVENT_CONTEXT_EXCLUDED")box.append(node("p","","연결 사건은 현재 활성에서 제외 · 과거 관계 관측은 보존"));
         for(const url of proof.relationship.source_urls){const a=node("a","source-link","원래 공급망 관계 출처");a.href=url;a.target="_blank";a.rel="noopener noreferrer";box.append(a)}
@@ -120,7 +122,7 @@ function renderCompanyTimelines(parent,timeline,term,search){
         box.append(node("p","","관계 사건 맥락 확보: "+proof.context_observed_at+" · 반대 근거 가용: "+proof.source_available_at+" · 관측: "+proof.recorded_at+" · 근거 수준: "+({OFFICIAL_SOURCE:"공식 출처 보도",REPORTED:"출처 보도",INFERRED:"추론"}[proof.evidence_level]||"미확인")));
         if(proof.reason)box.append(node("p","","문서 ID 미확인 · 저장 바인딩/해시로 관계 맥락 연결"));
       }
-      if(entry.company_participation==="SUPPLY_CHAIN_CONTEXT"&&!entry.relation_counterevidence?.length)box.append(node("p","","관계 사건 반대 근거: 검증된 연결 없음"));
+      if(entry.company_participation==="SUPPLY_CHAIN_CONTEXT"&&!entry.relation_counterevidence?.length&&entry.relation_counterevidence_status!=="LINKED_CONTEXT")box.append(node("p","","관계 사건 반대 근거: 검증된 연결 없음"));
       renderEventImpactPaths(box,entry);card.append(box);
     }
     parent.append(card);
@@ -194,9 +196,10 @@ function render(data){
   showNotes($("inherited-notes"),data.inherited_notes,"하위 기간의 메모가 아직 없습니다.");
   $("source-count").textContent="저장 보고서 "+(data.source.saved_reports_seen||0)+"개 중 읽기 제외 "+(data.source.saved_reports_skipped||0)+"개";
 }
-async function load(){status("저장된 조사 기록을 불러오는 중…");for(const button of document.querySelectorAll("[data-view]"))button.classList.toggle("active",button.dataset.view===state.view);$("date").value=state.date;try{const response=await fetch("/api/period?view="+encodeURIComponent(state.view)+"&date="+encodeURIComponent(state.date)+"&theme_activity="+encodeURIComponent($("theme-activity").value),{cache:"no-store"});if(!response.ok)throw new Error("조사 기록을 읽지 못했습니다.");render(await response.json());status("")}catch(error){status(error.message||"불러오기에 실패했습니다.",true)}}
+async function load(){status("저장된 조사 기록을 불러오는 중…");for(const button of document.querySelectorAll("[data-view]"))button.classList.toggle("active",button.dataset.view===state.view);$("date").value=state.date;try{const response=await fetch("/api/period?view="+encodeURIComponent(state.view)+"&date="+encodeURIComponent(state.date)+"&theme_activity="+encodeURIComponent($("theme-activity").value)+"&timeline_activity="+encodeURIComponent($("timeline-activity")?.value||"all"),{cache:"no-store"});if(!response.ok)throw new Error("조사 기록을 읽지 못했습니다.");render(await response.json());status("")}catch(error){status(error.message||"불러오기에 실패했습니다.",true)}}
 for(const button of document.querySelectorAll("[data-view]"))button.addEventListener("click",()=>{state.view=button.dataset.view;load()});
 $("theme-activity").addEventListener("change",()=>load());
+$("timeline-activity").addEventListener("change",()=>load());
 $("date").addEventListener("change",event=>{if(event.target.value){state.date=event.target.value;load()}});
 $("previous").addEventListener("click",()=>shift(-1));$("next").addEventListener("click",()=>shift(1));$("today").addEventListener("click",()=>{state.date=new Date().toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"});load()});
 $("item-filter").addEventListener("input",()=>{shown=20;renderItems()});$("more-items").addEventListener("click",()=>{shown+=20;renderItems()});

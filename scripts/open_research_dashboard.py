@@ -25,7 +25,7 @@ from newscatalystos.theme_changes import compare_themes
 from newscatalystos.theme_company_candidates import inclusion_presentations
 from newscatalystos.company_search import company_search_context,match_company_search
 from newscatalystos.common_cause_comparison import common_cause_comparisons
-from newscatalystos.company_timeline import company_timelines,select_timelines
+from newscatalystos.company_timeline import company_timelines,select_timelines,timeline_evidence_view
 from newscatalystos.timeline_counterevidence import targeted_counterevidence
 
 ASSETS = Path(__file__).resolve().parent / "dashboard_assets"
@@ -81,6 +81,8 @@ class Handler(BaseHTTPRequestHandler):
                                                             now=now, as_of=at)
                 data = build_period(records, self.server.notes.read(), view, selected,
                                     source_info=source_info, now=now)
+                timeline_activity=query.get('timeline_activity',['all'])[0]
+                if timeline_activity not in {'all','observed'}:raise ValueError('invalid timeline activity')
                 activity=query.get('theme_activity',['all'])[0]
                 if activity not in {'all','changed','new','updated'}:raise ValueError('invalid theme activity')
                 start = datetime.fromisoformat(data['start']).replace(tzinfo=KST)
@@ -115,7 +117,7 @@ class Handler(BaseHTTPRequestHandler):
                     timeline=company_timelines(data['themes'],data['company_candidates'],context,data['common_cause_comparisons'],as_of=min(end,now),since=min(start,now))
                     timeline,timeline_context=targeted_counterevidence(ThemeStore(self.server.documents/'theme_history'),data['themes'],timeline,context,as_of=min(end,now),now=now,since=min(start,now),identity_root=self.server.documents/'theme_company_identity') if self.server.documents else (timeline,context)
                     data['timeline_search_context']=timeline_context
-                    data['company_timelines']=select_timelines(timeline,match_company_search(timeline_context,query.get('q',[''])[0]),query.get('q',[''])[0])
+                    data['company_timelines']=timeline_evidence_view(select_timelines(timeline,match_company_search(timeline_context,query.get('q',[''])[0]),query.get('q',[''])[0]),timeline_activity)
                     data['company_inclusion_presentations']=inclusion_presentations(data['themes'],data['company_candidates'])
                     data['theme_activity']={row['theme_id']:period_activity(row,start) for row in data['themes']}
                     data['theme_activity_filter']=activity
@@ -190,6 +192,8 @@ class Handler(BaseHTTPRequestHandler):
                 payload=build_theme_bundle(themes, decision_at=at, now=now,
                                            include_company_candidates=companies=='1' or url.path=='/api/company-research')
                 if url.path=='/api/company-research':
+                    timeline_activity=query.get('timeline_activity',['all'])[0]
+                    if timeline_activity not in {'all','observed'}:raise ValueError('invalid timeline activity')
                     root=(self.server.documents/'era_assessments' if self.server.documents else Path('/nonexistent-nc-assessments'))
                     from newscatalystos.theme_company_identity import filter_research
                     research=enrich_candidates(json.loads(payload)['CompanyCandidates'],root,as_of=at,now=now,
@@ -200,7 +204,7 @@ class Handler(BaseHTTPRequestHandler):
                     timeline=company_timelines(themes,research['CompanyCandidates'],research['company_search']['candidates'],research['common_cause_comparisons'],as_of=at,since=_when(query['since'][0],'period start') if 'since' in query else None)
                     timeline,timeline_context=targeted_counterevidence(ThemeStore(self.server.documents/'theme_history'),themes,timeline,research['company_search']['candidates'],as_of=at,now=now,since=_when(query['since'][0],'period start') if 'since' in query else None,identity_root=root.parent/'theme_company_identity') if self.server.documents else (timeline,research['company_search']['candidates'])
                     research['timeline_search_context']=timeline_context
-                    research['company_timelines']=select_timelines(timeline,match_company_search(timeline_context,query.get('q',[''])[0]),query.get('q',[''])[0])
+                    research['company_timelines']=timeline_evidence_view(select_timelines(timeline,match_company_search(timeline_context,query.get('q',[''])[0]),query.get('q',[''])[0]),timeline_activity)
                     research['company_inclusion_presentations']=inclusion_presentations(themes,research['CompanyCandidates'])
                     payload=json.dumps(research,ensure_ascii=False,allow_nan=False).encode()
                 self._send(200, payload,

@@ -292,13 +292,37 @@ def company_clauses(sentence, company_names=(), *, include_investment_execution=
     return [sentence[a:b].strip(' ,;') for a,b in zip(cuts,cuts[1:])]
 
 
-def _parallel_actions(action_text, cause, actors, *, include_investment_execution=True):
+def _parallel_actions(action_text, cause, actors, *, include_investment_execution=True, source_line=None):
     """A bounded nominal 'action 및 action' list shares an explicit subject/cause.
 
     None preserves the ordinary single-action path; [] leaves an ambiguous
     multi-action claim unclassified. Never carry subjects over finite clauses.
     """
     parts=re.split(r'\s+및\s+',action_text.strip().rstrip('.。!'))
+    if source_line is not None:
+        # A narrow shared policy clause: use the existing literal commercial
+        # grammars on original source slices, never a reconstructed sentence.
+        if len(parts)!=2 or len(actors)!=1:return None
+        base=source_line.find(action_text.strip().rstrip('.。!'),cause[1].end())
+        if base<0:return None
+        claims={};offset=base
+        for part in parts:
+            start=source_line.find(part,offset);end=start+len(part)
+            if start<0:return None
+            matches=[]
+            for kind in ('BUSINESS_START','CAPACITY_ADDITION'):
+                claim=_commercial_claim(source_line,cause,actors,kind,action_span=(start,end))
+                if claim and claim['phase']=='SOURCE_REPORTED' and claim['actors']==sorted(actors):
+                    if kind=='BUSINESS_START' and len(business_start_names(part))!=1:continue
+                    matches.append(kind)
+            if len(matches)!=1 or matches[0] in claims:return None
+            kind=matches[0];claims[kind]={'source_expression':source_line,
+                'expression_sha256':sha256(source_line.encode()).hexdigest(),
+                'cause_span':[cause[1].start(),cause[1].end()],
+                'action_span':[start,end],'action_expression':part,
+                'action':kind,'actors':sorted(actors),'phase':'SOURCE_REPORTED'}
+            offset=end
+        return claims if set(claims)=={'BUSINESS_START','CAPACITY_ADDITION'} else None
     supported={'CONTRACT','INVESTMENT','PRODUCTION_START','CAPACITY_ADDITION'}
     if include_investment_execution:supported.add('INVESTMENT_EXECUTION')
     patterns=[(kind,pattern) for kind,pattern in ACTIONS if kind in supported]
@@ -459,7 +483,7 @@ def _cause_subject(line,cause,names,scope=None):
     return actors,tail
 
 
-def _commercial_claim(line, cause, company_names, action, scope=None):
+def _commercial_claim(line, cause, company_names, action, scope=None, *, action_span=None):
     """Literal commercial action with a named actor and explicit cause.
 
     A customer object remains in the source excerpt; it is not a second actor,
@@ -471,6 +495,10 @@ def _commercial_claim(line, cause, company_names, action, scope=None):
     subject=_cause_subject(line,cause,names,scope)
     if subject is None:return None
     actors,tail=subject
+    if action_span is not None:
+        start,end=action_span;offset=line.find(tail,cause[1].end())
+        if offset<0 or not offset<=start<end<=offset+len(tail):return None
+        tail=line[start:end]
     customer='(?:'+_QUOTED_NAME+'|'+'|'.join(re.escape(n) for n in sorted(names,key=lambda n:(-len(n),n)))+')'
     phrase=r'(?:신규\s*고객(?:사)?(?:를|을)?\s*확보|'+customer+r'(?:을|를)\s+신규\s*고객(?:사)?(?:으로|로)\s*확보)'
     if action=='BUSINESS_START':
@@ -545,14 +573,30 @@ def _commercial_claim(line, cause, company_names, action, scope=None):
             **({'market_entry':market} if market else {})}
 
 
-def policy_capacity_action(text, *, company_names=()):
+def policy_parallel_actions(text, *, company_names=()):
+    """Original spans for a bounded service-start and capacity-addition pair."""
+    if (not isinstance(text,str) or not 0<len(text)<=800 or any(ord(c)<32 for c in text)
+            or _DEMAND_DENIAL.search(text) or UNCERTAIN.search(text) or PAST.search(text)):
+        return None
+    policies=policy_causes(text)
+    if len(policies)!=1 or '대비' in policies[0][1]['connector']:return None
+    topic,match,_=policies[0];cause=(topic,match)
+    subject=_cause_subject(text,cause,set(company_names)|set(COMPANIES.findall(text)))
+    if subject is None:return None
+    actors,tail=subject
+    return _parallel_actions(tail,cause,actors,source_line=text)
+
+
+def policy_capacity_action(text, *, company_names=(), include_parallel=True):
     """Bound the existing commercial-action decision to one literal policy clause."""
     if not isinstance(text,str) or not 0<len(text)<=800 or any(ord(c)<32 for c in text):return None
     policies=policy_causes(text)
     if len(policies)!=1:return None
     topic,match,policy=policies[0]
     claim=_commercial_claim(text,(topic,match),company_names,'CAPACITY_ADDITION')
-    if claim is None:return None
+    if claim is None:
+        parallel=policy_parallel_actions(text,company_names=company_names) if include_parallel else None
+        return parallel.get('CAPACITY_ADDITION') if parallel else None
     return {'source_expression':text,'expression_sha256':sha256(text.encode()).hexdigest(),
         'actors':claim['actors'],'phase':'PLANNED' if '대비' in match['connector'] else claim['phase']}
 
@@ -606,7 +650,7 @@ def investment_execution_phase(text):
 
 
 def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True,
-                             include_policy_causes=True, include_policy_destinations=True, include_policy_capacity_actions=True, include_policy_contract_actions=True, include_policy_investment_actions=True, include_policy_services=True, include_investment_execution=True,
+                             include_policy_causes=True, include_policy_destinations=True, include_policy_capacity_actions=True, include_policy_contract_actions=True, include_policy_investment_actions=True, include_policy_services=True, include_policy_parallel=True, include_investment_execution=True,
                              include_investment_projects=True, include_new_customers=True, include_delivery_start=True, include_demand_scopes=True, include_market_entry=True, include_product_prices=True, include_resumption=True, include_demand_recovery=True, include_adjacent_demand=True, include_adjacent_scopes=True, include_adjacent_contracts=True, include_adjacent_amounts=True, include_adjacent_reductions=True):
     """Return bounded source claims, including policy adoption before its effect.
 
@@ -621,6 +665,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     include_policy_contract_actions=False likewise preserves older contract phases and proof absence.
     include_policy_investment_actions=False likewise reads older investment phases unchanged.
     include_policy_services=False preserves the older policy action boundary without service starts.
+    include_policy_parallel=False reads the earlier single-action shared-clause result unchanged.
     include_investment_execution=False reads earlier investment decisions and clause boundaries.
     include_new_customers=False matches old actions/clauses without reclassifying saved events.
     include_delivery_start=False reads earlier records without changing their clause boundaries.
@@ -731,6 +776,11 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         commercial_claims={kind:_commercial_claim(line,cause,company_names,kind,scope)
             for kind,enabled in [('CUSTOMER_ACQUISITION',include_new_customers),('DELIVERY_START',include_delivery_start),('MARKET_ENTRY',include_market_entry),('SUPPLY_RESUMPTION',include_resumption and bool(cause) and not price and not policy),('CONTRACT',bool(recovery)),('PRODUCTION_START',bool(recovery)),('CAPACITY_ADDITION',bool(recovery)),('INVESTMENT',bool(recovery)),('INVESTMENT_EXECUTION',bool(recovery) and include_investment_execution),('BUSINESS_START',bool(recovery) or (bool(policy) and include_policy_services))]
             if enabled and not contraction}
+        policy_parallel=(policy_parallel_actions(line,company_names=company_names) if policy and include_policy_parallel and include_parallel_actions and line==evidence_line else None)
+        if (policy and include_policy_parallel and include_parallel_actions and re.search(r'\s+및\s+',action_text)
+                and all(any(k==kind and re.search(pattern,action_text,re.I) for k,pattern in ACTIONS) for kind in ('BUSINESS_START','CAPACITY_ADDITION'))
+                and policy_parallel is None):continue
+        if policy_parallel:commercial_claims.update({k:{'actors':v['actors'],'phase':v['phase']} for k,v in policy_parallel.items()})
         commercial_claim=next((c for c in commercial_claims.values() if c),None)
         if commercial_claim and policy:policy_actors=set(commercial_claim['actors'])
         if price:
@@ -771,7 +821,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 if n not in _NON_COMPANY_TERMS and cause and mentions_name(line[:cause[1].start()],n)]
         if policy:actors=sorted(policy_actors)
         if price:actors=sorted(price_actors)
-        parallel=_parallel_actions(action_text,cause,actors,include_investment_execution=include_investment_execution) if include_parallel_actions else None
+        parallel=(list(policy_parallel) if policy_parallel else _parallel_actions(action_text,cause,actors,include_investment_execution=include_investment_execution) if include_parallel_actions else None)
         actions=[action] if parallel is None else parallel
         if parallel and (re.search(r'계획|예정|추진|전망|예상|지난달|과거|이미',line)
                          or _DEMAND_DENIAL.search(line)):
@@ -797,7 +847,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 continue
             policy_investment=(policy_investment_action(line,company_names=company_names) if policy and action=='INVESTMENT_EXECUTION' and include_policy_investment_actions else None)
             policy_contract=(policy_contract_action(line,company_names=company_names) if policy and action=='CONTRACT' and include_policy_contract_actions else None)
-            policy_capacity=(policy_capacity_action(line,company_names=company_names) if policy and action=='CAPACITY_ADDITION' and include_policy_capacity_actions else None)
+            policy_capacity=(policy_capacity_action(line,company_names=company_names,include_parallel=include_policy_parallel and include_parallel_actions) if policy and action=='CAPACITY_ADDITION' and include_policy_capacity_actions else None)
             if recovery and (action not in {'SUPPLY_RESUMPTION','CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY','BUSINESS_START'} or not commercial_claims.get(action)):continue
             if recovery and action=='MARKET_ENTRY' and scope and scope['status']=='EXPLICIT':
                 # A geographic/sector market is not a demand destination. Only
@@ -892,6 +942,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 'entity_ids':companies,
                 **({'policy_cause':policy[2]} if policy else {}),
                 **({'policy_capacity_action':policy_capacity} if policy_capacity else {}),
+                **({'policy_parallel_action':policy_parallel[action]} if policy_parallel else {}),
                 **({'policy_contract_action':policy_contract} if policy_contract else {}),
                 **({'policy_investment_action':policy_investment} if policy_investment else {}),
                 **({'demand_recovery_cause':recovery_proof} if recovery_proof else {}),

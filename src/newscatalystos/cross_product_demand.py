@@ -1,7 +1,7 @@
 """Query-only shared demand or policy hypotheses across pinned semiconductor themes."""
 from copy import deepcopy
 from hashlib import sha256
-from .theme_emergence import _bytes,validate_demand_scope,validate_demand_recovery,validate_market_entry,validate_service_event_key,validate_policy_cause,validate_policy_capacity_action,validate_policy_contract_action,validate_policy_investment_action,validate_investment_project,validate_investment_event_key,_text,topic_key
+from .theme_emergence import _bytes,validate_demand_scope,validate_demand_recovery,validate_market_entry,validate_service_event_key,validate_policy_cause,validate_policy_capacity_action,validate_policy_contract_action,validate_policy_investment_action,validate_policy_parallel_action,validate_investment_project,validate_investment_event_key,_text,topic_key
 from .economic_changes import normalized,policy_cause_key
 from .common_cause_comparison import common_cause_comparisons
 from .company_search import company_search_context,match_company_search
@@ -60,6 +60,10 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                             policy=ref.get('policy_cause')
                             validate_policy_cause(policy,ref['topic'])
                             if not policy['policy_name'] or not policy['jurisdiction']:continue
+                            if 'policy_parallel_action' in ref:
+                                validate_policy_parallel_action(ref['policy_parallel_action'],ref['topic'],driver,ref['action'],ref['phase'],policy,ref.get('service_name'))
+                                actors={m['source_name']:m['entity_id'] for m in ref.get('company_mappings',[])}
+                                if not all(actors.get(a,a) in ref['entity_ids'] for a in ref['policy_parallel_action']['actors']):raise SourceShareError('shared action actor mismatch')
                             if ref['action']=='BUSINESS_START':
                                 if not ref.get('service_name'):continue
                                 if not _text(ref['service_name'],80):raise SourceShareError('invalid explicit service name')

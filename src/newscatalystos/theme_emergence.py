@@ -11,7 +11,7 @@ import sqlite3
 import re
 from urllib.parse import urlsplit, quote
 
-from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized, explicit_topic_aliases, policy_causes, policy_cause_key, investment_project, parse_demand_scope, market_entry, product_price_cause, demand_recovery_cause, policy_capacity_action, policy_contract_action, policy_investment_action
+from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized, explicit_topic_aliases, policy_causes, policy_cause_key, investment_project, parse_demand_scope, market_entry, product_price_cause, demand_recovery_cause, policy_capacity_action, policy_contract_action, policy_investment_action, policy_parallel_actions
 from .evidence_archive import _private_root
 from .incremental_ingest import _check_state_path
 from .source_share import SourceShareError, _when, _must_sha
@@ -89,6 +89,21 @@ def validate_policy_investment_action(proof,topic,driver,action,phase,policy):
         raise SourceShareError('policy investment action cause mismatch')
 
 
+def validate_policy_parallel_action(proof,topic,driver,action,phase,policy,service_name=None):
+    if (driver!='POLICY_ENABLEMENT' or phase!='SOURCE_REPORTED' or not isinstance(proof,dict)
+            or not isinstance(proof.get('actors'),list) or len(proof['actors'])!=1
+            or any(not _text(a) for a in proof['actors'])
+            or any(not isinstance(proof.get(k),list) or len(proof[k])!=2 or any(type(n) is not int for n in proof[k]) for k in ('cause_span','action_span'))):
+        raise SourceShareError('invalid shared policy action')
+    parsed=policy_parallel_actions(proof.get('source_expression'),company_names=proof['actors'])
+    if not parsed or parsed.get(action)!=proof:raise SourceShareError('shared policy action span mismatch')
+    causes=policy_causes(proof['source_expression'])
+    if causes[0][0]!=topic or causes[0][2]!=policy:raise SourceShareError('shared policy action cause mismatch')
+    if action=='BUSINESS_START':
+        from .economic_changes import business_start_names
+        if business_start_names(proof['action_expression'])!=[service_name]:raise SourceShareError('shared service name mismatch')
+
+
 def validate_investment_project(proof, action):
     if (not isinstance(proof,dict) or not _text(proof.get('source_expression'),120)
             or investment_project(proof['source_expression'],action)!=proof):
@@ -163,7 +178,7 @@ def validate_adjacent_demand(proof,topic,driver,action,entities,paragraph_sha,*,
 
 
 def validate_change(change):
-    if (not isinstance(change,dict) or set(change)-{'adjacent_demand_cause','original_entity_ids','service_name','service_event_key','investment_event_key','extraction_method','topic_alias_evidence','policy_cause','policy_capacity_action','policy_contract_action','policy_investment_action','investment_project','demand_scope','market_entry','product_price_cause','demand_recovery_cause'}!=CHANGE_KEYS
+    if (not isinstance(change,dict) or set(change)-{'adjacent_demand_cause','original_entity_ids','service_name','service_event_key','investment_event_key','extraction_method','topic_alias_evidence','policy_cause','policy_capacity_action','policy_contract_action','policy_investment_action','policy_parallel_action','investment_project','demand_scope','market_entry','product_price_cause','demand_recovery_cause'}!=CHANGE_KEYS
             or not _text(change['topic'],80) or change['economic_driver'] not in DRIVERS
             or change['action'] not in ACTIONS or change['evidence_level'] not in QUALITIES
             or change['phase'] not in {'SOURCE_REPORTED','ADOPTED_NOT_YET_EFFECTIVE','PLANNED'}
@@ -185,6 +200,9 @@ def validate_change(change):
         validate_policy_investment_action(change['policy_investment_action'],change['topic'],change['economic_driver'],change['action'],change['phase'],change.get('policy_cause'))
         if not set(change['policy_investment_action']['actors']).issubset(change.get('original_entity_ids',change['entity_ids'])):raise SourceShareError('policy investment actors mismatch')
         if change['policy_investment_action'].get('investment_project')!=change.get('investment_project'):raise SourceShareError('policy investment project mismatch')
+    if 'policy_parallel_action' in change:
+        validate_policy_parallel_action(change['policy_parallel_action'],change['topic'],change['economic_driver'],change['action'],change['phase'],change.get('policy_cause'),change.get('service_name'))
+        if not set(change['policy_parallel_action']['actors']).issubset(change.get('original_entity_ids',change['entity_ids'])):raise SourceShareError('shared action actors mismatch')
     if 'adjacent_demand_cause' in change:
         if change['phase']!='SOURCE_REPORTED':raise SourceShareError('adjacent action phase mismatch')
         validate_adjacent_demand(change['adjacent_demand_cause'],change['topic'],change['economic_driver'],change['action'],change['entity_ids'],change['source_paragraph_sha256'],scope=change.get('demand_scope'))
@@ -640,6 +658,7 @@ def _snapshot(theme_id, rows, at, previous):
            **({'policy_capacity_action':row['change']['policy_capacity_action']} if 'policy_capacity_action' in row['change'] else {}),
            **({'policy_contract_action':row['change']['policy_contract_action']} if 'policy_contract_action' in row['change'] else {}),
            **({'policy_investment_action':row['change']['policy_investment_action']} if 'policy_investment_action' in row['change'] else {}),
+           **({'policy_parallel_action':row['change']['policy_parallel_action']} if 'policy_parallel_action' in row['change'] else {}),
            'phase':row['change']['phase'],'polarity':row['polarity'],
            'supersedes_event_id':row['supersedes_event_id']} for row,seen in rows]
     history=(previous['history'][:] if previous else [])

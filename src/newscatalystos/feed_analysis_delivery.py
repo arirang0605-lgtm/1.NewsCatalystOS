@@ -37,7 +37,7 @@ def _text(value: object, name: str, limit: int) -> str:
 def _source_changes(headline,change):
     """Match current claims or pre-market-entry clauses without rewriting data."""
     from .economic_changes import extract_economic_changes
-    options=dict(company_names=change['entity_ids'],include_product_prices='product_price_cause' in change,include_resumption=change['action']=='SUPPLY_RESUMPTION')
+    options=dict(company_names=change['entity_ids'],include_demand_recovery='demand_recovery_cause' in change,include_product_prices='product_price_cause' in change,include_resumption=change['action']=='SUPPLY_RESUMPTION')
     rows=extract_economic_changes(headline,**options)
     if change['action']!='MARKET_ENTRY' and '진출' in headline:
         rows+=extract_economic_changes(headline,**options,include_market_entry=False)
@@ -130,6 +130,11 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
                         ('topic','action','phase','economic_driver','entity_ids','policy_cause','market_entry'))
                         for c in _source_changes(row['headline'],change)):
                     raise SourceShareError('commercial action is not in the saved source title')
+            if 'demand_recovery_cause' in change:
+                if not any(all(c.get(k)==change.get(k) for k in
+                        ('topic','action','phase','economic_driver','entity_ids','demand_recovery_cause','demand_scope'))
+                        for c in _source_changes(row['headline'],change)):
+                    raise SourceShareError('recovery cause is not in the saved source title')
             if 'product_price_cause' in change:
                 if not any(all(c.get(k)==change.get(k) for k in
                         ('topic','action','phase','economic_driver','entity_ids','product_price_cause','demand_scope'))
@@ -150,7 +155,7 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
             if 'policy_cause' in change:
                 from .economic_changes import extract_economic_changes
                 options=dict(company_names=change['entity_ids'],include_investment_projects='investment_project' in change,
-                             include_product_prices='product_price_cause' in change,include_resumption=change['action']=='SUPPLY_RESUMPTION')
+                             include_demand_recovery='demand_recovery_cause' in change,include_product_prices='product_price_cause' in change,include_resumption=change['action']=='SUPPLY_RESUMPTION')
                 extracted=extract_economic_changes(row['headline'],**options)
                 if change['action']=='INVESTMENT':
                     extracted+=extract_economic_changes(row['headline'],**options,

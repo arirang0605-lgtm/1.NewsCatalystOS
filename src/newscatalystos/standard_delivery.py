@@ -201,6 +201,9 @@ def build_theme_bundle(themes: list[dict], *, decision_at: datetime, now=None,
         _must_sha(row['theme_id'],'theme identity')
         row_at=_when(row['decision_at'],'theme decision')
         for ref in row['source_refs']:
+            if ref.get('economic_driver')=='DEMAND_RECOVERY' or 'demand_recovery_cause' in ref:
+                from .theme_emergence import validate_demand_recovery
+                validate_demand_recovery(ref.get('demand_recovery_cause'),ref['topic'],ref.get('economic_driver'),ref['action'])
             if ref.get('economic_driver') in {'PRODUCT_PRICE_INCREASE','PRODUCT_PRICE_DECREASE'} or 'product_price_cause' in ref:
                 from .theme_emergence import validate_product_price
                 validate_product_price(ref.get('product_price_cause'),ref['topic'],ref.get('economic_driver'))

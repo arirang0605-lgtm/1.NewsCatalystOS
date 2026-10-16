@@ -101,6 +101,7 @@ def _change_matches(change,ref):
     if change.get('investment_project')!=ref.get('investment_project'):return False
     if change.get('demand_scope')!=ref.get('demand_scope'):return False
     if change.get('market_entry')!=ref.get('market_entry'):return False
+    if change.get('demand_recovery_cause')!=ref.get('demand_recovery_cause'):return False
     if change.get('product_price_cause')!=ref.get('product_price_cause'):return False
     if any(change.get(k)!=ref.get(k) for k in ('topic','action','phase','economic_driver')):return False
     if change['source_paragraph_sha256']!=ref['evidence_sha256']:return False
@@ -175,7 +176,7 @@ def _body_source(ref,row,jobs,at,now):
 def _clause(text,change,entity,ref,*,include_investment_execution=True,include_new_customers=True,include_delivery_start=True,include_market_entry=True):
     names=[m['source_name'] for m in ref.get('company_mappings',[]) if m['entity_id']==entity] or [entity]
     options=dict(company_names=change['entity_ids'],include_investment_execution=include_investment_execution,
-                 include_resumption=change['action']=='SUPPLY_RESUMPTION',include_demand_scopes='demand_scope' in change,include_product_prices='product_price_cause' in change,
+                 include_demand_recovery='demand_recovery_cause' in change,include_resumption=change['action']=='SUPPLY_RESUMPTION',include_demand_scopes='demand_scope' in change,include_product_prices='product_price_cause' in change,
                  include_investment_projects='investment_project' in change,include_new_customers=include_new_customers,include_delivery_start=include_delivery_start,include_market_entry=include_market_entry)
     matches=[]
     for sentence in re.split(r'(?<=[.!?。])\s+',text):
@@ -202,6 +203,7 @@ def _clause(text,change,entity,ref,*,include_investment_execution=True,include_n
                         and found.get('demand_scope')==change.get('demand_scope')
                         and found.get('market_entry')==change.get('market_entry')
                         and found.get('product_price_cause')==change.get('product_price_cause')
+                        and found.get('demand_recovery_cause')==change.get('demand_recovery_cause')
                         and ('investment_project' not in change or found.get('investment_project')==change['investment_project'])):
                     matches.append(clause);break
     matches=list(dict.fromkeys(matches))

@@ -11,7 +11,7 @@ import sqlite3
 import re
 from urllib.parse import urlsplit, quote
 
-from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized, explicit_topic_aliases, policy_causes, policy_cause_key, investment_project, parse_demand_scope, market_entry, product_price_cause
+from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized, explicit_topic_aliases, policy_causes, policy_cause_key, investment_project, parse_demand_scope, market_entry, product_price_cause, demand_recovery_cause
 from .evidence_archive import _private_root
 from .incremental_ingest import _check_state_path
 from .source_share import SourceShareError, _when, _must_sha
@@ -88,8 +88,15 @@ def validate_product_price(proof,topic,driver):
         raise SourceShareError('invalid reported product price cause')
 
 
+def validate_demand_recovery(proof,topic,driver,action):
+    if (driver!='DEMAND_RECOVERY' or action!='SUPPLY_RESUMPTION' or not isinstance(proof,dict)
+            or not _text(proof.get('source_expression'),160)
+            or demand_recovery_cause(proof['source_expression'])!=proof or proof['product']!=topic):
+        raise SourceShareError('invalid reported demand/order recovery cause')
+
+
 def validate_change(change):
-    if (not isinstance(change,dict) or set(change)-{'original_entity_ids','service_name','extraction_method','topic_alias_evidence','policy_cause','investment_project','demand_scope','market_entry','product_price_cause'}!=CHANGE_KEYS
+    if (not isinstance(change,dict) or set(change)-{'original_entity_ids','service_name','extraction_method','topic_alias_evidence','policy_cause','investment_project','demand_scope','market_entry','product_price_cause','demand_recovery_cause'}!=CHANGE_KEYS
             or not _text(change['topic'],80) or change['economic_driver'] not in DRIVERS
             or change['action'] not in ACTIONS or change['evidence_level'] not in QUALITIES
             or change['phase'] not in {'SOURCE_REPORTED','ADOPTED_NOT_YET_EFFECTIVE','PLANNED'}
@@ -97,6 +104,8 @@ def validate_change(change):
         raise SourceShareError('invalid source economic change')
     if change['economic_driver'] in {'PRODUCT_PRICE_INCREASE','PRODUCT_PRICE_DECREASE'} or 'product_price_cause' in change:
         validate_product_price(change.get('product_price_cause'),change['topic'],change['economic_driver'])
+    if change['economic_driver']=='DEMAND_RECOVERY' or 'demand_recovery_cause' in change:
+        validate_demand_recovery(change.get('demand_recovery_cause'),change['topic'],change['economic_driver'],change['action'])
     if change['action']=='MARKET_ENTRY' or 'market_entry' in change:
         validate_market_entry(change.get('market_entry'),change['action'])
     if 'demand_scope' in change:validate_demand_scope(change['demand_scope'],change['topic'],change['economic_driver'])
@@ -529,6 +538,7 @@ def _snapshot(theme_id, rows, at, previous):
            **({'investment_project':row['change']['investment_project']} if 'investment_project' in row['change'] else {}),
            **({'demand_scope':row['change']['demand_scope']} if 'demand_scope' in row['change'] else {}),
            **({'market_entry':row['change']['market_entry']} if 'market_entry' in row['change'] else {}),
+           **({'demand_recovery_cause':row['change']['demand_recovery_cause']} if 'demand_recovery_cause' in row['change'] else {}),
            **({'product_price_cause':row['change']['product_price_cause']} if 'product_price_cause' in row['change'] else {}),
            **({'service_name':row['change']['service_name']} if 'service_name' in row['change'] else {}),
            **({'topic_alias_evidence':row['change']['topic_alias_evidence']} if 'topic_alias_evidence' in row['change'] else {}),

@@ -22,7 +22,7 @@ TOPIC_ALIASES = {
     '액침냉각': ('액침냉각','액침 냉각','immersion cooling'),
     '반도체': ('반도체','semiconductor'),
 }
-DRIVERS = {'PRODUCT_PRICE_INCREASE':'제품 가격 상승', 'PRODUCT_PRICE_DECREASE':'제품 가격 하락', 'POLICY_ENABLEMENT': '정책 기반 확대', 'DEMAND_EXPANSION': '수요 확대',
+DRIVERS = {'DEMAND_RECOVERY':'수요·주문 회복', 'PRODUCT_PRICE_INCREASE':'제품 가격 상승', 'PRODUCT_PRICE_DECREASE':'제품 가격 하락', 'POLICY_ENABLEMENT': '정책 기반 확대', 'DEMAND_EXPANSION': '수요 확대',
            'DEMAND_CONTRACTION': '수요·주문 축소',
            'CAPACITY_EXPANSION': '생산능력 확대', 'SUPPLY_CONTRACTION': '공급 축소',
            'UNKNOWN': '공통 원인 미확인'}
@@ -195,6 +195,22 @@ _ORDER_EXPANSION = re.compile(
     r'(?P<connector>에\s*(?:대응(?:해|하여)?|따라|힘입어|대비(?:해|하여))'
     r'|(?:으)?로(?:\s*인해)?|해|하여)(?=$|[\s,])',re.I)
 _ORDER_GROWTH_MENTION = re.compile(r'주문(?:이|가)?\s*(?:증가|확대|급증)')
+
+
+_DEMAND_RECOVERY = re.compile(
+    r'(?<![가-힣A-Za-z0-9])(?P<topic>'+_DEMAND_TOPIC+r')'
+    r'\s*(?:의\s*)?(?P<basis>수요|주문)(?:이|가)?\s*회복'
+    r'(?P<connector>에\s*(?:대응(?:해|하여)?|따라|힘입어|대비(?:해|하여))'
+    r'|(?:으)?로(?:\s*인해)?|해|하여)(?=$|[\s,])',re.I)
+
+
+def demand_recovery_cause(expression):
+    match=_DEMAND_RECOVERY.fullmatch(expression)
+    if match is None:return None
+    topic=next(name for name,p in TOPICS if re.fullmatch(p,match['topic'],re.I))
+    return {'product':topic,'basis':'DEMAND' if match['basis']=='수요' else 'ORDER',
+            'change':'RECOVERY','source_expression':expression,
+            'expression_sha256':sha256(expression.encode()).hexdigest()}
 
 
 # Product prices only: securities/share/ETF price clauses are not products.
@@ -393,13 +409,13 @@ def demand_scope(text, match, company_names=()):
 
 
 def parse_demand_scope(expression):
-    matches=[(pattern,m) for pattern in (_DEMAND,_ORDER_EXPANSION,_DEMAND_CONTRACTION,_PRODUCT_PRICE)
+    matches=[(pattern,m) for pattern in (_DEMAND,_ORDER_EXPANSION,_DEMAND_CONTRACTION,_PRODUCT_PRICE,_DEMAND_RECOVERY)
              for m in pattern.finditer(expression)]
     if len(matches)!=1:return None
     pattern,match=matches[0]
     topic=match['topic'].strip('「」“”"\'').strip()
     topic=next((name for name,p in TOPICS if re.fullmatch(p,topic,re.I)),topic)
-    return topic,('PRODUCT_PRICE_'+product_price_cause(match.group())['change'] if pattern is _PRODUCT_PRICE else 'DEMAND_CONTRACTION' if pattern is _DEMAND_CONTRACTION else 'DEMAND_EXPANSION'),demand_scope(expression,match)
+    return topic,('PRODUCT_PRICE_'+product_price_cause(match.group())['change'] if pattern is _PRODUCT_PRICE else 'DEMAND_RECOVERY' if pattern is _DEMAND_RECOVERY else 'DEMAND_CONTRACTION' if pattern is _DEMAND_CONTRACTION else 'DEMAND_EXPANSION'),demand_scope(expression,match)
 
 
 def market_entry(text):
@@ -505,7 +521,7 @@ def investment_execution_phase(text):
 
 def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True,
                              include_policy_causes=True, include_policy_destinations=True, include_investment_execution=True,
-                             include_investment_projects=True, include_new_customers=True, include_delivery_start=True, include_demand_scopes=True, include_market_entry=True, include_product_prices=True, include_resumption=True):
+                             include_investment_projects=True, include_new_customers=True, include_delivery_start=True, include_demand_scopes=True, include_market_entry=True, include_product_prices=True, include_resumption=True, include_demand_recovery=True):
     """Return bounded source claims, including policy adoption before its effect.
 
     Corporate actions without an explicit common demand cause retain their own
@@ -522,6 +538,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     include_market_entry=False reads earlier actions and company-clause boundaries.
     include_product_prices=False matches saved pre-price causes without reclassification.
     include_resumption=False reads earlier actions and company-clause boundaries.
+    include_demand_recovery=False reads earlier causes without reinterpretation.
     """
     if (not isinstance(company_names,(list,tuple)) or len(company_names)>100
             or any(not isinstance(n,str) or not n.strip() or len(n)>120 for n in company_names)):
@@ -572,7 +589,11 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 or re.search(r'(?:지난해|지난달|작년|과거|기존|이미|지난\s*\d+월).{0,60}(?:감산|축소|중단)',line)):
             continue
         order_matches=list(_ORDER_EXPANSION.finditer(line)) if include_order_growth else []
-        demand_matches=list(_DEMAND.finditer(line))+list(_DEMAND_CONTRACTION.finditer(line))+order_matches
+        recovery_matches=list(_DEMAND_RECOVERY.finditer(line)) if include_demand_recovery else []
+        recovery=_demand_topic(line,company_names,_DEMAND_RECOVERY,actions=action_patterns) if recovery_matches else None
+        if recovery_matches and (not recovery or _DEMAND_DENIAL.search(line)
+                or re.search(r'전망|예상|우려|지난해|지난달|작년|과거|이미|지난\s*\d+월',line)):continue
+        demand_matches=list(_DEMAND.finditer(line))+list(_DEMAND_CONTRACTION.finditer(line))+order_matches+recovery_matches
         price_matches=list(_PRODUCT_PRICE.finditer(line)) if include_product_prices else []
         price=_demand_topic(line,company_names,_PRODUCT_PRICE,actions=action_patterns) if price_matches else None
         if price_matches and (not price or len(price_matches)!=1 or demand_matches or policies
@@ -584,7 +605,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         order_cause=_demand_topic(line,company_names,_ORDER_EXPANSION,actions=action_patterns) if order_matches else None
         if order_matches and order_cause is None:continue
         if policy and demand_matches:continue
-        cause=(policy[:2] if policy else None) or contraction or _demand_topic(line, company_names,actions=action_patterns) or order_cause or price
+        cause=(policy[:2] if policy else None) or contraction or _demand_topic(line, company_names,actions=action_patterns) or order_cause or recovery or price
         # Multiple unresolved causes cannot borrow a known topic or actor from
         # another clause (including pronouns and omitted subjects).
         if len(demand_matches)>1:continue
@@ -601,6 +622,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         scope=demand_scope(line,cause[1],company_names) if include_demand_scopes and cause and not policy else None
         # Alias expansion may change offsets; preserve only an exact source proof.
         if scope and scope['source_expression'] not in evidence_line:scope=None
+        recovery_proof=demand_recovery_cause(recovery[1].group()) if recovery else None
         price_proof=product_price_cause(price[1].group()) if price else None
         price_drop=bool(price_proof and price_proof['change']=='DECREASE')
         if price:
@@ -673,6 +695,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                                  for n,p in TOPICS):continue
             if policy and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}:
                 continue
+            if recovery and action!='SUPPLY_RESUMPTION':continue
             if action=='SUPPLY_RESUMPTION' and not (cause and not contraction and not policy and not price):continue
             if price_drop and action!='SUPPLY_REDUCTION':continue
             if (order_cause or (price and not price_drop)) and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'}:
@@ -693,6 +716,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                     r'반도체|HBM|DRAM|NAND|메모리|EUV|DUV|극자외선|심자외선',line,re.I)):
                 continue
             driver = ('POLICY_ENABLEMENT' if policy or action == 'POLICY_CHANGE' else
+                      'DEMAND_RECOVERY' if recovery else
                       'PRODUCT_PRICE_'+price_proof['change'] if price else
                       'DEMAND_CONTRACTION' if contraction else
                       'SUPPLY_CONTRACTION' if action == 'SUPPLY_REDUCTION' else
@@ -743,6 +767,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                                  and re.search(r'계획|추진|검토',action_text if policy else line)) else 'SOURCE_REPORTED'),
                 'entity_ids':companies,
                 **({'policy_cause':policy[2]} if policy else {}),
+                **({'demand_recovery_cause':recovery_proof} if recovery_proof else {}),
                 **({'product_price_cause':price_proof} if price_proof else {}),
                 **({'topic_alias_evidence':alias} if alias and alias['canonical_topic'] not in TOPIC_ALIASES else {}),
                 **({'investment_project':project} if project else {}),

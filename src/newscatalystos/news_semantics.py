@@ -57,9 +57,9 @@ def _price_claim(event):
 
 
 def _resumption_claim(event):
-    from .economic_changes import extract_economic_changes, _DEMAND, _ORDER_EXPANSION
+    from .economic_changes import extract_economic_changes, _DEMAND, _ORDER_EXPANSION, _DEMAND_RECOVERY
     for change in extract_economic_changes(event['quote'],company_names=event['actors']):
-        causes={m.group() for pattern in (_DEMAND,_ORDER_EXPANSION) for m in pattern.finditer(event['quote'])}
+        causes={m.group() for pattern in (_DEMAND,_ORDER_EXPANSION,_DEMAND_RECOVERY) for m in pattern.finditer(event['quote'])}
         causes.add(change.get('demand_scope',{}).get('source_expression'))
         if (change['action']=='SUPPLY_RESUMPTION' and event['action']==change['action']
                 and event['driver']==change['economic_driver'] and event['phase']==change['phase']
@@ -96,7 +96,7 @@ def parse_events(result, title):
         if PLANNED.search(title) or business_start_phase(title)=='PLANNED':event['phase']='PLANNED'
         if event['driver'] in {'PRODUCT_PRICE_INCREASE','PRODUCT_PRICE_DECREASE'} and _price_claim(event) is None:
             raise SourceShareError('semantic product price requires literal source cause and actor')
-        if event['action']=='SUPPLY_RESUMPTION' and _resumption_claim(event) is None:
+        if (event['action']=='SUPPLY_RESUMPTION' or event['driver']=='DEMAND_RECOVERY') and _resumption_claim(event) is None:
             raise SourceShareError('semantic resumption requires literal demand cause, actor and phase')
         if event not in events: events.append(event)
     if len(events)>2:raise SourceShareError('bounded semantic events required')
@@ -196,7 +196,7 @@ def changes_from_events(events, title_sha):
         'source_paragraph_sha256':title_sha,'evidence_level':'REPORTED',
         'verified_economic_effect':False,'extraction_method':'AI_SOURCE_SPAN_MATCHED',
         **({k:v for k,v in ((_resumption_claim(e) if e['action']=='SUPPLY_RESUMPTION' else _price_claim(e)) or {}).items() if k in {
-            'topic','product_price_cause','demand_scope','market_entry','investment_project'}}
+            'topic','product_price_cause','demand_recovery_cause','demand_scope','market_entry','investment_project'}}
            if e['driver'] in {'PRODUCT_PRICE_INCREASE','PRODUCT_PRICE_DECREASE'} or e['action']=='SUPPLY_RESUMPTION' else {})} for e in events]
 
 

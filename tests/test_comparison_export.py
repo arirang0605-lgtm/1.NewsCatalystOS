@@ -23,6 +23,7 @@ def test_deterministic_period_export_preserves_canonical_and_old_query(tmp_path)
  standard=build_theme_bundle(themes,decision_at=END,now=END,include_company_candidates=True)
  raw=export(store,since=END,activity='changed');value=read_comparison_export(raw,sha256(raw).hexdigest(),decision_at=END,now=END)
  expected,selected,_=run(store)
+ assert set(value['product_comparisons'])=={t['theme_id'] for t in selected}
  assert value['comparison']==expected and len(value['selected_snapshots'])==len(selected)==1
  assert value['comparison']['groups'][0]['period_change']['formed_in_period']
  assert raw==export(store,since=END,activity='changed') and disk==fingerprint(tmp_path)
@@ -46,13 +47,14 @@ def test_missing_baseline_retains_current(tmp_path,monkeypatch):
  result=json.loads(export(store,since=END))['comparison']
  assert result['period_status']=='UNAVAILABLE' and len(result['groups'])==1
 
-@pytest.mark.parametrize('fault',['sha','future','reverse','source','noncanonical','duplicate','schema'])
+@pytest.mark.parametrize('fault',['sha','future','reverse','source','noncanonical','duplicate','schema','product_pin'])
 def test_consumer_rejects_tampering_future_and_invalid_envelopes(tmp_path,fault):
  store,*_=case(tmp_path);raw=export(store);v=json.loads(raw)
  if fault=='future':v['query']['as_of']=LATER.isoformat()
  elif fault=='reverse':v['query']['since']=LATER.isoformat()
  elif fault=='source':v['comparison']['groups'][0]['products'][0]['actions'][0]['sources'][0]['recorded_at']=LATER.isoformat()
  elif fault=='schema':v['schema']='wrong'
+ elif fault=='product_pin':next(iter(v['product_comparisons'].values()))['theme_snapshot_sha256']='f'*64
  if fault not in {'sha','noncanonical','duplicate'}:raw=_bytes(v)
  if fault=='noncanonical':raw=json.dumps(v).encode()
  if fault=='duplicate':raw=raw[:-1]+b',"orders_enabled":false}'
@@ -96,6 +98,7 @@ def test_http_screen_and_export_use_identical_pinned_result(tmp_path,monkeypatch
    raw,headers=get('/api/comparison-export',**q)
    assert sha256(raw).hexdigest()==headers['X-Content-SHA256']==pin['sha256']
    assert json.loads(raw)['comparison']==data['cross_product_demand']
+   for tid,product in data['common_cause_comparisons'].items():assert json.loads(raw)['product_comparisons'][tid]==product
  finally:server.shutdown();server.server_close();thread.join(2)
 
 def test_dashboard_download_uses_loaded_time_and_current_search():

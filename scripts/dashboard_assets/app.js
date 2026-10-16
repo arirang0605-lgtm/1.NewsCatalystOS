@@ -216,7 +216,7 @@ async function downloadComparison(){
     const bytes=await response.arrayBuffer(),digest=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",bytes)),b=>b.toString(16).padStart(2,"0")).join("");
     if(digest!==response.headers.get("X-Content-SHA256"))throw new Error("비교 결과 SHA가 일치하지 않습니다.");
     const result=JSON.parse(new TextDecoder().decode(bytes)),preview=$("comparison-export-preview");
-    preview.replaceChildren(node("h4","","내보낸 비교 결과"));
+    preview.replaceChildren(node("h4","","내보낸 비교 결과"),node("p","fineprint","선택 판본의 제품별 기업·출처 비교 "+Object.keys(result.product_comparisons).length+"개를 포함합니다. 아래는 검색에 맞는 복수 제품·기간 비교입니다."));
     renderCrossProductDemand(preview,result.comparison);
     const url=URL.createObjectURL(new Blob([bytes],{type:"application/json"})),link=document.createElement("a");
     link.href=url;link.download="comparison_export_"+digest+".json";document.body.append(link);link.click();link.remove();URL.revokeObjectURL(url);

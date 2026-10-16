@@ -15,12 +15,12 @@ SCHEMA='newscatalyst.comparison_export.v1'
 MAX_BYTES=20_000_000
 
 
-def pack_comparison_export(themes,comparison,*,as_of,since=None,activity='all',query='',now=None):
+def pack_comparison_export(themes,comparison,*,product_comparisons,as_of,since=None,activity='all',query='',now=None):
     at=_when(as_of.isoformat(),'as of');start=_when(since.isoformat(),'since') if since else None
     value={'schema':SCHEMA,'query':{'as_of':at.isoformat(),'since':start.isoformat() if start else None,
         'activity':activity,'q':query},'selected_snapshots':sorted([
         {'theme_id':t['theme_id'],'sha256':sha256(_bytes(t)).hexdigest(),'decision_at':t['decision_at']} for t in themes],key=lambda p:p['theme_id']),
-        'comparison':comparison,'original_content_included':False,'orders_enabled':False}
+        'comparison':comparison,'product_comparisons':product_comparisons,'original_content_included':False,'orders_enabled':False}
     raw=_bytes(value)
     read_comparison_export(raw,sha256(raw).hexdigest(),decision_at=at,now=now)
     return raw
@@ -31,9 +31,10 @@ def query_comparison_export(store,*,as_of,since=None,activity='all',query='',now
     if at>present or (since is not None and since>at):raise SourceShareError('future or reversed comparison query')
     themes=store.search(as_of=at,since=since,activity=activity,now=present)
     cs=_candidates(themes,at,present,identity_root)
-    comparison=cross_product_demand(themes,cs,common_cause_comparisons(themes,cs),as_of=at,since=since,query=query)
+    products=common_cause_comparisons(themes,cs)
+    comparison=cross_product_demand(themes,cs,products,as_of=at,since=since,query=query)
     comparison=period_cross_product(store,themes,comparison,since=since,as_of=at,now=present,query=query,identity_root=identity_root)
-    return pack_comparison_export(themes,comparison,as_of=at,since=since,activity=activity,query=query,now=present)
+    return pack_comparison_export(themes,comparison,product_comparisons=products,as_of=at,since=since,activity=activity,query=query,now=present)
 
 
 def read_comparison_export(raw,expected_sha256,*,decision_at,now=None):
@@ -41,7 +42,7 @@ def read_comparison_export(raw,expected_sha256,*,decision_at,now=None):
     if sha256(raw).hexdigest()!=_must_sha(expected_sha256,'comparison export SHA'):raise SourceShareError('comparison export SHA mismatch')
     value=_json(raw,'comparison export')
     try:
-        if set(value)!={'schema','query','selected_snapshots','comparison','original_content_included','orders_enabled'} or value['schema']!=SCHEMA:
+        if set(value)!={'schema','query','selected_snapshots','comparison','product_comparisons','original_content_included','orders_enabled'} or value['schema']!=SCHEMA:
             raise SourceShareError('comparison export schema mismatch')
         if value['original_content_included'] is not False or value['orders_enabled'] is not False:raise SourceShareError('read-only comparison required')
         q=value['query']
@@ -58,6 +59,14 @@ def read_comparison_export(raw,expected_sha256,*,decision_at,now=None):
             if set(pin)!={'theme_id','sha256','decision_at'}:raise SourceShareError('invalid selected snapshot pin')
             _must_sha(pin['theme_id'],'theme');_must_sha(pin['sha256'],'snapshot');ids.append(pin['theme_id'])
         if ids!=sorted(set(ids)):raise SourceShareError('noncanonical selected snapshot pins')
+        products=value['product_comparisons']
+        if set(products)!=set(ids):raise SourceShareError('product comparison pins missing')
+        for pin in value['selected_snapshots']:
+            product=products[pin['theme_id']]
+            if (product['theme_id']!=pin['theme_id'] or product['theme_snapshot_sha256']!=pin['sha256'] or
+                product['decision_at']!=pin['decision_at'] or not isinstance(product['rows'],list) or
+                product['verified_real_transaction'] is not False or product['verified_real_benefit'] is not False):
+                raise SourceShareError('product comparison binding mismatch')
         def check_times(item):
             if isinstance(item,dict):
                 for k,v in item.items():

@@ -141,7 +141,7 @@ class Handler(BaseHTTPRequestHandler):
                     if self.server.documents:
                         data['cross_product_demand']=period_cross_product(ThemeStore(self.server.documents/'theme_history'),data['themes'],data['cross_product_demand'],since=start,as_of=min(end,now),now=now,query=query.get('q',[''])[0],identity_root=self.server.documents/'theme_company_identity')
                     if start<=now:
-                        export=pack_comparison_export(data['themes'],data['cross_product_demand'],as_of=min(end,now),since=start,activity=activity,query=query.get('q',[''])[0],now=now)
+                        export=pack_comparison_export(data['themes'],data['cross_product_demand'],product_comparisons=data['common_cause_comparisons'],as_of=min(end,now),since=start,activity=activity,query=query.get('q',[''])[0],now=now)
                         data['comparison_export']={'query':json.loads(export)['query'],'sha256':sha256(export).hexdigest()}
                     context=company_search_context(data['themes'],data['company_candidates'])
                     data['company_search']={'query':query.get('q',[''])[0],'candidates':match_company_search(context,query.get('q',[''])[0])}
@@ -234,10 +234,11 @@ class Handler(BaseHTTPRequestHandler):
                     research=enrich_candidates(json.loads(payload)['CompanyCandidates'],root,as_of=at,now=now,
                                                identity_root=root.parent/'theme_company_identity')
                     all_candidates=research['CompanyCandidates']
-                    research['cross_product_demand']=cross_product_demand(themes,all_candidates,common_cause_comparisons(themes,all_candidates),as_of=at,since=_when(query['since'][0],'period start') if 'since' in query else None,query=query.get('q',[''])[0])
+                    all_comparisons=common_cause_comparisons(themes,all_candidates)
+                    research['cross_product_demand']=cross_product_demand(themes,all_candidates,all_comparisons,as_of=at,since=_when(query['since'][0],'period start') if 'since' in query else None,query=query.get('q',[''])[0])
                     if self.server.documents:
                         research['cross_product_demand']=period_cross_product(ThemeStore(self.server.documents/'theme_history'),themes,research['cross_product_demand'],since=_when(query['since'][0],'period start') if 'since' in query else None,as_of=at,now=now,query=query.get('q',[''])[0],identity_root=self.server.documents/'theme_company_identity')
-                    export=pack_comparison_export(themes,research['cross_product_demand'],as_of=at,since=_when(query['since'][0],'since') if 'since' in query else None,activity=query.get('activity',['all'])[0],query=query.get('q',[''])[0],now=now)
+                    export=pack_comparison_export(themes,research['cross_product_demand'],product_comparisons=all_comparisons,as_of=at,since=_when(query['since'][0],'since') if 'since' in query else None,activity=query.get('activity',['all'])[0],query=query.get('q',[''])[0],now=now)
                     research['comparison_export']={'query':json.loads(export)['query'],'sha256':sha256(export).hexdigest()}
                     filter_research(research,themes,query.get('q',[''])[0])
                     selected={c['theme_id'] for c in research['CompanyCandidates']}

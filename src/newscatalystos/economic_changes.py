@@ -608,7 +608,8 @@ def recovery_parallel_actions(text, *, company_names=()):
     if subject is None:return None
     actors,tail=subject
     return _parallel_actions(tail,cause,actors,source_line=text,scope=scope,
-        supported_actions=('BUSINESS_START','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY'))
+        supported_actions=('BUSINESS_START','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY',
+            'PRODUCTION_START','CONTRACT','CAPACITY_ADDITION','INVESTMENT_EXECUTION','SUPPLY_RESUMPTION'))
 
 
 def policy_capacity_action(text, *, company_names=(), include_parallel=True):
@@ -820,7 +821,10 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
             if recovery and include_recovery_parallel and include_parallel_actions and include_demand_scopes and line==evidence_line else None)
         if recovery_parallel and any(k in recovery_parallel and not enabled for k,enabled in (
                 ('DELIVERY_START',include_delivery_start),('CUSTOMER_ACQUISITION',include_new_customers),
-                ('MARKET_ENTRY',include_market_entry))):recovery_parallel=None
+                ('MARKET_ENTRY',include_market_entry),('INVESTMENT_EXECUTION',include_investment_execution),
+                ('SUPPLY_RESUMPTION',include_resumption))):recovery_parallel=None
+        if (recovery_parallel and 'INVESTMENT_EXECUTION' in recovery_parallel and not include_investment_projects
+                and investment_project(recovery_parallel['INVESTMENT_EXECUTION']['action_expression'],'INVESTMENT_EXECUTION')):recovery_parallel=None
         shared_parallel=policy_parallel or recovery_parallel
         if shared_parallel:commercial_claims.update({k:{'actors':v['actors'],'phase':v['phase'],
             **({'market_entry':market_entry(v['action_expression'])} if k=='MARKET_ENTRY' else {})}
@@ -949,7 +953,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 original_companies=companies[:]
             if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'} or (recovery and action in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','BUSINESS_START'}) or (policy and action=='BUSINESS_START'):
                 companies=commercial_claims[action]['actors'];original_companies=companies[:]
-            project=investment_project(policy_parallel[action]['action_expression'] if policy_parallel else action_text,action) if include_investment_projects else None
+            project=investment_project(shared_parallel[action]['action_expression'] if shared_parallel else action_text,action) if include_investment_projects else None
             key = (alias['canonical_topic'] if alias else topic, driver, action, tuple(original_companies),
                    tuple(policy_cause_key(policy[2])) if policy else None)
             if action=='MARKET_ENTRY':key+=('MARKET_ENTRY',normalized(commercial_claims[action]['market_entry']['market_name']))

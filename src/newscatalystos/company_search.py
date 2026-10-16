@@ -68,7 +68,9 @@ def company_search_context(themes,candidates):
             if 'policy_contract_action' in source:record['policy_contract_action']=deepcopy(source['policy_contract_action'])
             if 'policy_investment_action' in source:record['policy_investment_action']=deepcopy(source['policy_investment_action'])
             if 'policy_parallel_action' in source:record['policy_parallel_action']=deepcopy(source['policy_parallel_action'])
-            if 'recovery_parallel_action' in source:record['recovery_parallel_action']=deepcopy(source['recovery_parallel_action'])
+            if 'recovery_parallel_action' in source:
+                record['recovery_parallel_action']=deepcopy(source['recovery_parallel_action'])
+                record.update({k:deepcopy(source[k]) for k in ('investment_project','investment_event_key') if k in source})
             if source.get('economic_driver')=='POLICY_ENABLEMENT' and source['action']=='BUSINESS_START':
                 record.update({k:deepcopy(source[k]) for k in ('service_name','service_event_key') if k in source})
             record.update(entity_id=c['entity_id'],company_participation=source['company_participation'],

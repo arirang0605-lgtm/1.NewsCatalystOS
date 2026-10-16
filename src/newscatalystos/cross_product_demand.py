@@ -94,7 +94,8 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                             key=normalized(scope['destination'])
                         if driver=='DEMAND_RECOVERY':
                             if 'recovery_parallel_action' in ref:
-                                validate_recovery_parallel_action(ref['recovery_parallel_action'],ref['topic'],driver,ref['action'],ref['phase'],ref.get('demand_recovery_cause'),scope,ref.get('service_name'),ref.get('market_entry'))
+                                validate_recovery_parallel_action(ref['recovery_parallel_action'],ref['topic'],driver,ref['action'],ref['phase'],ref.get('demand_recovery_cause'),scope,ref.get('service_name'),ref.get('market_entry'),ref.get('investment_project'))
+                                validate_investment_event_key(ref)
                                 actors=dict(zip(ref.get('original_entity_ids',ref['entity_ids']),ref['entity_ids']))
                                 if not all(actors.get(a,a) in ref['entity_ids'] for a in ref['recovery_parallel_action']['actors']):raise SourceShareError('shared recovery actor mismatch')
                             proof=ref.get('demand_recovery_cause')

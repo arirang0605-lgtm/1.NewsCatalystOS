@@ -7,8 +7,8 @@
 
 AGENTS.md → PROJECT_STATE.md → DECISIONS.md → NEXT_TASK.md와 실제 Git 상태를 확인한다. 최신 사용자 지시를 우선하고 기존 변경을 보존한다.
 
-최신 기능: 0f4b99b의 동일 명시 정책 실제 신규 고객 확보 복수 제품 비교. 기존 CUSTOMER_ACQUISITION/SOURCE_REPORTED·bounded 상업 단계·policy key/proof·직접 당사자·SHA/PIT·core/period 재사용. 각 정책 원문/해시·확보 행동을 기존 기간/검색/HTTP/화면/고정 JSON으로 전달한다. 미명시 고객 실명/ID·관계/규모를 만들지 않고 확보/계약·납품/매출·수혜를 구별한다. 변경 경로276 PASS(신규61), 기존SHA45+명시 투자 후속SHA1·표준 v3·계약/능력 proof·구판 소비·구형 별칭 결측 보호. 운영 소스2개 반영·고정 실자료3사례/DB/설정/내보내기 보존. 새 정책 고객 확보 실증은 미확인, 양성 경로는 합성 검증.
+최신 기능: 07e1eb8의 동일 명시 정책 실제 명시 시장 진출 복수 제품 비교. 기존 MARKET_ENTRY/SOURCE_REPORTED·policy/market proof 검증·bounded 실제/계획·직접 당사자·SHA/PIT·core/period 재사용. 각 출처 market_entry 원문/해시/시장명을 기간/검색/HTTP/화면/고정 JSON에 전달한다. 서로 다른 시장을 단일값으로 바꾸지 않으며 정책 관할/대상국·진출시장·고객회사와 계약/납품/매출·시장 전체 수혜를 구별한다. 변경 경로215 PASS(신규68), 기존SHA48+명시 투자 후속SHA1·표준 v3·기존 proof/구판/구형 별칭 결측 보호. 운영 소스2개 반영·고정 실자료3사례/DB/설정/내보내기 보존. 새 정책 시장 진출 실증은 미확인, 양성 경로는 합성 검증.
 
-다음: 동일 명시 정책의 실제 명시 시장 진출 MARKET_ENTRY/SOURCE_REPORTED. 합성 HBM/DRAM 같은 정책→미국/유럽 진출은 정상 market_entry·제품별 비교2개/복수 제품0개다. 기존 정책/시장 proof·상업 단계/core/period 재사용. 각 출처의 진출시장명/원문/해시를 보존하며 정책 관할/대상국·시장·고객회사를 구별한다. NEXT_TASK 참고.
+다음: 동일 명시 정책의 실제 투자 집행 INVESTMENT_EXECUTION/SOURCE_REPORTED. 합성 HBM/DRAM 같은 정책→신규 공장 투자 집행은 제품별 비교2개/복수 제품0개다. 기존 정책/투자 실제계획/프로젝트/단계 연결·정규화/core/period 재사용. 같은 프로젝트 결정→집행은 새 독립 행동으로 세지 않고 실제 자금 지급/완공/가동/매출·수혜를 확정하지 않는다. NEXT_TASK 참고.
 
 저장 후보·ID·점수·구판/PIT·표준 bytes·사용자 변경·비밀·사용권·예산·무인 운영·실주문 금지를 유지한다. 새 수집/유료AI·운영 DB replay·동일 상태 반복 검증·일일 설정/상대 프로젝트 변경 금지. 전체 제품 완료는 명시된 완료 조건과 실제 증거로 별도 판단한다.

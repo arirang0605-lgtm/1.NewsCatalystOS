@@ -23,6 +23,7 @@ from newscatalystos.article_company_identity import search_article_identities
 from newscatalystos.era_company_assessment import enrich_candidates
 from newscatalystos.theme_changes import compare_themes
 from newscatalystos.theme_action_order import order_theme_actions
+from newscatalystos.cross_product_demand import cross_product_demand
 from newscatalystos.theme_company_candidates import inclusion_presentations
 from newscatalystos.company_search import company_search_context,match_company_search
 from newscatalystos.common_cause_comparison import common_cause_comparisons
@@ -115,6 +116,7 @@ class Handler(BaseHTTPRequestHandler):
                             data['assessment_source_status']=research['assessment_source_status']
                     except (SourceShareError,OSError,ValueError,TypeError,KeyError):
                         data['assessment_source_status']='UNAVAILABLE'
+                    data['cross_product_demand']=cross_product_demand(data['themes'],data['company_candidates'],data['common_cause_comparisons'],as_of=min(end,now),since=start,query=query.get('q',[''])[0])
                     context=company_search_context(data['themes'],data['company_candidates'])
                     data['company_search']={'query':query.get('q',[''])[0],'candidates':match_company_search(context,query.get('q',[''])[0])}
                     timeline=company_timelines(data['themes'],data['company_candidates'],context,data['common_cause_comparisons'],as_of=min(end,now),since=min(start,now))
@@ -143,6 +145,7 @@ class Handler(BaseHTTPRequestHandler):
                     data['timeline_search_context']={}
                     data['company_timelines']={'status':'UNAVAILABLE','companies':[]}
                     data['common_cause_comparisons']={}
+                    data['cross_product_demand']={'status':'UNAVAILABLE','groups':[]}
                     data['company_inclusion_presentations']={}
                     data['company_search']={'query':'','candidates':{}}
                 self._json(200, data)
@@ -204,6 +207,8 @@ class Handler(BaseHTTPRequestHandler):
                     from newscatalystos.theme_company_identity import filter_research
                     research=enrich_candidates(json.loads(payload)['CompanyCandidates'],root,as_of=at,now=now,
                                                identity_root=root.parent/'theme_company_identity')
+                    all_candidates=research['CompanyCandidates']
+                    research['cross_product_demand']=cross_product_demand(themes,all_candidates,common_cause_comparisons(themes,all_candidates),as_of=at,since=_when(query['since'][0],'period start') if 'since' in query else None,query=query.get('q',[''])[0])
                     filter_research(research,themes,query.get('q',[''])[0])
                     selected={c['theme_id'] for c in research['CompanyCandidates']}
                     research['common_cause_comparisons']=common_cause_comparisons([t for t in themes if t['theme_id'] in selected],research['CompanyCandidates'])

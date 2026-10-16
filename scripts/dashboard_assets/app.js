@@ -94,6 +94,39 @@ function renderThemeActionOrder(card,period){
   card.append(node("p","finding-detail","선택 기간 독립 행동 추가 "+period.independent_actions_added+"개 · 제외 "+period.independent_actions_removed+"개 · 새 행동의 신규 당사자 "+period.new_event_participant_count+"개"));
   card.append(node("p","finding-detail","추가 보도·같은 프로젝트 후속·식별·관계 갱신은 새 독립 행동으로 세지 않습니다. 아래 공통 원인·기업별 행동·출처 비교에서 근거를 확인하세요. 거래·수혜·대장주 확정이 아닙니다."));
 }
+function renderCrossProductDemand(parent,comparison,term=""){
+  if(!comparison)return;
+  if(comparison.status==="PARTIAL")parent.append(node("p","fineprint","일부 제품의 선택 판본·근거를 확인할 수 없어 해당 비교는 미확인으로 남겼습니다."));
+  for(const group of comparison.groups||[]){
+    if(term&&!JSON.stringify(group).normalize("NFKC").toLowerCase().includes(term.normalize("NFKC").toLowerCase()))continue;
+    const card=node("article","finding");
+    card.append(node("h4","","복수 제품 공통 원인 후보 · "+group.destination_expressions.join(" / ")));
+    card.append(node("p","","같은 명시 수요처의 수요 증가 보도를 비교한 가설 · 기존 제품별 테마는 유지합니다. 거래·수혜·대장주 확정이 아닙니다."));
+    card.append(node("p","","독립 행동 "+group.distinct_action_groups+"개 · 식별된 기업 "+group.identified_company_count+"개 · 미식별 기업 맥락 "+group.unresolved_company_contexts+"개 (테마 간 동일 기업으로 합치지 않음)"));
+    for(const product of group.products){
+      const box=node("details","finding-detail");box.append(node("summary","",product.product+" · "+product.theme_status));
+      box.append(node("p","","제품별 테마: "+product.theme_id+" · 판본: "+product.decision_at+" · SHA: "+product.theme_snapshot_sha256));
+      if(product.invalidated_event_ids.length)box.append(node("p","","현재 제외된 사건 "+product.invalidated_event_ids.length+"개 · 기존 제품별 철회 근거도 확인하세요."));
+      for(const action of product.actions){
+        box.append(node("h5","",action.display_name),node("p","",action.identity_status==="IDENTIFIED"?"식별된 사건 당사자":"출처 이름 맥락 · 기업 동일성 미확인"));
+        for(const source of action.sources){
+          box.append(node("p","",actionLabel(source)+" · "+(source.in_period?"기간 내 관측 근거":"기간 이전 맥락")),node("p","","원문 원인: "+source.cause.source_expression));
+          if(source.conflicting)box.append(node("p","","상충 보도가 있는 사건 · 해소 또는 수혜 확정 아님"));
+          box.append(node("p","","출처 근거 수준: "+source.evidence_level+" · 독립 사실 확인 아님"));
+          const a=node("a","source-link","이 제품·기업 행동의 출처");a.href=source.source_url;a.target="_blank";a.rel="noopener noreferrer";box.append(a);
+          box.append(node("p","","출처 가용: "+source.source_available_at+" · 관측: "+source.recorded_at+" · 근거 SHA: "+source.evidence_sha256));
+        }
+      }
+      for(const report of product.counterevidence||[]){
+        box.append(node("p","","제품 테마에 저장된 "+(report.polarity==="RETRACT"?"철회·정정":"상충 보도")+" · 대상 사건: "+(report.supersedes_event_id||"명시 대상 미확인")));
+        const a=node("a","source-link","제품 테마의 반대 근거 출처");a.href=report.source_url;a.target="_blank";a.rel="noopener noreferrer";box.append(a);
+        box.append(node("p","","출처 가용: "+report.source_available_at+" · 관측: "+report.recorded_at+" · 실거래 취소 확정 아님"));
+      }
+      card.append(box);
+    }
+    parent.append(card);
+  }
+}
 function renderCompanyTimelines(parent,timeline,term,search){
   if(!term||!timeline)return;
   const direct=new Set(Object.entries(search||{}).filter(([,v])=>v.match_kind==="DIRECT_COMPANY").map(([id])=>id));
@@ -224,6 +257,7 @@ function renderThemes(term){
   const search=companySearchResults(currentData.company_search?.candidates,term);
   const themes=(currentData.themes||[]).filter(x=>matchesTheme(x,term,candidates.filter(c=>c.theme_id===x.theme_id),currentData.theme_changes?.[x.theme_id],currentData.theme_presentations?.[x.theme_id])||candidates.some(c=>c.theme_id===x.theme_id&&["DIRECT_COMPANY","AMBIGUOUS_NAME"].includes(search[c.candidate_id]?.match_kind)));
   $("theme-total").textContent=themes.length+"개";$("themes").replaceChildren();
+  renderCrossProductDemand($("themes"),currentData.cross_product_demand,term);
   renderCompanyTimelines($("themes"),currentData.company_timelines,term,companySearchResults(currentData.timeline_search_context||currentData.company_search?.candidates,term));
   if(!themes.length)$("themes").append(node("p","empty-small",currentData.theme_status==="UNAVAILABLE"?"테마 기록을 읽지 못했습니다. 뉴스 분석 기록은 계속 표시합니다.":"이 시점·검색 조건에 해당하는 테마 후보가 없습니다."));
   const labels={CANDIDATE:"관찰 후보",EMERGING:"형성 중",EXPANDING:"확산",WEAKENING:"약화",INVALIDATED:"무효",REACTIVATED:"재활성화"};

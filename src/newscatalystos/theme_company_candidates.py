@@ -76,6 +76,8 @@ def company_candidates(theme):
         stages=sorted({link['product_stage'] for link in links})
         uncertainties=['출처에 등장하거나 관계가 보도됐다는 사실만으로 실제 수혜·투자 매력을 확정할 수 없음',
                        '매출 기여·재무·현재 가격 평가는 연결되지 않아 미확인']
+        if any(r.get('demand_recovery_cause') and r['action']=='CONTRACT' for r in refs):
+            uncertainties.append('회복 원인의 계약은 출처 보도이며 실제 납품·계약 이행·매출·수혜는 독립 확인되지 않음')
         if any(r.get('demand_recovery_cause') for r in refs):
             uncertainties.append('수요·주문 회복은 출처 표현이며 기준 수요량·이전 중단·실제 판매·손익·수혜는 독립 확인되지 않음')
         if any(r.get('product_price_cause') for r in refs):

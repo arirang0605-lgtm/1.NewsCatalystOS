@@ -176,11 +176,11 @@ def _body_source(ref,row,jobs,at,now):
 def _clause(text,change,entity,ref,*,include_investment_execution=True,include_new_customers=True,include_delivery_start=True,include_market_entry=True):
     names=[m['source_name'] for m in ref.get('company_mappings',[]) if m['entity_id']==entity] or [entity]
     options=dict(company_names=change['entity_ids'],include_investment_execution=include_investment_execution,
-                 include_demand_recovery='demand_recovery_cause' in change,include_resumption=change['action']=='SUPPLY_RESUMPTION',include_demand_scopes='demand_scope' in change,include_product_prices='product_price_cause' in change,
+                 include_demand_recovery='demand_recovery_cause' in change,include_resumption=(change['action']=='SUPPLY_RESUMPTION' or 'demand_recovery_cause' in change),include_demand_scopes='demand_scope' in change,include_product_prices='product_price_cause' in change,
                  include_investment_projects='investment_project' in change,include_new_customers=include_new_customers,include_delivery_start=include_delivery_start,include_market_entry=include_market_entry)
     matches=[]
     for sentence in re.split(r'(?<=[.!?。])\s+',text):
-        for clause in company_clauses(sentence,change['entity_ids'],include_resumption=change['action']=='SUPPLY_RESUMPTION',include_investment_execution=include_investment_execution,include_new_customers=include_new_customers,include_delivery_start=include_delivery_start,include_market_entry=include_market_entry):
+        for clause in company_clauses(sentence,change['entity_ids'],include_resumption=(change['action']=='SUPPLY_RESUMPTION' or 'demand_recovery_cause' in change),include_investment_execution=include_investment_execution,include_new_customers=include_new_customers,include_delivery_start=include_delivery_start,include_market_entry=include_market_entry):
             if ('topic_alias_evidence' in change
                     and change['topic_alias_evidence'] not in explicit_topic_aliases(clause)):
                 continue

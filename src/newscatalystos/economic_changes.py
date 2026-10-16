@@ -260,8 +260,9 @@ def _parallel_actions(action_text, cause, actors):
 _POLICY_CAUSE = re.compile(
     r'(?<![가-힣A-Za-z0-9])(?:(?P<jurisdiction>미국|한국|일본|중국|EU|유럽연합)\s+)?'
     r'(?:(?P<name>'+_QUOTED_NAME+r')\s+)?(?P<topic>'+_DEMAND_TOPIC+r')\s+'
-    r'(?P<restriction>수출\s*규제|수입\s*규제|생산\s*규제)\s*(?P<change>완화|폐지)'
-    r'(?P<connector>로(?:\s*인해)?|에\s*(?:따라|대응해|대비해))(?=$|[\s,])', re.I)
+    r'(?:(?P<restriction>수출\s*규제|수입\s*규제|생산\s*규제)\s*(?P<change>완화|폐지)'
+    r'|(?P<permit>수출\s*허가|수입\s*허가|생산\s*허가)\s*(?P<approval>승인))'
+    r'(?P<connector>(?:으)?로(?:\s*인해)?|에\s*(?:따라|대응해|대비해))(?=$|[\s,])', re.I)
 
 
 def policy_causes(text):
@@ -275,7 +276,8 @@ def policy_causes(text):
         name=(match['name'] or '').strip('‘’“”「」\"\'')
         if name and not re.search(r'법|규정|규칙|정책|제도|고시|조치',name):continue
         proof={'policy_name':name or None,'jurisdiction':match['jurisdiction'],
-               'restriction':re.sub(r'\s+','',match['restriction']), 'change':match['change'],
+               'restriction':re.sub(r'\s+','',match['restriction'] or match['permit']),
+               'change':match['change'] or match['approval'],
                'source_expression':match.group(),
                'expression_sha256':sha256(match.group().encode()).hexdigest()}
         topic=next(name for name,pattern in TOPICS if re.fullmatch(pattern,match['topic'],re.I))

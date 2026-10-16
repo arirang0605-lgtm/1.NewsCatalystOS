@@ -44,7 +44,7 @@ def test_literal_recovery_phase_actor_and_proof(cause,tail,phase,basis):
  TITLE.replace(CAUSE,'HBM 수요 증가로'),TITLE.replace(CAUSE,'HBM 가격 상승으로'),
  TITLE.replace(CAUSE,'HBM 주가 회복으로'),TITLE.replace(CAUSE,''),
  TITLE.replace(CAUSE,'HBM 및 DRAM 수요 회복으로'),TITLE.replace(CAUSE,'HBM 수요 회복으로 DRAM 주문 증가로'),
- TITLE.replace('생산 재개','생산 시작'),
+ TITLE.replace('생산 재개','신규 고객 확보'),
  '가상전자, AI 서버용 HBM 수요 회복으로 스마트폰용 HBM 생산 재개',
 ])
 def test_unrealized_unrelated_or_borrowed_recovery_is_not_a_recovery_event(text):

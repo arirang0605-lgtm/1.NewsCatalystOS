@@ -201,6 +201,9 @@ def build_theme_bundle(themes: list[dict], *, decision_at: datetime, now=None,
         _must_sha(row['theme_id'],'theme identity')
         row_at=_when(row['decision_at'],'theme decision')
         for ref in row['source_refs']:
+            if ref['action']=='MARKET_ENTRY' or 'market_entry' in ref:
+                from .theme_emergence import validate_market_entry
+                validate_market_entry(ref.get('market_entry'),ref['action'])
             if 'demand_scope' in ref:
                 from .theme_emergence import validate_demand_scope
                 validate_demand_scope(ref['demand_scope'],ref['topic'],ref['economic_driver'])

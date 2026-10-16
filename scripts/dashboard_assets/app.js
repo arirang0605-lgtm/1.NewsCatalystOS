@@ -2,7 +2,7 @@ const state={view:"day",date:new Date().toLocaleDateString("sv-SE",{timeZone:"As
 const $=id=>document.getElementById(id);
 let currentData=null,shown=20;
 const economicPhaseLabels={SOURCE_REPORTED:"출처 보도",ADOPTED_NOT_YET_EFFECTIVE:"의결 · 시행 전",PLANNED:"계획 단계"};
-const economicActionLabels={DELIVERY_START:"납품·공급 개시",POLICY_CHANGE:"정책 변화",BUSINESS_START:"사업·서비스 개시",PRODUCTION_START:"생산 개시",CAPACITY_ADDITION:"생산능력 확대",SUPPLY_REDUCTION:"공급 축소",CONTRACT:"계약",INVESTMENT:"투자 결정",INVESTMENT_EXECUTION:"투자 집행",CUSTOMER_ACQUISITION:"신규 고객 확보"};
+const economicActionLabels={MARKET_ENTRY:"시장 진출",DELIVERY_START:"납품·공급 개시",POLICY_CHANGE:"정책 변화",BUSINESS_START:"사업·서비스 개시",PRODUCTION_START:"생산 개시",CAPACITY_ADDITION:"생산능력 확대",SUPPLY_REDUCTION:"공급 축소",CONTRACT:"계약",INVESTMENT:"투자 결정",INVESTMENT_EXECUTION:"투자 집행",CUSTOMER_ACQUISITION:"신규 고객 확보"};
 function node(tag,cls,value){const x=document.createElement(tag);if(cls)x.className=cls;if(value!==undefined)x.textContent=value;return x}
 function status(message,error=false){$("status").textContent=message;$("status").className=error?"error":""}
 function shift(amount){const [y,m,d]=state.date.split("-").map(Number),day=new Date(Date.UTC(y,m-1,d));if(state.view==="month")day.setUTCMonth(day.getUTCMonth()+amount);else day.setUTCDate(day.getUTCDate()+amount*(state.view==="week"?7:1));state.date=day.toISOString().slice(0,10);load()}
@@ -18,7 +18,7 @@ function categoryLabel(item){
   const labels=[...new Set((item.economic_changes||[]).map(actionLabel))];
   return labels.length?labels.join(" / "):savedCategoryLabel(item);
 }
-const actionSearchTerms={DELIVERY_START:"납품 시작 납품 개시 공급 시작 공급 개시",POLICY_CHANGE:"정책 변화 규제 허가",BUSINESS_START:"사업 개시 서비스 개시 사업 시작 서비스 시작",PRODUCTION_START:"생산 개시 생산 시작 양산 가동",CAPACITY_ADDITION:"생산능력 확대 생산량 확대 공급량 확대 증설",SUPPLY_REDUCTION:"공급 축소 생산 축소 감산 공급 중단",CONTRACT:"계약 체결 공급계약 납품계약 수주",INVESTMENT:"투자 결정 투자 확정",INVESTMENT_EXECUTION:"투자 집행",CUSTOMER_ACQUISITION:"신규 고객 확보"};
+const actionSearchTerms={MARKET_ENTRY:"시장 진출 신규 시장",DELIVERY_START:"납품 시작 납품 개시 공급 시작 공급 개시",POLICY_CHANGE:"정책 변화 규제 허가",BUSINESS_START:"사업 개시 서비스 개시 사업 시작 서비스 시작",PRODUCTION_START:"생산 개시 생산 시작 양산 가동",CAPACITY_ADDITION:"생산능력 확대 생산량 확대 공급량 확대 증설",SUPPLY_REDUCTION:"공급 축소 생산 축소 감산 공급 중단",CONTRACT:"계약 체결 공급계약 납품계약 수주",INVESTMENT:"투자 결정 투자 확정",INVESTMENT_EXECUTION:"투자 집행",CUSTOMER_ACQUISITION:"신규 고객 확보"};
 function actionSearchText(changes){return (changes||[]).map(c=>[c.action,actionLabel(c),actionSearchTerms[c.action]||""].join(" ")).join(" ")}
 function matchesFinding(item,term){return !term||[item.headline,item.provider,item.category||"",savedCategoryLabel(item),categoryLabel(item),actionSearchText(item.economic_changes),JSON.stringify(item.economic_changes||[]),JSON.stringify(item.company_identity||{})].join(" ").toLocaleLowerCase().includes(term)}
 function themeTitle(theme,presentation){return presentation?.name||theme.provisional_name}

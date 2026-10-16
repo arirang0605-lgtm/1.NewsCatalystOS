@@ -124,6 +124,7 @@ ACTIONS = (
     ('INVESTMENT', r'(?:신규|새로).{0,30}투자.{0,25}(?:결정|확정)|투자.{0,15}(?:결정|확정)'),
     ('INVESTMENT_EXECUTION', r'(?<![가-힣])투자(?:를)?\s*집행'),
     ('BUSINESS_START', BUSINESS_ACTION),
+    ('MARKET_ENTRY', r'시장(?:에|으로)?\s*(?:(?:신규|본격|첫)\s*)?진출'),
     ('DELIVERY_START', r'(?:납품|공급)(?:을)?\s*(?:시작|개시)'),
     ('CUSTOMER_ACQUISITION', r'신규\s*고객(?:사)?(?:를|을|으로|로)?\s*확보'),
 )
@@ -221,7 +222,7 @@ def _demand_topic(sentence, company_names=(), pattern=_DEMAND, *, actions=ACTION
     return next(iter(topics.items())) if len(topics)==1 else None
 
 
-def company_clauses(sentence, company_names=(), *, include_investment_execution=True, include_new_customers=True, include_delivery_start=True):
+def company_clauses(sentence, company_names=(), *, include_investment_execution=True, include_new_customers=True, include_delivery_start=True, include_market_entry=True):
     """Split only explicit named subjects after an economic-action conjunction.
 
     Joint subjects and quoted names/statements remain intact. No pronoun or
@@ -230,7 +231,8 @@ def company_clauses(sentence, company_names=(), *, include_investment_execution=
     patterns=[(kind,p) for kind,p in ACTIONS
               if (include_investment_execution or kind!='INVESTMENT_EXECUTION')
               and (include_new_customers or kind!='CUSTOMER_ACQUISITION')
-              and (include_delivery_start or kind!='DELIVERY_START')]
+              and (include_delivery_start or kind!='DELIVERY_START')
+              and (include_market_entry or kind!='MARKET_ENTRY')]
     names=set(company_names)|set(COMPANIES.findall(sentence))
     names-=_NON_COMPANY_TERMS
     if not names:return [sentence]
@@ -381,8 +383,23 @@ def parse_demand_scope(expression):
     return topic,('DEMAND_CONTRACTION' if pattern is _DEMAND_CONTRACTION else 'DEMAND_EXPANSION'),demand_scope(expression,match)
 
 
+def market_entry(text):
+    """Literal named market and entry verb; no country/customer inference."""
+    match=re.match(r'(?P<market>'+_QUOTED_NAME+r'|[가-힣A-Za-z0-9][가-힣A-Za-z0-9 -]{0,79}?)'
+                   r'\s+시장(?:에|으로)?\s*(?:(?:신규|본격|첫)\s*)?진출(?=$|[\s,.!]|했|하|해|한|할|에)',text)
+    if match is None:return None
+    name=match['market'].strip('「」“”‘’"\'').strip()
+    if (not name or len(name.split())>4 or COMPANIES.search(name)
+            or re.search(r'(?:^|\s)(?:및|또는|신규|새로운|기존|해당|관련|그|다른|어떤|미확인)(?:$|\s)|[가-힣](?:와|과)(?:$|\s)|[,/·&]',name)
+            or re.search(r'(?:은|는|에게|에서|위한|따른|확보|시작|체결|진출|위해|후|전)(?:$|\s)',name)):
+        return None
+    expression=match.group()
+    return {'market_name':name,'source_expression':expression,
+            'expression_sha256':sha256(expression.encode()).hexdigest()}
+
+
 def _commercial_claim(line, cause, company_names, action, scope=None):
-    """Literal customer acquisition/delivery with a named actor and explicit cause.
+    """Literal commercial action with a named actor and explicit cause.
 
     A customer object remains in the source excerpt; it is not a second actor,
     a contract counterparty, or a verified beneficiary.
@@ -412,12 +429,21 @@ def _commercial_claim(line, cause, company_names, action, scope=None):
         product='(?:'+'|'.join(re.escape(t) for t in topics)+')'
         phrase=(r'(?:'+target+r'(?:에게|에)\s*)?(?:'+product+r'(?:을|를)?\s*)?'
                 r'(?:본격\s*|정식\s*)?(?:납품|공급)(?:을)?\s*(?:시작|개시)')
+    market=None
+    if action=='MARKET_ENTRY':
+        market=market_entry(tail.strip())
+        if (market is None or any(mentions_name(market['market_name'],n) for n in names)
+                or any(n not in {cause[0],'반도체'} and re.search(p,market['market_name'],re.I)
+                       for n,p in TOPICS)):
+            return None
+        phrase=re.escape(market['source_expression'])
     ending=r'(?P<ending>(?:했다|했습니다|한다|했으며|했고|하고|하며|했지만|할)|에\s*성공(?:했다|했고)?)?'
     plan=r'(?P<plan>\s*(?:예정|계획|목표|추진|검토|방침)(?:이다)?)?'
     match=re.fullmatch(phrase+ending+plan,tail.strip(),re.I)
     if match is None:return None
     planned=bool(match['plan']) or match['ending'] in {'할','한다'}
-    return {'actors':sorted(actors),'phase':'PLANNED' if planned else 'SOURCE_REPORTED'}
+    return {'actors':sorted(actors),'phase':'PLANNED' if planned else 'SOURCE_REPORTED',
+            **({'market_entry':market} if market else {})}
 
 
 def investment_execution_phase(text):
@@ -432,7 +458,7 @@ def investment_execution_phase(text):
 
 def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True,
                              include_policy_causes=True, include_policy_destinations=True, include_investment_execution=True,
-                             include_investment_projects=True, include_new_customers=True, include_delivery_start=True, include_demand_scopes=True):
+                             include_investment_projects=True, include_new_customers=True, include_delivery_start=True, include_demand_scopes=True, include_market_entry=True):
     """Return bounded source claims, including policy adoption before its effect.
 
     Corporate actions without an explicit common demand cause retain their own
@@ -446,6 +472,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     include_new_customers=False matches old actions/clauses without reclassifying saved events.
     include_delivery_start=False reads earlier records without changing their clause boundaries.
     include_demand_scopes=False reads old evidence without retroactive theme reassignment.
+    include_market_entry=False reads earlier actions and company-clause boundaries.
     """
     if (not isinstance(company_names,(list,tuple)) or len(company_names)>100
             or any(not isinstance(n,str) or not n.strip() or len(n)>120 for n in company_names)):
@@ -453,14 +480,15 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     action_patterns=[(kind,p) for kind,p in ACTIONS
               if (include_investment_execution or kind!='INVESTMENT_EXECUTION')
               and (include_new_customers or kind!='CUSTOMER_ACQUISITION')
-              and (include_delivery_start or kind!='DELIVERY_START')]
+              and (include_delivery_start or kind!='DELIVERY_START')
+              and (include_market_entry or kind!='MARKET_ENTRY')]
     changes = []
     seen = {}
     conflicting_scopes = set()
     units=((paragraph,clause,len(clauses)>1) for paragraph in text.splitlines()
            if paragraph.strip() and len(paragraph)<=5000
            for sentence in re.split(r'(?<=[.!?。])\s+',paragraph.strip()) if sentence.strip()
-           for clauses in [company_clauses(sentence.strip(),company_names,include_investment_execution=include_investment_execution,include_new_customers=include_new_customers,include_delivery_start=include_delivery_start)] for clause in clauses)
+           for clauses in [company_clauses(sentence.strip(),company_names,include_investment_execution=include_investment_execution,include_new_customers=include_new_customers,include_delivery_start=include_delivery_start,include_market_entry=include_market_entry)] for clause in clauses)
     for paragraph,line,scoped in units:
         past=PAST.search(line)
         # An existing customer does not make a newly reported delivery historical.
@@ -518,7 +546,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         # Alias expansion may change offsets; preserve only an exact source proof.
         if scope and scope['source_expression'] not in evidence_line:scope=None
         commercial_claims={kind:_commercial_claim(line,cause,company_names,kind,scope)
-            for kind,enabled in [('CUSTOMER_ACQUISITION',include_new_customers),('DELIVERY_START',include_delivery_start)]
+            for kind,enabled in [('CUSTOMER_ACQUISITION',include_new_customers),('DELIVERY_START',include_delivery_start),('MARKET_ENTRY',include_market_entry)]
             if enabled and not contraction}
         commercial_claim=next((c for c in commercial_claims.values() if c),None)
         if commercial_claim and policy:policy_actors=set(commercial_claim['actors'])
@@ -556,7 +584,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
             continue
         for action in actions:
             if customer_context and action!='DELIVERY_START':continue
-            if action in {'CUSTOMER_ACQUISITION','DELIVERY_START'} and not commercial_claims.get(action):continue
+            if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'} and not commercial_claims.get(action):continue
             execution_text=(next(p for p in re.split(r'\s+및\s+',action_text)
                                  if re.search(r'투자(?:를)?\s*집행',p))
                             if parallel and action=='INVESTMENT_EXECUTION' else action_text)
@@ -570,9 +598,9 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                     if not before or after-before:continue
                 if cause and any(n not in {cause[0],'반도체'} and re.search(p,action_text,re.I)
                                  for n,p in TOPICS):continue
-            if policy and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START'}:
+            if policy and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}:
                 continue
-            if order_cause and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START'}:
+            if order_cause and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}:
                 continue
             functions=business_start_functions(action_text) if action=='BUSINESS_START' else []
             topic=demand or next((name for name,pattern in TOPICS
@@ -611,10 +639,11 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 # Explicit source-named actors anchor separate clause events even
                 # when their names came from the pinned directory, not a suffix rule.
                 original_companies=companies[:]
-            if action in {'CUSTOMER_ACQUISITION','DELIVERY_START'}:
+            if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}:
                 companies=commercial_claims[action]['actors'];original_companies=companies[:]
             key = (alias['canonical_topic'] if alias else topic, driver, action, tuple(original_companies),
                    tuple(policy_cause_key(policy[2])) if policy else None)
+            if action=='MARKET_ENTRY':key+=('MARKET_ENTRY',normalized(commercial_claims[action]['market_entry']['market_name']))
             if key in seen:
                 index=seen[key]
                 prior=changes[index].get('demand_scope')
@@ -626,7 +655,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
             changes.append({'topic':topic, 'economic_driver':driver, 'action':action,
                 'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
                          else 'PLANNED' if demand_planned or (project and _BUSINESS_PLAN.search(action_text))
-                         else commercial_claims[action]['phase'] if action in {'CUSTOMER_ACQUISITION','DELIVERY_START'}
+                         else commercial_claims[action]['phase'] if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}
                          else execution_phase if action == 'INVESTMENT_EXECUTION'
                          else business_phase if action == 'BUSINESS_START'
                          else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line)
@@ -637,6 +666,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 **({'topic_alias_evidence':alias} if alias and alias['canonical_topic'] not in TOPIC_ALIASES else {}),
                 **({'investment_project':project} if project else {}),
                 **({'demand_scope':scope} if scope else {}),
+                **({'market_entry':commercial_claims[action]['market_entry']} if action=='MARKET_ENTRY' else {}),
                 **({'service_name':names[0]} if action=='BUSINESS_START' and len(names)==1 else {}),
                 **({'original_entity_ids':original_companies} if companies!=original_companies else {}),
                 'industry_tags':['SEMICONDUCTOR'] if re.search(r'반도체|HBM|DRAM|NAND|메모리|EUV|DUV|극자외선|심자외선',line,re.I) else [],

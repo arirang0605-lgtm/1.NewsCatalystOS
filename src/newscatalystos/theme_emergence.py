@@ -11,7 +11,7 @@ import sqlite3
 import re
 from urllib.parse import urlsplit, quote
 
-from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized, explicit_topic_aliases, policy_causes, policy_cause_key, investment_project, parse_demand_scope
+from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized, explicit_topic_aliases, policy_causes, policy_cause_key, investment_project, parse_demand_scope, market_entry
 from .evidence_archive import _private_root
 from .incremental_ingest import _check_state_path
 from .source_share import SourceShareError, _when, _must_sha
@@ -19,7 +19,7 @@ from .source_share import SourceShareError, _when, _must_sha
 SCHEMA = 'newscatalyst.theme_candidate.v1'
 RELATION_SCHEMA = 'newscatalyst.theme_candidate.v2'
 QUALITIES = {'OFFICIAL_SOURCE','REPORTED','INFERRED','UNVERIFIED','UNKNOWN'}
-ACTIONS = {'POLICY_CHANGE','PRODUCTION_START','CAPACITY_ADDITION','SUPPLY_REDUCTION','CONTRACT','INVESTMENT','INVESTMENT_EXECUTION','BUSINESS_START','CUSTOMER_ACQUISITION','DELIVERY_START'}
+ACTIONS = {'POLICY_CHANGE','PRODUCTION_START','CAPACITY_ADDITION','SUPPLY_REDUCTION','CONTRACT','INVESTMENT','INVESTMENT_EXECUTION','BUSINESS_START','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}
 KNOWN_TOPICS = {'euv','duv','hbm','dram','nand','반도체','액침냉각'}
 CHANGE_KEYS = {'topic','economic_driver','action','phase','entity_ids','industry_tags',
                'source_paragraph_sha256','evidence_level','verified_economic_effect'}
@@ -73,13 +73,22 @@ def _demand_key(row):
     return ('DEMAND_SCOPE',normalized(proof['destination']) if proof['status']=='EXPLICIT' else row['event_id'])
 
 
+def validate_market_entry(proof, action):
+    if (action!='MARKET_ENTRY' or not isinstance(proof,dict)
+            or not _text(proof.get('source_expression'),120)
+            or market_entry(proof['source_expression'])!=proof):
+        raise SourceShareError('invalid reported market entry')
+
+
 def validate_change(change):
-    if (not isinstance(change,dict) or set(change)-{'original_entity_ids','service_name','extraction_method','topic_alias_evidence','policy_cause','investment_project','demand_scope'}!=CHANGE_KEYS
+    if (not isinstance(change,dict) or set(change)-{'original_entity_ids','service_name','extraction_method','topic_alias_evidence','policy_cause','investment_project','demand_scope','market_entry'}!=CHANGE_KEYS
             or not _text(change['topic'],80) or change['economic_driver'] not in DRIVERS
             or change['action'] not in ACTIONS or change['evidence_level'] not in QUALITIES
             or change['phase'] not in {'SOURCE_REPORTED','ADOPTED_NOT_YET_EFFECTIVE','PLANNED'}
             or change['verified_economic_effect'] is not False):
         raise SourceShareError('invalid source economic change')
+    if change['action']=='MARKET_ENTRY' or 'market_entry' in change:
+        validate_market_entry(change.get('market_entry'),change['action'])
     if 'demand_scope' in change:validate_demand_scope(change['demand_scope'],change['topic'],change['economic_driver'])
     if 'investment_project' in change:validate_investment_project(change['investment_project'],change['action'])
     if 'extraction_method' in change and change['extraction_method']!='AI_SOURCE_SPAN_MATCHED':
@@ -101,7 +110,7 @@ def validate_change(change):
     if 'policy_cause' in change:
         validate_policy_cause(change['policy_cause'],change['topic'])
         if change['economic_driver']!='POLICY_ENABLEMENT' or change['action'] not in {
-                'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START'}:
+                'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}:
             raise SourceShareError('policy cause must describe a corporate response')
 
 
@@ -156,6 +165,7 @@ def economic_observation(change, *, origin_reference, source_url, source_id,
     if content_scope=='RSS_TITLE_METADATA':
         identity[0]=['RSS_TITLE_METADATA',change['source_paragraph_sha256']]
     if 'policy_cause' in change:identity.append(policy_cause_key(change['policy_cause']))
+    if 'market_entry' in change:identity.append(['MARKET_ENTRY',normalized(change['market_entry']['market_name'])])
     result = {'event_id':sha256(_bytes(identity)).hexdigest(),'change':change,
             'origin_reference':origin_reference,'source_url':source_url,'source_id':source_id,
             'source_available_at':source_available_at,'polarity':polarity,
@@ -508,6 +518,7 @@ def _snapshot(theme_id, rows, at, previous):
            **({'content_scope':row['content_scope']} if 'content_scope' in row else {}),
            **({'investment_project':row['change']['investment_project']} if 'investment_project' in row['change'] else {}),
            **({'demand_scope':row['change']['demand_scope']} if 'demand_scope' in row['change'] else {}),
+           **({'market_entry':row['change']['market_entry']} if 'market_entry' in row['change'] else {}),
            **({'service_name':row['change']['service_name']} if 'service_name' in row['change'] else {}),
            **({'topic_alias_evidence':row['change']['topic_alias_evidence']} if 'topic_alias_evidence' in row['change'] else {}),
            **({'policy_cause':row['change']['policy_cause']} if 'policy_cause' in row['change'] else {}),

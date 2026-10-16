@@ -34,6 +34,15 @@ def _text(value: object, name: str, limit: int) -> str:
     return value
 
 
+def _source_changes(headline,change):
+    """Match current claims or pre-market-entry clauses without rewriting data."""
+    from .economic_changes import extract_economic_changes
+    rows=extract_economic_changes(headline,company_names=change['entity_ids'])
+    if change['action']!='MARKET_ENTRY' and '진출' in headline:
+        rows+=extract_economic_changes(headline,company_names=change['entity_ids'],include_market_entry=False)
+    return rows
+
+
 def _validate_report(data: dict, now: datetime) -> datetime | None:
     """Check the stored format without rerunning economic rules or AI."""
     if (data.get("schema") != ANALYSIS_SCHEMA
@@ -114,23 +123,23 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
             raise SourceShareError("bounded title economic changes required")
         for change in changes:
             validate_change(change)
-            if change['action'] in {'CUSTOMER_ACQUISITION','DELIVERY_START'}:
+            if change['action'] in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY'}:
                 from .economic_changes import extract_economic_changes
                 if not any(all(c.get(k)==change.get(k) for k in
-                        ('topic','action','phase','economic_driver','entity_ids','policy_cause'))
-                        for c in extract_economic_changes(row['headline'],company_names=change['entity_ids'])):
+                        ('topic','action','phase','economic_driver','entity_ids','policy_cause','market_entry'))
+                        for c in _source_changes(row['headline'],change)):
                     raise SourceShareError('commercial action is not in the saved source title')
             if 'demand_scope' in change:
                 from .economic_changes import extract_economic_changes
                 if not any(all(c.get(k)==change.get(k) for k in
                         ('topic','action','phase','economic_driver','entity_ids','demand_scope'))
-                        for c in extract_economic_changes(row['headline'],company_names=change['entity_ids'])):
+                        for c in _source_changes(row['headline'],change)):
                     raise SourceShareError('demand scope is not in the saved source title')
             if 'investment_project' in change:
                 from .economic_changes import extract_economic_changes
                 if not any(all(c.get(k)==change.get(k) for k in
                         ('topic','action','phase','economic_driver','investment_project','entity_ids'))
-                        for c in extract_economic_changes(row['headline'],company_names=change['entity_ids'])):
+                        for c in _source_changes(row['headline'],change)):
                     raise SourceShareError('investment project is not in the saved source title')
             if 'policy_cause' in change:
                 from .economic_changes import extract_economic_changes
@@ -145,6 +154,8 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
                     if change['action']=='INVESTMENT':
                         extracted+=extract_economic_changes(row['headline'],**options,
                             include_policy_destinations=False,include_investment_execution=False)
+                if change['action']!='MARKET_ENTRY':
+                    extracted+=extract_economic_changes(row['headline'],**options,include_market_entry=False)
                 if change['action']!='DELIVERY_START':
                     extracted+=extract_economic_changes(row['headline'],**options,include_delivery_start=False)
                 if change['action']!='CUSTOMER_ACQUISITION':

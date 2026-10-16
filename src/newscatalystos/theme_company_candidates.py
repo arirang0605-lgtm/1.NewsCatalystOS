@@ -8,7 +8,7 @@ from hashlib import sha256
 from .theme_emergence import _bytes
 
 SCHEMA = 'newscatalyst.theme_company_candidate.v1'
-ACTION_LABELS = {'DELIVERY_START':'납품·공급 개시', 'CUSTOMER_ACQUISITION':'신규 고객 확보', 'CONTRACT':'계약', 'INVESTMENT':'투자', 'INVESTMENT_EXECUTION':'투자 집행', 'CAPACITY_ADDITION':'설비 확대',
+ACTION_LABELS = {'MARKET_ENTRY':'시장 진출', 'DELIVERY_START':'납품·공급 개시', 'CUSTOMER_ACQUISITION':'신규 고객 확보', 'CONTRACT':'계약', 'INVESTMENT':'투자', 'INVESTMENT_EXECUTION':'투자 집행', 'CAPACITY_ADDITION':'설비 확대',
                  'PRODUCTION_START':'생산 시작', 'SUPPLY_REDUCTION':'공급 축소',
                  'POLICY_CHANGE':'정책 변화', 'BUSINESS_START':'사업·서비스 시작'}
 RELATION_LABELS = {'REPORTED_DIRECT_TRANSACTION':'출처에 보고된 거래 관계',
@@ -38,6 +38,7 @@ def company_candidates(theme):
             reason=f"{ref['topic']} 관련 {ACTION_LABELS.get(ref['action'],ref['action'])} 근거에 기업이 포함됨"
             if policy:
                 reason+=f" · 보도된 원인: {policy['source_expression']}"
+            if ref.get('market_entry'):reason+=' · 명시 진출 대상: '+ref['market_entry']['source_expression']
             if ref.get('demand_scope'):
                 reason+=' · 보도된 수요처 범위: '+ref['demand_scope']['source_expression']
                 if ref['demand_scope']['status']=='UNRESOLVED':reason+=' (복수·불명확, 공통 수요처 미확인)'
@@ -47,6 +48,7 @@ def company_candidates(theme):
                 **({'investment_project':ref['investment_project']} if 'investment_project' in ref else {}),
                 **({'policy_cause':policy} if policy else {}),
                 **({'demand_scope':ref['demand_scope']} if 'demand_scope' in ref else {}),
+                **({'market_entry':ref['market_entry']} if 'market_entry' in ref else {}),
                 'event_id':ref['event_id'], 'topic':ref['topic'], 'action':ref['action'],
                 'phase':ref['phase'], 'evidence_level':ref['evidence_level'],
                 'content_scope':ref.get('content_scope','UNSPECIFIED'),
@@ -70,6 +72,8 @@ def company_candidates(theme):
         stages=sorted({link['product_stage'] for link in links})
         uncertainties=['출처에 등장하거나 관계가 보도됐다는 사실만으로 실제 수혜·투자 매력을 확정할 수 없음',
                        '매출 기여·재무·현재 가격 평가는 연결되지 않아 미확인']
+        if any(r['action']=='MARKET_ENTRY' for r in refs):
+            uncertainties.append('시장 진출은 출처 보도이며 고객·계약·실제 판매·매출·수혜는 독립 확인되지 않음')
         if any(r['action']=='DELIVERY_START' for r in refs):
             uncertainties.append('납품·공급 개시는 출처 보도이며 실제 납품·계약 이행·매출·수혜는 독립 확인되지 않음')
         if any(r['action']=='CUSTOMER_ACQUISITION' for r in refs):

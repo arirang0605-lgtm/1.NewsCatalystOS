@@ -292,7 +292,7 @@ def company_clauses(sentence, company_names=(), *, include_investment_execution=
     return [sentence[a:b].strip(' ,;') for a,b in zip(cuts,cuts[1:])]
 
 
-def _parallel_actions(action_text, cause, actors, *, include_investment_execution=True, source_line=None):
+def _parallel_actions(action_text, cause, actors, *, include_investment_execution=True, source_line=None, scope=None, supported_actions=None):
     """A bounded nominal 'action 및 action' list shares an explicit subject/cause.
 
     None preserves the ordinary single-action path; [] leaves an ambiguous
@@ -310,8 +310,8 @@ def _parallel_actions(action_text, cause, actors, *, include_investment_executio
             start=source_line.find(part,offset);end=start+len(part)
             if start<0:return None
             matches=[]
-            for kind in ('BUSINESS_START','CAPACITY_ADDITION','INVESTMENT_EXECUTION','PRODUCTION_START','CONTRACT','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY'):
-                claim=_commercial_claim(source_line,cause,actors,kind,action_span=(start,end))
+            for kind in (supported_actions or ('BUSINESS_START','CAPACITY_ADDITION','INVESTMENT_EXECUTION','PRODUCTION_START','CONTRACT','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY')):
+                claim=_commercial_claim(source_line,cause,actors,kind,scope,action_span=(start,end))
                 if claim and claim['phase']=='SOURCE_REPORTED' and claim['actors']==sorted(actors):
                     if kind=='BUSINESS_START' and len(business_start_names(part))!=1:continue
                     matches.append(kind)
@@ -561,6 +561,10 @@ def _commercial_claim(line, cause, company_names, action, scope=None, *, action_
                 or any(n not in {cause[0],'반도체'} and re.search(p,market['market_name'],re.I)
                        for n,p in TOPICS)):
             return None
+        if action_span is not None and scope and scope['status']=='EXPLICIT':
+            product='(?:'+'|'.join(re.escape(t) for t in TOPIC_ALIASES.get(cause[0],(cause[0],)))+')'
+            scoped_target=re.fullmatch(r'(.+?)용\s+'+product,market['market_name'],re.I)
+            if scoped_target and normalized(scoped_target[1])!=normalized(scope['destination']):return None
         phrase=re.escape(market['source_expression'])
     ending=r'(?P<ending>(?:했다|했습니다|한다|했으며|했고|하고|하며|했지만|할)|에\s*성공(?:했다|했고)?)?'
     plan=r'(?P<plan>\s*(?:예정|계획|목표|추진|검토|방침)(?:이다)?)?'
@@ -585,6 +589,26 @@ def policy_parallel_actions(text, *, company_names=()):
     if subject is None:return None
     actors,tail=subject
     return _parallel_actions(tail,cause,actors,source_line=text)
+
+
+
+def recovery_parallel_actions(text, *, company_names=()):
+    """Reuse literal action spans for one recovery cause and one source actor."""
+    if (not isinstance(text,str) or not 0<len(text)<=800 or any(ord(c)<32 for c in text)
+            or _DEMAND_DENIAL.search(text) or UNCERTAIN.search(text) or PAST.search(text)):
+        return None
+    matches=list(_DEMAND_RECOVERY.finditer(text))
+    if (len(matches)!=1 or '대비' in matches[0]['connector'] or policy_causes(text)
+            or any(p.search(text) for p in (_DEMAND,_ORDER_EXPANSION,_DEMAND_CONTRACTION,_PRODUCT_PRICE))):return None
+    cause=_demand_topic(text,company_names,_DEMAND_RECOVERY)
+    if cause is None:return None
+    scope=demand_scope(text,cause[1],company_names)
+    if scope and scope['status']!='EXPLICIT':return None
+    subject=_cause_subject(text,cause,set(company_names)|set(COMPANIES.findall(text)),scope)
+    if subject is None:return None
+    actors,tail=subject
+    return _parallel_actions(tail,cause,actors,source_line=text,scope=scope,
+        supported_actions=('BUSINESS_START','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY'))
 
 
 def policy_capacity_action(text, *, company_names=(), include_parallel=True):
@@ -657,7 +681,7 @@ def investment_execution_phase(text):
 
 
 def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True,
-                             include_policy_causes=True, include_policy_destinations=True, include_policy_capacity_actions=True, include_policy_contract_actions=True, include_policy_investment_actions=True, include_policy_services=True, include_policy_parallel=True, include_investment_execution=True,
+                             include_policy_causes=True, include_policy_destinations=True, include_policy_capacity_actions=True, include_policy_contract_actions=True, include_policy_investment_actions=True, include_policy_services=True, include_policy_parallel=True, include_recovery_parallel=True, include_investment_execution=True,
                              include_investment_projects=True, include_new_customers=True, include_delivery_start=True, include_demand_scopes=True, include_market_entry=True, include_product_prices=True, include_resumption=True, include_demand_recovery=True, include_adjacent_demand=True, include_adjacent_scopes=True, include_adjacent_contracts=True, include_adjacent_amounts=True, include_adjacent_reductions=True):
     """Return bounded source claims, including policy adoption before its effect.
 
@@ -672,6 +696,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     include_policy_contract_actions=False likewise preserves older contract phases and proof absence.
     include_policy_investment_actions=False likewise reads older investment phases unchanged.
     include_policy_services=False preserves the older policy action boundary without service starts.
+    include_recovery_parallel=False preserves pre-shared-recovery stored clauses.
     include_policy_parallel=False reads the earlier single-action shared-clause result unchanged.
     include_investment_execution=False reads earlier investment decisions and clause boundaries.
     include_new_customers=False matches old actions/clauses without reclassifying saved events.
@@ -791,9 +816,15 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         if policy_parallel and any(k in policy_parallel and not enabled for k,enabled in (
                 ('INVESTMENT_EXECUTION',include_investment_execution),('DELIVERY_START',include_delivery_start),
                 ('CUSTOMER_ACQUISITION',include_new_customers),('MARKET_ENTRY',include_market_entry))):policy_parallel=None
-        if policy_parallel:commercial_claims.update({k:{'actors':v['actors'],'phase':v['phase'],
+        recovery_parallel=(recovery_parallel_actions(line,company_names=company_names)
+            if recovery and include_recovery_parallel and include_parallel_actions and include_demand_scopes and line==evidence_line else None)
+        if recovery_parallel and any(k in recovery_parallel and not enabled for k,enabled in (
+                ('DELIVERY_START',include_delivery_start),('CUSTOMER_ACQUISITION',include_new_customers),
+                ('MARKET_ENTRY',include_market_entry))):recovery_parallel=None
+        shared_parallel=policy_parallel or recovery_parallel
+        if shared_parallel:commercial_claims.update({k:{'actors':v['actors'],'phase':v['phase'],
             **({'market_entry':market_entry(v['action_expression'])} if k=='MARKET_ENTRY' else {})}
-            for k,v in policy_parallel.items()})
+            for k,v in shared_parallel.items()})
         commercial_claim=next((c for c in commercial_claims.values() if c),None)
         if commercial_claim and policy:policy_actors=set(commercial_claim['actors'])
         if price:
@@ -834,14 +865,14 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 if n not in _NON_COMPANY_TERMS and cause and mentions_name(line[:cause[1].start()],n)]
         if policy:actors=sorted(policy_actors)
         if price:actors=sorted(price_actors)
-        parallel=(list(policy_parallel) if policy_parallel else _parallel_actions(action_text,cause,actors,include_investment_execution=include_investment_execution) if include_parallel_actions else None)
+        parallel=(list(shared_parallel) if shared_parallel else _parallel_actions(action_text,cause,actors,include_investment_execution=include_investment_execution) if include_parallel_actions else None)
         actions=[action] if parallel is None else parallel
         if parallel and (re.search(r'계획|예정|추진|전망|예상|지난달|과거|이미',line)
                          or _DEMAND_DENIAL.search(line)):
             continue
         for action in actions:
-            if policy_parallel and action=='BUSINESS_START':
-                names=business_start_names(policy_parallel[action]['action_expression'])
+            if shared_parallel and action=='BUSINESS_START':
+                names=business_start_names(shared_parallel[action]['action_expression'])
             if customer_context and action!='DELIVERY_START':continue
             if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'} and not commercial_claims.get(action):continue
             execution_text=(next(p for p in re.split(r'\s+및\s+',action_text)
@@ -958,6 +989,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 **({'policy_cause':policy[2]} if policy else {}),
                 **({'policy_capacity_action':policy_capacity} if policy_capacity else {}),
                 **({'policy_parallel_action':policy_parallel[action]} if policy_parallel else {}),
+                **({'recovery_parallel_action':recovery_parallel[action]} if recovery_parallel else {}),
                 **({'policy_contract_action':policy_contract} if policy_contract else {}),
                 **({'policy_investment_action':policy_investment} if policy_investment else {}),
                 **({'demand_recovery_cause':recovery_proof} if recovery_proof else {}),

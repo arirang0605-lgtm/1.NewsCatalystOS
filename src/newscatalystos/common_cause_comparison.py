@@ -3,7 +3,7 @@ import json
 from copy import deepcopy
 from hashlib import sha256
 from .theme_emergence import (_bytes,topic_key,validate_demand_scope,
-    validate_demand_recovery,validate_product_price,validate_policy_cause,validate_policy_capacity_action,validate_policy_contract_action,validate_policy_investment_action,validate_policy_parallel_action,validate_adjacent_demand)
+    validate_demand_recovery,validate_product_price,validate_policy_cause,validate_policy_capacity_action,validate_policy_contract_action,validate_policy_investment_action,validate_policy_parallel_action,validate_recovery_parallel_action,validate_adjacent_demand)
 from .theme_changes import _groups
 from .source_share import SourceShareError
 
@@ -33,6 +33,8 @@ def _cause(ref):
             validate_policy_contract_action(ref['policy_contract_action'],topic,driver,ref['action'],ref['phase'],ref.get('policy_cause'))
         if 'policy_investment_action' in ref:
             validate_policy_investment_action(ref['policy_investment_action'],topic,driver,ref['action'],ref['phase'],ref.get('policy_cause'))
+        if 'recovery_parallel_action' in ref:
+            validate_recovery_parallel_action(ref['recovery_parallel_action'],topic,driver,ref['action'],ref['phase'],ref.get('demand_recovery_cause'),ref.get('demand_scope'),ref.get('service_name'),ref.get('market_entry'))
         if 'policy_parallel_action' in ref:
             validate_policy_parallel_action(ref['policy_parallel_action'],topic,driver,ref['action'],ref['phase'],ref.get('policy_cause'),ref.get('service_name'),ref.get('market_entry'))
         if 'policy_cause' in ref:
@@ -116,6 +118,7 @@ def common_cause_comparisons(themes,candidates=None):
             if 'policy_contract_action' in ref:source['policy_contract_action']=deepcopy(ref['policy_contract_action'])
             if 'policy_investment_action' in ref:source['policy_investment_action']=deepcopy(ref['policy_investment_action'])
             if 'policy_parallel_action' in ref:source['policy_parallel_action']=deepcopy(ref['policy_parallel_action'])
+            if 'recovery_parallel_action' in ref:source['recovery_parallel_action']=deepcopy(ref['recovery_parallel_action'])
             if ref.get('economic_driver')=='POLICY_ENABLEMENT' and ref['action']=='BUSINESS_START':
                 source.update({k:deepcopy(ref[k]) for k in ('service_name','service_event_key') if k in ref})
             source.update(cause=_cause(ref),content_scope=ref.get('content_scope','UNSPECIFIED'),

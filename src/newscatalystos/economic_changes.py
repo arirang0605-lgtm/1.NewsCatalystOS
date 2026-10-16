@@ -257,27 +257,41 @@ def _parallel_actions(action_text, cause, actors):
     return list(dict.fromkeys(kinds))
 
 
-_POLICY_CAUSE = re.compile(
-    r'(?<![가-힣A-Za-z0-9])(?:(?P<jurisdiction>미국|한국|일본|중국|EU|유럽연합)\s+)?'
-    r'(?:(?P<name>'+_QUOTED_NAME+r')\s+)?(?P<topic>'+_DEMAND_TOPIC+r')\s+'
+_POLICY_COUNTRIES = r'미국|한국|일본|중국|EU|유럽연합'
+_POLICY_NAME = r'(?:(?P<name>'+_QUOTED_NAME+r')\s+)?'
+_POLICY_BODY = (
+    r'(?P<topic>'+_DEMAND_TOPIC+r')\s+'
     r'(?:(?P<restriction>수출\s*규제|수입\s*규제|생산\s*규제)\s*(?P<change>완화|폐지)'
     r'|(?P<permit>수출\s*허가|수입\s*허가|생산\s*허가)\s*(?P<approval>승인|취득))'
-    r'(?P<connector>(?:으)?로(?:\s*인해)?|에\s*(?:따라|대응해|대비해))(?=$|[\s,])', re.I)
+    r'(?P<connector>(?:으)?로(?:\s*인해)?|에\s*(?:따라|대응해|대비해))(?=$|[\s,])')
+_POLICY_CAUSE_LEGACY = re.compile(
+    r'(?<![가-힣A-Za-z0-9])(?:(?P<jurisdiction>'+_POLICY_COUNTRIES+r')\s+)?'
+    +_POLICY_NAME+_POLICY_BODY,re.I)
+_POLICY_CAUSE = re.compile(
+    r'(?<![가-힣A-Za-z0-9])(?:(?P<jurisdiction>'+_POLICY_COUNTRIES+r')(?:의)?\s+)?'
+    +_POLICY_NAME+r'(?:(?P<destination>'+_POLICY_COUNTRIES+r')향\s+)?'+_POLICY_BODY,re.I)
 
 
-def policy_causes(text):
+def policy_causes(text, *, include_destinations=True):
     """Literal reported cause, not a certified removal of a prior barrier.
 
     An unnamed restriction cannot establish the same policy across articles.
     Unlike barrier_changes, this needs no prior fact state and certifies nothing.
     """
     result=[]
-    for match in _POLICY_CAUSE.finditer(text):
+    pattern=_POLICY_CAUSE if include_destinations else _POLICY_CAUSE_LEGACY
+    for match in pattern.finditer(text):
+        destination=match.groupdict().get('destination')
+        # Do not take a suffix of an unsupported or compound geographic scope.
+        if include_destinations and re.search(r'(?:향|의)\s*(?:(?:및|와|과|또는|,)\s*)?$',text[:match.start()]):
+            continue
+        if destination and re.sub(r'\s+','',match['permit'] or '')!='수출허가':continue
         name=(match['name'] or '').strip('‘’“”「」\"\'')
         if name and not re.search(r'법|규정|규칙|정책|제도|고시|조치',name):continue
         proof={'policy_name':name or None,'jurisdiction':match['jurisdiction'],
                'restriction':re.sub(r'\s+','',match['restriction'] or match['permit']),
                'change':match['change'] or match['approval'],
+               **({'destination':destination} if destination else {}),
                'source_expression':match.group(),
                'expression_sha256':sha256(match.group().encode()).hexdigest()}
         topic=next(name for name,pattern in TOPICS if re.fullmatch(pattern,match['topic'],re.I))
@@ -286,7 +300,9 @@ def policy_causes(text):
 
 
 def policy_cause_key(proof):
-    return [normalized(proof[k] or '') for k in ('policy_name','jurisdiction','restriction','change')]
+    key=[normalized(proof[k] or '') for k in ('policy_name','jurisdiction','restriction','change')]
+    if 'destination' in proof:key.extend(['destination',normalized(proof['destination'])])
+    return key
 
 
 def _leading_company_subject(text, names):
@@ -302,7 +318,7 @@ def _leading_company_subject(text, names):
 
 
 def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True,
-                             include_policy_causes=True):
+                             include_policy_causes=True, include_policy_destinations=True):
     """Return bounded source claims, including policy adoption before its effect.
 
     Corporate actions without an explicit common demand cause retain their own
@@ -311,6 +327,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     it must not be used to rewrite old events with newly interpreted causes.
     include_parallel_actions=False likewise preserves the prior single-action reader.
     include_policy_causes=False matches old policy-only records without rewriting them.
+    include_policy_destinations=False reads earlier policy causes without reinterpreting scope.
     """
     if (not isinstance(company_names,(list,tuple)) or len(company_names)>100
             or any(not isinstance(n,str) or not n.strip() or len(n)>120 for n in company_names)):
@@ -327,7 +344,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         # Demand and economic action must be in the same sentence; unrelated
         # context elsewhere in the paragraph cannot supply the common cause.
         evidence_line=line
-        policies=policy_causes(line) if include_policy_causes else []
+        policies=policy_causes(line,include_destinations=include_policy_destinations) if include_policy_causes else []
         policy=policies[0] if len(policies)==1 else None
         if policies and (len(policies)>1 or _DEMAND_DENIAL.search(line)
                 or re.search(r'전망|예상|우려|지난해|지난달|과거|이미',line)):

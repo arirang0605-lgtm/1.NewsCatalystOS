@@ -104,6 +104,7 @@ def theme_presentation(theme):
         validate_policy_cause(proof,ref['topic'])
         label=' · '.join((proof['jurisdiction'] or '관할 미확인',
                          proof['policy_name'] or '정책명 미확인',
+                         *((['수출 목적지 '+proof['destination']] if 'destination' in proof else [])),
                          proof['restriction']+' '+proof['change']))
         scopes[(ref['topic'],label)]={'topic':ref['topic'],'label':label}
     labels=[scopes[key] for key in sorted(scopes)]

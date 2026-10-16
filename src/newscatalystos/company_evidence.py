@@ -179,6 +179,8 @@ def _clause(text,change,entity,ref):
             if not any(mentions_name(clause,n) for n in names):continue
             # Pure matching only: never persist a reinterpreted event or infer a subject.
             candidates=extract_economic_changes(clause,company_names=change['entity_ids'])
+            if 'policy_cause' in change and 'destination' not in change['policy_cause']:
+                candidates+=extract_economic_changes(clause,company_names=change['entity_ids'],include_policy_destinations=False)
             if 'policy_cause' not in change:
                 candidates+=extract_economic_changes(clause,company_names=change['entity_ids'],include_policy_causes=False)
             if ' 및 ' in clause:

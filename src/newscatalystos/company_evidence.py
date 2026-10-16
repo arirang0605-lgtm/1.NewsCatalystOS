@@ -169,13 +169,13 @@ def _body_source(ref,row,jobs,at,now):
     return None,status
 
 
-def _clause(text,change,entity,ref,*,include_investment_execution=True,include_new_customers=True):
+def _clause(text,change,entity,ref,*,include_investment_execution=True,include_new_customers=True,include_delivery_start=True):
     names=[m['source_name'] for m in ref.get('company_mappings',[]) if m['entity_id']==entity] or [entity]
     options=dict(company_names=change['entity_ids'],include_investment_execution=include_investment_execution,
-                 include_investment_projects='investment_project' in change,include_new_customers=include_new_customers)
+                 include_investment_projects='investment_project' in change,include_new_customers=include_new_customers,include_delivery_start=include_delivery_start)
     matches=[]
     for sentence in re.split(r'(?<=[.!?。])\s+',text):
-        for clause in company_clauses(sentence,change['entity_ids'],include_investment_execution=include_investment_execution,include_new_customers=include_new_customers):
+        for clause in company_clauses(sentence,change['entity_ids'],include_investment_execution=include_investment_execution,include_new_customers=include_new_customers,include_delivery_start=include_delivery_start):
             if ('topic_alias_evidence' in change
                     and change['topic_alias_evidence'] not in explicit_topic_aliases(clause)):
                 continue
@@ -198,10 +198,13 @@ def _clause(text,change,entity,ref,*,include_investment_execution=True,include_n
                         and ('investment_project' not in change or found.get('investment_project')==change['investment_project'])):
                     matches.append(clause);break
     matches=list(dict.fromkeys(matches))
+    if len(matches)!=1 and include_delivery_start and change['action']!='DELIVERY_START':
+        return _clause(text,change,entity,ref,include_investment_execution=include_investment_execution,
+                       include_new_customers=include_new_customers,include_delivery_start=False)
     if len(matches)!=1 and include_new_customers and change['action']!='CUSTOMER_ACQUISITION':
-        return _clause(text,change,entity,ref,include_investment_execution=include_investment_execution,include_new_customers=False)
+        return _clause(text,change,entity,ref,include_investment_execution=include_investment_execution,include_new_customers=False,include_delivery_start=include_delivery_start)
     if len(matches)!=1 and include_investment_execution and change['action']=='INVESTMENT':
-        return _clause(text,change,entity,ref,include_investment_execution=False,include_new_customers=include_new_customers)
+        return _clause(text,change,entity,ref,include_investment_execution=False,include_new_customers=include_new_customers,include_delivery_start=include_delivery_start)
     return matches[0] if len(matches)==1 else None
 
 

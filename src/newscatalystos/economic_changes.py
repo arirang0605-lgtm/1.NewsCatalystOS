@@ -124,6 +124,7 @@ ACTIONS = (
     ('INVESTMENT', r'(?:신규|새로).{0,30}투자.{0,25}(?:결정|확정)|투자.{0,15}(?:결정|확정)'),
     ('INVESTMENT_EXECUTION', r'(?<![가-힣])투자(?:를)?\s*집행'),
     ('BUSINESS_START', BUSINESS_ACTION),
+    ('DELIVERY_START', r'(?:납품|공급)(?:을)?\s*(?:시작|개시)'),
     ('CUSTOMER_ACQUISITION', r'신규\s*고객(?:사)?(?:를|을|으로|로)?\s*확보'),
 )
 UNCERTAIN = re.compile(r'검토\s*중|논의\s*중|가능성|(?<!\w)가정(?=$|[^\w]|하|한|해)|미확정|계획이\s*없|하지\s*않|사실이\s*아니|체결되지|취득하지|의결되지')
@@ -220,7 +221,7 @@ def _demand_topic(sentence, company_names=(), pattern=_DEMAND, *, actions=ACTION
     return next(iter(topics.items())) if len(topics)==1 else None
 
 
-def company_clauses(sentence, company_names=(), *, include_investment_execution=True, include_new_customers=True):
+def company_clauses(sentence, company_names=(), *, include_investment_execution=True, include_new_customers=True, include_delivery_start=True):
     """Split only explicit named subjects after an economic-action conjunction.
 
     Joint subjects and quoted names/statements remain intact. No pronoun or
@@ -228,7 +229,8 @@ def company_clauses(sentence, company_names=(), *, include_investment_execution=
     """
     patterns=[(kind,p) for kind,p in ACTIONS
               if (include_investment_execution or kind!='INVESTMENT_EXECUTION')
-              and (include_new_customers or kind!='CUSTOMER_ACQUISITION')]
+              and (include_new_customers or kind!='CUSTOMER_ACQUISITION')
+              and (include_delivery_start or kind!='DELIVERY_START')]
     names=set(company_names)|set(COMPANIES.findall(sentence))
     names-=_NON_COMPANY_TERMS
     if not names:return [sentence]
@@ -345,13 +347,14 @@ def _leading_company_subject(text, names):
     return actors,text[match.end():]
 
 
-def _customer_claim(line, cause, company_names):
-    """Literal customer acquisition with a named actor and explicit cause.
+def _commercial_claim(line, cause, company_names, action):
+    """Literal customer acquisition/delivery with a named actor and explicit cause.
 
     A customer object remains in the source excerpt; it is not a second actor,
     a contract counterparty, or a verified beneficiary.
     """
-    if cause is None or re.search(r'지난해|지난달|작년|과거|기존|이미|지난\s*\d+월|전망|예상|우려',line):return None
+    if cause is None or re.search(r'지난해|지난달|작년|과거|이미|지난\s*\d+월|전망|예상|우려',line):return None
+    if action=='CUSTOMER_ACQUISITION' and '기존' in line:return None
     names=set(company_names)|set(COMPANIES.findall(line))
     prefix=line[:cause[1].start()];tail=line[cause[1].end():].strip().rstrip('.。!')
     subject=_leading_company_subject(prefix,names)
@@ -365,9 +368,15 @@ def _customer_claim(line, cause, company_names):
     else:return None
     customer='(?:'+_QUOTED_NAME+'|'+'|'.join(re.escape(n) for n in sorted(names,key=lambda n:(-len(n),n)))+')'
     phrase=r'(?:신규\s*고객(?:사)?(?:를|을)?\s*확보|'+customer+r'(?:을|를)\s+신규\s*고객(?:사)?(?:으로|로)\s*확보)'
+    if action=='DELIVERY_START':
+        target=r'(?:(?:(?:신규|기존)\s*)?고객(?:사)?|'+customer+')'
+        topics=TOPIC_ALIASES.get(cause[0],(cause[0],))
+        product='(?:'+'|'.join(re.escape(t) for t in topics)+')'
+        phrase=(r'(?:'+target+r'(?:에게|에)\s*)?(?:'+product+r'(?:을|를)?\s*)?'
+                r'(?:본격\s*|정식\s*)?(?:납품|공급)(?:을)?\s*(?:시작|개시)')
     ending=r'(?P<ending>(?:했다|했습니다|한다|했으며|했고|하고|하며|했지만|할)|에\s*성공(?:했다|했고)?)?'
     plan=r'(?P<plan>\s*(?:예정|계획|목표|추진|검토|방침)(?:이다)?)?'
-    match=re.fullmatch(phrase+ending+plan,tail.strip())
+    match=re.fullmatch(phrase+ending+plan,tail.strip(),re.I)
     if match is None:return None
     planned=bool(match['plan']) or match['ending'] in {'할','한다'}
     return {'actors':sorted(actors),'phase':'PLANNED' if planned else 'SOURCE_REPORTED'}
@@ -385,7 +394,7 @@ def investment_execution_phase(text):
 
 def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True,
                              include_policy_causes=True, include_policy_destinations=True, include_investment_execution=True,
-                             include_investment_projects=True, include_new_customers=True):
+                             include_investment_projects=True, include_new_customers=True, include_delivery_start=True):
     """Return bounded source claims, including policy adoption before its effect.
 
     Corporate actions without an explicit common demand cause retain their own
@@ -397,21 +406,27 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     include_policy_destinations=False reads earlier policy causes without reinterpreting scope.
     include_investment_execution=False reads earlier investment decisions and clause boundaries.
     include_new_customers=False matches old actions/clauses without reclassifying saved events.
+    include_delivery_start=False reads earlier records without changing their clause boundaries.
     """
     if (not isinstance(company_names,(list,tuple)) or len(company_names)>100
             or any(not isinstance(n,str) or not n.strip() or len(n)>120 for n in company_names)):
         raise ValueError('bounded source company names required')
     action_patterns=[(kind,p) for kind,p in ACTIONS
               if (include_investment_execution or kind!='INVESTMENT_EXECUTION')
-              and (include_new_customers or kind!='CUSTOMER_ACQUISITION')]
+              and (include_new_customers or kind!='CUSTOMER_ACQUISITION')
+              and (include_delivery_start or kind!='DELIVERY_START')]
     changes = []
     seen = set()
     units=((paragraph,clause,len(clauses)>1) for paragraph in text.splitlines()
            if paragraph.strip() and len(paragraph)<=5000
            for sentence in re.split(r'(?<=[.!?。])\s+',paragraph.strip()) if sentence.strip()
-           for clauses in [company_clauses(sentence.strip(),company_names,include_investment_execution=include_investment_execution,include_new_customers=include_new_customers)] for clause in clauses)
+           for clauses in [company_clauses(sentence.strip(),company_names,include_investment_execution=include_investment_execution,include_new_customers=include_new_customers,include_delivery_start=include_delivery_start)] for clause in clauses)
     for paragraph,line,scoped in units:
-        if len(line) > 5000 or UNCERTAIN.search(line) or PAST.search(line):
+        past=PAST.search(line)
+        # An existing customer does not make a newly reported delivery historical.
+        customer_context=(include_delivery_start and past and not PAST.search(
+            re.sub(r'기존\s*고객(?:사)?(?=에게|에)','고객',line)))
+        if len(line) > 5000 or UNCERTAIN.search(line) or (past and not customer_context):
             continue
         # Demand and economic action must be in the same sentence; unrelated
         # context elsewhere in the paragraph cannot supply the common cause.
@@ -459,9 +474,12 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         demand=cause[0] if cause else None
         # A preceding, unrelated action cannot inherit a later demand cause.
         action_text=line[cause[1].end():] if cause else line
-        customer_claim=_customer_claim(line,cause,company_names) if include_new_customers and not contraction else None
-        if customer_claim and policy:policy_actors=set(customer_claim['actors'])
-        if (order_cause or policy) and customer_claim is None:
+        commercial_claims={kind:_commercial_claim(line,cause,company_names,kind)
+            for kind,enabled in [('CUSTOMER_ACQUISITION',include_new_customers),('DELIVERY_START',include_delivery_start)]
+            if enabled and not contraction}
+        commercial_claim=next((c for c in commercial_claims.values() if c),None)
+        if commercial_claim and policy:policy_actors=set(commercial_claim['actors'])
+        if (order_cause or policy) and commercial_claim is None:
             actors=set(company_names)|set(COMPANIES.findall(line))
             earlier={n for n in actors if mentions_name(line[:cause[1].start()],n)}
             later={n for n in actors if mentions_name(action_text,n)}
@@ -494,7 +512,8 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                          or _DEMAND_DENIAL.search(line)):
             continue
         for action in actions:
-            if action=='CUSTOMER_ACQUISITION' and customer_claim is None:continue
+            if customer_context and action!='DELIVERY_START':continue
+            if action in {'CUSTOMER_ACQUISITION','DELIVERY_START'} and not commercial_claims.get(action):continue
             execution_text=(next(p for p in re.split(r'\s+및\s+',action_text)
                                  if re.search(r'투자(?:를)?\s*집행',p))
                             if parallel and action=='INVESTMENT_EXECUTION' else action_text)
@@ -508,9 +527,9 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                     if not before or after-before:continue
                 if cause and any(n not in {cause[0],'반도체'} and re.search(p,action_text,re.I)
                                  for n,p in TOPICS):continue
-            if policy and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION'}:
+            if policy and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START'}:
                 continue
-            if order_cause and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION'}:
+            if order_cause and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','DELIVERY_START'}:
                 continue
             functions=business_start_functions(action_text) if action=='BUSINESS_START' else []
             topic=demand or next((name for name,pattern in TOPICS
@@ -548,8 +567,8 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 # Explicit source-named actors anchor separate clause events even
                 # when their names came from the pinned directory, not a suffix rule.
                 original_companies=companies[:]
-            if action=='CUSTOMER_ACQUISITION':
-                companies=customer_claim['actors'];original_companies=companies[:]
+            if action in {'CUSTOMER_ACQUISITION','DELIVERY_START'}:
+                companies=commercial_claims[action]['actors'];original_companies=companies[:]
             key = (alias['canonical_topic'] if alias else topic, driver, action, tuple(original_companies),
                    tuple(policy_cause_key(policy[2])) if policy else None)
             if key in seen:
@@ -559,7 +578,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
             changes.append({'topic':topic, 'economic_driver':driver, 'action':action,
                 'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
                          else 'PLANNED' if demand_planned or (project and _BUSINESS_PLAN.search(action_text))
-                         else customer_claim['phase'] if action == 'CUSTOMER_ACQUISITION'
+                         else commercial_claims[action]['phase'] if action in {'CUSTOMER_ACQUISITION','DELIVERY_START'}
                          else execution_phase if action == 'INVESTMENT_EXECUTION'
                          else business_phase if action == 'BUSINESS_START'
                          else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line)

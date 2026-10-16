@@ -114,12 +114,12 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
             raise SourceShareError("bounded title economic changes required")
         for change in changes:
             validate_change(change)
-            if change['action']=='CUSTOMER_ACQUISITION':
+            if change['action'] in {'CUSTOMER_ACQUISITION','DELIVERY_START'}:
                 from .economic_changes import extract_economic_changes
                 if not any(all(c.get(k)==change.get(k) for k in
                         ('topic','action','phase','economic_driver','entity_ids','policy_cause'))
                         for c in extract_economic_changes(row['headline'],company_names=change['entity_ids'])):
-                    raise SourceShareError('customer acquisition is not in the saved source title')
+                    raise SourceShareError('commercial action is not in the saved source title')
             if 'investment_project' in change:
                 from .economic_changes import extract_economic_changes
                 if not any(all(c.get(k)==change.get(k) for k in
@@ -139,6 +139,8 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
                     if change['action']=='INVESTMENT':
                         extracted+=extract_economic_changes(row['headline'],**options,
                             include_policy_destinations=False,include_investment_execution=False)
+                if change['action']!='DELIVERY_START':
+                    extracted+=extract_economic_changes(row['headline'],**options,include_delivery_start=False)
                 if change['action']!='CUSTOMER_ACQUISITION':
                     extracted+=extract_economic_changes(row['headline'],**options,include_new_customers=False)
                 if not any(all(c.get(k)==change.get(k) for k in (

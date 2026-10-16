@@ -8,7 +8,7 @@ from hashlib import sha256
 from .theme_emergence import _bytes
 
 SCHEMA = 'newscatalyst.theme_company_candidate.v1'
-ACTION_LABELS = {'CUSTOMER_ACQUISITION':'신규 고객 확보', 'CONTRACT':'계약', 'INVESTMENT':'투자', 'INVESTMENT_EXECUTION':'투자 집행', 'CAPACITY_ADDITION':'설비 확대',
+ACTION_LABELS = {'DELIVERY_START':'납품·공급 개시', 'CUSTOMER_ACQUISITION':'신규 고객 확보', 'CONTRACT':'계약', 'INVESTMENT':'투자', 'INVESTMENT_EXECUTION':'투자 집행', 'CAPACITY_ADDITION':'설비 확대',
                  'PRODUCTION_START':'생산 시작', 'SUPPLY_REDUCTION':'공급 축소',
                  'POLICY_CHANGE':'정책 변화', 'BUSINESS_START':'사업·서비스 시작'}
 RELATION_LABELS = {'REPORTED_DIRECT_TRANSACTION':'출처에 보고된 거래 관계',
@@ -66,6 +66,8 @@ def company_candidates(theme):
         stages=sorted({link['product_stage'] for link in links})
         uncertainties=['출처에 등장하거나 관계가 보도됐다는 사실만으로 실제 수혜·투자 매력을 확정할 수 없음',
                        '매출 기여·재무·현재 가격 평가는 연결되지 않아 미확인']
+        if any(r['action']=='DELIVERY_START' for r in refs):
+            uncertainties.append('납품·공급 개시는 출처 보도이며 실제 납품·계약 이행·매출·수혜는 독립 확인되지 않음')
         if any(r['action']=='CUSTOMER_ACQUISITION' for r in refs):
             uncertainties.append('신규 고객 확보는 출처 보도이며 계약 체결·매출·거래 실현은 독립 확인되지 않음')
         if not names: uncertainties.append('공시 명부와 연결된 기업명 근거가 이 결과에 없음')

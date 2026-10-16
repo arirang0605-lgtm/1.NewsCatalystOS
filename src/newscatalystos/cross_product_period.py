@@ -38,7 +38,8 @@ def period_cross_product(store,selected,current,*,since,as_of,now,query='',ident
         cs=_candidates(after,as_of,now,identity_root);prior_cs=_candidates(before,cutoff,now,identity_root)
         end=cross_product_demand(after,cs,common_cause_comparisons(after,cs),as_of=as_of,since=since,_min_products=1)
         start=cross_product_demand(before,prior_cs,common_cause_comparisons(before,prior_cs),as_of=cutoff,_min_products=1)
-        ends={g['destination_key']:g for g in end['groups']};starts={g['destination_key']:g for g in start['groups']}
+        def direction_key(g):return (g['destination_key'],g.get('economic_driver','DEMAND_EXPANSION'))
+        ends={direction_key(g):g for g in end['groups']};starts={direction_key(g):g for g in start['groups']}
         selected_ids={t['theme_id'] for t in selected}
         direct=set();search_keys={}
         for ts,candidates in [(after,cs),(before,prior_cs)]:

@@ -22,7 +22,8 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
     grouped={}
     for theme in themes:
         tid=theme['theme_id']
-        if theme['economic_driver']!='DEMAND_EXPANSION' or theme['industry_tags']!=['SEMICONDUCTOR']:continue
+        driver=theme['economic_driver']
+        if driver not in {'DEMAND_EXPANSION','DEMAND_CONTRACTION'} or theme['industry_tags']!=['SEMICONDUCTOR']:continue
         products={p for p in PRODUCTS if topic_key(p) in {topic_key(x) for x in theme['topic_aliases']}}
         if len(products)!=1:continue
         product=next(iter(products));digest=sha256(_bytes(theme)).hexdigest()
@@ -43,17 +44,18 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                 if resolved and not ID.fullmatch(resolved):resolved=None
                 for source in row['sources']:
                     if source['company_participation']!='SOURCE_EVENT_ACTOR':continue
+                    if driver=='DEMAND_CONTRACTION' and (source['action']!='SUPPLY_REDUCTION' or source['phase']!='SOURCE_REPORTED'):continue
                     if (source['event_id'] not in set(theme['event_ids'])-set(theme['invalidated_event_ids'])
                         or _when(source['recorded_at'],'recorded')>as_of
                         or _when(source['source_available_at'],'source available')>as_of):continue
                     refs=[r for r in theme['source_refs'] if r['polarity']=='SUPPORT'
                         and all(r.get(k)==source.get(k) for k in BINDING)
                         and row['entity_id'] in r['entity_ids'] and r.get('industry_tags')==['SEMICONDUCTOR']
-                        and topic_key(r.get('topic',''))==topic_key(product) and r.get('economic_driver')=='DEMAND_EXPANSION']
+                        and topic_key(r.get('topic',''))==topic_key(product) and r.get('economic_driver')==driver]
                     for ref in refs:
                         scope=ref.get('demand_scope')
                         if not scope or scope['status']!='EXPLICIT':continue
-                        validate_demand_scope(scope,ref['topic'],'DEMAND_EXPANSION')
+                        validate_demand_scope(scope,ref['topic'],driver)
                         if source['cause']['status']!='STORED_EXPRESSION':continue
                         key=normalized(scope['destination'])
                         item=items.setdefault(key,{'product':product,'theme_id':tid,'theme_snapshot_sha256':digest,
@@ -73,8 +75,10 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                         action['sources'][sha256(_bytes(observation)).hexdigest()]=observation
             for key,item in items.items():
                 scope=next(iter(next(iter(item['actions'].values()))['sources'].values()))['demand_scope']
-                group=grouped.setdefault(key,{'destination_key':key,'destination_expressions':set(),
-                    'group_id':sha256(_bytes(['CROSS_PRODUCT_DEMAND',key])).hexdigest(),'products':[]})
+                identity=['CROSS_PRODUCT_DEMAND',key]+([driver] if driver=='DEMAND_CONTRACTION' else [])
+                group=grouped.setdefault((key,driver),{'destination_key':key,'destination_expressions':set(),
+                    'group_id':sha256(_bytes(identity)).hexdigest(),'products':[],
+                    **({'economic_driver':driver} if driver=='DEMAND_CONTRACTION' else {})})
                 group['destination_expressions'].add(scope['destination'])
                 for a in item['actions'].values():a['sources']=sorted(a['sources'].values(),key=lambda s:(s['recorded_at'],s['event_id'],s['source_url']))
                 item['actions']=list(item['actions'].values());group['products'].append(item)

@@ -109,9 +109,9 @@ function renderCrossProductDemand(parent,comparison,term="",search={}){
   for(const group of comparison.groups||[]){
     const direct=group.products.some(p=>p.actions.some(a=>search[a.candidate_id]?.match_kind==="DIRECT_COMPANY"));
     if(term&&!direct&&!JSON.stringify(group).normalize("NFKC").toLowerCase().includes(term.normalize("NFKC").toLowerCase()))continue;
-    const card=node("article","finding");
-    card.append(node("h4","",(group.status==="PERIOD_CONTEXT_ONLY"?"복수 제품의 과거 비교 맥락 · ":"복수 제품 공통 원인 후보 · ")+group.destination_expressions.join(" / ")));
-    card.append(node("p","","같은 명시 수요처의 수요 증가 보도를 비교한 가설 · 기존 제품별 테마는 유지합니다. 거래·수혜·대장주 확정이 아닙니다."));
+    const card=node("article","finding"),decreasing=group.economic_driver==="DEMAND_CONTRACTION";
+    card.append(node("h4","",(group.status==="PERIOD_CONTEXT_ONLY"?"복수 제품의 과거 비교 맥락 · ":decreasing?"복수 제품 수요 감소 공통 원인 후보 · ":"복수 제품 공통 원인 후보 · ")+group.destination_expressions.join(" / ")));
+    card.append(node("p","",decreasing?"같은 명시 수요처의 수요 감소 보도를 비교한 가설 · 실제 생산량·매출·손실의 독립 확인이 아닙니다. 경제적 감소 방향과 근거 철회에 따른 후보 상태는 구별합니다. 거래·수혜·대장주 확정이 아닙니다.":"같은 명시 수요처의 수요 증가 보도를 비교한 가설 · 기존 제품별 테마는 유지합니다. 거래·수혜·대장주 확정이 아닙니다."));
     card.append(node("p","","독립 행동 "+group.distinct_action_groups+"개 · 식별된 기업 "+group.identified_company_count+"개 · 미식별 기업 맥락 "+group.unresolved_company_contexts+"개 (테마 간 동일 기업으로 합치지 않음)"));
     const change=group.period_change;
     if(change?.status==="READY"){

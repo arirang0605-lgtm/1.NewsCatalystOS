@@ -45,7 +45,7 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                 for source in row['sources']:
                     if source['company_participation']!='SOURCE_EVENT_ACTOR':continue
                     if driver=='DEMAND_CONTRACTION' and (source['action']!='SUPPLY_REDUCTION' or source['phase']!='SOURCE_REPORTED'):continue
-                    if driver=='DEMAND_RECOVERY' and (source['action'] not in {'SUPPLY_RESUMPTION','CONTRACT'} or source['phase']!='SOURCE_REPORTED'):continue
+                    if driver=='DEMAND_RECOVERY' and (source['action'] not in {'SUPPLY_RESUMPTION','CONTRACT','DELIVERY_START'} or source['phase']!='SOURCE_REPORTED'):continue
                     if (source['event_id'] not in set(theme['event_ids'])-set(theme['invalidated_event_ids'])
                         or _when(source['recorded_at'],'recorded')>as_of
                         or _when(source['source_available_at'],'source available')>as_of):continue

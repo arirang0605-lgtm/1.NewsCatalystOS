@@ -73,6 +73,7 @@ def search_completed_workspaces(
     registry_reader: Callable[[Path], ProviderRegistry],
     source_id: str | None = None, semiconductor_only: bool = False,
     limit: int = 20, now: datetime | None = None,
+    exact_identity: tuple[str, str, str] | None = None,
 ) -> dict:
     """Search bounded completed snapshots; damaged scopes are explicit partials.
 
@@ -88,6 +89,14 @@ def search_completed_workspaces(
                 or not source_id or len(source_id) > 128))
             or not isinstance(workspaces, tuple) or not 1 <= len(workspaces) <= 8):
         raise SourceShareError("invalid federated title search options")
+    if exact_identity is not None:
+        if (not isinstance(exact_identity, tuple) or len(exact_identity) != 3
+                or not isinstance(exact_identity[0], str)
+                or not 1 <= len(exact_identity[0]) <= 128
+                or any(not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{64}", value)
+                       for value in exact_identity[1:])
+                or (source_id is not None and source_id != exact_identity[0])):
+            raise SourceShareError("invalid exact saved source version")
     at = _when((now or datetime.now(timezone.utc)).isoformat(), "now")
     names, paths = set(), set()
     for workspace in workspaces:
@@ -196,6 +205,7 @@ def search_completed_workspaces(
         raise SourceShareError("search clock moved backwards")
     matches = sorted((row for row in versions.values()
                       if phrase.strip().casefold() in row["headline"].casefold()
+                      and (exact_identity is None or _identity(row) == exact_identity)
                       and (source_id is None or row["provider_id"] == source_id)
                       and (not semiconductor_only or (
                           row["semiconductor_keyword_candidate"] and row["analysis_candidate"]))),

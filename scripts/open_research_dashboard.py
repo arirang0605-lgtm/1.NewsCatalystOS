@@ -32,6 +32,7 @@ from newscatalystos.comparison_export import pack_comparison_export,query_compar
 from newscatalystos.theme_company_candidates import inclusion_presentations
 from newscatalystos.company_search import company_search_context,match_company_search
 from newscatalystos.federated_news_search import TitleSearchWorkspace,search_completed_workspaces
+from newscatalystos.news_search_evidence import saved_article_evidence
 from scripts.run_feed_triage import _registry
 from newscatalystos.common_cause_comparison import common_cause_comparisons
 from newscatalystos.company_timeline import company_timelines,select_timelines,timeline_evidence_view
@@ -82,6 +83,38 @@ class Handler(BaseHTTPRequestHandler):
             self._json(403, {"error": "local browser origin required"})
             return
         url = urlsplit(self.path)
+        if url.path == "/api/news-evidence":
+            if self.server.news_search_workspaces is None or self.server.documents is None:
+                self._json(503, {"error": "saved article evidence not configured"})
+                return
+            query = parse_qs(url.query)
+            try:
+                required = ("q", "provider_id", "event_id", "title_sha256")
+                if (set(query) - set(required) - {"as_of"}
+                        or any(len(query.get(k, [])) != 1 for k in required)
+                        or "as_of" in query and len(query["as_of"]) != 1):
+                    raise ValueError("complete exact article selection required")
+                from newscatalystos.source_share import _when
+                now = datetime.now(timezone.utc)
+                at = (_when(query["as_of"][0], "evidence as of")
+                      if "as_of" in query else now)
+                exact = tuple(query[k][0] for k in required[1:])
+                found = search_completed_workspaces(
+                    self.server.news_search_workspaces, query["q"][0],
+                    registry_reader=_registry, exact_identity=exact, limit=1, now=now,
+                )
+                if not found["results"]:
+                    self._json(404, {"error": "exact completed source version unavailable"})
+                    return
+                detail = saved_article_evidence(
+                    found["results"][0], self.server.documents / "theme_history",
+                    as_of=at, now=now,
+                )
+                detail["source_coverage_complete"] = found["coverage_complete"]
+                self._json(200, detail)
+            except (SourceShareError, OSError, ValueError, TypeError, KeyError, sqlite3.Error):
+                self._json(400, {"error": "invalid exact saved article evidence query"})
+            return
         if url.path == "/api/news-search":
             # Existing SHA-acknowledged source metadata only; no network, AI,
             # new search index, body storage, or unverified company promotion.

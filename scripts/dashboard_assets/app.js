@@ -653,6 +653,44 @@ function renderCompanyIdentities(term){
   }
 }
 
+function showSavedNewsEvidence(place,data){
+  place.replaceChildren();
+  if(data.status!=="READY"){
+    const reasons={NO_SAVED_EXACT_THEME_EVIDENCE:"이 기사 판본에 연결된 저장 경제 사건·테마 근거 없음",
+                   SOURCE_NOT_AVAILABLE_AS_OF:"선택 시점에는 해당 기사 판본이 아직 가용하지 않음"};
+    place.append(node("p","empty-small","N/A · "+(reasons[data.reason_code]||"검증된 저장 사건 근거 없음")));
+    return;
+  }
+  place.append(node("p","finding-detail","저장된 동일 기사 판본의 테마 "+data.themes.length+"개 · 독립 사실·거래·수혜 인증 아님"));
+  for(const theme of data.themes){
+    const card=node("div","news-evidence-theme");
+    card.append(node("p","",theme.name+" · "+theme.status),
+      node("p","finding-detail","테마 기록 시각: "+theme.decision_at+" · ID: "+theme.theme_id));
+    for(const event of theme.events){
+      const label=(economicActionLabels[event.action]||event.action)+" · "+(economicPhaseLabels[event.phase]||event.phase);
+      card.append(node("p","finding-detail",label+" · "+(event.active_in_theme?"활성 사건 근거":"과거/상충·철회 등 상태 확인 필요")),
+        node("p","finding-detail","보도상 사건 · "+event.topic+" · "+event.evidence_level+" · "+event.polarity));
+      card.append(node("p","finding-detail",event.companies.length?
+        "기사 근거 당사자: "+event.companies.map(c=>c.entity_id+(c.official_entity_id?" / "+c.official_entity_id:" (공식 ID 미확인)")).join(", "):
+        "N/A · 이 기사 근거에서 기업 당사자 미식별"));
+      card.append(node("p","finding-detail","출처 가용: "+event.source_available_at+" · 분석 기록: "+event.recorded_at));
+      const link=node("a","source-link","동일 기사 사건의 출처 ↗");
+      link.href=event.source_url;link.rel="noopener noreferrer";link.target="_blank";
+      card.append(link);
+    }
+    place.append(card);
+  }
+}
+async function loadSavedNewsEvidence(item,phrase,place){
+  place.replaceChildren(node("p","finding-detail","같은 기사 판본의 기존 저장 근거를 조회합니다."));
+  try{
+    const query=new URLSearchParams({q:phrase,provider_id:item.provider_id,event_id:item.event_id,title_sha256:item.title_sha256});
+    const response=await fetch("/api/news-evidence?"+query);
+    if(!response.ok)throw new Error("N/A · 이 기사 판본을 검증할 수 없습니다.");
+    showSavedNewsEvidence(place,await response.json());
+  }catch(error){place.replaceChildren(node("p","empty-small",error.message||"N/A · 근거 조회 실패"));}
+}
+
 async function searchStoredNews(event){
   event.preventDefault();
   const message=$("news-search-status"),place=$("news-search-results");
@@ -673,7 +711,11 @@ async function searchStoredNews(event){
         node("p","finding-detail","RSS 제목 메타데이터 · 기사 본문 미포함 · 사실/거래/수혜 확인 아님"));
       const link=node("a","source-link","저장 뉴스의 원래 출처 ↗");
       link.href=item.source_url;link.target="_blank";link.rel="noopener noreferrer";
-      card.append(link);place.append(card);
+      const action=node("button","news-evidence-button","경제 사건·테마·기업 근거 보기");
+      action.type="button";
+      const evidence=node("div","news-evidence-results");
+      action.addEventListener("click",()=>loadSavedNewsEvidence(item,phrase,evidence));
+      card.append(link,action,evidence);place.append(card);
     }
     if(result.has_more_matches)place.append(node("p","fineprint","검색 결과는 최신 20개까지 표시합니다."));
   }catch(error){message.textContent=error.message||"저장 뉴스 검색 실패";}

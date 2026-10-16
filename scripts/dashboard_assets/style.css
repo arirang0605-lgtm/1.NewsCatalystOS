@@ -22,3 +22,5 @@
 #more-items{display:block;width:100%;margin-top:14px;border:1px solid #dce7dd;background:#f8faf7;color:#326a4e;border-radius:9px;padding:11px;font-weight:750;cursor:pointer}
 
 .news-search-option{display:flex;align-items:center;gap:9px;margin:0 0 12px;color:#60746a;font-size:12px}.news-search-option input{width:auto}#news-search-form button{border:0;border-radius:8px;background:#173f36;color:#fff;padding:10px 14px;font-weight:750;cursor:pointer}#news-search-status{margin:12px 0}
+
+.news-evidence-button{display:block;margin:12px 0 7px;padding:9px 12px;background:#eef6ed;color:#28583c;border:1px solid #d5e7d5;border-radius:8px;font-weight:700;cursor:pointer}.news-evidence-results{font-size:12px;line-height:1.55}.news-evidence-theme{border-left:2px solid #c7dcca;padding:6px 11px;margin:10px 0}.news-evidence-theme p{margin:4px 0 7px}

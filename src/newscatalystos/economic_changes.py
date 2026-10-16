@@ -285,7 +285,8 @@ def policy_causes(text, *, include_destinations=True):
         # Do not take a suffix of an unsupported or compound geographic scope.
         if include_destinations and re.search(r'(?:향|의)\s*(?:(?:및|와|과|또는|,)\s*)?$',text[:match.start()]):
             continue
-        if destination and re.sub(r'\s+','',match['permit'] or '')!='수출허가':continue
+        scope=re.sub(r'\s+','',match['permit'] or match['restriction'])
+        if destination and scope not in {'수출허가','수출규제'}:continue
         name=(match['name'] or '').strip('‘’“”「」\"\'')
         if name and not re.search(r'법|규정|규칙|정책|제도|고시|조치',name):continue
         proof={'policy_name':name or None,'jurisdiction':match['jurisdiction'],

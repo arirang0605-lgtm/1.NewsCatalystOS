@@ -161,6 +161,15 @@ _DEMAND_CONTRACTION = re.compile(
     r'\s*(?:의\s*)?(?:수요|주문)(?:가|이)?\s*(?:감소|축소|급감)'
     r'(?P<connector>에\s*(?:대응(?:해|하여)?|따라|대비(?:해|하여))'
     r'|(?:으)?로(?:\s*인해)?|해|하여)(?=$|[\s,])',re.I)
+# Same source-topic/connector grammar as demand growth, with the natural Korean
+# subject particle for orders. This does not equate an order with realized sales.
+_ORDER_EXPANSION = re.compile(
+    r'(?<![가-힣A-Za-z0-9])(?P<topic>'+_DEMAND_TOPIC+
+    r'|[「“\"\'][^」”\"\']{2,50}[」”\"\']|[가-힣A-Za-z][가-힣A-Za-z0-9-]{1,49}?)'
+    r'\s*(?:의\s*)?주문(?:이|가)?\s*(?:증가|확대|급증)'
+    r'(?P<connector>에\s*(?:대응(?:해|하여)?|따라|힘입어|대비(?:해|하여))'
+    r'|(?:으)?로(?:\s*인해)?|해|하여)(?=$|[\s,])',re.I)
+_ORDER_GROWTH_MENTION = re.compile(r'주문(?:이|가)?\s*(?:증가|확대|급증)')
 
 
 def _demand_topic(sentence, company_names=(), pattern=_DEMAND):
@@ -218,11 +227,13 @@ def company_clauses(sentence, company_names=()):
     return [sentence[a:b].strip(' ,;') for a,b in zip(cuts,cuts[1:])]
 
 
-def extract_economic_changes(text, *, company_names=()):
+def extract_economic_changes(text, *, company_names=(), include_order_growth=True):
     """Return bounded source claims, including policy adoption before its effect.
 
     Corporate actions without an explicit common demand cause retain their own
     supply/capacity driver. A price-only article is not a capacity event.
+    include_order_growth=False is only for matching pre-existing stored evidence;
+    it must not be used to rewrite old events with newly interpreted causes.
     """
     if (not isinstance(company_names,(list,tuple)) or len(company_names)>100
             or any(not isinstance(n,str) or not n.strip() or len(n)>120 for n in company_names)):
@@ -247,14 +258,21 @@ def extract_economic_changes(text, *, company_names=()):
                 line=line.replace(proof['source_expression'],proof['canonical_topic'])
         contraction_mentioned=bool(_CONTRACTION_MENTION.search(line))
         reduction_mentioned=contraction_mentioned or bool(re.search(r'감산',line))
+        order_mentioned=include_order_growth and bool(_ORDER_GROWTH_MENTION.search(line))
+        if order_mentioned and (re.search(r'전망|예상|우려',line) or _DEMAND_DENIAL.search(line)
+                or re.search(r'(?:지난해|지난달|작년|과거|이미|지난\s*\d+월)',line)):
+            continue
         if reduction_mentioned and (re.search(r'전망|예상|우려',line)
                 or _DEMAND_DENIAL.search(line)
                 or re.search(r'(?:지난해|지난달|작년|과거|기존|이미|지난\s*\d+월).{0,60}(?:감산|축소|중단)',line)):
             continue
-        demand_matches=list(_DEMAND.finditer(line))+list(_DEMAND_CONTRACTION.finditer(line))
+        order_matches=list(_ORDER_EXPANSION.finditer(line)) if include_order_growth else []
+        demand_matches=list(_DEMAND.finditer(line))+list(_DEMAND_CONTRACTION.finditer(line))+order_matches
         if (demand_matches or scoped) and _DEMAND_DENIAL.search(line):continue
         contraction=_demand_topic(line,company_names,_DEMAND_CONTRACTION)
-        cause=contraction or _demand_topic(line, company_names)
+        order_cause=_demand_topic(line,company_names,_ORDER_EXPANSION) if order_matches else None
+        if order_matches and order_cause is None:continue
+        cause=contraction or _demand_topic(line, company_names) or order_cause
         # Multiple unresolved causes cannot borrow a known topic or actor from
         # another clause (including pronouns and omitted subjects).
         if len(demand_matches)>1:continue
@@ -268,12 +286,19 @@ def extract_economic_changes(text, *, company_names=()):
         demand=cause[0] if cause else None
         # A preceding, unrelated action cannot inherit a later demand cause.
         action_text=line[cause[1].end():] if cause else line
+        if order_cause:
+            actors=set(company_names)|set(COMPANIES.findall(line))
+            earlier={n for n in actors if mentions_name(line[:order_cause[1].start()],n)}
+            later={n for n in actors if mentions_name(action_text,n)}
+            if earlier and later-earlier:continue
         business_phase=business_start_phase(action_text)
         names=business_start_names(action_text) if business_phase else []
         # Anticipatory demand is kept in the planned path, never realized demand.
         demand_planned=bool(cause and '대비' in cause[1]['connector'])
         action = next((name for name, pattern in ACTIONS if re.search(pattern, action_text, re.I)
                        and (name!='BUSINESS_START' or business_phase)), None)
+        if order_cause and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT'}:
+            continue
         functions=business_start_functions(action_text) if action=='BUSINESS_START' else []
         topic=demand or next((name for name,pattern in TOPICS
             if re.search(pattern,evidence_line,re.I)),None) or (names[0] if len(names)==1 else None)
@@ -315,7 +340,7 @@ def extract_economic_changes(text, *, company_names=()):
                      else 'PLANNED' if demand_planned
                      else business_phase if action == 'BUSINESS_START'
                      else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line)
-                         or ((scoped or reduction_mentioned) and re.search(r'계획|추진|검토',line)) else 'SOURCE_REPORTED'),
+                         or ((scoped or reduction_mentioned or order_mentioned) and re.search(r'계획|추진|검토',line)) else 'SOURCE_REPORTED'),
             'entity_ids':companies,
             **({'topic_alias_evidence':alias} if alias and alias['canonical_topic'] not in TOPIC_ALIASES else {}),
             **({'service_name':names[0]} if action=='BUSINESS_START' and len(names)==1 else {}),

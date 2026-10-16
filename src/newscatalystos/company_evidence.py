@@ -177,7 +177,12 @@ def _clause(text,change,entity,ref):
                 continue
             if not any(mentions_name(clause,n) for n in names):continue
             # Pure matching only: never persist a reinterpreted event or infer a subject.
-            for found in extract_economic_changes(clause,company_names=change['entity_ids']):
+            candidates=extract_economic_changes(clause,company_names=change['entity_ids'])
+            # A saved pre-order-growth event retains its original driver/ID.
+            # Match its old extraction without persisting or reclassifying it.
+            if change['economic_driver']!='DEMAND_EXPANSION':
+                candidates+=extract_economic_changes(clause,company_names=change['entity_ids'],include_order_growth=False)
+            for found in candidates:
                 if all(found[k]==change[k] for k in ('topic','economic_driver','action','phase')):
                     matches.append(clause);break
     matches=list(dict.fromkeys(matches))

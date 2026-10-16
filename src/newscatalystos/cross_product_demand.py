@@ -44,7 +44,7 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                 if resolved and not ID.fullmatch(resolved):resolved=None
                 for source in row['sources']:
                     if source['company_participation']!='SOURCE_EVENT_ACTOR':continue
-                    if driver=='POLICY_ENABLEMENT' and (source['action'] not in {'PRODUCTION_START','CAPACITY_ADDITION','CONTRACT','DELIVERY_START','CUSTOMER_ACQUISITION'} or source['phase']!='SOURCE_REPORTED'):continue
+                    if driver=='POLICY_ENABLEMENT' and (source['action'] not in {'PRODUCTION_START','CAPACITY_ADDITION','CONTRACT','DELIVERY_START','CUSTOMER_ACQUISITION','MARKET_ENTRY'} or source['phase']!='SOURCE_REPORTED'):continue
                     if driver=='DEMAND_CONTRACTION' and (source['action']!='SUPPLY_REDUCTION' or source['phase']!='SOURCE_REPORTED'):continue
                     if driver=='DEMAND_RECOVERY' and (source['action'] not in {'SUPPLY_RESUMPTION','CONTRACT','DELIVERY_START','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT_EXECUTION','CUSTOMER_ACQUISITION','MARKET_ENTRY','BUSINESS_START'} or source['phase']!='SOURCE_REPORTED'):continue
                     if (source['event_id'] not in set(theme['event_ids'])-set(theme['invalidated_event_ids'])
@@ -60,6 +60,7 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                             policy=ref.get('policy_cause')
                             validate_policy_cause(policy,ref['topic'])
                             if not policy['policy_name'] or not policy['jurisdiction']:continue
+                            if ref['action']=='MARKET_ENTRY':validate_market_entry(ref.get('market_entry'),ref['action'])
                             if ref['action']=='CAPACITY_ADDITION':
                                 if 'policy_capacity_action' not in ref:continue
                                 validate_policy_capacity_action(ref['policy_capacity_action'],ref['topic'],driver,ref['action'],ref['phase'],policy)
@@ -101,7 +102,7 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                             **({'policy_cause':deepcopy(policy),**({'policy_capacity_action':deepcopy(ref['policy_capacity_action'])} if ref['action']=='CAPACITY_ADDITION' else {}),**({'policy_contract_action':deepcopy(ref['policy_contract_action'])} if ref['action']=='CONTRACT' else {})} if driver=='POLICY_ENABLEMENT' else {'demand_scope':deepcopy(scope)}),
                             'in_period':since is None or _when(source['recorded_at'],'recorded')>=since,
                             **({'demand_recovery_cause':deepcopy(proof)} if driver=='DEMAND_RECOVERY' else {}),
-                            **({'market_entry':deepcopy(ref['market_entry'])} if driver=='DEMAND_RECOVERY' and ref['action']=='MARKET_ENTRY' else {}),
+                            **({'market_entry':deepcopy(ref['market_entry'])} if driver in {'DEMAND_RECOVERY','POLICY_ENABLEMENT'} and ref['action']=='MARKET_ENTRY' else {}),
                             **({k:deepcopy(ref[k]) for k in ('service_name','service_event_key') if k in ref} if driver=='DEMAND_RECOVERY' and ref['action']=='BUSINESS_START' else {})}
                         action['sources'][sha256(_bytes(observation)).hexdigest()]=observation
             for key,item in items.items():

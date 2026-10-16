@@ -50,6 +50,7 @@ def company_candidates(theme):
             basis.append({'kind':'SOURCE_REPORTED_PARTICIPANT' if reported else 'INFERRED_ASSOCIATION',
                 'reason':reason,
                 **({'service_name':ref['service_name']} if ref.get('demand_recovery_cause') and 'service_name' in ref else {}),
+                **({'service_event_key':ref['service_event_key']} if 'service_event_key' in ref else {}),
                 **({'investment_project':ref['investment_project']} if 'investment_project' in ref else {}),
                 **({'policy_cause':policy} if policy else {}),
                 **({'demand_scope':ref['demand_scope']} if 'demand_scope' in ref else {}),

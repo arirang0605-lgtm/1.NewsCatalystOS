@@ -95,8 +95,17 @@ def validate_demand_recovery(proof,topic,driver,action):
         raise SourceShareError('invalid reported demand/order recovery cause')
 
 
+def validate_service_event_key(row):
+    if 'service_event_key' not in row:return
+    key=row['service_event_key']
+    name=row.get('service_name')
+    if (row.get('action')!='BUSINESS_START' or row.get('economic_driver')!='DEMAND_RECOVERY'
+            or not _text(name,80) or key!=sha256(normalized(name).encode()).hexdigest()):
+        raise SourceShareError('invalid explicit service event key')
+
+
 def validate_change(change):
-    if (not isinstance(change,dict) or set(change)-{'original_entity_ids','service_name','extraction_method','topic_alias_evidence','policy_cause','investment_project','demand_scope','market_entry','product_price_cause','demand_recovery_cause'}!=CHANGE_KEYS
+    if (not isinstance(change,dict) or set(change)-{'original_entity_ids','service_name','service_event_key','extraction_method','topic_alias_evidence','policy_cause','investment_project','demand_scope','market_entry','product_price_cause','demand_recovery_cause'}!=CHANGE_KEYS
             or not _text(change['topic'],80) or change['economic_driver'] not in DRIVERS
             or change['action'] not in ACTIONS or change['evidence_level'] not in QUALITIES
             or change['phase'] not in {'SOURCE_REPORTED','ADOPTED_NOT_YET_EFFECTIVE','PLANNED'}
@@ -115,6 +124,7 @@ def validate_change(change):
     if 'service_name' in change and (change['action']!='BUSINESS_START'
             or not _text(change['service_name'],80)):
         raise SourceShareError('invalid explicit service name')
+    validate_service_event_key(change)
     for field in ('entity_ids','industry_tags'):
         if (not isinstance(change[field],list) or len(change[field])>30
                 or any(not _text(x) for x in change[field])):
@@ -185,6 +195,7 @@ def economic_observation(change, *, origin_reference, source_url, source_id,
         identity[0]=['RSS_TITLE_METADATA',change['source_paragraph_sha256']]
     if 'policy_cause' in change:identity.append(policy_cause_key(change['policy_cause']))
     if 'market_entry' in change:identity.append(['MARKET_ENTRY',normalized(change['market_entry']['market_name'])])
+    if 'service_event_key' in change:identity.append(['SOURCE_NAMED_SERVICE_V1',change['service_event_key']])
     result = {'event_id':sha256(_bytes(identity)).hexdigest(),'change':change,
             'origin_reference':origin_reference,'source_url':source_url,'source_id':source_id,
             'source_available_at':source_available_at,'polarity':polarity,
@@ -541,6 +552,7 @@ def _snapshot(theme_id, rows, at, previous):
            **({'demand_recovery_cause':row['change']['demand_recovery_cause']} if 'demand_recovery_cause' in row['change'] else {}),
            **({'product_price_cause':row['change']['product_price_cause']} if 'product_price_cause' in row['change'] else {}),
            **({'service_name':row['change']['service_name']} if 'service_name' in row['change'] else {}),
+           **({'service_event_key':row['change']['service_event_key']} if 'service_event_key' in row['change'] else {}),
            **({'topic_alias_evidence':row['change']['topic_alias_evidence']} if 'topic_alias_evidence' in row['change'] else {}),
            **({'policy_cause':row['change']['policy_cause']} if 'policy_cause' in row['change'] else {}),
            'phase':row['change']['phase'],'polarity':row['polarity'],

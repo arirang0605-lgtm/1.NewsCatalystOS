@@ -132,7 +132,7 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
                     raise SourceShareError('commercial action is not in the saved source title')
             if 'demand_recovery_cause' in change:
                 if not any(all(c.get(k)==change.get(k) for k in
-                        ('topic','action','phase','economic_driver','entity_ids','demand_recovery_cause','demand_scope','service_name'))
+                        ('topic','action','phase','economic_driver','entity_ids','demand_recovery_cause','demand_scope','service_name','service_event_key'))
                         for c in _source_changes(row['headline'],change)):
                     raise SourceShareError('recovery cause is not in the saved source title')
             if 'product_price_cause' in change:

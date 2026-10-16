@@ -595,6 +595,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     changes = []
     seen = {}
     conflicting_scopes = set()
+    first_services = {}
     units=((paragraph,clause,len(clauses)>1) for paragraph in text.splitlines()
            if paragraph.strip() and len(paragraph)<=5000
            for sentence in re.split(r'(?<=[.!?。])\s+',paragraph.strip()) if sentence.strip()
@@ -798,6 +799,14 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
             key = (alias['canonical_topic'] if alias else topic, driver, action, tuple(original_companies),
                    tuple(policy_cause_key(policy[2])) if policy else None)
             if action=='MARKET_ENTRY':key+=('MARKET_ENTRY',normalized(commercial_claims[action]['market_entry']['market_name']))
+            service_event_key=None
+            if recovery and action=='BUSINESS_START' and len(names)==1:
+                # The first claim keeps its legacy identity. Explicit siblings
+                # in this source need their own stable, source-bounded identity.
+                name=normalized(names[0])
+                first=first_services.setdefault(key,name)
+                if name!=first:service_event_key=sha256(name.encode()).hexdigest()
+                key+=('SOURCE_NAMED_SERVICE',name)
             if key in seen:
                 index=seen[key]
                 prior=changes[index].get('demand_scope')
@@ -826,6 +835,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 **({'demand_scope':scope} if scope else {}),
                 **({'market_entry':commercial_claims[action]['market_entry']} if action=='MARKET_ENTRY' else {}),
                 **({'service_name':names[0]} if action=='BUSINESS_START' and len(names)==1 else {}),
+                **({'service_event_key':service_event_key} if service_event_key else {}),
                 **({'original_entity_ids':original_companies} if companies!=original_companies else {}),
                 'industry_tags':['SEMICONDUCTOR'] if re.search(r'반도체|HBM|DRAM|NAND|메모리|EUV|DUV|극자외선|심자외선',line,re.I) else [],
                 'source_paragraph_sha256':sha256(paragraph.strip().encode()).hexdigest(),

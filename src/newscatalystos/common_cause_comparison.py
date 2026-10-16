@@ -3,7 +3,7 @@ import json
 from copy import deepcopy
 from hashlib import sha256
 from .theme_emergence import (_bytes,topic_key,validate_demand_scope,
-    validate_demand_recovery,validate_product_price,validate_policy_cause,validate_adjacent_demand)
+    validate_demand_recovery,validate_product_price,validate_policy_cause,validate_policy_capacity_action,validate_adjacent_demand)
 from .theme_changes import _groups
 from .source_share import SourceShareError
 
@@ -27,6 +27,8 @@ def _cause(ref):
         if 'product_price_cause' in ref:
             validate_product_price(ref['product_price_cause'],topic,driver)
             proofs.append(('product_price_cause',ref['product_price_cause']))
+        if 'policy_capacity_action' in ref:
+            validate_policy_capacity_action(ref['policy_capacity_action'],topic,driver,ref['action'],ref['phase'],ref.get('policy_cause'))
         if 'policy_cause' in ref:
             if driver!='POLICY_ENABLEMENT':raise SourceShareError('different cause')
             validate_policy_cause(ref['policy_cause'],topic)
@@ -104,6 +106,7 @@ def common_cause_comparisons(themes,candidates=None):
                     'source_available_at','recorded_at','evidence_sha256','evidence_level','origin_reference')
             source={k:ref.get(k) for k in fields}
             if ref.get('source_binding'):source['source_binding']=deepcopy(ref['source_binding'])
+            if 'policy_capacity_action' in ref:source['policy_capacity_action']=deepcopy(ref['policy_capacity_action'])
             source.update(cause=_cause(ref),content_scope=ref.get('content_scope','UNSPECIFIED'),
                 extraction_method=ref.get('extraction_method'),
                 conflicting=ref['event_id'] in theme['conflicting_event_ids'])

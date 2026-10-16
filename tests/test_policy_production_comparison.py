@@ -240,3 +240,13 @@ def test_policy_original_expression_variants_reuse_existing_key(tmp_path):
  proofs=[s['policy_cause'] for p in group['products'] for a in p['actions'] for s in a['sources']]
  assert len({p['source_expression'] for p in proofs})==2
  assert all(policy_cause_key(p)==group['policy_cause_key'] for p in proofs)
+
+
+
+def test_legacy_policy_without_product_aliases_does_not_hide_other_themes(tmp_path):
+ store,themes,cs,comp,*_=case(tmp_path)
+ legacy=deepcopy(themes[0]);legacy.pop('topic_aliases');tid=legacy['theme_id']
+ remaining=[legacy]+themes[1:]
+ result=cross_product_demand(remaining,cs,comp,as_of=END,_min_products=1)
+ assert result['status']=='READY' and all(p['theme_id']!=tid for g in result['groups'] for p in g['products'])
+ assert len(result['groups'])==1

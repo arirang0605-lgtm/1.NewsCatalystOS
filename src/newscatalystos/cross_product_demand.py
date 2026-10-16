@@ -24,7 +24,7 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
         tid=theme['theme_id']
         driver=theme['economic_driver']
         if driver not in {'DEMAND_EXPANSION','DEMAND_CONTRACTION','DEMAND_RECOVERY','POLICY_ENABLEMENT'} or theme['industry_tags']!=['SEMICONDUCTOR']:continue
-        products={p for p in PRODUCTS if topic_key(p) in {topic_key(x) for x in theme['topic_aliases']}}
+        products={p for p in PRODUCTS if topic_key(p) in {topic_key(x) for x in theme.get('topic_aliases',[])}}
         if len(products)!=1:continue
         product=next(iter(products));digest=sha256(_bytes(theme)).hexdigest()
         cs=[c for c in candidates if c['theme_id']==tid]

@@ -90,12 +90,12 @@ function renderCompanyTimelines(parent,timeline,term,search){
   const labels={ECONOMIC_ACTION_FIRST_OBSERVED:"경제 행동 최초 관측",SOURCE_REPORTED_FOLLOWUP:"같은 행동의 후속 단계 보도",EVENT_STAGE_UPDATE:"같은 사건의 단계 갱신",ADDITIONAL_SOURCE:"같은 사건의 추가 근거",RELATION_CONTEXT_ADDED:"공급망 관계 맥락 추가"};
   for(const company of companies){
     const card=node("article","finding");card.append(node("h4","","기업별 경제 변화 타임라인 · "+company.display_names.join(" / ")));
-    card.append(node("p","","현재 활성 당사자 경제 행동 "+company.distinct_economic_actions+"개 · 기간 내 첫 관측 행동 "+company.new_actions_in_period+"개 · 공급망 관계 맥락 "+company.related_action_contexts+"개"+(company.historical_target_actions?" · 제외된 과거 행동 "+company.historical_target_actions+"개":"")));
+    card.append(node("p","","현재 활성 당사자 경제 행동 "+company.distinct_economic_actions+"개 · 기간 내 첫 관측 행동 "+company.new_actions_in_period+"개 · 공급망 관계 맥락 "+company.related_action_contexts+"개"+(company.historical_target_actions?" · 제외된 과거 행동 "+company.historical_target_actions+"개":"")+(company.historical_relation_contexts?" · 활성 제외 사건의 관계 맥락 "+company.historical_relation_contexts+"개":"")));
     if(company.identity_status!=="IDENTIFIED")card.append(node("p","","미식별 출처 이름 · 다른 테마와 기업 동일성 미확인"));
     card.append(node("p","","추가 보도·이름 연결은 새 경제 행동이 아닙니다. 자료가 없는 날짜는 약화·무효를 뜻하지 않습니다."));
     for(const entry of company.entries){
       const box=node("details","finding-detail");
-      box.append(node("summary","",entry.observed_at+" · "+(entry.in_period?labels[entry.change_kind]:"기간 이전 근거")+" · "+actionLabel(entry)+(entry.counterevidence?.length?" · 반대 근거 "+entry.counterevidence.length+"건":"")));
+      box.append(node("summary","",entry.observed_at+" · "+(entry.in_period?labels[entry.change_kind]:"기간 이전 근거")+" · "+actionLabel(entry)+(entry.counterevidence?.length?" · 반대 근거 "+entry.counterevidence.length+"건":"")+(entry.relation_counterevidence?.length?" · 관계 사건 맥락 "+entry.relation_counterevidence.length+"건":"")));
       box.append(node("p","",entry.theme_name+" · "+(entry.company_participation==="SUPPLY_CHAIN_CONTEXT"?"공급망 관계 기업 · 직접 행동 주체 아님":"출처의 사건 당사자")));
       box.append(node("p","",entry.cause.source_expression?"저장된 원인 표현: “"+entry.cause.source_expression+"”":"원인 유형: "+(economicDriverLabels[entry.economic_driver]||"미확인")+" · 원문 근거 미확인"));
       if(entry.extraction_method==="AI_SOURCE_SPAN_MATCHED")box.append(node("p","","AI 해석의 원문 근거 · 독립 사실 확인 아님"));
@@ -110,6 +110,17 @@ function renderCompanyTimelines(parent,timeline,term,search){
         box.append(node("p","","출처 가용: "+proof.source_available_at+" · 관측: "+proof.recorded_at));
         if(proof.reason)box.append(node("p","","원문 문서 ID 미확인 · 저장 출처 해시로 연결"));
       }
+      for(const proof of entry.relation_counterevidence||[]){
+        box.append(node("p","","관계 사건 맥락 · 이 기업의 직접 행동 철회·실거래 취소·수혜 소멸 확정 아님"));
+        box.append(node("p","",(proof.polarity==="RETRACT"?"연결 사건의 철회·정정 근거":"연결 사건의 상충 보도")+" · 원래 당사자 "+proof.target_actor_ids.join(" · ")));
+        if(entry.current_activity==="RELATION_EVENT_CONTEXT_EXCLUDED")box.append(node("p","","연결 사건은 현재 활성에서 제외 · 과거 관계 관측은 보존"));
+        for(const url of proof.relationship.source_urls){const a=node("a","source-link","원래 공급망 관계 출처");a.href=url;a.target="_blank";a.rel="noopener noreferrer";box.append(a)}
+        box.append(node("p","","관계 출처 가용: "+proof.relationship.source_available_at+" · 관계 확보: "+proof.relationship.linked_at));
+        const a=node("a","source-link","연결 사건의 반대 근거 출처");a.href=proof.source_url;a.target="_blank";a.rel="noopener noreferrer";box.append(a);
+        box.append(node("p","","관계 사건 맥락 확보: "+proof.context_observed_at+" · 반대 근거 가용: "+proof.source_available_at+" · 관측: "+proof.recorded_at+" · 근거 수준: "+({OFFICIAL_SOURCE:"공식 출처 보도",REPORTED:"출처 보도",INFERRED:"추론"}[proof.evidence_level]||"미확인")));
+        if(proof.reason)box.append(node("p","","문서 ID 미확인 · 저장 바인딩/해시로 관계 맥락 연결"));
+      }
+      if(entry.company_participation==="SUPPLY_CHAIN_CONTEXT"&&!entry.relation_counterevidence?.length)box.append(node("p","","관계 사건 반대 근거: 검증된 연결 없음"));
       renderEventImpactPaths(box,entry);card.append(box);
     }
     parent.append(card);

@@ -51,7 +51,8 @@ def company_timelines(themes,candidates,context,comparisons,*,as_of,since=None):
                 'theme_id':theme['theme_id'],'theme_name':theme_presentation(theme)['name'],
                 'theme_snapshot_sha256':snapshot,'decision_at':theme['decision_at'],
                 'economic_driver':theme['economic_driver'],'cause':cause,'action_group_id':find(source['event_id']),
-                'current_activity':'ACTIVE','counterevidence':[],
+                'current_activity':'ACTIVE','counterevidence':[],'relation_counterevidence':[],
+                'relation_counterevidence_status':'NO_VERIFIED_CONTEXT' if related else 'NOT_APPLICABLE',
                 'identity_available_at':identity['decision_at'] if identified and not ID.fullmatch(c['entity_id']) else None}
             company['entries'][sha256(_bytes(entry)).hexdigest()]=entry
     result=[]

@@ -201,6 +201,9 @@ def build_theme_bundle(themes: list[dict], *, decision_at: datetime, now=None,
         _must_sha(row['theme_id'],'theme identity')
         row_at=_when(row['decision_at'],'theme decision')
         for ref in row['source_refs']:
+            if 'policy_cause' in ref:
+                from .theme_emergence import validate_policy_cause
+                validate_policy_cause(ref['policy_cause'],ref['topic'])
             if 'topic_alias_evidence' in ref:
                 from .theme_emergence import validate_alias_evidence
                 validate_alias_evidence(ref['topic_alias_evidence'],ref['topic'])

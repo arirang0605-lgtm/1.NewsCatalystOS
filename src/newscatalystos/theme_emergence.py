@@ -11,7 +11,7 @@ import sqlite3
 import re
 from urllib.parse import urlsplit, quote
 
-from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized, explicit_topic_aliases
+from .economic_changes import DRIVERS, TOPIC_ALIASES, normalized, explicit_topic_aliases, policy_causes, policy_cause_key
 from .evidence_archive import _private_root
 from .incremental_ingest import _check_state_path
 from .source_share import SourceShareError, _when, _must_sha
@@ -47,8 +47,16 @@ def validate_alias_evidence(proof,topic):
         raise SourceShareError('invalid explicit topic alias evidence')
 
 
+def validate_policy_cause(proof, topic):
+    if not isinstance(proof,dict) or not _text(proof.get('source_expression'),200):
+        raise SourceShareError('invalid reported policy cause')
+    parsed=policy_causes(proof['source_expression'])
+    if len(parsed)!=1 or parsed[0][0]!=topic or parsed[0][2]!=proof:
+        raise SourceShareError('policy cause does not match source expression')
+
+
 def validate_change(change):
-    if (not isinstance(change,dict) or set(change)-{'original_entity_ids','service_name','extraction_method','topic_alias_evidence'}!=CHANGE_KEYS
+    if (not isinstance(change,dict) or set(change)-{'original_entity_ids','service_name','extraction_method','topic_alias_evidence','policy_cause'}!=CHANGE_KEYS
             or not _text(change['topic'],80) or change['economic_driver'] not in DRIVERS
             or change['action'] not in ACTIONS or change['evidence_level'] not in QUALITIES
             or change['phase'] not in {'SOURCE_REPORTED','ADOPTED_NOT_YET_EFFECTIVE','PLANNED'}
@@ -70,6 +78,11 @@ def validate_change(change):
             raise SourceShareError('invalid original economic entities')
     _must_sha(change['source_paragraph_sha256'],'economic evidence')
     if 'topic_alias_evidence' in change:validate_alias_evidence(change['topic_alias_evidence'],change['topic'])
+    if 'policy_cause' in change:
+        validate_policy_cause(change['policy_cause'],change['topic'])
+        if change['economic_driver']!='POLICY_ENABLEMENT' or change['action'] not in {
+                'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT'}:
+            raise SourceShareError('policy cause must describe a corporate response')
 
 
 def topic_key(topic):
@@ -99,6 +112,7 @@ def economic_observation(change, *, origin_reference, source_url, source_id,
     # This does not infer a publisher's original release URL.
     if content_scope=='RSS_TITLE_METADATA':
         identity[0]=['RSS_TITLE_METADATA',change['source_paragraph_sha256']]
+    if 'policy_cause' in change:identity.append(policy_cause_key(change['policy_cause']))
     result = {'event_id':sha256(_bytes(identity)).hexdigest(),'change':change,
             'origin_reference':origin_reference,'source_url':source_url,'source_id':source_id,
             'source_available_at':source_available_at,'polarity':polarity,
@@ -142,6 +156,10 @@ def _validate_observation(row):
 def _theme_id(row):
     c=row['change']
     key=[topic_key(c.get('topic_alias_evidence',{}).get('canonical_topic',c['topic'])),c['economic_driver']]
+    if 'policy_cause' in c:
+        proof=c['policy_cause']
+        key.append(['REPORTED_POLICY',policy_cause_key(proof)]
+                   if proof['policy_name'] and proof['jurisdiction'] else row['event_id'])
     if c['economic_driver']=='UNKNOWN':
         key.append(row['event_id'] if row.get('content_scope')=='RSS_TITLE_METADATA'
                    else row['origin_reference'])
@@ -410,12 +428,15 @@ def _snapshot(theme_id, rows, at, previous):
            **({'content_scope':row['content_scope']} if 'content_scope' in row else {}),
            **({'service_name':row['change']['service_name']} if 'service_name' in row['change'] else {}),
            **({'topic_alias_evidence':row['change']['topic_alias_evidence']} if 'topic_alias_evidence' in row['change'] else {}),
+           **({'policy_cause':row['change']['policy_cause']} if 'policy_cause' in row['change'] else {}),
            'phase':row['change']['phase'],'polarity':row['polarity'],
            'supersedes_event_id':row['supersedes_event_id']} for row,seen in rows]
     history=(previous['history'][:] if previous else [])
     history.append({'status':state,'decision_at':at.isoformat(),'event_count':len(independent)})
     return {'schema_version':SCHEMA,'theme_id':theme_id,
-        'provisional_name':(previous['provisional_name'] if previous else display_topic+' · '+DRIVERS[first['economic_driver']]),
+        'provisional_name':(previous['provisional_name'] if previous else display_topic+' · '+
+            ((first['policy_cause']['policy_name'] or '정책명 미확인')+' · ' if 'policy_cause' in first else '')+
+            DRIVERS[first['economic_driver']]),
         'parent_theme_id':('taxonomy:semiconductor' if topic_key(first['topic']) in {'hbm','dram','nand','euv','duv'} else None),
         'topic_classification':'KNOWN_TOPIC' if topic_key(first['topic']) in KNOWN_TOPICS else 'PROVISIONAL_TOPIC',
         'topic_aliases':aliases,

@@ -34,8 +34,13 @@ def company_candidates(theme):
         basis=[]
         for ref in refs:
             reported=ref['evidence_level'] in {'OFFICIAL_SOURCE','REPORTED'}
+            policy=ref.get('policy_cause')
+            reason=f"{ref['topic']} 관련 {ACTION_LABELS.get(ref['action'],ref['action'])} 근거에 기업이 포함됨"
+            if policy:
+                reason+=f" · 보도된 원인: {policy['source_expression']}"
             basis.append({'kind':'SOURCE_REPORTED_PARTICIPANT' if reported else 'INFERRED_ASSOCIATION',
-                'reason':f"{ref['topic']} 관련 {ACTION_LABELS.get(ref['action'],ref['action'])} 근거에 기업이 포함됨",
+                'reason':reason,
+                **({'policy_cause':policy} if policy else {}),
                 'event_id':ref['event_id'], 'topic':ref['topic'], 'action':ref['action'],
                 'phase':ref['phase'], 'evidence_level':ref['evidence_level'],
                 'content_scope':ref.get('content_scope','UNSPECIFIED'),
@@ -57,6 +62,12 @@ def company_candidates(theme):
         if not names: uncertainties.append('공시 명부와 연결된 기업명 근거가 이 결과에 없음')
         if any(r.get('content_scope')=='RSS_TITLE_METADATA' for r in refs):
             uncertainties.append('제목 근거 포함: 본문상의 역할·계약 조건은 확인되지 않음')
+        if any(r.get('policy_cause') for r in refs):
+            uncertainties.append('정책과 기업 행동의 인과는 출처 보도이며 장벽 해소·수혜를 독립 확인하지 않음')
+        if any(r.get('policy_cause') and not r['policy_cause']['policy_name'] for r in refs):
+            uncertainties.append('정책명 미확인: 다른 기업 기사와 동일 정책으로 연결하지 않음')
+        if any(r.get('policy_cause') and not r['policy_cause']['jurisdiction'] for r in refs):
+            uncertainties.append('정책 관할 미확인: 다른 기업 기사와 동일 정책으로 연결하지 않음')
         if any(r['phase']!='SOURCE_REPORTED' for r in refs) or any(
                 x['relation_kind']=='ANNOUNCED_SUPPLY_PLAN' for x in links):
             uncertainties.append('계획 또는 시행 전 근거 포함: 집행·공급 실현 미확인')

@@ -257,7 +257,38 @@ def _parallel_actions(action_text, cause, actors):
     return list(dict.fromkeys(kinds))
 
 
-def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True):
+_POLICY_CAUSE = re.compile(
+    r'(?<![가-힣A-Za-z0-9])(?:(?P<jurisdiction>미국|한국|일본|중국|EU|유럽연합)\s+)?'
+    r'(?:(?P<name>'+_QUOTED_NAME+r')\s+)?(?P<topic>'+_DEMAND_TOPIC+r')\s+'
+    r'(?P<restriction>수출\s*규제|수입\s*규제|생산\s*규제)\s*(?P<change>완화|폐지)'
+    r'(?P<connector>로(?:\s*인해)?|에\s*(?:따라|대응해|대비해))(?=$|[\s,])', re.I)
+
+
+def policy_causes(text):
+    """Literal reported cause, not a certified removal of a prior barrier.
+
+    An unnamed restriction cannot establish the same policy across articles.
+    Unlike barrier_changes, this needs no prior fact state and certifies nothing.
+    """
+    result=[]
+    for match in _POLICY_CAUSE.finditer(text):
+        name=(match['name'] or '').strip('‘’“”「」\"\'')
+        if name and not re.search(r'법|규정|규칙|정책|제도|고시|조치',name):continue
+        proof={'policy_name':name or None,'jurisdiction':match['jurisdiction'],
+               'restriction':re.sub(r'\s+','',match['restriction']), 'change':match['change'],
+               'source_expression':match.group(),
+               'expression_sha256':sha256(match.group().encode()).hexdigest()}
+        topic=next(name for name,pattern in TOPICS if re.fullmatch(pattern,match['topic'],re.I))
+        result.append((topic,match,proof))
+    return result
+
+
+def policy_cause_key(proof):
+    return [normalized(proof[k] or '') for k in ('policy_name','jurisdiction','restriction','change')]
+
+
+def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True,
+                             include_policy_causes=True):
     """Return bounded source claims, including policy adoption before its effect.
 
     Corporate actions without an explicit common demand cause retain their own
@@ -265,6 +296,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     include_order_growth=False is only for matching pre-existing stored evidence;
     it must not be used to rewrite old events with newly interpreted causes.
     include_parallel_actions=False likewise preserves the prior single-action reader.
+    include_policy_causes=False matches old policy-only records without rewriting them.
     """
     if (not isinstance(company_names,(list,tuple)) or len(company_names)>100
             or any(not isinstance(n,str) or not n.strip() or len(n)>120 for n in company_names)):
@@ -281,6 +313,12 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         # Demand and economic action must be in the same sentence; unrelated
         # context elsewhere in the paragraph cannot supply the common cause.
         evidence_line=line
+        policies=policy_causes(line) if include_policy_causes else []
+        policy=policies[0] if len(policies)==1 else None
+        if policies and (len(policies)>1 or _DEMAND_DENIAL.search(line)
+                or re.search(r'전망|예상|우려|지난해|지난달|과거|이미',line)):
+            continue
+        if policy and re.search(r'(?:및|와|과|또는)\s*$',line[:policy[1].start()]):continue
         alias_proofs=explicit_topic_aliases(line,company_names)
         # Resolve the paired noun in demand syntax, but retain a later bare
         # acronym as the source topic so an existing event ID cannot change.
@@ -303,7 +341,8 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         contraction=_demand_topic(line,company_names,_DEMAND_CONTRACTION)
         order_cause=_demand_topic(line,company_names,_ORDER_EXPANSION) if order_matches else None
         if order_matches and order_cause is None:continue
-        cause=contraction or _demand_topic(line, company_names) or order_cause
+        if policy and demand_matches:continue
+        cause=(policy[:2] if policy else None) or contraction or _demand_topic(line, company_names) or order_cause
         # Multiple unresolved causes cannot borrow a known topic or actor from
         # another clause (including pronouns and omitted subjects).
         if len(demand_matches)>1:continue
@@ -317,11 +356,16 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         demand=cause[0] if cause else None
         # A preceding, unrelated action cannot inherit a later demand cause.
         action_text=line[cause[1].end():] if cause else line
-        if order_cause:
+        if order_cause or policy:
             actors=set(company_names)|set(COMPANIES.findall(line))
-            earlier={n for n in actors if mentions_name(line[:order_cause[1].start()],n)}
+            earlier={n for n in actors if mentions_name(line[:cause[1].start()],n)}
             later={n for n in actors if mentions_name(action_text,n)}
             if earlier and later-earlier:continue
+            if policy and (not earlier or later-earlier):continue
+            if policy and (re.search(r'(?:그|해당|다른)\s*(?:회사|기업)|(?<!\w)\w+(?:은|는)\s',action_text)
+                    or any(name not in {policy[0],'반도체'} and re.search(pattern,action_text,re.I)
+                           for name,pattern in TOPICS)):
+                continue
         business_phase=business_start_phase(action_text)
         names=business_start_names(action_text) if business_phase else []
         # Anticipatory demand is kept in the planned path, never realized demand.
@@ -336,6 +380,8 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                          or _DEMAND_DENIAL.search(line)):
             continue
         for action in actions:
+            if policy and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT'}:
+                continue
             if order_cause and action not in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT'}:
                 continue
             functions=business_start_functions(action_text) if action=='BUSINESS_START' else []
@@ -353,7 +399,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
             if contraction and (action!='SUPPLY_REDUCTION' or not re.search(
                     r'반도체|HBM|DRAM|NAND|메모리|EUV|DUV|극자외선|심자외선',line,re.I)):
                 continue
-            driver = ('POLICY_ENABLEMENT' if action == 'POLICY_CHANGE' else
+            driver = ('POLICY_ENABLEMENT' if policy or action == 'POLICY_CHANGE' else
                       'DEMAND_CONTRACTION' if contraction else
                       'SUPPLY_CONTRACTION' if action == 'SUPPLY_REDUCTION' else
                       'DEMAND_EXPANSION' if demand else
@@ -366,11 +412,15 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 if mentions_name(line,name) and not any(normalized(x)==normalized(name) for x in companies):
                     companies.append(name)
             companies=sorted(set(companies[:30]))
+            if policy:
+                companies=sorted(earlier-_NON_COMPANY_TERMS)
+                original_companies=companies[:]
             if scoped:
                 # Explicit source-named actors anchor separate clause events even
                 # when their names came from the pinned directory, not a suffix rule.
                 original_companies=companies[:]
-            key = (alias['canonical_topic'] if alias else topic, driver, action, tuple(original_companies))
+            key = (alias['canonical_topic'] if alias else topic, driver, action, tuple(original_companies),
+                   tuple(policy_cause_key(policy[2])) if policy else None)
             if key in seen:
                 continue
             seen.add(key)
@@ -379,8 +429,10 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                          else 'PLANNED' if demand_planned
                          else business_phase if action == 'BUSINESS_START'
                          else 'PLANNED' if re.search(r'예정|할 계획|할 방침', line)
-                             or ((scoped or reduction_mentioned or order_mentioned) and re.search(r'계획|추진|검토',line)) else 'SOURCE_REPORTED'),
+                             or ((scoped or reduction_mentioned or order_mentioned or policy)
+                                 and re.search(r'계획|추진|검토',action_text if policy else line)) else 'SOURCE_REPORTED'),
                 'entity_ids':companies,
+                **({'policy_cause':policy[2]} if policy else {}),
                 **({'topic_alias_evidence':alias} if alias and alias['canonical_topic'] not in TOPIC_ALIASES else {}),
                 **({'service_name':names[0]} if action=='BUSINESS_START' and len(names)==1 else {}),
                 **({'original_entity_ids':original_companies} if companies!=original_companies else {}),

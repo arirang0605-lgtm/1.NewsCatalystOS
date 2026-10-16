@@ -114,6 +114,12 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
             raise SourceShareError("bounded title economic changes required")
         for change in changes:
             validate_change(change)
+            if 'policy_cause' in change:
+                from .economic_changes import extract_economic_changes
+                extracted=extract_economic_changes(row['headline'],company_names=change['entity_ids'])
+                if not any(all(c.get(k)==change.get(k) for k in (
+                        'topic','action','phase','economic_driver','policy_cause')) for c in extracted):
+                    raise SourceShareError('policy response is not in the saved source title')
             if 'topic_alias_evidence' in change:
                 import re
                 from .economic_changes import explicit_topic_aliases, company_clauses

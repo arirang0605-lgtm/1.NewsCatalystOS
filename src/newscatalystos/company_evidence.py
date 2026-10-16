@@ -97,6 +97,7 @@ def _reports(root,documents,now):
 
 def _change_matches(change,ref):
     if change.get('topic_alias_evidence')!=ref.get('topic_alias_evidence'):return False
+    if change.get('policy_cause')!=ref.get('policy_cause'):return False
     if any(change.get(k)!=ref.get(k) for k in ('topic','action','phase','economic_driver')):return False
     if change['source_paragraph_sha256']!=ref['evidence_sha256']:return False
     event=economic_observation(change,origin_reference=ref['origin_reference'],source_url=ref['source_url'],
@@ -178,6 +179,8 @@ def _clause(text,change,entity,ref):
             if not any(mentions_name(clause,n) for n in names):continue
             # Pure matching only: never persist a reinterpreted event or infer a subject.
             candidates=extract_economic_changes(clause,company_names=change['entity_ids'])
+            if 'policy_cause' not in change:
+                candidates+=extract_economic_changes(clause,company_names=change['entity_ids'],include_policy_causes=False)
             if ' 및 ' in clause:
                 candidates+=extract_economic_changes(clause,company_names=change['entity_ids'],include_parallel_actions=False)
             # A saved pre-order-growth event retains its original driver/ID.
@@ -185,7 +188,8 @@ def _clause(text,change,entity,ref):
             if change['economic_driver']!='DEMAND_EXPANSION':
                 candidates+=extract_economic_changes(clause,company_names=change['entity_ids'],include_order_growth=False,include_parallel_actions=False)
             for found in candidates:
-                if all(found[k]==change[k] for k in ('topic','economic_driver','action','phase')):
+                if (all(found[k]==change[k] for k in ('topic','economic_driver','action','phase'))
+                        and found.get('policy_cause')==change.get('policy_cause')):
                     matches.append(clause);break
     matches=list(dict.fromkeys(matches))
     return matches[0] if len(matches)==1 else None

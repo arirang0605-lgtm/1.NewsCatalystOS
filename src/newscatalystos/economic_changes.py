@@ -287,6 +287,18 @@ def policy_cause_key(proof):
     return [normalized(proof[k] or '') for k in ('policy_name','jurisdiction','restriction','change')]
 
 
+def _leading_company_subject(text, names):
+    """Only an explicit leading subject, never an object, quote or pronoun."""
+    names=set(names)-_NON_COMPANY_TERMS
+    if not names:return None
+    name='(?:'+'|'.join(re.escape(n) for n in sorted(names,key=lambda n:(-len(n),n)))+')'
+    match=re.match(r'\s*(?P<subject>'+name+r'(?:\s*(?:와|과|및|,|·)\s*'+name+
+                   r')*)(?:(?:은|는|이|가)\s+|,\s+)',text)
+    if match is None:return None
+    actors={n for n in names if mentions_name(match['subject'],n)}
+    return actors,text[match.end():]
+
+
 def extract_economic_changes(text, *, company_names=(), include_order_growth=True, include_parallel_actions=True,
                              include_policy_causes=True):
     """Return bounded source claims, including policy adoption before its effect.
@@ -361,7 +373,15 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
             earlier={n for n in actors if mentions_name(line[:cause[1].start()],n)}
             later={n for n in actors if mentions_name(action_text,n)}
             if earlier and later-earlier:continue
-            if policy and (not earlier or later-earlier):continue
+            policy_actors=earlier
+            if policy and not earlier:
+                # A cause-first sentence can name its own subject. Do not carry
+                # another actor or unparsed introductory clause across the cause.
+                if line[:cause[1].start()].strip(' ,;'):continue
+                subject=_leading_company_subject(action_text,actors)
+                if subject is None:continue
+                policy_actors,action_text=subject
+                if not policy_actors or later-policy_actors:continue
             if policy and (re.search(r'(?:그|해당|다른)\s*(?:회사|기업)|(?<!\w)\w+(?:은|는)\s',action_text)
                     or any(name not in {policy[0],'반도체'} and re.search(pattern,action_text,re.I)
                            for name,pattern in TOPICS)):
@@ -374,6 +394,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                        and (name!='BUSINESS_START' or business_phase)), None)
         actors=[n for n in set(company_names)|set(COMPANIES.findall(line))
                 if n not in _NON_COMPANY_TERMS and cause and mentions_name(line[:cause[1].start()],n)]
+        if policy:actors=sorted(policy_actors)
         parallel=_parallel_actions(action_text,cause,actors) if include_parallel_actions else None
         actions=[action] if parallel is None else parallel
         if parallel and (re.search(r'계획|예정|추진|전망|예상|지난달|과거|이미',line)
@@ -413,7 +434,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                     companies.append(name)
             companies=sorted(set(companies[:30]))
             if policy:
-                companies=sorted(earlier-_NON_COMPANY_TERMS)
+                companies=sorted(policy_actors-_NON_COMPANY_TERMS)
                 original_companies=companies[:]
             if scoped:
                 # Explicit source-named actors anchor separate clause events even

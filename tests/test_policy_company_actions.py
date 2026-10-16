@@ -70,8 +70,8 @@ def test_anticipation_parallel_and_separate_company_clauses():
     assert [r['policy_cause']['policy_name'] for r in rows]==['첨단칩통제법','별도통제법']
 
 
-def case(tmp_path):
-    titles=[TITLE,'새빛소재, '+CAUSE+' 생산능력 확대','미래장비, '+CAUSE+' 신규 공장 투자 결정']
+def case(tmp_path, *, titles=None):
+    titles=titles or [TITLE,'새빛소재, '+CAUSE+' 생산능력 확대','미래장비, '+CAUSE+' 신규 공장 투자 결정']
     info=setup(tmp_path,titles[0])
     collect(info[0],info[1],GOV,[(f'policy-{i}',t,f'https://gov.example.org/policy-{i}') for i,t in enumerate(titles[1:],1)],at=NOW+timedelta(hours=1))
     at=datetime.now(timezone.utc)+timedelta(seconds=1)

@@ -65,8 +65,10 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                                 actors={m['source_name']:m['entity_id'] for m in ref.get('company_mappings',[])}
                                 if not all(actors.get(a,a) in ref['entity_ids'] for a in ref['policy_parallel_action']['actors']):raise SourceShareError('shared action actor mismatch')
                             if ref['action']=='BUSINESS_START':
-                                if not ref.get('service_name'):continue
-                                if not _text(ref['service_name'],80):raise SourceShareError('invalid explicit service name')
+                                # A validated parallel proof also carries a concrete
+                                # function without asserting a source-named identity.
+                                if not ref.get('service_name') and 'policy_parallel_action' not in ref:continue
+                                if ref.get('service_name') is not None and not _text(ref['service_name'],80):raise SourceShareError('invalid explicit service name')
                                 validate_service_event_key(ref)
                             if ref['action']=='MARKET_ENTRY':validate_market_entry(ref.get('market_entry'),ref['action'])
                             if ref['action']=='CAPACITY_ADDITION':
@@ -115,8 +117,10 @@ def cross_product_demand(themes,candidates,comparisons,*,as_of,since=None,query=
                             if not scope['source_expression'].endswith(proof['source_expression']):continue
                             if ref['action']=='MARKET_ENTRY':validate_market_entry(ref.get('market_entry'),ref['action'])
                             if ref['action']=='BUSINESS_START':
-                                if not ref.get('service_name'):continue
-                                if not _text(ref['service_name'],80):raise SourceShareError('invalid explicit service name')
+                                # A validated parallel proof also carries a concrete
+                                # function without asserting a source-named identity.
+                                if not ref.get('service_name') and 'recovery_parallel_action' not in ref:continue
+                                if ref.get('service_name') is not None and not _text(ref['service_name'],80):raise SourceShareError('invalid explicit service name')
                                 validate_service_event_key(ref)
                         if source['cause']['status']!='STORED_EXPRESSION':continue
                         item=items.setdefault(key,{'product':product,'theme_id':tid,'theme_snapshot_sha256':digest,

@@ -111,9 +111,14 @@ def _validate_parallel_action(proof,action,phase,parser,service_name,market,*,ph
 def validate_policy_parallel_action(proof,topic,driver,action,phase,policy,service_name=None,market=None,project=None):
     if driver!='POLICY_ENABLEMENT':raise SourceShareError('different shared action driver')
     _validate_parallel_action(proof,action,phase,policy_parallel_actions,service_name,market)
-    if (action=='INVESTMENT_EXECUTION' and len(policy_parallel_actions(proof['source_expression'],company_names=proof['actors']))==3
-            and investment_project(proof['action_expression'],action)!=project):
-        raise SourceShareError('shared policy investment project mismatch')
+    if action=='INVESTMENT_EXECUTION':
+        from .economic_changes import business_start_names
+        parsed=policy_parallel_actions(proof['source_expression'],company_names=proof['actors'])
+        # Preserve named two-part legacy records; new function-service pairs
+        # must bind the project even without the specialized investment proof.
+        if ((len(parsed)==3 or not business_start_names(parsed['BUSINESS_START']['action_expression']))
+                and investment_project(proof['action_expression'],action)!=project):
+            raise SourceShareError('shared policy investment project mismatch')
     causes=policy_causes(proof['source_expression'])
     if causes[0][0]!=topic or causes[0][2]!=policy:raise SourceShareError('shared policy action cause mismatch')
 

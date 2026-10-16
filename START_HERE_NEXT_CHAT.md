@@ -1,14 +1,15 @@
 # START HERE — NewsCatalystOS
 
-<!-- PRODUCT-COMPLETION-20261016 -->
-## 명시된 개발 완료 조건 — 2026-10-16 사용자 확정
-[두 프로젝트 기능·운영·공동 연동 완료 체크리스트](docs/PRODUCT_COMPLETION_CRITERIA_20261016.md)를 완료 판단의 기준으로 적용한다. 기능 구현·실자료 확인·독립 운영 가능·통합 완료를 구분한다. 현재 상태는 실제 증거로 판정하며 문서 작성/과거36·67%만으로 완료 처리하지 않는다. 사람 검수·500건 인적 라벨·5거래일 사전 대기를 새로 요구하지 않는다. 기존 진행 중 작업과 최신 NEXT_TASK/재개 순서를 보존하고 미완료 핵심 기능을 이어간다.
+## 유효 기준
+AGENTS.md → PROJECT_STATE.md → DECISIONS.md → NEXT_TASK.md를 필요한 범위만 읽는다.
+V1은 반도체 1산업, 기존 1_1~6_6 36개 기능 범위. 제품 판정은 docs/PRODUCT_COMPLETION_CRITERIA_20261016.md 및 docs/V1_RELEASE_POLICY_2026-10-15.md를 따른다. 과거 36/36 기능 기록을 독립 운영·전체 출시 완료로 대체하지 않는다.
 
+## 최신 완료 기능 · 2026-10-17
+NEWS-20261017-MARKET-COMMERCIAL-PARALLEL-01 / 15b3848c606353d493f4e215e4ef2fe88ce9edc2 (로컬).
+동일 원문의 시장 진출 + 납품 개시 또는 신규 고객 확보를 다섯 가지 기확정 원인과 각 완전 원문 구간에 묶어 경제변화→ThemeStore→검색/기간비교/HTTP→세 화면·고정 JSON에 전달. 시장명은 MARKET_ENTRY 원문에서만 추출, 고객은 새 actor가 아니다. 잘못된 추가 행동·의향·타 제품/주체·시점·부분근거는 차단하고 구판 옵션과 최초시각/PIT 유지.
+변경 테스트 tests/test_market_commercial_parallel.py 315 PASS 및 영향 기존 tests/test_delivery_customer_parallel.py 237 PASS(실행 2026-10-17). 합성 양성·로컬 코드/저장/HTTP UI 확인이며 실제 양성/운영 배포/원격 push는 미확인·미수행.
 
-AGENTS.md → PROJECT_STATE.md → DECISIONS.md → NEXT_TASK.md와 실제 Git 상태를 확인한다. 사용자 변경을 보존한다.
-
-최신 NEWS-20261017-DELIVERY-CUSTOMER-PARALLEL-01 / 7a790c8: 서비스 없는 납품+신규고객 두 행동을 기존 각완전구간/당사자/원인 검증 후 다섯 원인에 연결→저장/초기테마/비교기간검색HTTP/세화면/JSON. 고객추가actor/가짜서비스없음·잘못된추가목록 부분승격차단·선행단독/ID/PIT보존. 집중325 PASS(신규237/기존88); 이전Git 기본356추출 일치·구판426추출/364저장 출력9종일치, 새정상60/추가목록음성10. 합성양성/실제기사미확인.
-
-로컬만 반영. SSD운영 내용6d02db2와 누적 미배포 코드/화면9개 보존(SSD Git HEAD630227a). 배포/push/실자료173제목3본문 재검사/전체 회귀/replay 없음. 이전231/246/386 증거 재사용. 기존 원격 승인 거절 유지, 우회/승인 재질문 없음.
-
-다음: 시장진출+납품 또는 신규고객 병렬의 명시공통원인 연결. 다섯원인×두조합 합성10건0행동. 기존 각부분/market_entry 검증·자기시장명·고객객체/범위·기존ID/PIT/구판보존, 서비스가짜추가금지. NEXT_TASK 참고. dirty3·원본·비밀·PIT/SHA·사용권·예산·읽기 전용·실주문 금지 유지. 전체 제품 완료 아님.
+## 보존과 다음
+기존 개발경로 /Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project, branch codex/real-data-path. 운영 원본 /Volumes/T5DATA/1.NewsCatalystOS 및 EraLeader 자산은 변경하지 않는다.
+사용자 기존 dirty AGENTS.md·DECISIONS.md·CODEX_PRODUCT_VISION_AND_NEXT_WORK_20261015.md 보존. 무단 API·유료 AI·원본/DB/백업·공개 push·실거래 금지.
+다음은 NEXT_TASK.md의 기존 허용 실자료→경제변화/테마→사용자 화면 경로에 남은 실제 연결 장애 해소. 외부 사건 부재 자체를 실패 또는 추가 개발 완료 조건으로 만들지 않는다.

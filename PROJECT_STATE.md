@@ -1,12 +1,16 @@
-# PROJECT_STATE — NewsCatalystOS 현재 재개 상태
+# PROJECT_STATE — NewsCatalystOS 현재 개발 재개
 
-2026-10-17T09:33:08+09:00; 브랜치 codex/real-data-path / 기능 SHA `2dab08843cd05481e58e29dca00d058e9ebfc435`. 기존 36개 세부 코드의 36/36 기록은 유지하되 실제 제품 운영·출시·공동 연동 완료로 계산하지 않는다. V1 반도체 1산업, EraLeader는 검증된 스냅샷 읽기전용. 적용 기준 docs/PRODUCT_COMPLETION_CRITERIA_20261016.md.
+기준 2026-10-17T10:06:51+09:00 / 개발 SHA 4f6d6b16b496387b1754b0ed65563079080fb481. 1_1~6_6 코드 36/36(기존 기록), 독립 운영·제품 출시는 별도 판정. V1 반도체만. docs/PRODUCT_COMPLETION_CRITERIA_20261016.md 기준.
 
-## 새로 작동하는 기능
-- NEWS-20261017-ARTICLE-THEME-PERIOD-HISTORY: 승인 완료 동일 RSS (provider/event/titleSHA) 및 기존 허용 공식 본문 binding으로 확인한 동일 theme_id에 한해서 GET /api/news-evidence의 `theme_id/since/as_of` 기간 조회를 허용. 기존 compare_themes에서 최초 발견·독립 사건·신규 근거·상충/철회·기업/상태 변화와 원문 링크를 선택하고 기존 JS renderThemeChanges로 화면 표시. 과거 시점에 링크 근거가 없다면 404/N/A. 날짜 초과/순서 오류 명시, 원본/DB 쓰기·새 수집·유료AI 없음.
-- 변경 집중 테스트: `tests/test_news_article_period_change.py` 신규 3(기사 연결/NO_CHANGE/시점거부, 동일사건 재보도, 공식 철회), 수정 브라우저3, 기존 기사/허용 본문/테마·대시보드 회귀 포함 **31 PASS / 실패0**, Python·JS 구문/Git diff 검사 완료.
-- 실제 승인 자료: 산업부 '반도체 메가프로젝트 전담국 출범' 본문 정책 테마 1. 10/15 최초 관측부터 1독립 행동·3출처 근거, 10/15 19:02 KST 이후 0독립·1추가 근거, 10/16 이후 0독립·0근거/NO_CHANGE. 특정 기업0·실제 거래/수혜 미확인. 운영 registry/상태 SQLite/ThemeStore 5파일 SHA 불변.
-- 작업트리는 로컬 커밋만. 운영 SSD/상시 8766 서비스 배포·GitHub push 미수행, 이전 명시 push 거절 우회 없음. 사용자 기존 dirty3 변경없음. 실자료 확인과 독립 운영·연동 인수는 별도.
+## 신규 동작·해소 장애
+- NC-06 사용자 조회의 실제 저장 보고서 경로 불일치를 **기존 설정 옵션으로 해결**, 신규 코드 변경 없이 격리 개발 서버 HTTP 검증. 사용한 실행 경로: --reports-root /Volumes/T5DATA/1.NewsCatalystOS/output/feed_analysis, --document-reports-root ~/Library/Application Support/NewsCatalystOS/document_analysis, --evidence-base ~/Library/Application Support/NewsCatalystOS, --notes-root 격리 임시폴더, --port 0, --no-browser.
+- 2026-10-16 일간 기사43·테마8·기업 후보5, 전체 승인 RSS173판본 및 반도체 제목3, 정확 산업부 본문 정책 POLICY_CHANGE 및 기간 추가 근거1/독립 신규행동0을 동일 최신 개발 HTML/JS/HTTP에서 모두 200 확인. 5개 출처 설정·상태 DB·테마DB SHA 불변. 별도 서버는 종료. 기존 운영 상시 8766·운영 코드·SSD/DB·Era 원본, API/유료AI/예약·GitHub push 변경 없음. OP-01/NC-06 실자료 **읽기 조회 증거**이며 전체 자연 예약 수집·분석·운영 출시 인수 완료를 뜻하지 않는다.
+- 코드 기능 최신 SHA `2dab08843cd05481e58e29dca00d058e9ebfc435`(기사→정확 저장 테마→기간 변화). docs HEAD `4f6d6b16b496387b1754b0ed65563079080fb481`에서 이번 확인 작업은 코드 수정 필요 없음. 이전 변경 영향31 PASS는 과거 기록, 이번에 동일 테스트 반복 안 함.
+- 기존 복원 체크 폴더/백업은 존재하나 이번에 재복원 증거를 만들거나 OP-05 완료를 새로 판정하지 않았다.
 
-## 다음
-NEXT_TASK.md — 개발 대시보드가 기본 빈 reports-root 대신 실제 보존된 운영 보고를 읽기전용 옵션으로 열어 뉴스검색/일간/테마/기간이 한 사용자 화면에서 실제 작동하도록 실행 장애 해소. 기존 기능을 다시 만들거나 원본/운영 DB·타 프로젝트를 변경하지 않는다.
+## 새로 드러난 독립 운영 장애 (OP-02)
+- launchctl com.newscatalystos.triage 마지막 종료코드 0. com.newscatalystos.motir 마지막 종료코드 4. 마지막 MOTIR stdout의 분석 exit_code=4 / semantic_ai_attempts=1 / 문서 collection 및 analysis READY / 새 AI 결과0. 이것만으로 에러 원인·유료 호출 성공/실패를 단정하지 않는다.
+- NEXT_TASK.md: MOTIR 예약 집계의 비영(4) 종료를 실제 마지막 로컬 증거로 국소 확인하고 소스/저장분석의 정상 경로는 지속한다. 사용자 승인 없는 API/유료AI 재시도, 운영 plist·DB 수정과 실패 은폐 금지.
+
+## 변경 및 기록
+이번 실행에서는 새 코드/테스트/운영 반영이 없으므로 기능 SHA 변화가 없다. docs 최신 증거 기록만 별도 커밋. 기존 dirty 3개 불변.

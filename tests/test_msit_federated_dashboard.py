@@ -8,6 +8,8 @@ from datetime import datetime, timezone, timedelta
 from hashlib import sha256
 import json
 import threading
+
+import pytest
 from urllib.parse import urlencode
 from urllib.request import urlopen
 
@@ -22,29 +24,32 @@ from test_federated_news_search import GOV, collect, fingerprint, setup_workspac
 from test_new_source_adapter import registry
 
 
-def test_core_and_new_msit_have_one_combined_saved_daily_view_and_exact_analysis(tmp_path):
+@pytest.mark.parametrize("scope,provider,endpoint", [
+    ("msit","msit-official-press","https://msit.example.org/official/rss"),
+    ("company","samsung-newsroom-korea","https://company.example.org/official/rss"),
+])
+def test_core_and_new_msit_have_one_combined_saved_daily_view_and_exact_analysis(tmp_path,scope,provider,endpoint):
     original=registry().providers[0]
     core_registry=ProviderRegistry((original,))
     msit_registry=ProviderRegistry((replace(
-        original, provider_id="msit-official-press",
-        endpoint="https://msit.example.org/official/rss"),))
+        original, provider_id=provider, endpoint=endpoint),))
     core=setup_workspace(tmp_path, "core", core_registry)
-    msit_root=tmp_path/"msit"
-    msit=TitleSearchWorkspace("msit",msit_root/"providers/authorized_sources.json",
+    msit_root=tmp_path/scope
+    msit=TitleSearchWorkspace(scope,msit_root/"providers/authorized_sources.json",
                               msit_root/"state/incremental_feeds.sqlite3",
                               msit_root/"inbox/feed_triage")
     write_registry(msit.registry_path,msit_registry)
     collect(core, core_registry, GOV, [
         ("core-one", "반도체 산업 간담회 개최", "https://gov.example.org/meet/1")
     ])
-    collect(msit, msit_registry, "msit-official-press", [
-        ("msit-one", "가상반도체 HBM 1조원 공급계약 체결",
-         "https://msit.example.org/article/1"),
+    collect(msit, msit_registry, provider, [
+        ("one", "가상반도체 HBM 1조원 공급계약 체결",
+         f"https://{scope}.example.org/article/1"),
     ])
     primary=tmp_path / "primary_reports"
     secondary=msit_root / "feed_analysis"
     for source, reg, root, provider in ((core, core_registry, primary, GOV),
-                                       (msit, msit_registry, secondary, "msit-official-press")):
+                                       (msit, msit_registry, secondary, provider)):
         completed=analyze_completed_feed(
             reg, source.inbox_root, source.poll_state, tmp_path / (source.scope+"_facts"),
             provider_id=provider, now=datetime.now(timezone.utc))
@@ -65,7 +70,7 @@ def test_core_and_new_msit_have_one_combined_saved_daily_view_and_exact_analysis
         change,
         origin_reference=source_claim["canonical_url"],
         source_url=source_claim["canonical_url"],
-        source_id="msit-official-press",
+        source_id=provider,
         source_available_at=source_claim["available_at"],
         source_binding={"source_event_sha256":source_claim["event_id"],
                         "document_sha256":source_claim["title_sha256"]},
@@ -76,14 +81,14 @@ def test_core_and_new_msit_have_one_combined_saved_daily_view_and_exact_analysis
     day=now.astimezone(timezone(timedelta(hours=9))).date().isoformat()
     from newscatalystos.research_dashboard import scan_saved_analysis
     rows, info=scan_saved_analysis(primary, as_of=now, now=now,
-        additional_roots=(("msit", secondary),))
-    assert {r["scope"] for r in rows}=={"core","msit"}
+        additional_roots=((scope, secondary),))
+    assert {r["scope"] for r in rows}=={"core",scope}
     assert len(rows)==2 and info["saved_reports_skipped"]==0
 
     server=DashboardServer(0, primary, tmp_path/"notes", documents,
         news_search_workspaces=(core,msit),
-        additional_reports=(("msit",secondary),),
-        msit_source_root=msit_root)
+        additional_reports=((scope,secondary),),
+        additional_source_roots=((scope,msit_root),))
     thread=threading.Thread(target=server.serve_forever,daemon=True)
     thread.start()
     before=fingerprint(tmp_path)
@@ -95,17 +100,17 @@ def test_core_and_new_msit_have_one_combined_saved_daily_view_and_exact_analysis
     try:
         period=get("/api/period",{"view":"day","date":day})
         assert period["counts"]["items"]==2
-        assert {i["scope"] for i in period["items"]}=={"core","msit"}
+        assert {i["scope"] for i in period["items"]}=={"core",scope}
         assert period["additional_source_theme_status"]=="READY"
         groups=period["additional_source_themes"]
-        assert len(groups)==1 and groups[0]["scope"]=="msit"
+        assert len(groups)==1 and groups[0]["scope"]==scope
         assert len(groups[0]["themes"])>=1
         assert any("SEMICONDUCTOR" in t["industry_tags"] for t in groups[0]["themes"])
         search=get("/api/news-search",{"q":"반도체","limit":"20"})
         assert search["coverage_complete"]
         assert len(search["results"])==2
-        assert {r["search_scope"] for r in search["results"]}=={"core","msit"}
-        msit_row=next(r for r in search["results"] if r["search_scope"]=="msit")
+        assert {r["search_scope"] for r in search["results"]}=={"core",scope}
+        msit_row=next(r for r in search["results"] if r["search_scope"]==scope)
         exact=get("/api/news-evidence",{
             "q":"반도체",
             **{key:msit_row[key] for key in ("provider_id","event_id","title_sha256")},
@@ -205,6 +210,10 @@ assert(words.includes("HBM 계약 보도에 등장한 회사"));
 const anchor=card.children.find(x=>x.tag==="details").children.find(x=>x.tag==="a");
 assert.equal(anchor.href,link);
 assert(words.includes("수혜 미확정"));
+data.additional_source_themes[0].scope="company";
+context.renderThemes("HBM");
+const companyWords=gather(items.themes.children.find(x=>x.tag==="article")).join(" ");
+assert(companyWords.includes("반도체 기업 공식 뉴스룸"));
 context.renderThemes("없는주제");
 assert.equal(items["theme-total"].textContent,"0개");
 console.log("MSIT source-owned theme and company UI rendered");

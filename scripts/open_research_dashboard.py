@@ -5,6 +5,7 @@ import argparse
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import re
 import sqlite3
 from hashlib import sha256
 from pathlib import Path
@@ -47,14 +48,20 @@ class DashboardServer(ThreadingHTTPServer):
     def __init__(self, port: int, reports: Path, notes: Path, documents: Path | None = None, *,
                  evidence_base: Path | None = None, news_search_workspaces=None,
                  additional_reports: tuple[tuple[str, Path], ...] = (),
-                 msit_source_root: Path | None = None):
+                 msit_source_root: Path | None = None,
+                 additional_source_roots: tuple[tuple[str, Path], ...] = ()):
         super().__init__(("127.0.0.1", port), Handler)
         self.reports = reports
         self.documents = documents
         self.evidence_base = evidence_base
         self.news_search_workspaces = news_search_workspaces
         self.additional_reports = additional_reports
-        self.msit_source_root = msit_source_root
+        roots = ((("msit", msit_source_root),) if msit_source_root is not None else ())
+        roots += additional_source_roots
+        if len({scope for scope, _ in roots}) != len(roots):
+            raise SourceShareError("duplicate independent source scope")
+        self.source_roots = dict(roots)
+        self.msit_source_root = msit_source_root  # earlier caller compatibility
         self.notes = NoteStore(notes)
 
 
@@ -124,8 +131,8 @@ class Handler(BaseHTTPRequestHandler):
                 # Keep the original theme database immutable; no cross-source
                 # merge or promotion based on a similar company/topic name.
                 source_scope = found["results"][0]["search_scope"]
-                article_root = (self.server.msit_source_root / "document_analysis"
-                                if source_scope == "msit" and self.server.msit_source_root
+                external_root = self.server.source_roots.get(source_scope)
+                article_root = (external_root / "document_analysis" if external_root
                                 else self.server.documents)
                 detail = saved_article_evidence(
                     found["results"][0], article_root / "theme_history",
@@ -183,11 +190,11 @@ class Handler(BaseHTTPRequestHandler):
                             or any(ord(c) < 32 for c in entity_id)):
                         raise ValueError("invalid exact company selection")
                     try:
-                        if source_scope == "msit" and self.server.msit_source_root:
-                            # This source is approved for RSS metadata only,
-                            # never for a separately archived licensed body.
+                        if external_root is not None:
+                            # Extra company/government RSS scopes use metadata
+                            # only, never another source's licensed article job.
                             jobs = []
-                            extra = self.server.msit_source_root
+                            extra = external_root
                             feed_sources = [{
                                 "registry": extra / "providers/authorized_sources.json",
                                 "inbox": extra / "inbox/feed_triage",
@@ -363,27 +370,26 @@ class Handler(BaseHTTPRequestHandler):
                     data['cross_product_demand']={'status':'UNAVAILABLE','groups':[]}
                     data['company_inclusion_presentations']={}
                     data['company_search']={'query':'','candidates':{}}
-                if self.server.msit_source_root is not None:
-                    # New approved RSS has a separate theme DB. Expose a
-                    # distinct source section instead of silently conflating
-                    # equal topic/theme IDs across independently saved stores.
+                if self.server.source_roots:
+                    # Every approved RSS source keeps its own immutable theme
+                    # history. Never merge identity merely by matching topic.
                     data["additional_source_themes"] = []
                     data["additional_source_theme_status"] = "READY"
-                    try:
-                        own = ThemeStore(
-                            self.server.msit_source_root / "document_analysis/theme_history")
-                        selected = (own.search(as_of=min(end,now), now=now,
-                                    since=min(start,now), activity=activity)
-                                    if activity == "all" or start <= now else [])
-                        if selected:
-                            payload = json.loads(build_theme_bundle(
-                                selected, decision_at=min(end,now), now=now,
-                                include_company_candidates=True))
-                            data["additional_source_themes"].append({
-                                "scope": "msit", "themes": selected,
-                                "company_candidates": payload["CompanyCandidates"]})
-                    except (SourceShareError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
-                        data["additional_source_theme_status"] = "UNAVAILABLE"
+                    for scope, root in self.server.source_roots.items():
+                        try:
+                            own = ThemeStore(root / "document_analysis/theme_history")
+                            selected = (own.search(as_of=min(end,now), now=now,
+                                        since=min(start,now), activity=activity)
+                                        if activity == "all" or start <= now else [])
+                            if selected:
+                                payload = json.loads(build_theme_bundle(
+                                    selected, decision_at=min(end,now), now=now,
+                                    include_company_candidates=True))
+                                data["additional_source_themes"].append({
+                                    "scope": scope, "themes": selected,
+                                    "company_candidates": payload["CompanyCandidates"]})
+                        except (SourceShareError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
+                            data["additional_source_theme_status"] = "UNAVAILABLE"
                 self._json(200, data)
             except (SourceShareError, OSError, ValueError, KeyError, TypeError) as exc:
                 self._json(400, {"error": type(exc).__name__})
@@ -511,6 +517,9 @@ def main(argv: list[str] | None = None) -> int:
                         default=Path.home()/"Library/Application Support/NewsCatalystOS")
     parser.add_argument("--msit-source-root", type=Path,
                         help="separate, read-only approved MSIT developer RSS reports and receipts")
+    parser.add_argument("--additional-source-root", action="append", default=[],
+                        metavar="SCOPE=ABSOLUTE_PATH",
+                        help="read-only additional approved RSS workspace; repeatable")
     options = parser.parse_args(argv)
     base = options.evidence_base
     workspaces = (
@@ -519,22 +528,31 @@ def main(argv: list[str] | None = None) -> int:
         TitleSearchWorkspace("motir", base / "providers/motir_authorized_sources.json",
                              base / "state/motir_incremental_feeds.sqlite3", base / "inbox/motir_feed_triage"),
     )
-    extra_reports = ()
-    if options.msit_source_root is not None:
-        extra = options.msit_source_root
-        if (not extra.is_absolute() or ".." in extra.parts
-                or extra.resolve() != extra or extra.is_symlink()
-                or any(part.casefold() == "eraleader" for part in extra.parts)
-                or extra == base or extra == options.reports_root):
-            parser.error("separate, absolute and non-symlink MSIT source root required")
+    extras = [("msit", options.msit_source_root)] if options.msit_source_root else []
+    for option in options.additional_source_root:
+        if option.count("=") != 1:
+            parser.error("expected SCOPE=ABSOLUTE_PATH for additional RSS root")
+        name, location = option.split("=", 1)
+        extras.append((name, Path(location)))
+    existing_scopes = {"core", "motir"}
+    seen_roots = {base, options.reports_root, options.document_reports_root}
+    for scope, root in extras:
+        if (not re.fullmatch(r"[a-z][a-z0-9_-]{0,31}", scope)
+                or scope in existing_scopes or not root.is_absolute()
+                or ".." in root.parts or root.resolve() != root or root.is_symlink()
+                or any(part.casefold() == "eraleader" for part in root.parts)
+                or root in seen_roots):
+            parser.error("distinct, absolute, isolated RSS scope root required")
+        existing_scopes.add(scope)
+        seen_roots.add(root)
         workspaces += (TitleSearchWorkspace(
-            "msit", extra / "providers/authorized_sources.json",
-            extra / "state/incremental_feeds.sqlite3", extra / "inbox/feed_triage"),)
-        extra_reports = (("msit", extra / "feed_analysis"),)
+            scope, root / "providers/authorized_sources.json",
+            root / "state/incremental_feeds.sqlite3", root / "inbox/feed_triage"),)
+    extra_reports = tuple((scope, root / "feed_analysis") for scope, root in extras)
     server = DashboardServer(options.port, options.reports_root, options.notes_root, options.document_reports_root,
                              evidence_base=base, news_search_workspaces=workspaces,
                              additional_reports=extra_reports,
-                             msit_source_root=options.msit_source_root)
+                             additional_source_roots=tuple(extras))
     url = f"http://127.0.0.1:{server.server_port}/"
     print(f"NewsCatalystOS dashboard: {url}", flush=True)
     if not options.no_browser:

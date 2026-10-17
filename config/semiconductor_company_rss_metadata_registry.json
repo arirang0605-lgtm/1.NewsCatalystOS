@@ -1,0 +1,31 @@
+{
+  "providers": [
+    {
+      "allow_full_text_storage": false,
+      "approved": true,
+      "endpoint": "https://news.samsung.com/kr/feed",
+      "expires_at": null,
+      "grant": "OFFICIAL_TERMS_REVIEWED",
+      "hourly_limit": 1,
+      "kind": "COMPANY_IR",
+      "method": "RSS",
+      "provider_id": "samsung-newsroom-korea",
+      "reviewed_at": "2026-10-17T04:47:55.377411+00:00",
+      "rights_reference": "https://news.samsung.com/kr/삼성전자-뉴스룸-콘텐츠-이용에-대한-안내"
+    },
+    {
+      "allow_full_text_storage": false,
+      "approved": true,
+      "endpoint": "https://news.skhynix.co.kr/feed/",
+      "expires_at": null,
+      "grant": "OFFICIAL_TERMS_REVIEWED",
+      "hourly_limit": 1,
+      "kind": "COMPANY_IR",
+      "method": "RSS",
+      "provider_id": "skhynix-newsroom-korea",
+      "reviewed_at": "2026-10-17T04:47:55.377411+00:00",
+      "rights_reference": "https://news.skhynix.co.kr/guideline/"
+    }
+  ],
+  "schema": "newscatalyst.provider_registry.v1"
+}

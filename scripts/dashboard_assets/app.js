@@ -602,7 +602,7 @@ function renderThemes(term){
   }
   for(const {scope,theme,companies} of scoped){
     const card=node("article","finding");
-    card.append(node("p","eyebrow",(scope==="msit"?"과기정통부":"추가 승인 출처")+" · 독립 저장 이력"),
+    card.append(node("p","eyebrow",({msit:"과기정통부",company:"반도체 기업 공식 뉴스룸"}[scope]||"추가 승인 출처")+" · 독립 저장 이력"),
       node("h4","",theme.provisional_name),
       node("p","finding-detail","상태: "+theme.status+" · 독립 경제 행동 후보 "+
         theme.scores.distinct_economic_events+"개 · 출처에 명시된 기업 "+companies.length+"개"),

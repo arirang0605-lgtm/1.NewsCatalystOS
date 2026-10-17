@@ -1259,3 +1259,58 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
         from .adjacent_demand import attach_adjacent_demand
         result=attach_adjacent_demand(text,result,company_names,include_scopes=include_adjacent_scopes and include_demand_scopes,include_contracts=include_adjacent_contracts,include_amounts=include_adjacent_amounts,include_reductions=include_adjacent_reductions)
     return result
+
+
+# Narrow official NIST electronics RSS title grammar. A CHIPS award or
+# announced amended award is a reported *policy action*, not money received by
+# a named company. No general English headline/semantic inference is enabled.
+_US_CHIPS_SECTOR = re.compile(
+    r'\b(?:semiconductors?|silicon[ -]photonics|silicon[ -]germanium|'
+    r'advanced packaging|lithography|indium phosphide)\b', re.I)
+_US_CHIPS_FIRM = re.compile(
+    r'\bwith\s+(?P<company>[A-Z][A-Za-z0-9-]{2,50})\b')
+_US_CHIPS_COMPLETED = re.compile(
+    r'\b(?:Finalization|Finalizes?\s+(?:a\s+)?Definitive\s+Agreement|'
+    r'Definitive\s+Agreement|Direct\s+Funding\s+Agreement)\b', re.I)
+_US_CHIPS_INTENT = re.compile(
+    r'\b(?:Letters?\s+of\s+Intent|Agreement\s+with\s+'
+    r'[A-Z][A-Za-z0-9-]{2,50}\s+to\s+Amend\b)', re.I)
+
+
+def official_us_chips_award_change(text):
+    """One NIST-published, explicitly named semiconductor award/plan claim.
+
+    Only the approved nist.gov electronics RSS reader calls this function.
+    The short original title is the sole evidence, with no body/AI/fact-check.
+    """
+    if not isinstance(text,str) or not 0<len(text)<=256:
+        return []
+    # Require the actual federal authority, program AND support instrument.
+    if (not re.match(r'^(?:The\s+)?Department\s+of\s+Commerce(?:’s|\'s)?\b',text,re.I)
+            or not re.search(r'\bCHIPS\b',text,re.I)
+            or not re.search(r'\b(?:award|incentives|funding)\b',text,re.I)
+            or re.search(r'\b(?:denies?|rumou?r|unconfirmed|may|might|considering|'
+                         r'proposal|cancelled|canceled|rejected)\b',text,re.I)):
+        return []
+    scope=_US_CHIPS_SECTOR.search(text)
+    companies=list(_US_CHIPS_FIRM.finditer(text))
+    if not scope or len(companies)!=1:
+        return []  # unknown or multiple recipient: no synthetic company
+    company=companies[0]['company']
+    if company in {'Company','Companies','Business','Subsidiary','Recipient','Unknown'}:
+        return []  # grammar placeholder cannot become a named beneficiary
+    finalized=bool(_US_CHIPS_COMPLETED.search(text))
+    planned=bool(_US_CHIPS_INTENT.search(text))
+    if finalized == planned:
+        return []  # ambiguous/mixed or action not explicit
+    return [{
+        'topic':scope.group(),
+        'economic_driver':'POLICY_ENABLEMENT',
+        'action':'POLICY_CHANGE',
+        'phase':'SOURCE_REPORTED' if finalized else 'PLANNED',
+        'entity_ids':[company],
+        'industry_tags':['SEMICONDUCTOR'],
+        'source_paragraph_sha256':sha256(text.encode()).hexdigest(),
+        'evidence_level':'REPORTED',
+        'verified_economic_effect':False,
+    }]

@@ -25,7 +25,7 @@ from .analysis_cache import cache_analysis_once, get_cached_analysis, _result_by
 from .evidence_archive import _private_root, _write_new
 from .fact_extraction import FactProposal, MONEY, verify_extracted_facts
 from .feed_triage import _matched_terms
-from .economic_changes import extract_economic_changes, business_start_phase, business_start_names, business_start_functions, company_clauses
+from .economic_changes import extract_economic_changes, official_us_chips_award_change, business_start_phase, business_start_names, business_start_functions, company_clauses
 from .impact_triage import ImpactInputs, triage_importance, SCALE, SCOPE, REPEAT, NOVELTY
 from .news_search import read_completed_title_snapshots
 from .novelty_detection import detect_new_economic_claim
@@ -34,7 +34,7 @@ from .provider_registry import ProviderRegistry
 from .source_share import SourceShareError, _must_sha, _when
 
 SCHEMA = "newscatalyst.feed_economic_analysis.v1"
-RULE_VERSION = "rss-title-economic-v11"  # large issuer-reported planned capex visibility
+RULE_VERSION = "rss-title-economic-v12"  # official CHIPS award changes + capex visibility
 # Screening assumptions, NOT release criteria or a verified economic scale.
 MEDIUM_KRW = Decimal("1000000000")
 LARGE_KRW = Decimal("100000000000")
@@ -199,6 +199,15 @@ def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=()) ->
     scoped=len(company_clauses(title,company_names))>1
     changes = (extract_economic_changes(title, company_names=company_names) if permitted and
                (scoped or not (NEGATED.search(title) or UNCERTAIN_CHANGE.search(title))) else [])
+    # The NIST electronics RSS covers real government CHIPS support decisions
+    # in English. Admit only a same-source, named recipient and an explicit
+    # semiconductor technology/action. Never claim disbursed cash or benefit.
+    official_chips = (permitted and not changes
+        and item['provider_id']=='nist-official-electronics'
+        and item['source_kind']=='OFFICIAL_AGENCY'
+        and item['canonical_url'].startswith('https://www.nist.gov/news-events/'))
+    if official_chips:
+        changes = official_us_chips_award_change(title)
     # Identity enrichment must not reinterpret an already extracted event's
     # topic/driver (e.g. a comma becomes an actor separator after name lookup).
     # Preserve its semantic key; never union every clause's names by title SHA.
@@ -244,6 +253,7 @@ def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=()) ->
         known_score = sum((mapping[dimensions[key]] or 0) for key, mapping in (
             ("scale", SCALE), ("affected_scope", SCOPE), ("repeatability", REPEAT),
             ("novelty", NOVELTY)))
+    reported_chips_policy = bool(official_chips and changes)
     report = {
         "analysis_event_sha256": event, "source_event_sha256": item["event_id"],
         "source_title_sha256": item["title_sha256"], "provider_id": item["provider_id"],
@@ -265,7 +275,8 @@ def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=()) ->
         "known_dimension_score_lower_bound": known_score,
         "known_dimensions": list(importance.known_dimensions),
         "unknown_dimensions": list(importance.unknown_dimensions),
-        "routing_priority": ("HIGH_PRIORITY_CANDIDATE" if eligible or prominent_capex_plan
+        "routing_priority": ("HIGH_PRIORITY_CANDIDATE"
+                             if eligible or prominent_capex_plan or reported_chips_policy
                              else "PARTIAL_EVIDENCE_ONLY"),
         "routing_rule_version": RULE_VERSION,
         "source_amount_mentions": amounts,

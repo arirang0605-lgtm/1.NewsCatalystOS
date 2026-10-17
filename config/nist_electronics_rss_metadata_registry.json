@@ -1,0 +1,18 @@
+{
+  "providers": [
+    {
+      "allow_full_text_storage": false,
+      "approved": true,
+      "endpoint": "https://www.nist.gov/news-events/electronics/rss.xml",
+      "expires_at": null,
+      "grant": "OFFICIAL_TERMS_REVIEWED",
+      "hourly_limit": 1,
+      "kind": "GOVERNMENT_POLICY",
+      "method": "RSS",
+      "provider_id": "nist-official-electronics",
+      "reviewed_at": "2026-10-17T08:18:51.006834+00:00",
+      "rights_reference": "https://www.nist.gov/copyrights-disclaimers"
+    }
+  ],
+  "schema": "newscatalyst.provider_registry.v1"
+}

@@ -207,6 +207,22 @@ def _semantic_clause(text,row,change,entity,ref,body):
 
 
 def _clause(text,change,entity,ref,*,include_investment_execution=True,include_new_customers=True,include_delivery_start=True,include_market_entry=True):
+    # NIST's official English CHIPS title changes are a separate bounded rule,
+    # never guessed by the Korean commercial clause parser. _rss_source has
+    # already authenticated the exact original title, approval, SHA and PIT.
+    if (ref.get('source_id')=='nist-official-electronics'
+            and ref.get('content_scope')=='RSS_TITLE_METADATA'
+            and ref.get('source_url','').startswith('https://www.nist.gov/news-events/')
+            and change.get('economic_driver')=='POLICY_ENABLEMENT'
+            and change.get('action')=='POLICY_CHANGE'):
+        from .economic_changes import official_us_chips_award_change
+        parsed=official_us_chips_award_change(text)
+        if (len(parsed)==1 and parsed[0]==change
+                and sha256(text.encode()).hexdigest()==ref['evidence_sha256']
+                and entity in parsed[0]['entity_ids']
+                and mentions_name(text,entity)):
+            return text  # source-only title; no independent factual certification
+        return None
     names=[m['source_name'] for m in ref.get('company_mappings',[]) if m['entity_id']==entity] or [entity]
     options=dict(company_names=change['entity_ids'],include_investment_execution=include_investment_execution,
                  include_demand_recovery='demand_recovery_cause' in change,include_resumption=(change['action']=='SUPPLY_RESUMPTION' or 'demand_recovery_cause' in change),include_demand_scopes='demand_scope' in change,include_product_prices='product_price_cause' in change,

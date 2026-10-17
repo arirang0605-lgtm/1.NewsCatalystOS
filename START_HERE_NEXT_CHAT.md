@@ -1,18 +1,16 @@
 # START HERE — NewsCatalystOS
 
-기준 2026-10-17T20:58:49+09:00. **사용자가 2026-10-17 “진행하자”로 승인한 3가지(전체회귀·MOTIR 운영반영·추가5출처 정기실행)를 완료하고 실제 운영을 시작했다.** 원본 보존을 운영 전환 금지로 되돌리지 않는다. 재개 시 이 문서 → AGENTS.md → PROJECT_STATE.md → DECISIONS.md → NEXT_TASK.md와 현재 Git 상태만 확인. 기능/실사용 우선, 기존 정상 코드 CONTINUE. 새로운 검수·인적 라벨·5거래일 사전대기나 관리 도구를 추가하지 않는다.
+기준 2026-10-17T22:23:35+09:00. 사용자 요청 **“연동하자”**에 따라 EraLeader 완료 평가의 읽기전용 연결을 NewsCatalystOS 운영에 반영. 재개: 이 문서 → AGENTS.md → PROJECT_STATE.md → DECISIONS.md → NEXT_TASK.md 최신 부분과 Git상태만 확인. 핵심 기능·실사용 우선, 정상 코드 CONTINUE, 새 검수/관리도구·인적승인/기간대기 조건 추가 금지. 코드구현36/36 기록과 독립 운영/양방향 전체인수를 구분한다.
 
-## 실제 운영 위치와 상태
-- 개발 저장소: /Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project, branch codex/real-data-path. 사용자 기존 AGENTS.md/DECISIONS.md/비전 파일 dirty3 보존.
-- 배포된 고정 코드: /Users/shmoon/Library/Application Support/NewsCatalystOS/releases/c56059ab4b9b422fd687f3c8775b1d527fe49052 (파일0400/디렉터리0500). **운영판 수정 금지**; 후속 기능은 개발 저장소에서 변경·필수시험 후 새 버전으로 교체.
-- 신규5출처의 운영 데이터: /Users/shmoon/Library/Application Support/NewsCatalystOS/research_workspaces (msit_live_dev/company_live_dev/nist_live_dev). 이 폴더명이 _dev로 끝나도 현재 **운영 원장**이다. 기존 개발 output/*_live_dev는 보관본이므로 수집 실행 금지(동일 출처 이중원장 호출 방지).
-- 운영 Mac 대시보드: http://127.0.0.1:8766/ . LaunchAgent com.newscatalystos.dashboard, 자동 시작/종료 시 재시작. 로컬 Mac만 접근, 외부 공개하지 않음.
-- MOTIR 기존 라벨 com.newscatalystos.motir를 고정 코드로 교체, 기존 데이터/비용원장/권한 보존. 등록 직후 자동 실행 exit0, 18기사 분석 READY; 이전 중요대상 아닌 선택적 AI1건은 보류 유지. 기존 core com.newscatalystos.triage는 정상 설정 그대로(exit0).
-- 새 com.newscatalystos.research-approved: 시간당3600초·RunAtLoad, 기존 5개 승인 RSS 단일 실행기. 등록 직후 실제 자동 실행 성공5/실패0, 기존 경제 후보9 유지/신규기사0/AI0. **자연 1시간 경과 실행 및 24시간 안정성은 후속 관찰**; 시작 시 자동실행과 구별.
+## 현행 운영
+- 개발 /Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project, branch codex/real-data-path. 사용자 기존 AGENTS/DECISIONS/비전 dirty3 보존.
+- 대시보드·5개 RSS runner 배포 SHA **09e1bfbbf43fabd491c372153452c4962b73ed51**, 고정 코드 /Users/shmoon/Library/Application Support/NewsCatalystOS/releases/09e1bfbbf43fabd491c372153452c4962b73ed51. 기존 core/MOTIR 서비스는 이전 정상 버전 유지. 운영 http://127.0.0.1:8766/ (Mac 로컬 전용), 화면에서 기사 기업의 **EraLeader 기업 평가 연결**을 펼친다.
+- 현 운영 신규출처 원장 /Users/shmoon/Library/Application Support/NewsCatalystOS/research_workspaces. 개발 output/*_live_dev는 보관본이므로 재수집 실행 금지. 권리/PIT/SHA/기존 비용원장·중복/실주문 금지 유지.
+- News 소유 설정 /Users/shmoon/Library/Application Support/NewsCatalystOS/era_daily_connection.json, 평가 수신함 /Users/shmoon/Library/Application Support/NewsCatalystOS/document_analysis/era_daily_assessments. 기존 시간당 com.newscatalystos.research-approved에 optional refresh 연결. 실제 등록직후 launchd exit0/뉴스5출처 성공/평가50개 ALREADY_IMPORTED, 최초수신시각은 보존. Era 장애는 평가만 N/A, 정상뉴스는 계속.
 
-## 이번 필수 근거
-최종 전체회귀 **7140 PASS / FAIL0 / 875.88초**. 첫 실행의 3실패는 이미 구현된 근거·시각 분리와 이름 없는 서비스 기능의 과거 테스트 기대 불일치였고, 원문 증거/이전 판본 음성경로를 보존해 정합화(코드 변경0); 국소124PASS 후 전체7140PASS 재확인. 배포 SHA c56059ab4b9b422fd687f3c8775b1d527fe49052. 새 snapshot과 검사된 src/scripts/config 바이트 일치.
-운영 HTTP: 8개 제공자·5개 저장영역·372판본, 일간199/중요후보9, SK 투자계획→테마→기업→정확 기사근거 READY/수혜미확정. 기존 Gemini 정산86회·71.286원, 미정산2 예약15.1552원 보존·월5만원 이내. 기확보 운영DB5개 백업/분리복원 성공 증거 재사용.
-운영 전환 원장: output/release_20261017/activation.json, operational_verification.json, full_regression_final_result.json. 롤백 설정은 같은 폴더 rollback/. AppSupport 데이터 이전에서 원본·보고서·시점·SHA 보존, 복사한 ACK의 저장주소만 이전한 이력은 운영 research_workspaces/MIGRATION_SOURCE_MANIFEST.json. 원본 SSD 코드 235파일 SHA와 정상 core설정/사용자dirty 보존. 공개 GitHub push/실주문/EraLeader 코드·DB·Git 쓰기 없음.
-
-다음: NEXT_TASK.md. 기존 36/36 코드 기록과 독립 운영 개시/장기 안정성 관찰/EraLeader 통합은 각각 구분한다.
+## 실제 연결 증거
+EraLeader의 현재 게시 완료 daily snapshot(내용 SHA c1f84378c69d7037902172a809c97655e08f16ced79f86fb6f4fb532ca816a67, 파일 SHA aa310751a5146806aefa5a6bb9b670d7cf2f4480122b294a53c7497f75f974af)을 원본 보고서·browser SHA/기업/날짜·주문금지·사용권 범위 확인 후 News 수신함에 복사. 후보50·연간재무44·종가50 중 현재 뉴스와 **정확 연결1건: SK하이닉스 → DART_CORP:00164779 → 000660**. FY2025 재무, KRX2026-10-16 보관가격/긍정·약화·결측 근거를 원 평가 그대로 표시. 뉴스54조 투자 사건 PLANNED·실수혜미확정 유지. 평가를 새 계산하거나 기존 원본 회사명/테마 DB를 수정하지 않음.
+기존 /api/themes 기본 경로가 base9를 원래 ID 그대로 보존하고 source별 추가7테마를 포함해 총16을 전달. Era 기존 decode/validate/match 함수를 실제 운영 API에서 **읽기전용으로 호출해 정상수신·공식ID 일치1** 확인. 별도 context에 완료 daily 행을 전달한 검증이며 **EraLeader 내부의 오래된 WATCH 수신기/영구 저장/자체 UI·스케줄을 변경한 것은 아님**. 회사 자체 재평가나 통합 전체 인수를 선언하지 않음.
+직접 영향 **68 PASS/0 FAIL**, 실제 운영 기사/일간/평가 API HTTP200, 새 배포 JS SHA 확인. source first import 2026-10-17T13:04:12.387996+00:00 이전 조회는 N/A. 미국/미식별/복수증권은 N/A. 원문·유료AI·새DART/KRX/SEC 수집0.
+증거는 ignored output/era_integration_20261017/ 아래 feature_commit.json·integration_activation.json·operational_integration_proof.json, rollback에 이전 News 설정. Era 프로젝트 원본·DB·Git·예약 쓰기0. Era 담당자가 동시 정상 개발해 HEAD와 상태문서는 바뀌었지만 이번에 읽은 완료 보고서/index 원본 SHA는 그대로; 타 개발을 되돌리지 않는다. Public GitHub push 없음.
+다음은 NEXT_TASK.md. 원본 SSD코드·기존 안정서비스·배포 snapshot 직접 덮어쓰기 금지.

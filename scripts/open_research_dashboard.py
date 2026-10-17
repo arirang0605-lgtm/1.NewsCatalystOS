@@ -34,6 +34,7 @@ from newscatalystos.company_search import company_search_context,match_company_s
 from newscatalystos.federated_news_search import TitleSearchWorkspace,search_completed_workspaces
 from newscatalystos.news_search_evidence import saved_article_evidence
 from newscatalystos.motir_saved_document_evidence import bound_motir_document_evidence
+from newscatalystos.news_article_company_context import article_company_context
 from scripts.run_feed_triage import _registry
 from newscatalystos.common_cause_comparison import common_cause_comparisons
 from newscatalystos.company_timeline import company_timelines,select_timelines,timeline_evidence_view
@@ -144,6 +145,17 @@ class Handler(BaseHTTPRequestHandler):
                             "content_scope": "LICENSED_ARTICLE_TEXT",
                             "themes": [], "verified_real_transaction": False,
                             "verified_real_benefit": False, "independent_fact_verified": False}
+                # Exact article/theme refs determine membership, never a
+                # broad company-name/topic search. Failure remains local.
+                try:
+                    detail["article_company_context"] = article_company_context(
+                        detail, self.server.documents / "theme_history",
+                        as_of=at, now=now)
+                except (SourceShareError, OSError, ValueError, TypeError, KeyError, sqlite3.Error):
+                    detail["article_company_context"] = {
+                        "status": "N/A", "reason_code": "ARTICLE_COMPANY_CONTEXT_UNAVAILABLE",
+                        "themes": [], "verified_real_transaction": False,
+                        "verified_real_benefit": False, "investment_merit": "NOT_ASSESSED"}
                 if history:
                     from newscatalystos.source_share import _must_sha
                     theme_id = _must_sha(query["theme_id"][0], "selected article theme")

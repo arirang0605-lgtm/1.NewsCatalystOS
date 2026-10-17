@@ -95,6 +95,9 @@ def test_licensed_body_policy_theme_from_pinned_completed_rss_and_http(published
         assert detail['status'] == 'N/A'  # No separate RSS-title event.
         body = detail['official_document_evidence']
         assert body['status'] == 'READY' and body['themes'][0]['events'][0]['action'] == 'POLICY_CHANGE'
+        assert detail['article_company_context']['status'] == 'N/A'
+        assert detail['article_company_context']['reason_code'] == 'NO_COMPANY_IN_EXACT_ARTICLE_EVENTS'
+        assert detail['article_company_context']['themes'] == []
         assert body['document_sha256'] != detail['source']['title_sha256']
         assert 'article_text' not in json.dumps(detail)
         assert '산업부는 반도체 수출 규제를 완화하기로' not in json.dumps(detail)

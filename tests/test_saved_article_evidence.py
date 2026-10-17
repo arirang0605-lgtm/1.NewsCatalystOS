@@ -79,6 +79,15 @@ def test_same_exact_article_links_both_actions_and_only_reported_firm(connected,
         assert not detail['verified_real_transaction']
         assert not detail['verified_real_benefit']
         assert not detail['independent_fact_verified']
+        companies = detail['article_company_context']
+        assert companies['status'] == 'READY' and not companies['verified_real_benefit']
+        assert len(companies['themes']) == 1
+        assert len(companies['themes'][0]['direct_parties']) == 2
+        assert all(x['source_name'] == '가상전자' and x['official_entity_id'] is None
+                   and x['inclusion_status'] == 'READY'
+                   and len(x['inclusion_reasons']) == 1
+                   for x in companies['themes'][0]['direct_parties'])
+        assert companies['themes'][0]['related_supply_context'] == []
         again = request(base, params)[1]
         assert again['status'] == 'READY' and again['source'] == detail['source']
 

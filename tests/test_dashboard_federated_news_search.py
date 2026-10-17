@@ -105,7 +105,18 @@ const seen=[],payload={coverage_complete:true,matched_document_versions:1,keywor
 {headline:"<b>반도체 & 테스트</b>",provider_id:"synthetic",event_id:"a".repeat(64),title_sha256:"b".repeat(64),
  source_url:"https://example.org/saved-title",source_available_at:"2026-10-17T00:00:00+00:00",semiconductor_keyword_candidate:true}
 ]};
-const evidence={status:"READY",saved_title_analysis:{
+const evidence={status:"READY",article_company_context:{
+ status:"READY",themes:[{name:"합성 테마",theme_status:"CANDIDATE",industry_supported_in_v1:true,
+ direct_parties:[{source_name:"가상전자<img src=x>",entity_id:"가상전자",action:"BUSINESS_START",
+ phase:"SOURCE_REPORTED",identity_status:"SOURCE_NAME_ONLY",official_entity_id:null,
+ active_in_theme:true,inclusion_status:"READY",inclusion_reasons:["기사와 일치한 사업 개시 근거"],
+ source_url:"https://example.org/saved-title",source_available_at:"2026-10-17T00:00:00+00:00",
+ recorded_at:"2026-10-17T00:01:00+00:00",benefit_status:"UNVERIFIED"}],
+ related_supply_context:[{entity_id:"SEC_CIK:111111",role:"supplier",counterparty_id:"가상전자",
+ product_stage:"ADVANCED_PACKAGING",relation_kind:"REPORTED_DIRECT_TRANSACTION",
+ impact_category:"POTENTIAL_BENEFICIARY_UNVERIFIED",linked_at:"2026-10-17T00:01:00+00:00",
+ source_urls:["https://example.org/separate-official-source"],reported_in_selected_article:false}]}]
+ },saved_title_analysis:{
  status:"READY",analysis_available_at:"2026-10-17T00:01:00+00:00",
  report_sha256:"f".repeat(64),reported_plan_only:false,ai_status:"NOT_ELIGIBLE",
  economic_change_status:"READY",economic_changes:[{
@@ -143,6 +154,17 @@ vm.runInNewContext(code,ctx);
  assert(saved.children.some(x=>x.children?.some(y=>y.textContent.includes("<img src=x>"))));
  assert(detail.children.some(x=>x.textContent.includes("저장된 동일 기사 판본")));
  assert(detail.children.some(x=>x.children.some(y=>y.textContent.includes("가상전자"))));
+ const companyBox=detail.children.find(x=>x.className==="news-evidence-company-context");
+ assert(companyBox,"article company context must render");
+ const companyCard=companyBox.children.find(x=>x.className==="news-evidence-theme");
+ assert(companyCard);
+ assert(companyCard.children.some(x=>x.children.some(y=>y.textContent.includes("가상전자<img src=x>"))));
+ assert(companyCard.children.some(x=>x.children.some(y=>y.textContent.includes("기사와 일치한 사업 개시 근거"))));
+ assert(companyCard.children.some(x=>x.children.some(y=>y.textContent.includes("SEC_CIK:111111"))));
+ assert(companyCard.children.some(x=>x.children.some(y=>y.textContent.includes("별도 공급 관계 근거"))));
+ const missingCompanies=el();ctx.renderSavedArticleCompanyContext(missingCompanies,{
+   status:"N/A",reason_code:"NO_COMPANY_IN_EXACT_ARTICLE_EVENTS",themes:[]});
+ assert(missingCompanies.children[0].children.some(x=>x.textContent.includes("기업 당사자")));
  const missing=el();ctx.showSavedNewsEvidence(missing,{status:"N/A",reason_code:"NO_SAVED_EXACT_THEME_EVIDENCE",
    saved_title_analysis:{...evidence.saved_title_analysis,economic_changes:[],economic_change_status:"NO_EXPLICIT_TITLE_CHANGE"}});
  assert(missing.children[0].children.some(x=>x.textContent.includes("명시된 경제 변화 없음")));

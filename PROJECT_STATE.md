@@ -1,14 +1,18 @@
-# PROJECT_STATE — NewsCatalystOS 실사용 운영 전환
+# PROJECT_STATE — NewsCatalystOS 운영 개시
 
-기준 2026-10-17T19:47:06+09:00. 기능 SHA d49cc73ff33a54225cc2228245ca259d7cf22a9b. 반도체 V1, 기존 36/36은 과거 코드 작업 구현 기록, 무인운영·출시/연동 인수와 별개.
+기준 2026-10-17T20:58:49+09:00. V1 반도체 1산업. 사용자 승인 배포 완료. 실제 운영 코드 SHA **c56059ab4b9b422fd687f3c8775b1d527fe49052**. 기존 1_1~6_6 코드구현 기록 **36/36** 유지; 운영 시작과 장기 관찰·EraLeader 공동 인수는 별개.
 
-- 새로 동작: scripts/run_approved_research_feeds_once.py로 MSIT press/policy, Samsung, SK, NIST 공식 승인 출처5를 현재 dev 원장에서 1회 실행(code0, 성공5/실패0, 저장 기사198 분석, 경제행동9 유지, 신규기사0). 하나의 신규 수집기가 아니라 기존 scheduler가 각각 승인 원장/권리/시간당 제한·동일 제공자 교대/중복 제거를 재사용. dry-run/저장자료 replay-only도 실제 OK, Paid AI0, 기사 본문0, ERA API0.
-- 첫 출처가 실패/빈 경우 개발 분석 보고서의 부모 폴더가 0755가 돼 정상 후속 출처까지 실패하는 실제 장애를 비공개 분석 폴더 0700 선행 생성으로 해결. 합성 1개 실패 시 정상4개 통과/실패1 기록, 성공 경로 포함 국소 **30 PASS/0 FAIL**.
-- 실제 구 NewsCatalystOS 운영 launchd core exit0, MOTIR exit4(공식 기사18 분석 READY, 하나의 중요대상 아닌 과거 semantic UNAVAILABLE). 현재 dev 최신 _analyze_provider를 실제 저장 보고서로 검증: 선택적 불완전만 있는 경우 0, 중요 신규 사건 실제 AI 결함이면 4. **구 운영 코드/예약은 아직 변경하지 않았으므로 active 장애는 해결됐다고 하지 않음**.
-- 현 운영 DB 5개를 읽기전용으로 백업하고 별도 owner-only 개발 폴더로 실제 복원, manifest+SHA+integrity 통과, 운영 원본 SHA5 변경 없음. output/operational_recovery_dev_20261017에 보관하며 Public Git 대상 아님. 비공개 launchd 후보 output/research_scheduler_dev 준비(시간당1회, 5개 dev source); 기존 운영 런타임 변경0, 후보 미설치.
-- 이전 메인 연구 조회 실제 저장판본372/일간199/중요 후보9 유지(이번 턴 웹 UI 전체 재검증 증거로 대체하지 않음). EraLeader 코드/DB/Git, SSD, 기존 LaunchAgent, GitHub 공개 push, 사용자 dirty3 불변.
+| 이번 요청 | 판정 | 실제 근거 |
+|---|---|---|
+| 전체회귀 | 완료 | 7140 PASS/0 FAIL, 875.88초. 첫 3개의 오래된 기대값을 현행 provenance/시점·기능 정책과 맞추되 무근거/미래/고유이름 오인 거부 유지. 런타임 코드 변경 없음. |
+| 산업부 운영 오류 수정 적용 | 완료 | com.newscatalystos.motir 고정 snapshot 실행. 실제 launchd RunAtLoad 자동실행1회 exit0, 기존 수집 원장은 NOT_DUE를 지킴, 18기사 분석 성공. 선택적 과거 AI1건 보류·requested_ai_complete=false를 숨기지 않고 유지. 중요한 AI실패는 기존 fail 보호. |
+| 신규5개 RSS 정기실행 | 완료 | com.newscatalystos.research-approved 설치·활성, 3600초/RunAtLoad. 등록 직후 실제 5개 모두 exit0, 새 고유기사0·경제후보9. 출처별 호출예산·동일기관 교대·중복/PIT 유지. |
+| 사용자 실제 운영화면 | 완료 | com.newscatalystos.dashboard 상주/자동시작, 127.0.0.1:8766 HTTP200. 5영역8제공자372제목판본·일간199·중요후보9. SK하이닉스 투자계획/테마/기업 원문근거 READY, 실제수혜 비인증. |
 
-## 다음
-NEXT_TASK.md: 안전한 운영 배포 인수 및 단 한 번의 출시 통합 회귀 후 기존 MOTIR false exit4 코드 적용/신규 5개 RSS launchd 예약 연결. 사용자 기존 운영 원본과 dirty 파일 임의 변경 금지. Gemini 비용/캐시 및 AI 실제 생성 2026-10-15 증거는 기존 출시 기준에서 재사용; 새로운 단가/외부 검수 게이트 신설 금지.
+## 운영 경로와 원본 보호
+배포 버전 /Users/shmoon/Library/Application Support/NewsCatalystOS/releases/c56059ab4b9b422fd687f3c8775b1d527fe49052. 새 출처 데이터는 /Users/shmoon/Library/Application Support/NewsCatalystOS/research_workspaces. Mac 무인 실행에서 Documents의 원본 개발 경로 읽기가 멈추는 현상을 확인해, 정상 Application Support 운영 데이터 경로로 이전 후 실제 launchd 읽기5/5 확인. 개발 원본은 전부 보존, SQLite 일관성·원본 행 검증, 원 기사/분석 hash와 PIT 유지, 복사 ACK의 파일저장주소만 이전. 새 운영 원장과 보관된 dev 원장을 동시에 수집하지 않는다.
+기존 core 서비스 정상 그대로(마지막exit0). 원본 SSD src/scripts 코드 SHA 235개와 기존 core plist 보존. 기존 5종 운영 DB의 백업→별도복원 SHA/무결성 성공 근거 유효. Gemini 실제 정산86회/71.286원·미정산예약2/15.1552원, 월50000원 이내. 키·기존AI설정·미정산 예약 삭제/재과금·유료본문 공개 없음. 사용자 dirty3, EraLeader 코드/DB/Git, Public GitHub push 불변.
 
-최신 전체회귀: 219 모듈 240초 제한에서 32% 완료, exit124 시간제한. 진행부분 실패 표시는 없으나 최신 전체회귀 합격 증거는 아직 없음. 운영 LaunchAgent 후보3개는 비공개 개발 폴더에 staged이며 모두 비활성/미설치, 구 MOTIR 실제 exit4 미해결. 사용자 승인 운영 배포 및 전체회귀 완주 후 인수.
+## 남은 후속 범위
+설치 직후 RunAtLoad 자동 실행을 확인했다. **자연 hourly 실행을 기다려 확인한 것은 아니며 24시간/5거래일 안정성은 운영 후 관찰**이다. 기존 설정대로 다음 실행이 이어지도록 활성화되어 있음. 동시 수집·일괄 재시험·새 출처 확대를 이유 없이 추가하지 않는다. EraLeader 실제 공동 소비·기업평가 연동은 별도 인수, 뉴스만으로 자동매매/수혜확정하지 않음.
+증거: output/release_20261017/activation.json·operational_verification.json·full_regression_final_result.json. 롤백 후보/원 plist도 동일 ignored 비공개 폴더에 보존.

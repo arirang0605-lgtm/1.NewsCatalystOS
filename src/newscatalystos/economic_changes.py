@@ -1314,3 +1314,69 @@ def official_us_chips_award_change(text):
         'evidence_level':'REPORTED',
         'verified_economic_effect':False,
     }]
+
+
+# Two more source-specific federal announcements actually present in NIST's
+# saved Electronics RSS. They describe plans/commitments, NOT built capacity,
+# paid incentives, realized revenue or stock-market beneficiaries.
+_NIST_CHIPS_LOI = (
+    re.compile(
+        r"^The Department of Commerce’s CHIPS Program Announces a Letter of "
+        r"Intent with (?P<actor>[A-Za-z][A-Za-z0-9-]{2,48}) for up to "
+        r"\$(?P<amount>[1-9][0-9]{0,5}) Million to Expand "
+        r"(?P<product>Indium Phosphide) Production$"),
+    re.compile(
+        r"^Department of Commerce and NIST Announce CHIPS Research and "
+        r"Development Letter of Intent with (?P<actor>[A-Za-z][A-Za-z0-9-]{2,48}), "
+        r"Inc\. for (?P<product>Extreme Ultraviolet Lithography)$"),
+)
+_NIST_SEMICONDUCTOR_COMMITMENT = re.compile(
+    r"^Trump Administration Secures an Additional \$(?P<additional>[1-9][0-9]{0,5}) "
+    r"Billion U\.S\. Semiconductor Manufacturing Investment for a Total of "
+    r"\$(?P<total>[1-9][0-9]{0,5}) Billion from "
+    r"(?P<actor>[A-Z][A-Za-z0-9-]{2,48})$")
+
+
+def official_us_semiconductor_news_change(text):
+    """Bounded US official RSS headline action, never settlement/award proof.
+
+    Called only for the already-approved nist.gov source with source URL,
+    metadata rights and original SHA checked by the existing feed pipeline.
+    Do not interpret a reported pledged USD amount as money spent or received.
+    """
+    previous=official_us_chips_award_change(text)
+    if previous:
+        return previous
+    if not isinstance(text,str) or not 0<len(text)<=256:
+        return []
+    if re.search(
+        r'\b(?:rumou?r|denied|unconfirmed|may|might|proposal|cancelled|canceled|'
+        r'failed|rejected)\b',text,re.I):
+        return []
+    actor=topic=driver=action=None
+    for pattern in _NIST_CHIPS_LOI:
+        match=pattern.fullmatch(text)
+        if match:
+            actor=match['actor']
+            topic=match['product']
+            action='POLICY_CHANGE'
+            driver='POLICY_ENABLEMENT'
+            break
+    if actor is None:
+        match=_NIST_SEMICONDUCTOR_COMMITMENT.fullmatch(text)
+        if match and int(match['total'])>=int(match['additional']):
+            actor=match['actor']
+            topic='Semiconductor'
+            action='INVESTMENT'
+            driver='CAPACITY_EXPANSION'
+    if not actor or actor in {
+        'Company','Companies','Business','Recipient','Unknown','Subsidiary'
+    }:
+        return []
+    return [{
+        'topic':topic,'economic_driver':driver,'action':action,
+        'phase':'PLANNED','entity_ids':[actor],
+        'industry_tags':['SEMICONDUCTOR'],
+        'source_paragraph_sha256':sha256(text.encode()).hexdigest(),
+        'evidence_level':'REPORTED','verified_economic_effect':False,
+    }]

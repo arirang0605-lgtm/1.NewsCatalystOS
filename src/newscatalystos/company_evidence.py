@@ -213,10 +213,11 @@ def _clause(text,change,entity,ref,*,include_investment_execution=True,include_n
     if (ref.get('source_id')=='nist-official-electronics'
             and ref.get('content_scope')=='RSS_TITLE_METADATA'
             and ref.get('source_url','').startswith('https://www.nist.gov/news-events/')
-            and change.get('economic_driver')=='POLICY_ENABLEMENT'
-            and change.get('action')=='POLICY_CHANGE'):
-        from .economic_changes import official_us_chips_award_change
-        parsed=official_us_chips_award_change(text)
+            and (change.get('action'),change.get('economic_driver')) in {
+                ('POLICY_CHANGE','POLICY_ENABLEMENT'),
+                ('INVESTMENT','CAPACITY_EXPANSION')}):
+        from .economic_changes import official_us_semiconductor_news_change
+        parsed=official_us_semiconductor_news_change(text)
         if (len(parsed)==1 and parsed[0]==change
                 and sha256(text.encode()).hexdigest()==ref['evidence_sha256']
                 and entity in parsed[0]['entity_ids']

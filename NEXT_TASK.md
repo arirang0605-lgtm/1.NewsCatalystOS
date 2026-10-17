@@ -1,12 +1,12 @@
-# NEXT_TASK — 승인된 SK하이닉스 RSS 2종의 동일 원장 자동 교대 실자료 1회
+# NEXT_TASK — SK하이닉스 동일 원장 RSS 자동교대 실제 tick
 
-## 완료 증거
-기능 SHA **7bf2c2dd9d427bcce39918c2764ef6213f670228**: 회사용 기존 `run_scheduled_triage.py`에 `--alternate-registry` 도입. SK하이닉스 `skhynix-newsroom-korea` 회사 ID/원장 유지, 공식 일반 RSS vs 보도자료 RSS를 기존 확인 완료한 source ACK 수로 자동 번갈아 선택. 소비자는 기존 triage/규칙 분석/ThemeStore/기업·일간 UI 전부 그대로 재사용. 합성 2회 출처 교대 + 같은 GUID/원장 한도, 권리/도메인 변조 거부, 실제 소스 ACK 2건 다음 primary 선택·네트워크 없는 dry-run 정상. 변경 영향 **44 PASS**.
-실뉴스 2026-10-17 오전/오후 SK 일반10·PRESS10 제목 모두 저장. PRESS에서 54조원 메모리 생산 시설 투자 제목이 `INVESTMENT/PLANNED`로 사건1·테마1·기업 SK하이닉스1·원문 정확 구간까지 HTTP200. 전체 승인 저장 판본 313. 집행/매출·수혜 미인증, 유료AI/본문 저장0, 운영 SSD 미배포/공개 GitHub 미푸시.
+## 직전 완료 증거
+최신 기능 SHA `00184a3f8172a745a449bd326e3da5b7922cb320`: 기존 제목 경제 사건 `INVESTMENT/PLANNED`로 저장된 SK하이닉스 54조원 반도체 생산시설 투자 발표를 큰 **출처 보고 계획의 중요 검토 후보**로 실제 일간/기사 화면에 노출. 띄어 쓴 원 단위 직접 인식, 기존 대형 규모 임계값 재사용, 새 AI/실제 집행·수혜 사실 승격 없음. 실제 dev 사설 저장 뉴스20개 규칙 재분석·새 report SHA, 당일 전체 화면 기사140/검토1, 기존 투자 테마1 변경0, HTTP200. 변경 영향 **97 PASS**, 운영·dev registry/원장/ThemeStore 8개 SHA 불변.
 
-## 다음 실사용 경로
-1. 시간당 1회 승인 원장의 `next_allowed_at=2026-10-17T07:11:55.500573+00:00` (KST 16:11:55) **이후에만** dev private 회사 원장으로 `python3 -B scripts/run_scheduled_triage.py --once --registry output/company_live_dev/providers/authorized_sources.json --alternate-registry output/company_live_dev/providers/skhynix_press_variant_authorized_sources.json --provider-id skhynix-newsroom-korea --state output/company_live_dev/state/incremental_feeds.sqlite3 --inbox-root output/company_live_dev/inbox/feed_triage --dedup-state output/company_live_dev/state/triage_exact_index.sqlite3 --output-root output/company_live_dev/triage --analysis-root output/company_live_dev/feed_analysis/core --analysis-theme-root output/company_live_dev/document_analysis/theme_history` 실행. 위 모든 파일 경로는 작업트리의 절대경로로 전달. **실제 일반 RSS 자동 선택/소스 신규·중복수·지난 투자 사건과 테마 보존**을 사용자 결과로 보고. 제한 전 재시도·기존 개발 호출 원장 삭제 금지.
-2. 다음 실제 뉴스에 계약/생산능력 확대/경제 변화가 있으면 원래 규칙→테마→기업 저장/기존 대시보드 경로로 보여준다. 없으면 0/N/A 유지. 필요하지 않은 검증·관리 도구 반복 구축 금지.
-3. 외부 출처 승인·유료 본문/이미지·비밀, EraLeader 운영 원본, SSD 정기 운영/공개 push는 승인된 범위에서만. 완료 판정 docs/PRODUCT_COMPLETION_CRITERIA_20261016.md에 따른 기능·실자료·운영·연동 분리.
+## 다음 필수 실사용 작업 1개
+1. 기존 수집 원장 SK하이닉스 next_allowed_at=2026-10-17T07:11:55.500573+00:00 (KST **16:11:55**) 이후에만 기존 dev private `output/company_live_dev`에서 `--alternate-registry`를 지정해 `run_scheduled_triage.py --once` 실제 1회 실행. 승인 primary `providers/authorized_sources.json` / alternate `providers/skhynix_press_variant_authorized_sources.json`, 기존 provider `skhynix-newsroom-korea`, 기존 SQLite state/inbox/ACK/dedup/feed_analysis/core/ThemeStore 루트 모두 재사용한다. 무효화/원장 리셋/회피하거나 기존 기사 본문을 복제하지 않는다.
+2. 완료 ACK2건 기준으로 다음 실제 일반 RSS primary 선택이 작동하는지, 신규 기사 수/중복 보도 건수, 경제 변화 검출 결과, 기존 54조원 `INVESTMENT/PLANNED` 테마·기업/하이라이트 유지 여부를 확인한다. 실제 새로운 경제 변화가 없으면 N/A로 정직하게 표시. 허용 전이라면 다른 독립 공식 RSS 핵심 구현을 진행하고 무의미한 중복 호출 금지.
+3. 개발 기능 테스트는 변경 핵심만. 다른 수집기/관리도구 확장으로 대체하지 않는다. EraLeader 승인 공유 스냅샷 외 수정 금지, 운영 SSD·launchd·Public GitHub push 및 키·원문·유료 AI/주문 권한 확대 금지.
+4. Git 기능 SHA/테스트/현재 완료 코드36/36 및 실자료·정기운영·제품 출시는 분리 보고한다. 최종 인수조건 docs/PRODUCT_COMPLETION_CRITERIA_20261016.md 기준 유지.
 
-사용자 확정 약속: 허용 뉴스 수집 범위 확대와 핵심 4단계 실사용 구현 우선. 기존 36/36은 과거 코드 구현 기록이지 전체 출시 완료 아님.
+사용자 확정 약속: 허용 뉴스 수집 범위와 반도체 핵심 4단계 자동 처리 우선. 세부 검수·관리 반복확장 금지.

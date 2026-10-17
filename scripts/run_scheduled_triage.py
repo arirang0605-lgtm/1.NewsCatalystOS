@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 import json
 import sqlite3
 from pathlib import Path
+from urllib.parse import urlsplit
 import sys
 
 # Work both when called as "python scripts/..." and imported in pytest.
@@ -31,6 +32,8 @@ def parser() -> argparse.ArgumentParser:
     base = Path.home() / "Library/Application Support/NewsCatalystOS"
     p.add_argument("--registry", required=True, type=Path)
     p.add_argument("--provider-id", action="append", required=True)
+    p.add_argument("--alternate-registry", type=Path,
+                   help="alternate approved RSS category of the SAME publisher; one provider ID only")
     p.add_argument("--state", type=Path, default=default_state())
     p.add_argument("--dedup-state", type=Path,
                    default=base / "state" / "triage_exact_index.sqlite3")
@@ -60,6 +63,41 @@ def parser() -> argparse.ArgumentParser:
     operation.add_argument("--replay-only", action="store_true",
                            help="recover prior checkpoints and analyze completed input; no source HTTP")
     return p
+
+
+def _approved_feed_variant(opts, selected, registered, at, registry_reader):
+    """One publisher's two verified RSS endpoints, alternating by saved ACK.
+
+    An ACK means one durable completed source poll, not a new independent
+    publisher. Reuse the SAME provider request/seen-ID state and never count
+    unacknowledged or failed polls as successful rotation steps.
+    """
+    other_path = getattr(opts, "alternate_registry", None)
+    if other_path is None:
+        return opts.registry, "primary"
+    if len(selected) != 1:
+        raise SourceShareError("alternate RSS requires one publisher ID")
+    other = registry_reader(other_path)
+    name = selected[0]
+    primary = registered.active(name, at=at)
+    alternate = other.active(name, at=at)
+    fields = ("provider_id", "kind", "method", "grant", "rights_reference",
+              "expires_at", "approved", "allow_full_text_storage", "hourly_limit")
+    if (len(other.providers) != 1
+            or any(getattr(primary, key) != getattr(alternate, key) for key in fields)
+            or primary.method != "RSS" or primary.allow_full_text_storage
+            or primary.endpoint == alternate.endpoint
+            or urlsplit(primary.endpoint).hostname != urlsplit(alternate.endpoint).hostname):
+        raise SourceShareError("alternate RSS must be same approved publisher and rights")
+    # A dry-run/replay never consumes another RSS slot. A replay continues
+    # committed metadata regardless of which category produced the receipt.
+    if opts.dry_run or getattr(opts, "replay_only", False):
+        return opts.registry, "primary"
+    from newscatalystos.news_search import read_completed_title_snapshots
+    completed = read_completed_title_snapshots(
+        opts.inbox_root, opts.state, registered, now=at)
+    count = sum(ack["provider_id"] == name for ack, _, _ in completed)
+    return (other_path, "alternate") if count % 2 else (opts.registry, "primary")
 
 
 FEED_SUCCESS = frozenset({
@@ -168,7 +206,9 @@ def execute(opts: argparse.Namespace, *, registry_reader=_registry,
     try:
         registered = registry_reader(opts.registry)
         at = datetime.now(timezone.utc)
-    except (SourceShareError, OSError, ValueError) as exc:
+        feed_registry, chosen_variant = _approved_feed_variant(
+            opts, selected, registered, at, registry_reader)
+    except (SourceShareError, OSError, ValueError, sqlite3.Error) as exc:
         return 4, {"status": "PRIVATE_REGISTRY_UNAVAILABLE",
                    "error_type": type(exc).__name__, "providers_checked": 0}
     outcomes = []
@@ -184,7 +224,7 @@ def execute(opts: argparse.Namespace, *, registry_reader=_registry,
             outcomes.append({"provider_id": name, "status": "AUTHORIZED_NO_REQUEST"})
             continue
         tick_opts = argparse.Namespace(
-            registry=opts.registry, provider_id=name, state=opts.state,
+            registry=feed_registry, provider_id=name, state=opts.state,
             dedup_state=opts.dedup_state, output_root=opts.output_root,
             inbox_root=opts.inbox_root, replay_only=getattr(opts, "replay_only", False),
         )
@@ -195,6 +235,7 @@ def execute(opts: argparse.Namespace, *, registry_reader=_registry,
             code, status, detail = 4, "DATA_UNAVAILABLE", {}
         failures += int(code != 0 or status not in FEED_SUCCESS)
         outcome = {"provider_id": name, "status": status,
+            **({"feed_variant": chosen_variant} if getattr(opts, "alternate_registry", None) else {}),
             "new_provider_ids": detail.get("new_provider_ids", 0),
             "semiconductor_keyword_candidates": detail.get("semiconductor_keyword_candidates", 0)}
         if enabled:

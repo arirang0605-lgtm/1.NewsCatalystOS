@@ -105,3 +105,96 @@ def test_press_variant_keeps_provider_guid_dedup_and_existing_hourly_limit(tmp_p
     assert changes[0]["entity_ids"] == ["SK하이닉스"]
     assert changes[0]["industry_tags"] == ["SEMICONDUCTOR"]
     assert changes[0]["verified_economic_effect"] is False
+
+
+def test_existing_scheduler_automatically_alternates_verified_publisher_feeds(tmp_path):
+    """A normal completed ACK rotates the next *eligible* source tick.
+
+    Does not create another source_id, HTTP collector, state table or command.
+    """
+    from scripts import run_scheduled_triage as scheduled
+    from test_federated_news_search import setup_workspace, collect, write_registry, fingerprint
+
+    main, extra = _feeds()
+    now = datetime.now(timezone.utc)
+    reviewed = now - timedelta(days=1)
+    primary = ProviderRegistry((replace(main, reviewed_at=reviewed),))
+    secondary = ProviderRegistry((replace(extra, reviewed_at=reviewed),))
+    work = setup_workspace(tmp_path, "company", primary)
+    alternate_path = tmp_path / "company/providers/press.json"
+    write_registry(alternate_path, secondary)
+    options = scheduled.parser().parse_args([
+        "--registry", str(work.registry_path),
+        "--alternate-registry", str(alternate_path),
+        "--provider-id", NAME,
+        "--state", str(work.poll_state),
+        "--inbox-root", str(work.inbox_root),
+        "--dedup-state", str(tmp_path / "company/state/dedup.sqlite3"),
+        "--output-root", str(tmp_path / "company/output"),
+        "--skip-analysis", "--once",
+    ])
+    source_options = []
+
+    def fake_feed(opts):
+        source_options.append(opts.registry)
+        return 0, {"status": "FEED_METADATA_TRIAGE_READY",
+                   "new_provider_ids": 0, "semiconductor_keyword_candidates": 0}
+
+    def selected(expected_path, expected_variant):
+        previous = fingerprint(tmp_path)
+        code, result = scheduled.execute(options, feed_runner=fake_feed)
+        assert code == 0 and source_options[-1] == expected_path
+        assert result["providers_checked"] == 1
+        assert result["providers"][0]["provider_id"] == NAME
+        assert result["providers"][0]["feed_variant"] == expected_variant
+        assert result["official_era_api_request_count"] == result["ai_call_count"] == 0
+        assert fingerprint(tmp_path) == previous  # the selection is strictly read-only
+
+    selected(work.registry_path, "primary")
+    t1 = now - timedelta(hours=3)
+    collect(work, primary, NAME, [
+        ("shared", "SK하이닉스 HBM 현황 공개", "https://news.skhynix.co.kr/shared/")
+    ], at=t1)
+    selected(alternate_path, "alternate")
+    collect(work, secondary, NAME, [
+        ("shared", "SK하이닉스 HBM 현황 공개", "https://news.skhynix.co.kr/shared/"),
+        ("new-press", TITLE, "https://news.skhynix.co.kr/fab-facility-investment-2026/"),
+    ], at=t1 + timedelta(hours=1, seconds=2))
+    selected(work.registry_path, "primary")
+    assert state_snapshot(work.poll_state, NAME)["seen_count"] == 2
+
+
+def test_variant_requires_identical_provider_rights_and_exactly_one_source(tmp_path):
+    from scripts import run_scheduled_triage as scheduled
+    from test_federated_news_search import setup_workspace, write_registry, fingerprint
+
+    main, alt = _feeds()
+    now = datetime.now(timezone.utc)
+    past = now - timedelta(days=1)
+    reg = ProviderRegistry((replace(main, reviewed_at=past),))
+    work = setup_workspace(tmp_path, "company", reg)
+    other = tmp_path / "company/providers/press.json"
+    p = replace(alt, reviewed_at=past)
+    write_registry(other, ProviderRegistry((p,)))
+    args = ["--registry",str(work.registry_path),"--alternate-registry",str(other),
+            "--provider-id",NAME,"--state",str(work.poll_state),
+            "--inbox-root",str(work.inbox_root),"--skip-analysis","--once"]
+    opts = scheduled.parser().parse_args(args)
+    expected = fingerprint(tmp_path)
+    def no_feed(_):
+        raise AssertionError("unauthorized RSS network selection")
+    def denied(changed):
+        write_registry(other, ProviderRegistry((changed,)))
+        code, result = scheduled.execute(opts,feed_runner=no_feed)
+        assert code == 4 and result["providers_checked"] == 0
+        assert not work.poll_state.exists()
+    denied(replace(p,rights_reference="https://different.example.org/copyright"))
+    denied(replace(p,provider_id="other-provider"))
+    denied(replace(p,endpoint="https://other.example.org/press/feed/"))
+    denied(replace(p,hourly_limit=2))
+    denied(replace(p,allow_full_text_storage=True))
+    code, result = scheduled.execute(scheduled.parser().parse_args(args+[
+        "--provider-id", "another-provider"]),feed_runner=no_feed)
+    assert code == 4 and result["providers_checked"] == 0
+    assert not work.poll_state.exists()
+    assert all(f not in str(result) for f in ("https://news.skhynix.co.kr", "secret"))

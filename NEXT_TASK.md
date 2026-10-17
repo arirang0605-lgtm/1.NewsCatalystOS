@@ -1,11 +1,16 @@
-# NEXT_TASK — 고정 News 재료입력을 기존 Era 후보 판단에 반영
+# NEXT_TASK — Era 후보선정 내부의 News 재료 소비 연결
 
-## 이번 완료
-기능/배포 **168ea012ddcade5555964f1f849edae4200fb261**: News 기존 시간당 수집·분석 후 자동으로 고정 재료판본을 발행한다. 기본 /api/themes URL 변경 없이 완료판본을 읽는다. 17테마/4저장영역 PUBLISHED, 실제 launchd5/5exit0(새기사0/AI0), 기존 Era reader17 수신호환·파일/API SHA동일. 개발 같은입력 재발행 ALREADY_PUBLISHED, 자정/시각변화로 재료 재생성하지 않음. 실제 SK는 NO_NEW_CATALYST 맥락, 계획·자본지출/공급능력 가설·반증·공식 ID 유지. 원래 역할 및 위범위 시험94+최종API48 PASS(중복, 합산안함).
+기준 2026-10-18T01:04:19+09:00. 이번 확인은 읽기 전용이며 신규 제품 기능/시험/배포를 완료했다고 세지 않는다.
 
-## 가장 중요한 다음 연결
-Era 담당자는 **기존 /api/themes 또는 News material_outbox의 완료 payload+SHA**를 읽어 자기 후보모델에 연결한다. 같은 payload SHA/사건 ID는 중복 반영하지 않고, 반복/유지·회사ID 보완을 신규 가산하지 않는다. first-local-claim은 시장최초발생 확정이 아니며 결측은 해당항목만 UNKNOWN. 진전/상충/철회는 정확 회사·사건의 재평가 이유다. LAST_GOOD_SOURCE_UNAVAILABLE은 최신 원자료까지 검증했다는 뜻이 아니므로 이전 맥락/실패를 함께 취급한다.
-News는 대장주 점수·후보 순위를 대신 만들지 않는다. Era 독립 전시장 발굴 및 가격·거래대금·수급·경쟁력의 기존 모델을 유지하면서 자료가 있는 기업부터 우선/강화·약화·유지 이유를 내고 기존 수신자 중립 전략 JSON으로 전달하는 작업이 남는다. Era의 독립 개발 HEAD가 갱신 중이므로 그 프로젝트 최신 지침/작업부터 확인하고, 이 News 작업에서 상대 코드/DB/Git·예약을 임의 변경하지 않는다.
-이제 News 전방 전달은 **자동 저장·기준 유지·표준 API 읽기**까지 있다. 실제 새 입력 결함이나 소비 계약의 구체적 불일치가 없으면 또 다른 게시/관리도구를 만들거나 기완료검사를 반복하지 않는다. 반도체 핵심 입력에 필요한 국소 수정을 우선한다.
+## News에서 끝낸 범위
+운영 SHA 168ea012ddcade5555964f1f849edae4200fb261: 기존 정기 수집·분석 뒤 고정 재료판본 자동 발행, 이전 성공 판본 대비 비교, 동일 입력 동일 SHA, 개별 오류 시 이전 정상판본/미확인 상태 보존. 기존 /api/themes 기본 주소와 material_outbox에서 완성된 v1/v2 판본을 읽는다. 기존 Era reader 호환과 실제 SK 공식기업 연결·NO_NEW_CATALYST/조건부 영향근거는 이미 확인됨. 같은 게시/검수/호환확인 도구를 더 만들어 다음 선정작업을 대신하지 않는다.
 
-운영 전달폴더: /Users/shmoon/Library/Application Support/NewsCatalystOS/document_analysis/material_outbox. source 원장 /Users/shmoon/Library/Application Support/NewsCatalystOS/research_workspaces; dev output/*_live_dev 보관본은 수집실행금지. 배포고정코드 /Users/shmoon/Library/Application Support/NewsCatalystOS/releases/168ea012ddcade5555964f1f849edae4200fb261; 후속 수정은 개발 저장소에서 구현·관련시험·새snapshot. 원본/PIT/권리/비밀/예산·무주문 및 사용자dirty3·Public GitHub 무push 유지. 36/36은 과거 코드 기록이며 Era 실제선정·전략 전체인수는 별도.
+## 실제 소비자 측 미완료 확인
+Era 현재 HEAD cefc73f91b346e04f826983bf63a7f102dfd4e7a. src/scripts 전체에 catalyst_material, news_input_for_era, material_publication_source, NO_NEW_CATALYST 또는 REASSESS_REPORTED_PROGRESS 소비 구현이 없음. news_catalyst_adapter.py는 테마 수신·기업 연결을 하며 kr_candidate_priority.py는 가용 가격·거래대금·재무/기존 요인 비교만 수행한다. 현 완료 일일 후보50/부분근거 우선후보18 판본 a3674b6f1e40490067d653efaf5d388d4396e26310af24265853e4f5802d0e10 (파일SHA d576d6937ca57d42d94cc3644f738f1d10dc3c3caa8c5c9127133a1c57817f84)은 News 재료를 실제 후보선정에 반영한 증거가 아니다.
+
+## Era 개발에서 이어야 할 단일 핵심 작업
+기존 수신기가 보관한 정확 기업/사건·출처·시각에 News 재료 상태를 연결하고, 기존 후보평가/우선선정/변화 설명에 사용한다. 반복·유지·식별보완은 신규 가산 없음; 단계진전·상충·철회는 해당 후보의 재평가 이유; 로컬첫관측·시장신규 미확인은 맥락으로 유지. 기존 100점/정식상태·독립 전시장 발굴과 전략 중립 전달을 보존하고 News에 대체 순위모델을 만들지 않는다. 정상·변경·철회 및 중복 SHA가 실제 후보 결과/이유에 어떻게 반영되는지 해당 코드에서 시험한다. 결측은 해당항목만 N/A, 자료전부확보/인적검수·장기대기는 추가 조건 아님.
+
+이 News 작업범위에서 Era 코드·DB·Git·설정을 변경하지 않는다. 실제 후속 구현은 Era 프로젝트 담당 경로에서 진행한다. 이 경계를 회피하려고 News 내부에 별도 선정기·추가 게시기·감독도구를 만들지 않는다. 이 항목 외 News의 새 실제 결함이 확인되면 그 핵심 입력→출력 경로만 수정할 수 있다.
+
+현재 기능코드36/36 기록과 Era 선정/전략 전체인수는 별개. 이번 코드변경/신규시험/외부수집/AI/운영설정 변경0. News 원본과 사용자 dirty3, Era 원본, 비용·PIT/SHA·출처권리/무주문 보호. 공개 GitHub push 없음.

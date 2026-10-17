@@ -1,13 +1,12 @@
-# PROJECT_STATE — NewsCatalystOS 기능·실자료·출시 분리
+# PROJECT_STATE — NewsCatalystOS 최신 기능·실자료·운영 분리
 
-기준 2026-10-17T15:53:10+09:00. 기능 SHA `00184a3f8172a745a449bd326e3da5b7922cb320` 개발 로컬. 사용자 승인 범위 V1 반도체 한 산업, 과거 코드 1_1~6_6 **36/36** 기록(제품·실운영 완료 아님). 정상 코드 CONTINUE, 핵심 수집→경제 사건→테마/기업→화면 먼저, 필수 최소 테스트.
+기준 2026-10-17T17:03:18+09:00. 뉴스 1_1~6_6 과거 구현 이력 36/36 유지, 실제 운영·출시/연동 인수와 구분. V1 반도체 1산업. 사용자 실사용 4단계 우선.
 
-## 이번에 새로 해결한 실제 경제 사건 표시 장애
-- SK하이닉스 공식 PRESS RSS "용인 Y2·청주 M17에 54조 원 투자 ... AI 시대 메모리 수요 대응" 제목은 이미 경제행동 `INVESTMENT`/phase `PLANNED`(회사 SK하이닉스, 메모리 주제)로 테마1 저장됐지만, 띄어 쓴 `조 원` 금액 파서 누락으로 일간 우선 검토 후보에서 빠져 있었다.
-- `MONEY` 및 `_krw`가 띄어 쓴 KRW 단위를 출처 문자 그대로 인식하게 변경. 완료됐던 source-bound 단일 회사 제조시설 `INVESTMENT/PLANNED` 행동 + 명시 금액이 기존 LARGE_KRW 임계값 이상인 경우 **표시 우선순위만 HIGH_PRIORITY_CANDIDATE**. `ai_eligible=False`, `verified_beneficiary=False`, `reported_plan_only=True`, 실제 집행/매출·수혜 미확정. rule_version v11.
-- 신규 외부 수집 없이 이미 승인된 회사 RSS20판본을 dev private reports에 재분석(코드0). 일간 조회 2026-10-17 기사140 / 검토1 / 관련 기사 EXACT HTTP200, 투자 계획 유지; 같은 source의 새 테마버전0 (기존 ThemeStore 불변). 관련 **97 PASS/0 FAIL**; 악의적 표현(자사주/검토/금액 복수/막연한 계획) 우선 승격 차단. 운영+dev 등록/원장·테마 8 SHA 불변. 유료 AI/실주문/본문 복제 없음.
-- 이 직전 `7bf2c2dd9d427bcce39918c2764ef6213f670228`: 같은 회사 provider ID/1시간 원장으로 SK 뉴스룸 `feed/`↔`category/press/feed/` 완료 ACK 기준 교대 구현, 합성·dry-run 검증. 실제 다음 자동 tick은 아직 미실행, 호출 next_allowed_at=2026-10-17T07:11:55.500573+00:00. 실제 이미 저장된 기사 총313 판본. 운영 SSD/launchd/Public GitHub 미배포.
-- 이 개발은 운영 원본이 아닌 /Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project 내부 개발 환경. 사용자 dirty AGENTS.md/DECISIONS.md/비전3 파일 SHA 불변.
+## 새로 해결한 실제 수집 장애/운영상 입력
+- 기존 SK하이닉스 일반 뉴스룸 vs PRESS RSS 자동 교대를 dev private 단일 승인 업체 ID/원장으로 실제 1회 수행. 공식 source API 승인 권한 내 RSS 일반 feed primary 자동 선택(기존 ACK 완료 2), 시각 2026-10-17T08:00:09.428123+00:00 성공 watermark. 총 기존 원장 고유20, 이번 신규0/중복 재관측10, 실패0, 분석20 및 기존 실제 투자 사건1·새 테마0(기존 동일 기업·테마 1 유지). AI 0, 본문 저장0, 종료코드0. 다음 원장 제한 2026-10-17T09:00:07.784557+00:00(18:00:07 KST), 다음 read-only 선택 alternate/공식 SK하이닉스 PRESS.
+- 승인 수집 기초 전체 core156+motir17+msit100+SK/Samsung company40 = 313 고유 제목 판본. 메인 개발 HTTP 검색 '54조' 기사1, 일간 기사140/중요 검토1, 저장 경제 행동 INVESTMENT/PLANNED, 관련 회사 SK하이닉스, 출처제목 원문·PIT 근거 유지. 투자집행/매출·확정 수혜 없음; 동일 SK 회사 뉴스룸 두 카테고리를 서로 독립 출처로 부풀리지 않음.
+- 실제 대시보드/ACK 연속 경로와 기존 기능 국소 10 PASS/0 FAIL. 기준 operating+dev provider, state, theme 원본 9개 SHA 불변(읽기전용 조회); 이번 개발 원장만 정상 수집 상태로 진행. Paid AI0/수집 본문0, SSD/launchd·Public GitHub 미변경. 사용자 dirty AGENTS.md/DECISIONS.md/비전 문서3 불변.
+- 이 턴은 새 소스코드가 아닌, 이전 기능 7bf2c2dd9d427bcce39918c2764ef6213f670228의 실제 네트워크 실행 장애/정상운영 검증. 기존 source 경제 기사 우선 표시 기능 SHA 00184a3f8172a745a449bd326e3da5b7922cb320.
 
 ## 다음
-NEXT_TASK.md: 원장 허용시간 이후 기존 코드 `run_scheduled_triage.py --alternate-registry` dev single --once, 종료상태/중복 보존/이전 54조 투자 기사 유지 확인. 그 전에는 재시도하지 않고 다른 독립 뉴스 입력 기능 계속. 실사용/실자료·독립 운영·제품 인수 분리.
+NEXT_TASK.md — 중요 경제 발표를 직접 포함한 승인 회사·산업 공식 RSS 확대, 하나의 실제 제목→경제 변화→테마/기업→대시보드 구현 및 N/A 올바른 유지. 시간당 요청 제한과 사용자 승인 운영 원본 보존. 별도 자동화 또는 SSD 운영 배포는 이후 승인.

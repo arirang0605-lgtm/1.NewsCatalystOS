@@ -1,12 +1,12 @@
-# NEXT_TASK — SK하이닉스 동일 원장 RSS 자동교대 실제 tick
+# NEXT_TASK — 반도체 중요 경제 발표의 공식 RSS 실제 수집 범위 확대
 
-## 직전 완료 증거
-최신 기능 SHA `00184a3f8172a745a449bd326e3da5b7922cb320`: 기존 제목 경제 사건 `INVESTMENT/PLANNED`로 저장된 SK하이닉스 54조원 반도체 생산시설 투자 발표를 큰 **출처 보고 계획의 중요 검토 후보**로 실제 일간/기사 화면에 노출. 띄어 쓴 원 단위 직접 인식, 기존 대형 규모 임계값 재사용, 새 AI/실제 집행·수혜 사실 승격 없음. 실제 dev 사설 저장 뉴스20개 규칙 재분석·새 report SHA, 당일 전체 화면 기사140/검토1, 기존 투자 테마1 변경0, HTTP200. 변경 영향 **97 PASS**, 운영·dev registry/원장/ThemeStore 8개 SHA 불변.
+## 직전 완료
+2026-10-17 17:00 KST경 회사별 한 원장의 SK하이닉스 뉴스룸/PRESS category 기존 교대 코드 첫 실제 scheduler --once 성공. 1개 공식 RSS GET(일반 feed primary), 신규 기사0/기존 중복10, 분석20, 경제행동 INVESTMENT/PLANNED 기존1, 추가 테마0; ACK 총3으로 다음 source는 PRESS alternate 자동 선택. source next_allowed_at=2026-10-17T09:00:07.784557+00:00 (KST 18:00:07). 보고/메인 HTTP에서 승인 저장 판본313, 일간140·중요투자계획1, SK하이닉스 기사 회사1/실수혜미확정. 원본9개 SHA 읽기 중 불변, 국소 테스트10 PASS. 새 AI/기사본문 저장 없음. 개발 source 기능 Git 7bf2c2dd9d427bcce39918c2764ef6213f670228, 높은 중요도 표시 00184a3f8172a745a449bd326e3da5b7922cb320.
 
-## 다음 필수 실사용 작업 1개
-1. 기존 수집 원장 SK하이닉스 next_allowed_at=2026-10-17T07:11:55.500573+00:00 (KST **16:11:55**) 이후에만 기존 dev private `output/company_live_dev`에서 `--alternate-registry`를 지정해 `run_scheduled_triage.py --once` 실제 1회 실행. 승인 primary `providers/authorized_sources.json` / alternate `providers/skhynix_press_variant_authorized_sources.json`, 기존 provider `skhynix-newsroom-korea`, 기존 SQLite state/inbox/ACK/dedup/feed_analysis/core/ThemeStore 루트 모두 재사용한다. 무효화/원장 리셋/회피하거나 기존 기사 본문을 복제하지 않는다.
-2. 완료 ACK2건 기준으로 다음 실제 일반 RSS primary 선택이 작동하는지, 신규 기사 수/중복 보도 건수, 경제 변화 검출 결과, 기존 54조원 `INVESTMENT/PLANNED` 테마·기업/하이라이트 유지 여부를 확인한다. 실제 새로운 경제 변화가 없으면 N/A로 정직하게 표시. 허용 전이라면 다른 독립 공식 RSS 핵심 구현을 진행하고 무의미한 중복 호출 금지.
-3. 개발 기능 테스트는 변경 핵심만. 다른 수집기/관리도구 확장으로 대체하지 않는다. EraLeader 승인 공유 스냅샷 외 수정 금지, 운영 SSD·launchd·Public GitHub push 및 키·원문·유료 AI/주문 권한 확대 금지.
-4. Git 기능 SHA/테스트/현재 완료 코드36/36 및 실자료·정기운영·제품 출시는 분리 보고한다. 최종 인수조건 docs/PRODUCT_COMPLETION_CRITERIA_20261016.md 기준 유지.
+## 다음 최우선 실사용 작업
+1. 신규 반도체 소재·장비·메모리 회사 공식 보도자료/IR RSS 중 허용 이용권한/공개 수집 범위·rate limit이 확인되는 출처의 **중요 투자·공급 계약·양산·증설 제목**을 찾는다. 일반 기사/행사·중복 내용을 숫자나 경제 행동으로 억지 승격하지 않는다.
+2. 기존 provider_registry→feed_transport→1회 scheduler/ACK→반도체 선별→경제 변화→ThemeStore/회사→원문 근거·메인 개발 대시보드 경로를 최소 변경으로 활용한다. 실자료가 직접 근거를 갖춘 경우에만 새 사건 표시, 그렇지 않으면 0/N/A; 유료 AI는 중요한 신규 사건에서만 기존 예산·허용조건 내 필요시.
+3. SK회사 채널의 다음 호출은 원장 허용 18:00:07 KST 이후, 실제 실행할 이유가 있을 때 **한 번만**. 원장 삭제·rate 우회·별도 공급자로 같은 기업 중복 등록 금지. 사용자 승인 없이 정기 스케줄러/SSD 원본/타 프로젝트 원본·GitHub push·키·유료 원문 변경 금지.
+4. 변경 코드 핵심 테스트/실자료만 확인 후 로컬 Git 및 최신 재개 MD만 갱신한다. 36/36 코드 기록은 실사용·출시/독립 운영 인수와 분리 보고.
 
-사용자 확정 약속: 허용 뉴스 수집 범위와 반도체 핵심 4단계 자동 처리 우선. 세부 검수·관리 반복확장 금지.
+사용자 약속: 뉴스 수집 범위 확대와 실제 경제 사건 발견·테마/기업 자동화 완성 우선, 불필요한 관리·검증 도구 확대 금지.

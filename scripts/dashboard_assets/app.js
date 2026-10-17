@@ -432,7 +432,7 @@ function renderCatalystMaterial(parent,value,entity){
   box.append(node("p","eyebrow","재료 판단 · NewsCatalystOS → EraLeader"));
   const paths={CAPEX:"투자지출",SUPPLY:"공급능력",DEMAND:"수요",EARNINGS:"손익",COMPETITION:"사업·경쟁 여건"};
   const directions={INCREASE:"증가 가능",DECREASE:"감소 가능",MIXED:"복합",UNKNOWN:"방향 미확인"};
-  const hints={CONTEXT_ONLY_MARKET_NOVELTY_UNKNOWN:"기존 자료/첫 관측 맥락으로 제공 · 오늘의 새 호재 아님",
+  const hints={CONTEXT_ONLY_MARKET_NOVELTY_UNKNOWN:"기존 자료/첫 관측 맥락으로 제공 · 시장 신규 재료로 단정하지 않음",
     REASSESS_UNRESOLVED_SOURCE_REVISION:"원문 변경에 따른 영향 재검토 · 실질 변화 미확정",
     REASSESS_REPORTED_PROGRESS:"단계 진전 근거를 후보 평가에 함께 반영",
     REASSESS_WITHDRAWAL:"철회된 재료를 후보 평가에서 재검토",

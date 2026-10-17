@@ -195,7 +195,7 @@ const box=node('div');
 ctx.renderCatalystMaterial(box,{materials:[{material_status:'NO_NEW_MATERIAL',reason:'기존 사건 반복',source_action:'INVESTMENT',source_phase:'PLANNED',topic:'HBM',news_input_for_era:'NO_NEW_CATALYST',first_source_observed_at:'2026-10-15',first_event_recorded_at:'2026-10-17',company_impacts:[{entity_id:'합성기업',source_entity_id:'합성기업',role:'DIRECT_SOURCE_ACTION_PARTY',hypotheses:[{path:'CAPEX',direction:'INCREASE',premise:'생산시설 투자 지출 가능성',counter_argument:'발주·가동 미확인'}]}]}]});
 function text(x){return [x.textContent,...x.children.flatMap(text)].join(' ')}
 const all=text(box);for(const expected of ['기존 사건 반복','새 재료 가산 근거 없음','합성기업','발주·가동 미확인','EraLeader','개별 전략'])assert(all.includes(expected));
-assert(!all.includes('매수 추천'));console.log('NEWS_MATERIAL_NOT_STOCK_RANK_UI');
+assert(!all.includes('매수 추천'));assert(s.includes('시장 신규 재료로 단정하지 않음'));assert(!s.includes('오늘의 새 호재 아님'));console.log('NEWS_MATERIAL_NOT_STOCK_RANK_UI');
 '''
     subprocess.run(['node','-e',js],cwd=root,check=True,capture_output=True,text=True)
 

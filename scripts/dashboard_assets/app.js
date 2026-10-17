@@ -718,8 +718,43 @@ async function loadSavedThemeChange(context,theme,start,end,place){
     renderThemeChanges(place,change,labels);
   }catch(error){place.replaceChildren(node("p","empty-small",error.message||"N/A · 저장 변화 조회 실패"));}
 }
+function renderSavedTitleAnalysis(place,result){
+  if(!result)return;
+  const section=node("div","news-evidence-theme");
+  section.append(node("p","","저장 기사 제목 경제 변화 분석 · RSS 제목 근거만"));
+  if(result.status!=="READY"){
+    const messages={SOURCE_NOT_AVAILABLE_AS_OF:"해당 시점에는 기사가 아직 가용하지 않음",
+      NO_EXACT_SAVED_TITLE_ANALYSIS:"이 기사 판본의 저장 분석 보고서 없음",
+      PARTIAL_SAVED_ANALYSIS_COVERAGE:"저장 보고서 일부를 읽지 못해 판본 확인 불가"};
+    section.append(node("p","empty-small","N/A · "+(messages[result.reason_code]||"저장 분석 조회 불가")));
+    place.append(section);return;
+  }
+  section.append(node("p","finding-detail","분석 가용: "+result.analysis_available_at+
+    " · "+(result.reported_plan_only?"계획 표현 포함":"계획 여부는 개별 행동 기준")+
+    " · AI 상태: "+result.ai_status+" · 보도/제목은 독립 사실 인증 아님"));
+  if(result.economic_change_status==="NO_EXPLICIT_TITLE_CHANGE"){
+    section.append(node("p","empty-small","제목에서 명시된 경제 변화 없음 · 공식 본문/테마 판정은 아래에서 별도 확인"));
+  }
+  for(const change of result.economic_changes){
+    const card=node("div","finding-detail");
+    const action=economicActionLabels[change.action]||change.action;
+    card.append(node("p","",action+" · "+change.topic+" · "+(economicPhaseLabels[change.phase]||change.phase)),
+      node("p","",change.entity_ids.length?"기사 명시 당사자: "+change.entity_ids.join(", "):
+        "N/A · 명시된 기업 당사자 없음"),
+      node("p","","변화 원인: "+change.economic_driver+" · "+change.evidence_level+
+        (change.extraction_method==="AI_SOURCE_SPAN_MATCHED"?" · AI 원문구간 대조(미검증)":" · 규칙/출처 보도")));
+    if(!change.industry_tags.includes("SEMICONDUCTOR"))
+      card.append(node("p","empty-small","이 사건은 V1 반도체 산업 검증 사례로 확정되지 않음"));
+    section.append(card);
+  }
+  const proof=node("details","finding-detail");
+  proof.append(node("summary","","분석 근거 SHA 확인"),
+    node("p","","저장 보고서 SHA: "+result.report_sha256));
+  section.append(proof);place.append(section);
+}
 function showSavedNewsEvidence(place,data,article,phrase){
   place.replaceChildren();
+  renderSavedTitleAnalysis(place,data.saved_title_analysis);
   const reasons={NO_SAVED_EXACT_THEME_EVIDENCE:"이 기사 RSS 판본에 연결된 저장 경제 사건·테마 근거 없음",
                  SOURCE_NOT_AVAILABLE_AS_OF:"선택 시점에는 해당 기사 판본이 아직 가용하지 않음"};
   const articleContext=article&&phrase?{item:article,phrase}:null;

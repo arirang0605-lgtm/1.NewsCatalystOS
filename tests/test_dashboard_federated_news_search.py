@@ -105,7 +105,14 @@ const seen=[],payload={coverage_complete:true,matched_document_versions:1,keywor
 {headline:"<b>반도체 & 테스트</b>",provider_id:"synthetic",event_id:"a".repeat(64),title_sha256:"b".repeat(64),
  source_url:"https://example.org/saved-title",source_available_at:"2026-10-17T00:00:00+00:00",semiconductor_keyword_candidate:true}
 ]};
-const evidence={status:"READY",themes:[{name:"합성 테마",status:"CANDIDATE",first_detected_at:"2026-10-17T00:00:00+00:00",decision_at:"2026-10-17T00:00:00+00:00",
+const evidence={status:"READY",saved_title_analysis:{
+ status:"READY",analysis_available_at:"2026-10-17T00:01:00+00:00",
+ report_sha256:"f".repeat(64),reported_plan_only:false,ai_status:"NOT_ELIGIBLE",
+ economic_change_status:"READY",economic_changes:[{
+ action:"BUSINESS_START",topic:"<img src=x>",phase:"SOURCE_REPORTED",
+ economic_driver:"UNKNOWN",evidence_level:"REPORTED",entity_ids:["가상전자"],
+ industry_tags:["SEMICONDUCTOR"],source_paragraph_sha256:"b".repeat(64)}]
+ },themes:[{name:"합성 테마",status:"CANDIDATE",first_detected_at:"2026-10-17T00:00:00+00:00",decision_at:"2026-10-17T00:00:00+00:00",
  theme_id:"c".repeat(64),events:[{action:"BUSINESS_START",phase:"SOURCE_REPORTED",topic:"반도체",evidence_level:"REPORTED",
  polarity:"SUPPORT",active_in_theme:true,companies:[{entity_id:"가상전자"}],source_url:"https://example.org/saved-title",
  source_available_at:"2026-10-17T00:00:00+00:00",recorded_at:"2026-10-17T00:01:00+00:00"}]}]};
@@ -131,10 +138,15 @@ vm.runInNewContext(code,ctx);
  await article.children[4].events.click();
  assert(seen[1].startsWith("/api/news-evidence?")&&seen[1].includes("event_id="+"a".repeat(64)));
  const detail=article.children[5];
+ const saved=detail.children.find(x=>x.className==="news-evidence-theme");
+ assert(saved&&saved.children[0].textContent.includes("제목 경제 변화 분석"));
+ assert(saved.children.some(x=>x.children?.some(y=>y.textContent.includes("<img src=x>"))));
  assert(detail.children.some(x=>x.textContent.includes("저장된 동일 기사 판본")));
  assert(detail.children.some(x=>x.children.some(y=>y.textContent.includes("가상전자"))));
- const missing=el();ctx.showSavedNewsEvidence(missing,{status:"N/A",reason_code:"NO_SAVED_EXACT_THEME_EVIDENCE"});
- assert(missing.children[0].textContent.includes("N/A"));
+ const missing=el();ctx.showSavedNewsEvidence(missing,{status:"N/A",reason_code:"NO_SAVED_EXACT_THEME_EVIDENCE",
+   saved_title_analysis:{...evidence.saved_title_analysis,economic_changes:[],economic_change_status:"NO_EXPLICIT_TITLE_CHANGE"}});
+ assert(missing.children[0].children.some(x=>x.textContent.includes("명시된 경제 변화 없음")));
+ assert(missing.children.some(x=>x.textContent.includes("N/A")));
  const bodyOnly=el();
  ctx.showSavedNewsEvidence(bodyOnly,{status:"N/A",reason_code:"NO_SAVED_EXACT_THEME_EVIDENCE",
    official_document_evidence:{status:"READY",document_sha256:"d".repeat(64),binding_sha256:"e".repeat(64),

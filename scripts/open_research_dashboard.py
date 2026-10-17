@@ -18,7 +18,7 @@ if str(PROJECT / "src") not in sys.path:
 if str(PROJECT) not in sys.path:
     sys.path.insert(0, str(PROJECT))
 
-from newscatalystos.research_dashboard import KST, NoteStore, build_period, scan_saved_analysis, period_as_of
+from newscatalystos.research_dashboard import KST, NoteStore, build_period, scan_saved_analysis, saved_title_analysis, period_as_of
 from newscatalystos.source_share import SourceShareError
 from newscatalystos.theme_emergence import ThemeStore, period_activity, theme_presentation
 from newscatalystos.standard_delivery import build_theme_bundle
@@ -115,6 +115,19 @@ class Handler(BaseHTTPRequestHandler):
                     as_of=at, now=now,
                 )
                 detail["source_coverage_complete"] = found["coverage_complete"]
+                # The saved rule analysis is distinct from a ThemeStore event.
+                # One missing or unreadable derived report does not prevent
+                # viewing the independent theme or licensed ministry evidence.
+                try:
+                    detail["saved_title_analysis"] = saved_title_analysis(
+                        found["results"][0], self.server.reports, as_of=at, now=now)
+                except (SourceShareError, OSError, ValueError, TypeError, KeyError, sqlite3.Error):
+                    detail["saved_title_analysis"] = {
+                        "status": "N/A", "reason_code": "SAVED_TITLE_ANALYSIS_UNAVAILABLE",
+                        "content_scope": "RSS_TITLE_METADATA",
+                        "economic_changes": [], "economic_change_status": "N/A",
+                        "verified_economic_fact": False, "verified_real_transaction": False,
+                        "confirmed_beneficiary": False}
                 # Official licensed-body evidence is a separate, later-available
                 # source scope, never substituted for RSS title metadata.
                 if (self.server.evidence_base is not None

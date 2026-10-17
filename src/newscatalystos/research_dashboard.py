@@ -172,6 +172,78 @@ def scan_saved_analysis(root: Path, *, document_root: Path | None = None, now: d
     }
 
 
+
+def saved_title_analysis(source: dict, reports_root: Path, *, as_of=None, now=None) -> dict:
+    """Show economic changes in the SAME approved saved RSS title version.
+
+    The caller first resolves the exact source through completed workspaces.
+    Reuse the dashboard's SHA-checked, PIT-aware report reader; absence of a
+    linked ThemeStore entry must not hide an already-saved article analysis.
+    """
+    at = _instant((as_of or now or datetime.now(timezone.utc)).isoformat())
+    present = _instant((now or datetime.now(timezone.utc)).isoformat())
+    if at > present:
+        raise SourceShareError("future saved article analysis")
+    required = ("provider_id", "event_id", "title_sha256", "headline",
+                "source_url", "source_available_at", "search_scope")
+    if (not isinstance(source, dict)
+            or any(not isinstance(source.get(k), str) for k in required)
+            or any(re.fullmatch(r"[0-9a-f]{64}", source[k]) is None
+                   for k in ("event_id", "title_sha256"))
+            or source["search_scope"] not in {"core", "motir"}):
+        raise SourceShareError("exact completed article identity required")
+    output = {
+        "schema": "newscatalyst.saved_title_economic_analysis.v1",
+        "status": "N/A", "reason_code": "NO_EXACT_SAVED_TITLE_ANALYSIS",
+        "as_of": at.isoformat(), "analysis_available_at": None,
+        "source_available_at": source["source_available_at"],
+        "content_scope": "RSS_TITLE_METADATA",
+        "economic_changes": [], "economic_change_status": "N/A",
+        "verified_economic_fact": False, "verified_real_transaction": False,
+        "confirmed_beneficiary": False,
+    }
+    if _instant(source["source_available_at"]) > at:
+        output["reason_code"] = "SOURCE_NOT_AVAILABLE_AS_OF"
+        return output
+    expected = sha256(("\0".join((source["provider_id"], source["event_id"],
+                                      source["title_sha256"]))).encode()).hexdigest()
+    rows, info = scan_saved_analysis(reports_root, as_of=at, now=present)
+    matches = [row for row in rows if (
+        row["scope"] == source["search_scope"]
+        and row["event_id"] == expected
+        and row["source_event_sha256"] == source["event_id"]
+        and row["provider"] == source["provider_id"]
+        and row["headline"] == source["headline"]
+        and row["source_url"] == source["source_url"]
+        and row["source_available_at"] == source["source_available_at"]
+        and row["content_scope"] == "RSS_TITLE_METADATA"
+    )]
+    if len(matches) != 1:
+        output["reason_code"] = ("PARTIAL_SAVED_ANALYSIS_COVERAGE"
+                                 if info["saved_reports_skipped"] else "NO_EXACT_SAVED_TITLE_ANALYSIS")
+        return output
+    row = matches[0]
+    changes = [{
+        "topic": change["topic"], "action": change["action"],
+        "economic_driver": change["economic_driver"],
+        "phase": change["phase"], "entity_ids": change["entity_ids"],
+        "evidence_level": change["evidence_level"],
+        "source_paragraph_sha256": change["source_paragraph_sha256"],
+        "industry_tags": change["industry_tags"],
+        "extraction_method": change.get("extraction_method"),
+    } for change in row["economic_changes"]]
+    output.update(
+        status="READY", reason_code=None,
+        analysis_available_at=row["analysis_available_at"],
+        report_sha256=row["report_sha256"],
+        category=row["category"], routing_priority=row["priority"],
+        ai_status=row["ai_status"], source_products=row["source_products"],
+        reported_plan_only=row["reported_plan_only"],
+        economic_changes=changes,
+        economic_change_status="READY" if changes else "NO_EXPLICIT_TITLE_CHANGE",
+    )
+    return output
+
 def scan_saved_documents(root: Path, headlines: list[dict], *, now: datetime,
                          as_of: datetime | None = None) -> tuple[list[dict], dict]:
     records = {}

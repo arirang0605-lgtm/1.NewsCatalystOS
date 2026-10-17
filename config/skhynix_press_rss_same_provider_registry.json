@@ -1,0 +1,18 @@
+{
+  "providers": [
+    {
+      "allow_full_text_storage": false,
+      "approved": true,
+      "endpoint": "https://news.skhynix.co.kr/category/press/feed/",
+      "expires_at": null,
+      "grant": "OFFICIAL_TERMS_REVIEWED",
+      "hourly_limit": 1,
+      "kind": "COMPANY_IR",
+      "method": "RSS",
+      "provider_id": "skhynix-newsroom-korea",
+      "reviewed_at": "2026-10-17T06:11:26.290092+00:00",
+      "rights_reference": "https://news.skhynix.co.kr/guideline/"
+    }
+  ],
+  "schema": "newscatalyst.provider_registry.v1"
+}

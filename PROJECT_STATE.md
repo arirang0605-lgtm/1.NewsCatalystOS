@@ -1,13 +1,12 @@
-# PROJECT_STATE — NewsCatalystOS 최신 재개 상태
+# PROJECT_STATE — NewsCatalystOS 현재 재개 상태
 
-기준 2026-10-17T09:17:39+09:00 / 작업트리 codex/real-data-path. 기존 36/36은 과거 **핵심 코드 구현** 기록이며 운영·실자료 인수/두 프로젝트 연동은 미완료 구분 유지. 적용 기준 docs/PRODUCT_COMPLETION_CRITERIA_20261016.md.
+2026-10-17T09:33:08+09:00; 브랜치 codex/real-data-path / 기능 SHA `2dab08843cd05481e58e29dca00d058e9ebfc435`. 기존 36개 세부 코드의 36/36 기록은 유지하되 실제 제품 운영·출시·공동 연동 완료로 계산하지 않는다. V1 반도체 1산업, EraLeader는 검증된 스냅샷 읽기전용. 적용 기준 docs/PRODUCT_COMPLETION_CRITERIA_20261016.md.
 
-## 최근 작동 기능
-- 작업 NEWS-20261017-MOTIR-RSS-DOCUMENT-EVIDENCE, 기능 SHA `26b8360daa1cd28fe5886106c8dfe13e4a2f221f`. 승인 완료 산업부 RSS의 정확 provider/event/title SHA·URL·RSS가용시각으로 기존 문서 바인딩을 확인하고, archive/receipt/document SHA·현 시점 사용권·저장 본문 보고서·서로 독립된 본문 가용시각·테마 사건 ID/근거 SHA가 모두 연결될 때만 허용 본문 정책 사건을 GET /api/news-evidence + 기존 검색 상세 화면에 표시한다.
-- 공식 본문 경로는 RSS 제목 분석과 분리. 반도체 정책 사건만 표시, 원문 전문 비공개, 동명/주제 유사로 회사·매출·수혜를 추측하지 않는다. 중복 본문 재분석은 동일 이벤트 1건으로 노출, 철회/과거/PIT 경계 유지, 부재·권리철회는 항목별 N/A.
-- 테스트: 신규 `tests/test_motir_saved_document_evidence.py` 4 PASS + 수정 기존 검색 브라우저 3 PASS = **7 PASS**, 영향 기존 `test_saved_article_evidence.py`, `test_motir_article_binding.py`, `test_motir_document_analysis.py` 합계 **23 PASS**. 총 30 PASS, 실패0; JS·Python 구문 및 Git diff 검사 성공.
-- 저장 실자료: 산업부 '반도체 메가프로젝트 전담국 출범' HTTP200, 공식 본문 정책 `POLICY_CHANGE` 1테마 **READY**, 직접 기업0·실수혜 미확인. '반도체 설계 청년 인재' HTTP200/명시 경제 변화 없음 `N/A`. 비교한 6개 원본 설정·SQLite·바인딩 파일 SHA 불변; 신규 API/수집/유료AI 호출0.
-- 구현·로컬 합성/실자료 읽기 증거는 확인했으나 **운영 SSD/상시 서버 배포와 GitHub push 미수행**, 실제 예약 운영 증거와 출시 인수 별개. 사용자 기존 dirty3 불변·EraLeader/운영 원본 무변경.
+## 새로 작동하는 기능
+- NEWS-20261017-ARTICLE-THEME-PERIOD-HISTORY: 승인 완료 동일 RSS (provider/event/titleSHA) 및 기존 허용 공식 본문 binding으로 확인한 동일 theme_id에 한해서 GET /api/news-evidence의 `theme_id/since/as_of` 기간 조회를 허용. 기존 compare_themes에서 최초 발견·독립 사건·신규 근거·상충/철회·기업/상태 변화와 원문 링크를 선택하고 기존 JS renderThemeChanges로 화면 표시. 과거 시점에 링크 근거가 없다면 404/N/A. 날짜 초과/순서 오류 명시, 원본/DB 쓰기·새 수집·유료AI 없음.
+- 변경 집중 테스트: `tests/test_news_article_period_change.py` 신규 3(기사 연결/NO_CHANGE/시점거부, 동일사건 재보도, 공식 철회), 수정 브라우저3, 기존 기사/허용 본문/테마·대시보드 회귀 포함 **31 PASS / 실패0**, Python·JS 구문/Git diff 검사 완료.
+- 실제 승인 자료: 산업부 '반도체 메가프로젝트 전담국 출범' 본문 정책 테마 1. 10/15 최초 관측부터 1독립 행동·3출처 근거, 10/15 19:02 KST 이후 0독립·1추가 근거, 10/16 이후 0독립·0근거/NO_CHANGE. 특정 기업0·실제 거래/수혜 미확인. 운영 registry/상태 SQLite/ThemeStore 5파일 SHA 불변.
+- 작업트리는 로컬 커밋만. 운영 SSD/상시 8766 서비스 배포·GitHub push 미수행, 이전 명시 push 거절 우회 없음. 사용자 기존 dirty3 변경없음. 실자료 확인과 독립 운영·연동 인수는 별도.
 
 ## 다음
-NEXT_TASK.md: 검색 결과의 정확 기사/테마 사건에 해당하는 기존 ThemeChanges 후속·정정 이력을 기간 기준으로 바로 읽는 UI 경로. 원자료 새 조인·관리 시스템 추가/전체 회귀 반복 대신 사용자 입력→기존 저장 변화→조회 기능을 우선한다.
+NEXT_TASK.md — 개발 대시보드가 기본 빈 reports-root 대신 실제 보존된 운영 보고를 읽기전용 옵션으로 열어 뉴스검색/일간/테마/기간이 한 사용자 화면에서 실제 작동하도록 실행 장애 해소. 기존 기능을 다시 만들거나 원본/운영 DB·타 프로젝트를 변경하지 않는다.

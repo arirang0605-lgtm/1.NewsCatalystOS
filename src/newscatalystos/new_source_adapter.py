@@ -13,7 +13,9 @@ import xml.etree.ElementTree as ET
 from .provider_registry import ProviderRegistry, _safe_https_endpoint
 from .source_share import SourceShareError, _json, _when
 
-MAX_FEED_BYTES = 128 * 1024
+# Official MSIT RSS includes embedded content:encoded for ~50 entries.
+# Read a bounded 1 MiB response, but persist ONLY title, ID and source URL.
+MAX_FEED_BYTES = 1024 * 1024
 MAX_ITEMS = 100
 STATUS = "FEED_METADATA_OBSERVED_SOURCE_CLAIMS_UNVERIFIED"
 

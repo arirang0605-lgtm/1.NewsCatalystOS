@@ -47,7 +47,7 @@ def _default_opener():
 
 def fetch_authorized_once(
     registry: ProviderRegistry, provider_id: str, *,
-    at: datetime | None = None, timeout_seconds: float = 6,
+    at: datetime | None = None, timeout_seconds: float = MAX_TIMEOUT_SECONDS,
     opener=None,
 ) -> tuple[FeedObservation, ...]:
     """Fetch one approved feed and return metadata, nothing written anywhere.

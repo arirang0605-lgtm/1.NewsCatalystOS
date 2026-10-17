@@ -78,7 +78,7 @@ def test_json_article_body_not_stored():
 def test_large_feed_rejected():
     with pytest.raises(SourceShareError, match="too large"):
         parse_authorized_feed(registry(), "synthetic-government-feed",
-                              b"x" * (129 * 1024), observed_at=NOW)
+                              b"x" * (1024 * 1024 + 1), observed_at=NOW)
 
 
 def test_official_rss_document_links_support_nonsecret_query_ids():

@@ -46,7 +46,7 @@ class _Opener:
     def open(self, request, timeout):
         self.calls += 1
         assert request.get_method() == "GET"
-        assert 0 < timeout <= 10
+        assert timeout == 10  # large official RSS is still bounded, not retried.
         if self.error is not None:
             raise self.error
         return self.response
@@ -85,7 +85,7 @@ def test_transport_failure_is_redacted_and_does_not_retry(kind):
     elif kind == "redirect":
         transport = _Opener(_Response(endpoint, redirect="https://evil.example.com/feed"))
     elif kind == "oversized":
-        transport = _Opener(_Response(endpoint, length=999999))
+        transport = _Opener(_Response(endpoint, length=2 * 1024 * 1024))
     elif kind == "wrongmime":
         transport = _Opener(_Response(endpoint, media="text/html"))
     elif kind == "not200":
@@ -93,7 +93,7 @@ def test_transport_failure_is_redacted_and_does_not_retry(kind):
     elif kind == "network_error":
         transport = _Opener(error=URLError("PRIVATE_PASSWORD_DO_NOT_EXPOSE"))
     else:
-        transport = _Opener(_Response(endpoint, body=b"x" * (128 * 1024 + 1)))
+        transport = _Opener(_Response(endpoint, body=b"x" * (1024 * 1024 + 1)))
     with pytest.raises(SourceShareError) as caught:
         fetch_authorized_once(
             reg, "synthetic-government-feed", at=NOW, opener=transport

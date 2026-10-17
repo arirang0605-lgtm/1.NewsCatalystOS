@@ -65,15 +65,32 @@ def _available_as_of(row: dict, at: datetime) -> bool:
 
 
 def scan_saved_analysis(root: Path, *, document_root: Path | None = None, now: datetime | None = None,
-                        as_of: datetime | None = None) -> tuple[list[dict], dict]:
-    """Read existing core/MOTIR reports only; filename digest is local integrity, not producer attestation."""
+                        as_of: datetime | None = None,
+                        additional_roots: tuple[tuple[str, Path], ...] = ()) -> tuple[list[dict], dict]:
+    """Read SHA/PIT-checked reports across isolated approved source workspaces.
+
+    Extra source roots contribute existing core reports under their unique
+    workspace scope. No source DB, producer registry, or report is rewritten.
+    """
     now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     at = min(now, _instant(as_of.isoformat())) if as_of is not None else now
     records: dict[tuple[str, str], dict] = {}
     seen_reports = 0
     skipped = 0
-    for scope in ("core", "motir"):
-        folder = root / scope / "reports"
+    folders = [("core", Path(root) / "core" / "reports"),
+               ("motir", Path(root) / "motir" / "reports")]
+    seen_scopes = {"core", "motir"}
+    for scope, source in additional_roots:
+        location = Path(source)
+        if (not isinstance(scope, str) or not re.fullmatch(r"[a-z][a-z0-9_-]{0,31}", scope)
+                or scope in seen_scopes or not location.is_absolute()
+                or ".." in location.parts or location.resolve() != location
+                or location.is_symlink()
+                or any(part.casefold() == "eraleader" for part in location.parts)):
+            raise SourceShareError("invalid separate approved report workspace")
+        seen_scopes.add(scope)
+        folders.append((scope, location / "core" / "reports"))
+    for scope, folder in folders:
         if folder.is_symlink() or not folder.is_dir():
             continue
         for path in sorted(folder.iterdir()):
@@ -173,7 +190,8 @@ def scan_saved_analysis(root: Path, *, document_root: Path | None = None, now: d
 
 
 
-def saved_title_analysis(source: dict, reports_root: Path, *, as_of=None, now=None) -> dict:
+def saved_title_analysis(source: dict, reports_root: Path, *, as_of=None, now=None,
+                         additional_roots: tuple[tuple[str, Path], ...] = ()) -> dict:
     """Show economic changes in the SAME approved saved RSS title version.
 
     The caller first resolves the exact source through completed workspaces.
@@ -190,7 +208,8 @@ def saved_title_analysis(source: dict, reports_root: Path, *, as_of=None, now=No
             or any(not isinstance(source.get(k), str) for k in required)
             or any(re.fullmatch(r"[0-9a-f]{64}", source[k]) is None
                    for k in ("event_id", "title_sha256"))
-            or source["search_scope"] not in {"core", "motir"}):
+            or source["search_scope"] not in (
+                {"core", "motir"} | {s for s, _ in additional_roots})):
         raise SourceShareError("exact completed article identity required")
     output = {
         "schema": "newscatalyst.saved_title_economic_analysis.v1",
@@ -207,7 +226,8 @@ def saved_title_analysis(source: dict, reports_root: Path, *, as_of=None, now=No
         return output
     expected = sha256(("\0".join((source["provider_id"], source["event_id"],
                                       source["title_sha256"]))).encode()).hexdigest()
-    rows, info = scan_saved_analysis(reports_root, as_of=at, now=present)
+    rows, info = scan_saved_analysis(reports_root, as_of=at, now=present,
+                                      additional_roots=additional_roots)
     matches = [row for row in rows if (
         row["scope"] == source["search_scope"]
         and row["event_id"] == expected

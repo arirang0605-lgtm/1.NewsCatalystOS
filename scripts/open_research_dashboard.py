@@ -45,12 +45,14 @@ ASSETS = Path(__file__).resolve().parent / "dashboard_assets"
 
 class DashboardServer(ThreadingHTTPServer):
     def __init__(self, port: int, reports: Path, notes: Path, documents: Path | None = None, *,
-                 evidence_base: Path | None = None, news_search_workspaces=None):
+                 evidence_base: Path | None = None, news_search_workspaces=None,
+                 additional_reports: tuple[tuple[str, Path], ...] = ()):
         super().__init__(("127.0.0.1", port), Handler)
         self.reports = reports
         self.documents = documents
         self.evidence_base = evidence_base
         self.news_search_workspaces = news_search_workspaces
+        self.additional_reports = additional_reports
         self.notes = NoteStore(notes)
 
 
@@ -126,7 +128,8 @@ class Handler(BaseHTTPRequestHandler):
                 # viewing the independent theme or licensed ministry evidence.
                 try:
                     detail["saved_title_analysis"] = saved_title_analysis(
-                        found["results"][0], self.server.reports, as_of=at, now=now)
+                        found["results"][0], self.server.reports, as_of=at, now=now,
+                        additional_roots=self.server.additional_reports)
                 except (SourceShareError, OSError, ValueError, TypeError, KeyError, sqlite3.Error):
                     detail["saved_title_analysis"] = {
                         "status": "N/A", "reason_code": "SAVED_TITLE_ANALYSIS_UNAVAILABLE",
@@ -262,8 +265,9 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 now = datetime.now(timezone.utc)
                 at = period_as_of(view, selected, now=now)
-                records, source_info = scan_saved_analysis(self.server.reports, document_root=self.server.documents,
-                                                            now=now, as_of=at)
+                records, source_info = scan_saved_analysis(
+                    self.server.reports, document_root=self.server.documents,
+                    now=now, as_of=at, additional_roots=self.server.additional_reports)
                 data = build_period(records, self.server.notes.read(), view, selected,
                                     source_info=source_info, now=now)
                 theme_sort=query.get('theme_sort',['latest'])[0]
@@ -461,6 +465,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-browser", action="store_true")
     parser.add_argument("--evidence-base",type=Path,
                         default=Path.home()/"Library/Application Support/NewsCatalystOS")
+    parser.add_argument("--msit-source-root", type=Path,
+                        help="separate, read-only approved MSIT developer RSS reports and receipts")
     options = parser.parse_args(argv)
     base = options.evidence_base
     workspaces = (
@@ -469,8 +475,21 @@ def main(argv: list[str] | None = None) -> int:
         TitleSearchWorkspace("motir", base / "providers/motir_authorized_sources.json",
                              base / "state/motir_incremental_feeds.sqlite3", base / "inbox/motir_feed_triage"),
     )
+    extra_reports = ()
+    if options.msit_source_root is not None:
+        extra = options.msit_source_root
+        if (not extra.is_absolute() or ".." in extra.parts
+                or extra.resolve() != extra or extra.is_symlink()
+                or any(part.casefold() == "eraleader" for part in extra.parts)
+                or extra == base or extra == options.reports_root):
+            parser.error("separate, absolute and non-symlink MSIT source root required")
+        workspaces += (TitleSearchWorkspace(
+            "msit", extra / "providers/authorized_sources.json",
+            extra / "state/incremental_feeds.sqlite3", extra / "inbox/feed_triage"),)
+        extra_reports = (("msit", extra / "feed_analysis"),)
     server = DashboardServer(options.port, options.reports_root, options.notes_root, options.document_reports_root,
-                             evidence_base=base, news_search_workspaces=workspaces)
+                             evidence_base=base, news_search_workspaces=workspaces,
+                             additional_reports=extra_reports)
     url = f"http://127.0.0.1:{server.server_port}/"
     print(f"NewsCatalystOS dashboard: {url}", flush=True)
     if not options.no_browser:

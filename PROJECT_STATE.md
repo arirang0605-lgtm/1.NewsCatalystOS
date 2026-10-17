@@ -1,5 +1,12 @@
-# PROJECT_STATE — 최신 기능·실자료·운영 분리
-기준 2026-10-17T19:07:45+09:00. 기능 SHA 0050c02354fe790b1aec56feeb2ba708bd209717; V1 반도체 한 산업. 과거 작업 1_1~6_6 코드 구현36/36 기록, 출시/무인운영/연동 인수와 별개.
-최신 신규 작동: 승인 NIST 저장 RSS 58 판본을 새 네트워크/AI 없이 재분석하여 TSMC 미국 제조투자 규모 발표(INVESTMENT/PLANNED), Coherent 인듐인화물 생산확대 CHIPS 지원 의향(POLICY_CHANGE/PLANNED), xLight EUV 연구지원 의향(POLICY_CHANGE/PLANNED) 3건이 추가 탐지. 기존 NIST 정책 5건 포함 경제 사건후보8·독립 테마6·출처 직접명시 기업/기관8. 출처 내 정확 제목/회사 근거 SHA/PIT 확인, 집행·지원금 지급·매출·수혜는 미확정. 원 정부 게시물은 과거 발표; 최초 로컬 수집일 10월17일을 시장 발생일로 소급하지 않음.
-실제 개발 메인 화면: 승인 RSS 영역5(core156/MOTIR18/MSIT100/company40/NIST58), 총 저장 뉴스372, 2026-10-17 일간 분석기사199/중요후보9(NIST8+SK투자계획1). TSMC·Coherent·xLight 검색/회사/원문 제목 근거 HTTP READY, 기존 핵심 4단계 재사용. 테스트112 PASS/FAIL0, 등록출처/호출 원장/테마/운영 13파일 SHA 조회 중 동일. 기능 commit 로컬, 유료AI/새 외부 수집/원문복제/실주문0. 사용자 dirty AGENTS.md/DECISIONS.md/비전3 원본 보존, 운영 SSD/launchd/EraLeader/Public GitHub push 불변.
-다음: NEXT_TASK.md. 기능 구현·실자료 검증과 운영/출시·공동 인수는 별도.
+# PROJECT_STATE — NewsCatalystOS 실사용 운영 전환
+
+기준 2026-10-17T19:47:06+09:00. 기능 SHA d49cc73ff33a54225cc2228245ca259d7cf22a9b. 반도체 V1, 기존 36/36은 과거 코드 작업 구현 기록, 무인운영·출시/연동 인수와 별개.
+
+- 새로 동작: scripts/run_approved_research_feeds_once.py로 MSIT press/policy, Samsung, SK, NIST 공식 승인 출처5를 현재 dev 원장에서 1회 실행(code0, 성공5/실패0, 저장 기사198 분석, 경제행동9 유지, 신규기사0). 하나의 신규 수집기가 아니라 기존 scheduler가 각각 승인 원장/권리/시간당 제한·동일 제공자 교대/중복 제거를 재사용. dry-run/저장자료 replay-only도 실제 OK, Paid AI0, 기사 본문0, ERA API0.
+- 첫 출처가 실패/빈 경우 개발 분석 보고서의 부모 폴더가 0755가 돼 정상 후속 출처까지 실패하는 실제 장애를 비공개 분석 폴더 0700 선행 생성으로 해결. 합성 1개 실패 시 정상4개 통과/실패1 기록, 성공 경로 포함 국소 **30 PASS/0 FAIL**.
+- 실제 구 NewsCatalystOS 운영 launchd core exit0, MOTIR exit4(공식 기사18 분석 READY, 하나의 중요대상 아닌 과거 semantic UNAVAILABLE). 현재 dev 최신 _analyze_provider를 실제 저장 보고서로 검증: 선택적 불완전만 있는 경우 0, 중요 신규 사건 실제 AI 결함이면 4. **구 운영 코드/예약은 아직 변경하지 않았으므로 active 장애는 해결됐다고 하지 않음**.
+- 현 운영 DB 5개를 읽기전용으로 백업하고 별도 owner-only 개발 폴더로 실제 복원, manifest+SHA+integrity 통과, 운영 원본 SHA5 변경 없음. output/operational_recovery_dev_20261017에 보관하며 Public Git 대상 아님. 비공개 launchd 후보 output/research_scheduler_dev 준비(시간당1회, 5개 dev source); 기존 운영 런타임 변경0, 후보 미설치.
+- 이전 메인 연구 조회 실제 저장판본372/일간199/중요 후보9 유지(이번 턴 웹 UI 전체 재검증 증거로 대체하지 않음). EraLeader 코드/DB/Git, SSD, 기존 LaunchAgent, GitHub 공개 push, 사용자 dirty3 불변.
+
+## 다음
+NEXT_TASK.md: 안전한 운영 배포 인수 및 단 한 번의 출시 통합 회귀 후 기존 MOTIR false exit4 코드 적용/신규 5개 RSS launchd 예약 연결. 사용자 기존 운영 원본과 dirty 파일 임의 변경 금지. Gemini 비용/캐시 및 AI 실제 생성 2026-10-15 증거는 기존 출시 기준에서 재사용; 새로운 단가/외부 검수 게이트 신설 금지.

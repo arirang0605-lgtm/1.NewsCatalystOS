@@ -96,10 +96,22 @@ def test_dashboard_shows_later_ai_and_keeps_first_observation_day(tmp_path, fake
     publish_feed_analysis(first, reports)
     analyzed = run(info, **selection(info), model=config(), allow_paid=True,
                    opener=LocalOpener(packet()))
-    publish_feed_analysis(analyzed, reports)
-    publish_feed_analysis(run(info), reports)
+    _, ai_digest = publish_feed_analysis(analyzed, reports)
+    latest = run(info)
+    _, latest_digest = publish_feed_analysis(latest, reports)
     rows, stats = scan_saved_analysis(tmp_path / 'dashboard')
     assert len(rows) == 1 and stats['saved_reports_skipped'] == 0
     assert rows[0]['ai_summary'] == analyzed['results'][0]['ai_analysis']['summary']
     assert rows[0]['analysis_purpose'] == 'EXISTING_ARTICLE'
-    assert rows[0]['analysis_available_at'] == analyzed['results'][0]['analysis_available_at']
+    # Current rules and the preserved AI summary have separate provenance.
+    # An old AI timestamp must not backdate a newer rule interpretation.
+    assert rows[0]['analysis_available_at'] == latest['results'][0]['analysis_available_at']
+    assert rows[0]['report_sha256'] == latest_digest
+    assert rows[0]['ai_summary_available_at'] == max(
+        analyzed['checked_at'], analyzed['results'][0]['analysis_available_at'])
+    assert rows[0]['ai_summary_report_sha256'] == ai_digest
+    from datetime import datetime
+    past, _ = scan_saved_analysis(tmp_path / 'dashboard',
+        as_of=datetime.fromisoformat(analyzed['checked_at']))
+    assert past[0]['analysis_available_at'] == analyzed['results'][0]['analysis_available_at']
+    assert past[0]['report_sha256'] == ai_digest

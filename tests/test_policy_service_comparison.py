@@ -328,7 +328,21 @@ def test_eight_policy_stages_keep_service_names_without_customer_usage_or_revenu
 def test_unnamed_policy_function_is_not_given_a_service_name(tmp_path):
  other=text(product='DRAM',actor='새빛소재',tail='DRAM 검사 서비스 개시');rows=extract_economic_changes(other)
  assert rows and 'service_name' not in rows[0]
- store,themes,cs,comp,*_=case(tmp_path,[service(),other]);assert view(themes,cs,comp)['groups']==[]
+ store,themes,cs,comp,*_=case(tmp_path,[service(),other])
+ # Later source-span enrichment supports a concrete unnamed function, not
+ # an invented product name or customer. Legacy sources without it stay out.
+ group,=view(themes,cs,comp)['groups']
+ sources=[s for p in group['products'] for a in p['actions'] for s in a['sources']
+          if 'function_service_action' in s]
+ assert len(sources)==1 and 'service_name' not in sources[0]
+ assert sources[0]['function_service_action']['expression_sha256']==sha256(other.encode()).hexdigest()
+ assert not sources[0].get('customer') and not sources[0].get('customer_id')
+ assert not group['verified_real_transaction'] and not group['verified_real_benefit']
+ legacy=deepcopy(themes)
+ for theme in legacy:
+  for ref in theme['source_refs']:ref.pop('function_service_action',None)
+ oldcs=json.loads(build_theme_bundle(legacy,decision_at=END,now=END,include_company_candidates=True))['CompanyCandidates']
+ assert view(legacy,oldcs,common_cause_comparisons(legacy,oldcs))['groups']==[]
 
 
 def test_two_same_article_policy_services_reuse_optional_keys_without_minting_first_key(tmp_path):

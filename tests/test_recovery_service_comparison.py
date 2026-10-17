@@ -242,9 +242,20 @@ def test_unnamed_function_is_not_given_a_service_name_or_customer(tmp_path):
  source=recovery(product='DRAM',actor='새빛소재',tail='DRAM 검사 서비스 개시')
  row,=extract_economic_changes(source);assert 'service_name' not in row
  store,themes,cs,comp,*_=case(tmp_path,[text(),source])
- assert view(themes,cs,comp)['groups']==[]
+ group,=view(themes,cs,comp)['groups']
  assert all(c['entity_id'] in {'가상전자','새빛소재'} for c in cs)
- assert 'service_name' not in next(r for t in themes for r in t['source_refs'] if r['entity_ids']==['새빛소재'])
+ ref=next(r for t in themes for r in t['source_refs'] if r['entity_ids']==['새빛소재'])
+ assert 'service_name' not in ref and 'service_event_key' not in ref
+ assert ref['function_service_action']['expression_sha256']==sha256(source.encode()).hexdigest()
+ assert not ref.get('customer_id') and not ref.get('customer')
+ assert not group['verified_real_transaction'] and not group['verified_real_benefit']
+ # Preserve the original negative path for old records lacking a source proof.
+ from newscatalystos.common_cause_comparison import common_cause_comparisons
+ legacy=deepcopy(themes)
+ for t in legacy:
+  for r in t['source_refs']:r.pop('function_service_action',None)
+ oldcs=json.loads(build_theme_bundle(legacy,decision_at=END,now=END,include_company_candidates=True))['CompanyCandidates']
+ assert view(legacy,oldcs,common_cause_comparisons(legacy,oldcs))['groups']==[]
 
 
 def test_same_article_sibling_service_keys_are_preserved_without_minting_first_key(tmp_path):

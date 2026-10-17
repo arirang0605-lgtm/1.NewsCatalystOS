@@ -49,6 +49,10 @@ def parser() -> argparse.ArgumentParser:
                    help="optional read-only producer daily snapshot connection")
     p.add_argument("--era-daily-root",type=Path,
                    help="NewsCatalystOS private received assessment folder")
+    p.add_argument("--material-outbox",type=Path,
+                   help="News-owned immutable forward material delivery after the existing tick")
+    p.add_argument("--material-base-root",type=Path,
+                   help="existing base ThemeStore; required with --material-outbox")
     operation = p.add_mutually_exclusive_group(required=True)
     operation.add_argument("--once", action="store_true")
     operation.add_argument("--dry-run", action="store_true")
@@ -131,9 +135,27 @@ def execute(opts: argparse.Namespace, *, run_tick=run_scheduled_triage.execute) 
                                       check_only=bool(opts.dry_run))
         except (SourceShareError,OSError,ValueError,TypeError,KeyError) as exc:
             integration={"status":"UNAVAILABLE","error_type":type(exc).__name__}
-    return (4 if failures else 0), {
+    delivery=None
+    if getattr(opts,"material_outbox",None) is not None:
+        try:
+            if getattr(opts,"material_base_root",None) is None:
+                raise SourceShareError("explicit base source required for material publication")
+            from newscatalystos.material_publication import publish_material
+            sources={"base":opts.material_base_root}
+            sources.update({scope:Path(opts.workspaces_root)/name/"document_analysis/theme_history"
+                            for scope,name in WORKSPACES.items()})
+            delivery=publish_material(opts.material_outbox,sources,
+                identity_root=getattr(opts,"era_daily_root",None),dry_run=bool(opts.dry_run))
+        except (SourceShareError,OSError,ValueError,TypeError,KeyError) as exc:
+            delivery={"status":"UNAVAILABLE","error_type":type(exc).__name__}
+    # A delivery problem must be visible without rolling back source collection
+    # or invoking another fetch. The previous completed delivery stays readable.
+    delivery_failed=delivery is not None and (delivery['status']=='UNAVAILABLE'
+                       or bool(delivery.get('unavailable_scopes')))
+    return (4 if failures or delivery_failed else 0), {
         **({"era_daily_connection":integration} if integration is not None else {}),
-        "status": "APPROVED_RESEARCH_FEED_TICK_PARTIAL" if failures
+        **({"material_delivery":delivery} if delivery is not None else {}),
+        "status": "APPROVED_RESEARCH_FEED_TICK_PARTIAL" if failures or delivery_failed
                   else "APPROVED_RESEARCH_FEED_TICK_COMPLETE",
         "mode": operation[2:].upper().replace("-", "_"),
         "sources_checked": len(FEEDS), "sources_failed": failures,

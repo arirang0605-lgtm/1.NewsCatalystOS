@@ -502,6 +502,27 @@ class Handler(BaseHTTPRequestHandler):
                 from newscatalystos.source_share import _when
                 now = datetime.now(timezone.utc)
                 at = _when(query["as_of"][0], "as of") if "as_of" in query else now
+                # Unfiltered existing receiver URL uses the completed edition
+                # once the hourly producer is connected. Explicit analytical
+                # filters retain the original live comparison behavior.
+                if url.path=='/api/themes' and not query and self.server.documents:
+                    from newscatalystos.material_publication import read_published
+                    saved=read_published(self.server.documents/'material_outbox',now=now)
+                    if saved is not None:
+                        self._send(200,saved[1],'application/json; charset=utf-8')
+                        return
+                if 'publication' in query:
+                    if (url.path!='/api/themes' or query['publication']!=['latest']
+                            or set(query)-{'publication','as_of'} or len(query.get('as_of',['']))!=1):
+                        raise ValueError('published material is an exact immutable edition')
+                    from newscatalystos.material_publication import read_published
+                    root=(self.server.documents/'material_outbox' if self.server.documents
+                          else Path('/nonexistent-ncos-material-outbox'))
+                    saved=read_published(root,as_of=at,now=now)
+                    if saved is None:
+                        self._json(404,{'status':'NO_PUBLISHED_MATERIAL_AS_OF'});return
+                    self._send(200,saved[1],'application/json; charset=utf-8')
+                    return
                 default_scope=("all" if url.path=="/api/themes" and self.server.source_roots
                                and query.get('company_candidates',['0'])==['0'] else "base")
                 scope=query.get("scope",[default_scope])[0]

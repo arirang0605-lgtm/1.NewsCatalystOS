@@ -83,6 +83,7 @@ def _analyze_provider(opts: argparse.Namespace, name: str, runner) -> tuple[int,
         theme_root=getattr(opts, "analysis_theme_root", None),
         semantic_ai=getattr(opts,"semantic_ai",False),
         semantic_call_limit=getattr(opts,"semantic_call_limit",3),
+        semantic_scheduled_only=True,
         company_identity_config=getattr(opts, "company_identity_config", None),
         allow_paid=(getattr(opts, "allow_paid_ai", False)
                     and not getattr(opts, "replay_only", False)
@@ -91,10 +92,29 @@ def _analyze_provider(opts: argparse.Namespace, name: str, runner) -> tuple[int,
     try:
         code, detail = runner(params)
         state = detail.get("status", "FEED_ANALYSIS_INPUT_UNAVAILABLE")
-        good = code == 0 and state in {
+        incomplete_states = {"UNAVAILABLE", "MODEL_UNAVAILABLE", "UNSUPPORTED_PROPOSAL",
+                             "AI_PREVIOUS_CALL_UNSETTLED", "AI_PREVIOUS_RESULT_MISSING"}
+        incomplete_rows = [row for row in detail.get("results", [])
+                           if row.get("semantic_analysis", {}).get("status") in incomplete_states]
+        # One optional, historical semantic AI reservation must not mark a
+        # successfully stored source analysis as failed. Keep the incomplete
+        # count and producer request verdict visible; important eligible
+        # failures and source/DB failures still return exit 4.
+        optional_only = (code == 4 and state == "FEED_ECONOMIC_ANALYSIS_READY"
+                         and params.semantic_ai and bool(incomplete_rows)
+                         and detail.get("requested_ai_complete") is False
+                         and all(not row.get("ai_eligible") for row in incomplete_rows))
+        good = (code == 0 or optional_only) and state in {
             "FEED_ECONOMIC_ANALYSIS_READY", "NO_COMPLETED_FEED_INPUT"}
         # Metadata/AI content stays in the private report, never launchd stdout.
-        summary = {"semantic_ai_attempts":detail.get("semantic_ai_attempts",0), "status": state, "exit_code": 0 if good else 4,
+        summary = {"semantic_ai_attempts":detail.get("semantic_ai_attempts",0),
+            "semantic_ai_incomplete":len(incomplete_rows),
+            "semantic_ai_deferred":sum(r.get("semantic_analysis",{}).get("status") in
+                {"AI_PREVIOUS_CALL_UNSETTLED","AI_PREVIOUS_RESULT_MISSING"}
+                for r in incomplete_rows),
+            "requested_ai_complete":detail.get("requested_ai_complete"),
+            "optional_semantic_incomplete":optional_only,
+            "status": state, "exit_code": 0 if good else 4,
             "analyzed_rows": len(detail.get("results", [])),
             "source_versions_checked": detail.get("source_versions_checked", 0),
             "has_more_results": detail.get("has_more_results", False),

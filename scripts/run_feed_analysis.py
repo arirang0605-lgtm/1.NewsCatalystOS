@@ -81,11 +81,15 @@ def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, d
             allow_paid=opts.allow_paid, opener=opener, now=now,
             analyze_existing=getattr(opts, "analyze_existing", False),
             ai_ledger=getattr(opts, "ai_ledger", None), company_identity_config=identity_config, semantic_ai=getattr(opts,"semantic_ai",False),
-            semantic_call_limit=getattr(opts,"semantic_call_limit",3))
+            semantic_call_limit=getattr(opts,"semantic_call_limit",3),
+            semantic_scheduled_only=getattr(opts,"semantic_scheduled_only",False))
         failures = sum((row["ai_eligible"] or row.get("analysis_purpose") == "EXISTING_ARTICLE") and row["ai_status"] not in
                        ("ANALYZED_UNVERIFIED", "CACHE_HIT") for row in report["results"])
         if getattr(opts,"semantic_ai",False):
-            failures=sum(r.get("semantic_analysis",{}).get("status") in {"UNAVAILABLE","MODEL_UNAVAILABLE","UNSUPPORTED_PROPOSAL"} for r in report["results"])
+            incomplete = {"UNAVAILABLE","MODEL_UNAVAILABLE","UNSUPPORTED_PROPOSAL",
+                          "AI_PREVIOUS_CALL_UNSETTLED","AI_PREVIOUS_RESULT_MISSING"}
+            failures=sum(r.get("semantic_analysis",{}).get("status") in incomplete
+                         for r in report["results"])
         report["paid_execution_requested"] = opts.allow_paid
         report["requested_ai_complete"] = failures == 0 if opts.allow_paid else None
         path, digest = publish_feed_analysis(report, work / "reports")

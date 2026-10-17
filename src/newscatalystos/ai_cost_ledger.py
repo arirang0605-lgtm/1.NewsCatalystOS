@@ -11,7 +11,10 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
 import math
+import os
+import stat
 import sqlite3
+from urllib.parse import quote
 
 from .ai_provider import AIModel, AIRequest, AIResult, _check_request
 from .incremental_ingest import _check_state_path
@@ -61,6 +64,56 @@ def _identity(model: AIModel, request: AIRequest) -> str:
          + sha256(request.metadata.encode()).hexdigest()).encode()
     ).hexdigest()
 
+
+
+def existing_invocation_state(
+    db: Path, model: AIModel, request: AIRequest, *,
+    now: datetime | None = None,
+) -> str | None:
+    """Read a prior paid reservation without creating or modifying the ledger.
+
+    Used by scheduled semantic extraction to distinguish a held reservation
+    from an untried article; it never authorizes another billed request.
+    """
+    at = _when((now or datetime.now(timezone.utc)).isoformat(), "reservation lookup")
+    model.validate()
+    _check_request(request, at)
+    path = Path(db)
+    if (not path.is_absolute() or ".." in path.parts or path.suffix != ".sqlite3"
+            or any(part.lower() == "eraleader" for part in path.parts)):
+        raise SourceShareError("invalid read-only AI ledger path")
+    if not path.exists() and not path.is_symlink():
+        # Never create a cost ledger just to inspect prior calls.
+        return None
+    try:
+        parent = path.parent.lstat()
+    except OSError as exc:
+        raise SourceShareError("private AI ledger directory unavailable") from exc
+    if (not stat.S_ISDIR(parent.st_mode) or parent.st_uid != os.geteuid()
+            or stat.S_IMODE(parent.st_mode) & 0o077 or path.parent.is_symlink()):
+        raise SourceShareError("unsafe AI ledger directory")
+    if not path.exists():
+        if path.is_symlink():
+            raise SourceShareError("unsafe AI ledger symlink")
+        return None
+    info = path.lstat()
+    if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid()
+            or stat.S_IMODE(info.st_mode) & 0o077 or path.is_symlink()):
+        raise SourceShareError("unsafe AI ledger file")
+    connection = sqlite3.connect("file:" + quote(str(path)) + "?mode=ro",
+                                 uri=True, timeout=4)
+    try:
+        prior = connection.execute(
+            "SELECT reserved_at,settled_at FROM ai_invocations WHERE invocation_sha=?",
+            (_identity(model, request),),
+        ).fetchone()
+    finally:
+        connection.close()
+    if prior is None:
+        return None
+    if _when(prior[0], "prior AI reservation") > at:
+        raise SourceShareError("future AI reservation")
+    return "UNSETTLED" if prior[1] is None else "SETTLED"
 
 def reserve_ai_call(
     db: Path, model: AIModel, request: AIRequest,

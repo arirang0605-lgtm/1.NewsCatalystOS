@@ -10,6 +10,7 @@ import json
 
 from .ai_provider import AIRequest
 from .analysis_cache import get_cached_analysis, cache_analysis_once, _result_bytes
+from .ai_cost_ledger import existing_invocation_state
 from .ai_gemini_transport import run_budgeted_gemini_analysis
 from .economic_changes import normalized, mentions_name, business_start_phase
 from .source_share import SourceShareError, _when
@@ -232,12 +233,17 @@ def analyze_title(row, model, cache, ledger, *, allow_paid, now, opener=None, cl
         decision_at=now,now=now) if cache.exists() else None)
     if saved is not None:
         result=saved.result;status='CACHE_HIT';called=False
-    elif not allow_paid:
-        return {'status':'NOT_ANALYZED_NO_CALL'},False
     else:
         request=AIRequest(row['analysis_event_sha256'],metadata,'LICENSED_METADATA',
             _when(row['source_available_at'],'source available'),now,False,False,
             analysis_purpose='EXISTING_ARTICLE')
+        prior = existing_invocation_state(ledger, model, request, now=now)
+        if prior == 'UNSETTLED':
+            return {'status':'AI_PREVIOUS_CALL_UNSETTLED'}, False
+        if prior == 'SETTLED':
+            return {'status':'AI_PREVIOUS_RESULT_MISSING'}, False
+        if not allow_paid:
+            return {'status':'NOT_ANALYZED_NO_CALL'},False
         result=run_budgeted_gemini_analysis(model,request,ledger,allow_paid=True,opener=opener,now=clock)
         cache_analysis_once(cache,result,source_version_sha256=row['source_title_sha256'],metadata_sha256=digest,recorded_at=clock)
         status='ANALYZED';called=True
@@ -252,9 +258,11 @@ def validate_saved(row, at):
     from .analysis_cache import _decode
     semantic=row.get('semantic_analysis')
     if not isinstance(semantic,dict) or semantic.get('status') not in {
-            'MODEL_UNAVAILABLE','NOT_ANALYZED_NO_CALL','UNAVAILABLE','UNSUPPORTED_PROPOSAL','ANALYZED','CACHE_HIT'}:
+            'MODEL_UNAVAILABLE','NOT_ANALYZED_NO_CALL','UNAVAILABLE','UNSUPPORTED_PROPOSAL','ANALYZED','CACHE_HIT',
+            'AI_PREVIOUS_CALL_UNSETTLED','AI_PREVIOUS_RESULT_MISSING'}:
         raise SourceShareError('invalid semantic status')
-    if semantic['status'] in {'MODEL_UNAVAILABLE','NOT_ANALYZED_NO_CALL','UNAVAILABLE'}:
+    if semantic['status'] in {'MODEL_UNAVAILABLE','NOT_ANALYZED_NO_CALL','UNAVAILABLE',
+            'AI_PREVIOUS_CALL_UNSETTLED','AI_PREVIOUS_RESULT_MISSING'}:
         if set(semantic)!={'status'}:raise SourceShareError('unexpected semantic output')
         return
     if set(semantic)!={'status','analysis','events'}:raise SourceShareError('invalid semantic output')

@@ -6,7 +6,7 @@ importance is a review heuristic, and every AI statement remains unverified.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from hashlib import sha256
 from pathlib import Path
@@ -337,6 +337,7 @@ def analyze_completed_feed(
     analyze_existing: bool = False, ai_ledger: Path | None = None,
     opener=None, now: datetime | None = None, company_identity_config: Path | None = None,
     semantic_ai: bool = False, semantic_call_limit: int = 3,
+    semantic_scheduled_only: bool = False,
 ) -> dict:
     """Reuse committed sources and separate analysis state; paid execution is opt-in.
 
@@ -344,7 +345,8 @@ def analyze_completed_feed(
     Failed AI leaves source-backed fields visible and its cost reservation held.
     """
     at = _stamp(now)
-    if type(semantic_ai) is not bool or type(semantic_call_limit) is not int or not 0<=semantic_call_limit<=10:
+    if (type(semantic_ai) is not bool or type(semantic_call_limit) is not int
+            or not 0<=semantic_call_limit<=10 or type(semantic_scheduled_only) is not bool):
         raise SourceShareError("invalid bounded semantic analysis options")
     semantic_calls=0
     if type(analyze_existing) is not bool or (analyze_existing and
@@ -493,7 +495,15 @@ def analyze_completed_feed(
                         report["ai_http_status"] = exc.http_status
         if semantic_ai and item["claim_classification"] not in BLOCKED:
             from .news_semantics import analyze_title, changes_from_events, merge_changes
-            may_call=allow_paid and semantic_calls<semantic_call_limit
+            # Hourly unattended runs use paid semantics only on newly
+            # available V1-sector headline candidates. Historical/past context
+            # remains readable from cache, but does not trigger new bills.
+            # Explicit one-article analysis remains unaffected.
+            fresh_sector = (not semantic_scheduled_only or (
+                at - timedelta(days=1) <= _when(item["available_at"], "source available") <= at
+                and item.get("analysis_candidate") is True
+                and bool(_matched_terms(item["headline"]))))
+            may_call = allow_paid and semantic_calls < semantic_call_limit and fresh_sector
             try:
                 semantic,called=analyze_title(report,model,cache,ledger,
                     allow_paid=may_call,now=_stamp(now),opener=opener,clock=now)

@@ -1,14 +1,17 @@
-# PROJECT_STATE — 사용자 목적에 맞춘 재료 판단 우선
+# PROJECT_STATE — News 재료판정의 자동 전방 전달
 
-2026-10-17T23:39:34+09:00. News dashboard 배포 SHA **bed8e9dd5e878509d1a4563e1b88a6861d6cb2b9**. 역할은 docs/ROLE_ALIGNMENT_20261017.md. V1 반도체 1산업·정상코드 CONTINUE·무주문, 기존 코드작업36/36 기록과 실제 전체 연동은 구별.
+기준 2026-10-18T00:07:53+09:00. 배포 SHA **168ea012ddcade5555964f1f849edae4200fb261**. V1 반도체 1산업. 기존 코드작업36/36은 구현 이력이며, 전체 대장 후보 판단·전략 연동 완료와 별개.
 
-## 이번 변경
-- 기존 뉴스 사건 이력·중복 그룹·단계 후속 연결을 실제 **재료 판단 출력**에 연결. 로컬첫관측과 시장신규성 분리, 반복 보도·기업ID 보완·시간 경과만으로 신규 강화 근거 생성하지 않음. 같은 문서 제목변경은 실질변경 미확정, 계획후 개시/집행은 출처보고 진전, 상충/철회는 해당 사건의 재평가 입력. 무뉴스는 무효화 아님.
-- 각 출처에 직접 명시된 기업의 CAPEX/공급/수요/손익/경쟁여건 영향을 조건부로 설명하며 반증·결측을 함께 제공. 원본에 같은 사건/기업으로 묶인 공급관계가 없는 기업은 추가하지 않음. 기존 economic_path 재사용, 임의 매출/수혜/주가·리더점수0.
-- 실제 기존 SK하이닉스 투자 발표: PLANNED 유지, 최근30분 NO_NEW_MATERIAL/NO_NEW_CATALYST, 원래 기사 기준 첫 관측은 시장신규 UNCONFIRMED. 자본지출 및 공급능력 확대 가설·집행/수요/가동률 위험을 출력. 공식기업 DART_CORP:00164779 연결 유지. 기존 /api/themes17테마의 확장 입력이 Era 기존 decoder/validator에서 읽힘; News가 Era 순위/후보상태를 대신 바꾸지 않음.
-- 기존 기사/테마 카드에서 **재료 판단 → 기업별 조건부 영향/반증 → 선택적 Era 재무** 순서로 표시. CLI --materials 불변 내보내기 지원. 기존 데이터 수집/뉴스 권리/문서·시간/PIT·비밀·예산은 그대로.
+## 이번 새로 해결한 입력 공백
+기존 API는 호출시각/비교기간에 따라 재계산되어 원자료가 같아도 판본이 달라질 수 있었다. 이제 기존 정기 뉴스처리 완료 후 **이전 성공 판본 기준의 재료 결과를 자동 게시**하며 기본 /api/themes는 완료된 고정 bytes를 제공한다. 동일 입력은 같은 SHA/최초게시시각/사건을 유지, 변화가 있으면 새로운 불변판본이다. 이전 비교기준·원문이력/독립 source ID·정확 기업 ID·조건부 영향과 반증을 보존한다.
+한 source영역 실패는 마지막 정상자료와 UNAVAILABLE 상태를 함께 전달한다. 해당 cutoff는 유지하여 복구 때 미처리 변경을 놓치지 않는다. 중간중단은 완료 pointer를 넘기지 않고 재시도 재사용. 이전 DB로 되돌아가 사건이 사라진 것과 실제 철회를 구분한다. 빈 source(경제테마 없음)는 정상이며 새 전역 gate가 아님. 소비 확인·리더순위·매매판단을 News가 만들지 않는다.
 
-## 검증·운영
-변경 영향61PASS/FAIL0, 최종 UI 문구1건 재시험. 실제 운영 API/기사 HTTP200, JS 배포 SHA 확인. News dashboard만 고정snapshot으로 교체했고 원본테마/사용자dirty3·출처 DB와 나머지 예약은 변경 없음. Era 원본 코드/DB/Git/예약 쓰기0, 타 담당자 정상 작업 불간섭. 뉴스재수집/유료AI/공식API0, Public GitHub push0.
-현재 성과는 **News 재료판정과 전달을 바로잡은 것**이다. EraLeader 내부 가격·거래대금·수급·기업경쟁력과 결합해 후보 강화/약화/유지/우선순위를 실제 산출하는 작업은 아직 남아 있다. 독립 전략의 매매 조건 적용도 전체 완료로 주장하지 않는다.
-증거: output/role_alignment_20261017/operating_material_proof.json·material_activation.json·outbox/; 현재 UI http://127.0.0.1:8766/.
+## 실제 실행·시험
+- 개발 실자료 4영역17테마 발행 PUBLISHED, 같은 입력 재실행 ALREADY_PUBLISHED/동일 SHA. 원 ThemeStore·사용자dirty3 보존.
+- 운영 2026-10-18 00:03 자동 RunAtLoad: exit0, 5source 모두 기존 rate한도에 따라 NOT_DUE/새기사0/AI0, 재료17테마 발행·4영역CURRENT_SNAPSHOT. 기존 Era 평가50 최신판본 선택적 읽기/수신만, 그 자체는 뉴스 신규성 변경 근거로 사용 안 함.
+- 실제 기존 Era decoder/validator로 운영 기본 URL17테마 수신 확인. API 기본/명시publication/파일 bytes 동일. 실제 SK 재료 NO_NEW_MATERIAL, 후보입력 NO_NEW_CATALYST, 출처계획 PLANNED, CAPEX/SUPPLY 가설·반증 유지. 게시이전 as_of404. **Era 내부 실제 후보선정은 이번 작업에서 변경/완료하지 않았음**.
+- 게시/기존 관련94PASS 및 최종API 관련48PASS, 실패0(겹치는 시험 합산 금지). core/MOTIR 설정·원본SSD·기존 소스원장·사용자dirty3와 Era코드/DB/Git/스케줄 보존. 배포는 News dashboard/research-approved만 고정snapshot 교체. Public push없음.
+
+## 현재 전달 위치
+/Users/shmoon/Library/Application Support/NewsCatalystOS/document_analysis/material_outbox/latest.json → SHA-bound material_checkpoint_<sha>.json → 기존 theme_delivery_<sha>.json. HTTP /api/themes 기본 또는 ?publication=latest. 기존 필터분석 API는 유지. 최신 검증판본SHA 4b7cd2adc53cc3a5aaa65aad80e251dd90d6a07e971c58596dea034fbccf35bc.
+증거 output/material_delivery_continuation_20261017/activation.json·operating_material_publication_proof.json. 시간이 지난 다음 자연 예약에 새자료가 들어오는 경우는 후속 관찰이며 새 출시 대기조건으로 만들지 않는다.

@@ -1,13 +1,13 @@
-# PROJECT_STATE — NewsCatalystOS 최신 기능/실자료/운영 구분
+# PROJECT_STATE — NewsCatalystOS 최신 개발 상태
 
-기준 2026-10-17T10:35:59+09:00. V1 반도체 한 산업, 과거 1_1~6_6 코드 구현 36/36(출시 인수 아님). 완료 기준 docs/PRODUCT_COMPLETION_CRITERIA_20261016.md.
+2026-10-17T10:50:35+09:00 / 기능 SHA `3a5bf844c341c452a93a6709efd7663cd87dc131`. 기존 36/36은 코드 구현 이력이며 독립 운영/공동연동 완료로 환산하지 않는다. 사용자의 최신 지시는 **실사용 기능 우선·필수 최소 시험**. V1 반도체 한 산업 한정.
 
-## 최신 기능·해소한 개발 장애
-- `b23a9acdb1e348b22e0b295bba2ddb70f6d72b73`: 산업부 예약 작업이 국소 옵션 의미분석 실패를 전체 RSS 수집·저장 실패로 잘못 판정해 종료4 반환하던 문제의 개발 코드 수정. 실제 비공개 저장분석 17항목 중 캐시15·AI 미정산 예약1·미실행1 확인; 예약 기록은 비용 원장에서 2개 미정산 포함 (이벤트3개 과거 요청 판본 중), 임의 비용 정산/키 변경/재호출 없이 보존. 미정산 이전 호출은 새 `AI_PREVIOUS_CALL_UNSETTLED`로 명시하며 기존 저장 캐시/일반 뉴스 사실은 유지. 예약 메타의 국소 AI 미완료를 개별 status+requested_ai_complete=false로 남기고 기존 완료 RSS 입력·분석은 exit0 가능; 중요한 ai_eligible 신규 사건 오류·파일/DB 오류는 여전히 exit4. 예약 유료 의미분석 라우팅은 24시간 이내 V1 반도체 제목 + 기존 triage 검토 후보만 선택(신규 출시 게이트가 아닌 비용 절감 설정). 명시 사용자 단일 기사 분석 예외 유지.
-- 변경영향 시험: 160 PASS, 실패0(신규 예약상태/격리/정상 신규 AI fixture 3 포함). JS/CLI 변경 영향 없음. 실제 미정산 article의 기존 비용원장·AI캐시·보고서 3개 SHA 불변, AI HTTP/신규 유료 호출0.
-- 실제 저장 MOTIR 승인 RSS 17건 로컬 replay-only: 이전 운영 ai_cache 읽기전용 백업을 별도 임시폴더로 복사, private 새 분석 root에 저장·보고서 SHA 확인. status MOTIR_SECTOR_SOURCE_ANALYSIS_READY / exit0, semantic_deferred=1·incomplete=1, paid_adapter_attempts=0, 외부 수집0, 실코어 입력→보고 정상. 6개 원본 설정·state·비용·캐시·테마DB SHA 불변, 임시 사본 정리.
-- 이전 개발 대시보드 실자료(2026-10-16 43 뉴스/8 테마/5 기업후보, RSS 검색173, MOTIR 정책 기사/기간변화)는 정상. 이 턴에 무관한 화면/원본/예약 코드를 재작업하지 않음.
-- **실운영 별도**: 현재 launchd com.newscatalystos.motir의 배포된 SSD 코드는 구버전, 최근 exit4를 새 코드의 자연 예약실행 성공으로 대체하지 않는다. 운영 배포/재시작·GitHub push 모두 미수행. 사용자 기존 dirty3 불변, EraLeader/MarketOS·API·SSD 원본 무변경.
+## 이번에 새로 작동하는 경로
+- NEWS-20261017-SAVED-TITLE-ECONOMIC-DETAIL: 기존 승인 RSS 검색의 정확 제목 판본을 기존 보존된 feed_analysis 보고와 sha256(provider\0event\0title)로 매칭, 로컬 보관/분석 가용시각 및 검색 판본의 URL/원문시각/본문 범위를 함께 확인. ThemeStore 출현 유무와 무관하게 기사 제목 자체의 경제 변화(행동, 주제, 출처 보도 당사자, 계획 단계, AI 구간 대조 여부)를 검색 기사 상세에 보여준다. 일치 저장 보고 없는 기사/미래 판본은 N/A, 명시 변화 없는 제목은 별도 문구. 같은 기사 본문의 POLICY_CHANGE를 제목 경제 사건으로 허위 승격하지 않는다.
+- 개발 변경 영향 15 PASS(신규2 + 브라우저/연계13), 실패0. 실제 허용 저장 NICE평가정보 RSS: BUSINESS_START 1 제목 근거/공식 수혜 미확인(**V1 반도체 실증으로 계산하지 않음**). 현재 반도체 제목3: 원본 분석 판본 3/3 일치, 제목 경제 행동0; 산업부 허용 원문 POLICY_CHANGE 1은 기존 별도 근거로 확인. HTTP 200, 원본 설정·수집상태·테마 저장5파일 SHA 무변경, 네트워크·AI 신규 호출 0.
+- 기존 2026-10-16 일간 기사43·테마8·기업 후보5 조회 및 과거 뉴스/테마 기간 조회는 보존. 새 코드 로컬만 반영, 운영 SSD/상시 8766/launchd/GitHub push 수행 안 함.
+- 직전 MOTIR optional AI 국소 실패 수정 SHA `b23a9acdb1e348b22e0b295bba2ddb70f6d72b73`는 운영 SSD 미배포. 예약 실제 정상화 증거 없음. 미정산 예약 삭제/재유료 호출 없음.
+- 사용자 기존 AGENTS.md, DECISIONS.md, 비전 파일 dirty3 그대로 보존.
 
 ## 다음
-NEXT_TASK.md: 현재 개발-운영 배포 경계는 그대로 보존. 다른 독립 필수 OP-05 복원 읽기를 이미 있는 정상 스냅샷/백업·코드로 1회 실자료 확인하되 기존 유효 증거가 충분하면 반복 안 함. 인적 검수·새 장비/5거래일 선행 필수화 금지.
+NEXT_TASK.md — 기사에서 출처 명시 기업이 있는 경우, 이미 저장된 같은 기사·테마 근거에 한정해 기존 CompanyCandidates / company_evidence를 기사 화면으로 읽기 전용 연결. 보고된 당사자·정식 식별·관계·추론을 구분하며 이름만으로 수혜를 주장하지 않는다. 운영 백업 실증은 기존 확인 증거를 재사용하고 출시 시 필요한 항목에만 적용.

@@ -615,7 +615,7 @@ function renderThemeChanges(card,change,labels){
   for(const reason of change.reasons)if(!change.status_transitions.some(step=>step.reasons.some(r=>r.code===reason.code)))box.append(node("p","",reason.text));
   for(const [direction,events] of [["추가",change.events.added],["제외",change.events.removed]])for(const event of events){
     const ref=event.supporting_source;
-    const text=direction+"된 사건: "+(ref?(ref.entity_ids.join(", ")||"기업 미식별")+" · "+ref.topic+" · "+(economicActionLabels[ref.action]||ref.action):"근거 설명 미확인")+(event.kind==="FOLLOWUP_OBSERVATION"?" · 기존 행동의 후속 보도":"");
+    const text=direction+"된 사건: "+(ref?(ref.entity_ids.join(", ")||"기업 미식별")+" · "+(ref.topic||change.provisional_name||"주제 미확인")+" · "+(economicActionLabels[ref.action]||ref.action):"근거 설명 미확인")+(event.kind==="FOLLOWUP_OBSERVATION"?" · 기존 행동의 후속 보도":"");
     if(ref){const link=node("a","source-link",text);link.href=ref.source_url;link.target="_blank";link.rel="noopener noreferrer";box.append(link)}else box.append(node("p","",text));
   }
   renderInvestmentStages(box,change.investment_stage_links_added);
@@ -653,7 +653,7 @@ function renderCompanyIdentities(term){
   }
 }
 
-function renderSavedArticleThemeEvents(place,themes,caption){
+function renderSavedArticleThemeEvents(place,themes,caption,articleContext){
   place.append(node("p","finding-detail",caption+" · 테마 "+themes.length+"개 · 독립 사실·거래·수혜 인증 아님"));
   for(const theme of themes){
     const card=node("div","news-evidence-theme");
@@ -672,15 +672,59 @@ function renderSavedArticleThemeEvents(place,themes,caption){
       link.href=event.source_url;link.rel="noopener noreferrer";link.target="_blank";
       card.append(link);
     }
+    if(articleContext){
+      const form=node("div","news-change-toolbar");
+      const startLabel=node("label","","변화 시작일"),endLabel=node("label","","종료일");
+      const start=node("input","",""),end=node("input","","");
+      start.type="date";end.type="date";
+      const asKst=value=>new Date(value).toLocaleDateString("sv-SE",{timeZone:"Asia/Seoul"});
+      start.value=asKst(theme.first_detected_at);
+      end.value=asKst(new Date().toISOString());
+      startLabel.append(start);endLabel.append(end);
+      const button=node("button","news-evidence-button","선택 기간 변화 보기"),results=node("div","news-evidence-results");
+      button.type="button";
+      button.addEventListener("click",()=>loadSavedThemeChange(articleContext,theme,start.value,end.value,results));
+      form.append(startLabel,endLabel,button);
+      card.append(form,results);
+    }
     place.append(card);
   }
 }
-function showSavedNewsEvidence(place,data){
+async function loadSavedThemeChange(context,theme,start,end,place){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end)||start>end){
+    place.replaceChildren(node("p","empty-small","N/A · 날짜 순서와 시작·종료일을 확인하세요."));return;
+  }
+  const beginning=new Date(start+"T00:00:00+09:00"),finish=new Date(end+"T23:59:59.999+09:00");
+  const upper=new Date(Math.min(finish.getTime(),Date.now()));
+  if(!Number.isFinite(beginning.getTime())||!Number.isFinite(upper.getTime())||beginning>upper){
+    place.replaceChildren(node("p","empty-small","N/A · 기간이 미래이거나 범위를 벗어납니다."));return;
+  }
+  place.replaceChildren(node("p","finding-detail","저장된 기간별 사건·후속 근거를 조회합니다."));
+  try{
+    const item=context.item,params=new URLSearchParams({q:context.phrase,provider_id:item.provider_id,
+      event_id:item.event_id,title_sha256:item.title_sha256,theme_id:theme.theme_id,
+      since:beginning.toISOString(),as_of:upper.toISOString()});
+    const response=await fetch("/api/news-evidence?"+params);
+    if(!response.ok)throw new Error("N/A · 해당 시점에서 연결된 테마·기사 근거를 확인할 수 없습니다.");
+    const result=await response.json(),change=result.theme_change;
+    place.replaceChildren();
+    if(!change){place.append(node("p","empty-small","N/A · 선택 기간에 조회 가능한 저장 판본이 없습니다."));return;}
+    place.append(node("p","finding-detail","기간 "+start+" ~ "+end+" · 신규 독립 행동 "+
+      change.events.independent_actions_added+" · 제외 "+change.events.independent_actions_removed+
+      " · 추가 근거 "+change.sources.added.length+" · 상충·철회는 별도 표시"));
+    if(result.theme_change_status==="NO_CHANGE")place.append(node("p","empty-small","변화 없음 · 후속 보도 부재는 테마 무효화 근거가 아닙니다."));
+    const labels={CANDIDATE:"관찰 후보",EMERGING:"형성 중",EXPANDING:"확산",
+      WEAKENING:"약화",INVALIDATED:"무효",REACTIVATED:"재활성화"};
+    renderThemeChanges(place,change,labels);
+  }catch(error){place.replaceChildren(node("p","empty-small",error.message||"N/A · 저장 변화 조회 실패"));}
+}
+function showSavedNewsEvidence(place,data,article,phrase){
   place.replaceChildren();
   const reasons={NO_SAVED_EXACT_THEME_EVIDENCE:"이 기사 RSS 판본에 연결된 저장 경제 사건·테마 근거 없음",
                  SOURCE_NOT_AVAILABLE_AS_OF:"선택 시점에는 해당 기사 판본이 아직 가용하지 않음"};
+  const articleContext=article&&phrase?{item:article,phrase}:null;
   if(data.status==="READY"){
-    renderSavedArticleThemeEvents(place,data.themes,"저장된 동일 기사 판본의 테마");
+    renderSavedArticleThemeEvents(place,data.themes,"저장된 동일 기사 판본의 테마",articleContext);
   }else{
     place.append(node("p","empty-small","N/A · "+(reasons[data.reason_code]||"검증된 RSS 제목 근거 없음")));
   }
@@ -705,7 +749,7 @@ function showSavedNewsEvidence(place,data){
     node("p","","RSS↔본문 바인딩 SHA: "+official.binding_sha256),
     node("p","","공식 본문 가용: "+official.binding_available_at));
   place.append(proof);
-  renderSavedArticleThemeEvents(place,official.themes,"검증된 공식 본문에서 저장한 반도체 정책 사건");
+  renderSavedArticleThemeEvents(place,official.themes,"검증된 공식 본문에서 저장한 반도체 정책 사건",articleContext);
 }
 async function loadSavedNewsEvidence(item,phrase,place){
   place.replaceChildren(node("p","finding-detail","같은 기사 판본의 기존 저장 근거를 조회합니다."));
@@ -713,7 +757,7 @@ async function loadSavedNewsEvidence(item,phrase,place){
     const query=new URLSearchParams({q:phrase,provider_id:item.provider_id,event_id:item.event_id,title_sha256:item.title_sha256});
     const response=await fetch("/api/news-evidence?"+query);
     if(!response.ok)throw new Error("N/A · 이 기사 판본을 검증할 수 없습니다.");
-    showSavedNewsEvidence(place,await response.json());
+    showSavedNewsEvidence(place,await response.json(),item,phrase);
   }catch(error){place.replaceChildren(node("p","empty-small",error.message||"N/A · 근거 조회 실패"));}
 }
 

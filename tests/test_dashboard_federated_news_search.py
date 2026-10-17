@@ -92,7 +92,7 @@ def test_browser_search_renders_source_title_as_plain_text():
     script=r'''
 const fs=require("node:fs"),vm=require("node:vm"),assert=require("node:assert");
 const all=fs.readFileSync("scripts/dashboard_assets/app.js","utf8");
-const start="function renderSavedArticleThemeEvents(place,themes,caption){";
+const start="function renderSavedArticleThemeEvents(place,themes,caption,articleContext){";
 assert(all.includes(start));
 const code=all.slice(all.indexOf(start),all.indexOf('$("news-search-form").addEventListener'));
 function el(){return {children:[],events:{},value:"",textContent:"",checked:false,
@@ -105,15 +105,19 @@ const seen=[],payload={coverage_complete:true,matched_document_versions:1,keywor
 {headline:"<b>반도체 & 테스트</b>",provider_id:"synthetic",event_id:"a".repeat(64),title_sha256:"b".repeat(64),
  source_url:"https://example.org/saved-title",source_available_at:"2026-10-17T00:00:00+00:00",semiconductor_keyword_candidate:true}
 ]};
-const evidence={status:"READY",themes:[{name:"합성 테마",status:"CANDIDATE",decision_at:"2026-10-17T00:00:00+00:00",
+const evidence={status:"READY",themes:[{name:"합성 테마",status:"CANDIDATE",first_detected_at:"2026-10-17T00:00:00+00:00",decision_at:"2026-10-17T00:00:00+00:00",
  theme_id:"c".repeat(64),events:[{action:"BUSINESS_START",phase:"SOURCE_REPORTED",topic:"반도체",evidence_level:"REPORTED",
  polarity:"SUPPORT",active_in_theme:true,companies:[{entity_id:"가상전자"}],source_url:"https://example.org/saved-title",
  source_available_at:"2026-10-17T00:00:00+00:00",recorded_at:"2026-10-17T00:01:00+00:00"}]}]};
+const change={activity:"updated",events:{independent_actions_added:0,independent_actions_removed:0},
+ sources:{added:[{source_url:"https://example.org/more"}]},reasons:[{code:"ADDITIONAL_SOURCE",text:"후속 출처 추가"}]};
 const ctx={
   $:id=>elements[id],URLSearchParams,
   economicActionLabels:{BUSINESS_START:"사업·서비스 개시"},economicPhaseLabels:{SOURCE_REPORTED:"출처 보도"},
-  fetch:async url=>{seen.push(url);return {ok:true,json:async()=>url.startsWith("/api/news-evidence")?evidence:payload}},
-  node:(tag,cls,value)=>{const e=el();e.tag=tag;e.className=cls;e.textContent=value||"";return e}
+  fetch:async url=>{seen.push(url);return {ok:true,json:async()=>url.includes("since=")?{
+    theme_change:change,theme_change_status:"READY"}:url.startsWith("/api/news-evidence")?evidence:payload}},
+  node:(tag,cls,value)=>{const e=el();e.tag=tag;e.className=cls;e.textContent=value||"";return e},
+  renderThemeChanges:(place,c)=>{const e=el();e.textContent="기존 기간 렌더러 재사용";place.append(e)}
 };
 vm.runInNewContext(code,ctx);
 (async()=>{
@@ -144,6 +148,25 @@ vm.runInNewContext(code,ctx);
    status:"N/A",reason_code:"NO_SAVED_EXACT_THEME_EVIDENCE",
    official_document_evidence:{status:"N/A",reason_code:"NO_REPORTED_DOCUMENT_ECONOMIC_CHANGE"}});
  assert(missingOfficial.children.some(x=>x.textContent.includes("공식 본문 N/A")));
+ const period=el();
+ ctx.showSavedNewsEvidence(period,{status:"N/A",reason_code:"NO_SAVED_EXACT_THEME_EVIDENCE",
+   official_document_evidence:{status:"READY",document_sha256:"d".repeat(64),binding_sha256:"e".repeat(64),
+     binding_available_at:"2026-10-17T00:00:00+00:00",themes:[{...evidence.themes[0]}]}},
+   payload.results[0],"반도체");
+ const themeCard=period.children.find(x=>x.className==="news-evidence-theme");
+ const toolbar=themeCard.children.find(x=>x.className==="news-change-toolbar");
+ assert(toolbar&&toolbar.children.length===3);
+ const dateInputs=toolbar.children.slice(0,2).map(x=>x.children[0]);
+ assert(dateInputs[0].value&&dateInputs[1].value);
+ await toolbar.children[2].events.click();
+ assert(seen.at(-1).includes("theme_id="+"c".repeat(64)),JSON.stringify({last:seen.at(-1),from:dateInputs[0].value,to:dateInputs[1].value,msg:themeCard.children.at(-1).children.map(x=>x.textContent)}));
+ assert(seen.at(-1).includes("since=")&&seen.at(-1).includes("as_of="));
+ const rendered=themeCard.children.at(-1);
+ assert(rendered.children.some(x=>x.textContent.includes("신규 독립 행동 0")));
+ assert(rendered.children.some(x=>x.textContent.includes("기존 기간 렌더러 재사용")));
+ dateInputs[0].value="2099-12-31";
+ await toolbar.children[2].events.click();
+ assert(rendered.children[0].textContent.includes("N/A"));
  process.stdout.write("BROWSER_DETAIL_OK");
 })().catch(e=>{process.stderr.write(String(e.stack||e));process.exitCode=1});
 '''

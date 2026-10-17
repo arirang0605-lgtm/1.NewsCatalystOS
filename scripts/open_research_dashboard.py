@@ -91,9 +91,12 @@ class Handler(BaseHTTPRequestHandler):
             query = parse_qs(url.query)
             try:
                 required = ("q", "provider_id", "event_id", "title_sha256")
-                if (set(query) - set(required) - {"as_of"}
+                history = "since" in query or "theme_id" in query
+                if (set(query) - set(required) - {"as_of", "since", "theme_id"}
                         or any(len(query.get(k, [])) != 1 for k in required)
-                        or "as_of" in query and len(query["as_of"]) != 1):
+                        or ("as_of" in query and len(query["as_of"]) != 1)
+                        or (history and (any(len(query.get(k, [])) != 1
+                                                for k in ("as_of", "since", "theme_id"))))):
                     raise ValueError("complete exact article selection required")
                 from newscatalystos.source_share import _when
                 now = datetime.now(timezone.utc)
@@ -128,6 +131,31 @@ class Handler(BaseHTTPRequestHandler):
                             "content_scope": "LICENSED_ARTICLE_TEXT",
                             "themes": [], "verified_real_transaction": False,
                             "verified_real_benefit": False, "independent_fact_verified": False}
+                if history:
+                    from newscatalystos.source_share import _must_sha
+                    theme_id = _must_sha(query["theme_id"][0], "selected article theme")
+                    linked = {x["theme_id"] for x in detail["themes"]}
+                    official = detail.get("official_document_evidence", {})
+                    if official.get("status") == "READY":
+                        linked.update(x["theme_id"] for x in official["themes"])
+                    if theme_id not in linked:
+                        # Do not use a later-linked article to expose a theme
+                        # at an earlier as-of, or enumerate unrelated themes.
+                        self._json(404, {"error": "theme not linked to this article as of query"})
+                        return
+                    start = _when(query["since"][0], "theme period start")
+                    timeline = compare_themes(
+                        ThemeStore(self.server.documents / "theme_history"),
+                        since=start, as_of=at, now=now)
+                    change = next((x for x in timeline["ThemeChanges"]
+                                   if x["theme_id"] == theme_id), None)
+                    detail["theme_change"] = change
+                    detail["theme_change_status"] = (
+                        "N/A" if change is None
+                        else "NO_CHANGE" if (change["activity"] == "unchanged"
+                                           and change["reasons"][0]["code"] == "NO_CHANGE")
+                        else "READY")
+                    detail["theme_change_since"] = start.isoformat()
                 self._json(200, detail)
             except (SourceShareError, OSError, ValueError, TypeError, KeyError, sqlite3.Error):
                 self._json(400, {"error": "invalid exact saved article evidence query"})

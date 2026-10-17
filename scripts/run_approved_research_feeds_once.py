@@ -1,0 +1,143 @@
+"""Run existing approved research RSS pipelines together in one unattended tick.
+
+This is a caller of run_scheduled_triage, NOT another collector. Each source
+retains its own approved registry, rate ledger, durable ACK, theme history and
+article provenance. A broken source never prevents healthy sources executing.
+
+One explicit --once performs bounded authorized source requests. --dry-run and
+--replay-only do not fetch external RSS. Never installs or changes launchd.
+"""
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+import json
+import os
+import stat
+import sys
+
+PROJECT = Path(__file__).resolve().parent.parent
+if str(PROJECT) not in sys.path:
+    sys.path.insert(0, str(PROJECT))
+
+from scripts import run_scheduled_triage
+from newscatalystos.source_share import SourceShareError
+
+# Source identifiers are deliberately fixed to existing reviewed rights.
+# Company and NIST category feeds use the SAME source owner and budget.
+FEEDS = (
+    ("msit", "msit-official-press", None),
+    ("msit", "msit-official-rnd-policy", None),
+    ("company", "samsung-newsroom-korea", None),
+    ("company", "skhynix-newsroom-korea",
+     "skhynix_press_variant_authorized_sources.json"),
+    ("nist", "nist-official-electronics",
+     "nist_manufacturing_variant_authorized_sources.json"),
+)
+WORKSPACES = {
+    "msit": "msit_live_dev",
+    "company": "company_live_dev",
+    "nist": "nist_live_dev",
+}
+
+
+def parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--workspaces-root", required=True, type=Path,
+                   help="absolute parent of 3 isolated, owner-only approved RSS workspaces")
+    operation = p.add_mutually_exclusive_group(required=True)
+    operation.add_argument("--once", action="store_true")
+    operation.add_argument("--dry-run", action="store_true")
+    operation.add_argument("--replay-only", action="store_true")
+    return p
+
+
+def _workspace_root(parent: Path, name: str) -> Path:
+    root = parent / WORKSPACES[name]
+    if (not parent.is_absolute() or ".." in parent.parts
+            or parent.is_symlink() or not root.is_dir() or root.is_symlink()
+            or root.resolve() != root
+            or any(x.casefold() == "eraleader" for x in root.parts)):
+        raise SourceShareError("isolated approved RSS workspace required")
+    info = root.lstat()
+    if (info.st_uid != os.geteuid()
+            or not stat.S_ISDIR(info.st_mode)
+            or stat.S_IMODE(info.st_mode) & 0o077):
+        raise SourceShareError("owner-only approved workspace required")
+    return root
+
+
+def execute(opts: argparse.Namespace, *, run_tick=run_scheduled_triage.execute) -> tuple[int, dict]:
+    """One bounded pass of existing collectors; failures isolated by provider."""
+    if sum(bool(getattr(opts, name, False)) for name in ("once", "dry_run", "replay_only")) != 1:
+        raise SourceShareError("one explicit collection mode required")
+    operation = ("--once" if opts.once else "--dry-run" if opts.dry_run
+                 else "--replay-only")
+    rows = []
+    failures = 0
+    for scope, provider, alternate in FEEDS:
+        try:
+            root = _workspace_root(Path(opts.workspaces_root), scope)
+            args = [
+                "--registry", str(root / "providers/authorized_sources.json"),
+                "--provider-id", provider,
+                "--state", str(root / "state/incremental_feeds.sqlite3"),
+                "--dedup-state", str(root / "state/triage_exact_index.sqlite3"),
+                "--inbox-root", str(root / "inbox/feed_triage"),
+                "--output-root", str(root / "triage"),
+                "--analysis-root", str(root / "feed_analysis/core"),
+                "--analysis-theme-root", str(root / "document_analysis/theme_history"),
+                "--analysis-limit", "100", operation,
+            ]
+            if alternate is not None:
+                args.extend(["--alternate-registry", str(root / "providers" / alternate)])
+            code, result = run_tick(run_scheduled_triage.parser().parse_args(args))
+            result_rows = result.get("providers", [])
+            entry = result_rows[0] if len(result_rows) == 1 else {}
+            analysis = entry.get("analysis", {})
+            status = entry.get("status", result.get("status", "DATA_UNAVAILABLE"))
+            bad = code != 0 or not entry
+            rows.append({
+                "scope": scope, "provider_id": provider, "status": status,
+                "feed_variant": entry.get("feed_variant"),
+                "new_articles": entry.get("new_provider_ids", 0),
+                "keyword_candidates": entry.get("semiconductor_keyword_candidates", 0),
+                "analysis_status": analysis.get("status",
+                          "NOT_RUN" if operation == "--dry-run" else "UNAVAILABLE"),
+                "analyzed_rows": analysis.get("analyzed_rows", 0),
+                "economic_changes": analysis.get("economic_changes_count", 0),
+                "new_theme_versions": analysis.get("theme_versions_created", 0),
+                "failed": bad,
+            })
+            failures += int(bad)
+        except (SourceShareError, OSError, ValueError, TypeError, KeyError) as exc:
+            failures += 1
+            rows.append({"scope": scope, "provider_id": provider,
+                         "status": "DATA_UNAVAILABLE",
+                         "error_type": type(exc).__name__, "failed": True})
+    return (4 if failures else 0), {
+        "status": "APPROVED_RESEARCH_FEED_TICK_PARTIAL" if failures
+                  else "APPROVED_RESEARCH_FEED_TICK_COMPLETE",
+        "mode": operation[2:].upper().replace("-", "_"),
+        "sources_checked": len(FEEDS), "sources_failed": failures,
+        "providers": rows,
+        "new_articles": sum(r.get("new_articles", 0) for r in rows),
+        "economic_changes": sum(r.get("economic_changes", 0) for r in rows),
+        "ai_calls": 0, "stored_article_bodies": 0,
+        "era_api_calls": 0,
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    try:
+        code, result = execute(parser().parse_args(argv))
+    except (SourceShareError, OSError, ValueError, TypeError) as exc:
+        code, result = 4, {"status": "APPROVED_RESEARCH_FEEDS_INPUT_UNAVAILABLE",
+                           "error_type": type(exc).__name__,
+                           "ai_calls": 0, "stored_article_bodies": 0}
+    print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+    return code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

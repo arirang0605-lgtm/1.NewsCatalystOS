@@ -20,6 +20,7 @@ from scripts.run_feed_triage import _registry
 from newscatalystos.ai_provider import AIModel
 from newscatalystos.feed_analysis import analyze_completed_feed, publish_feed_analysis
 from newscatalystos.official_relation_intake import _private_input
+from newscatalystos.evidence_archive import _private_root
 from newscatalystos.source_share import SourceShareError, _json
 from newscatalystos.economic_changes import normalized
 from newscatalystos.theme_emergence import ThemeStore, economic_observation
@@ -92,6 +93,12 @@ def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, d
                          for r in report["results"])
         report["paid_execution_requested"] = opts.allow_paid
         report["requested_ai_complete"] = failures == 0 if opts.allow_paid else None
+        # A failed/empty first source has no rows, so analyze_completed_feed
+        # returns BEFORE creating its private analysis root. Create that root
+        # with 0700 first; otherwise mkdir(parents=True) for the empty report
+        # creates an unsafe 0755 ancestor and blocks the next healthy source.
+        # This happens after original source/rights/PIT validation above.
+        _private_root(work)
         path, digest = publish_feed_analysis(report, work / "reports")
         observations = [economic_observation(change,
             origin_reference=row["source_url"], source_url=row["source_url"],

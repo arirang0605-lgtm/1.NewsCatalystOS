@@ -1,15 +1,13 @@
-# PROJECT_STATE — NewsCatalystOS 최신 기능·실자료·운영
+# PROJECT_STATE — NewsCatalystOS 최신 기능·실자료·운영 상태
 
-기준 2026-10-17T13:13:52+09:00. 기능 SHA `17c889ecbe13d571039542899d4cf3f5bfcd4467`. V1 반도체 1산업; 과거 코드 작업 **36/36** 기록, 제품/실운영/공동 인수는 별도. 사용자 최우선: 뉴스 수집 범위 확대·핵심 자동 처리, 정상 코드 보존, 최소 필수 검증.
+2026-10-17T13:55:12+09:00 / 개발 feature Git 926031a995955635f3320ecfc1ec1805b9e9df25. V1 반도체 한 산업, 과거 코드 구현 36/36 기록; 독립 실운영/출시·실연동 인증 별도. 사용자 우선순위 정상 코드 보존·허용 수집 범위와 경제 변화→테마/기업 자동 처리.
 
-## 실자료 수집 정상 경로
-- 개발 전용 과기정통부 RSS 2개 채널(보도자료94, 연구개발·미래인재정책65) 모두 원래 호출 한도를 지켜 한 번씩 scheduler→수집 ACK/중복제거→규칙 분석/저장 성공. 보도자료 2026-10-17 13:02 KST 이후 첫 정상 tick exit0, 실제 새 기사50/반도체 키워드6/분석50, 경제 변화0/유료AI0/본문저장0. 정책 RSS는 기사50/반도체 키워드1/분석50/경제변화0. 최신 정상 press 저장 watermark 2026-10-17T04:02:47.848138+00:00, 다음 호출 05:02:40.712164+00:00 이후. 앞선 최초 press 6초 실패는 이제 현재 dev 수정 코드에서 해소된 것으로 확인; **운영 SSD 구버전 정상화 증거는 아님**.
-- 기존 3개 실제 승인 뉴스 판본 core156 + motir17 + 과기정통부 dev100 = **273개** 개별 저장 버전. '반도체' 제목 통합검색 **10건**, 2026-10-17 일간 추가 100건, 전체 3 workspaces verified coverage true, 기사 정확 판본 RSS 저장분석 READY HTTP200. 실제 과기정통부 회사 수혜/확정 경제행동 **0건**, '없음'은 상태 N/A·거래 미확정이지 데이터 누락 자동 인증 아님.
-
-## 새로 구현한 핵심 화면 연결
-- MSIT 자체 ThemeStore 읽기 전용 조회를 기사 상세(`/api/news-evidence`)와 기존 기간 테마 카드에 정확한 source scope로 연결. 기존 기본 테마DB와 별도 보존하며 같은 주제명을 이유로 사건/기업을 합치지 않음. 신규 RSS가 실제 경제 행동을 담는 정상 경로에서 저장 근거→이벤트/테마→관련 기업 이유→제목 구간의 검증된 조회를 합성 입력에서 HTTP/브라우저 확인. 사용자 원본/유료본문/확정 수혜 생성 없음.
-- 신규 변경 영향 **21 PASS**, 실패0; 사용권·SHA/PIT·중복비용·무주문 보호 보존. 실제 통합 HTTP 재확인: 저장100/검색273/반도체10, 신문 press 테마0 정확 N/A, 원본·개발 registry/수집state/테마7 SHA 불변.
-- 개발 로컬 Git만 `17c889ecbe13d571039542899d4cf3f5bfcd4467`. 운영 SSD·기존 예약·GitHub Public push 미변경. 사용자 기존 dirty3 보존.
+## 이번에 작동하는 실제 기능
+- 공식 삼성전자 뉴스룸 https://news.samsung.com/kr/feed RSS20, SK하이닉스 https://news.skhynix.co.kr/feed/ RSS10의 신규 기사 메타데이터를 별도 개발 state output/company_live_dev에서 수집(기존 scheduler→ACK·중복 제거→규칙 분석→저장, code0). 신규 키워드 반도체 후보10(Samsung0, SK10), 명시 규칙 경제 행동0/신규 테마0/수혜 미확정; 유료 AI0·원문/이미지 저장0.
+- 공식 이용안내 refs: https://news.samsung.com/kr/삼성전자-뉴스룸-콘텐츠-이용에-대한-안내 및 https://news.skhynix.co.kr/guideline/ . 자체 제작 콘텐츠·제3자 콘텐츠 제약을 감안, metadata-only approved registry config/semiconductor_company_rss_metadata_registry.json, 1회/시간 제한. 다른 승인 출처 중복 수집/수정 없음.
+- 기존 core156 + MOTIR17 + MSIT100 + 기업뉴스30 = 실제 저장 판본303개, 읽기 전용 4개의 source scope에서 뉴스 검색/일간/기사 저장 경제행동 상세 HTTP200. 하이닉스 제목 검색6, 2026-10-17 일간 130기사. 검색 coverage complete, 회사 뉴스 정확 title analysis READY지만 해당 제목 경제 행동0 → 출처 회사의 실제 계약/수혜로 주장하지 않음.
+- 기존 open_research_dashboard.py에 반복 가능 --additional-source-root company=/절대/개발폴더 추가, --msit-source-root 호환. 각 source ThemeStore 및 회사 참여/후속 원문은 독립 저장소에서만 열람, 공통 주제명만으로 타 source 내용을 혼합하지 않음. 중요 반도체 계약 등 합성 정상 예제로 API/브라우저/동일 사건/철회 전 PIT 검증.
+- 변경 영향 42 PASS, 실패0; 개발·운영 원본/승인 registry·수집 state 9파일 SHA 읽기중 불변. 격리 HTTP 종료. 운영 SSD/launchd/공개 GitHub 미배포, 사용자 AGENTS/DECISIONS/비전 dirty3 SHA 보존.
 
 ## 다음
-NEXT_TASK.md: 추가 공식 RSS 뉴스 범위를 승인 조건 내에서 늘리고 실제 중요한 반도체 경제 행동→테마/기업 자동 연결이 발생하도록 기존 수집·분류 로직의 입력 폭 확장에 집중. 검증·관리 도구 확장 금지. 운영 설치/정기 실행 인수는 별도.
+NEXT_TASK.md — 중요한 반도체 경제 행동 제목을 실제 게시하는 추가 공식 기업 RSS/IR 뉴스원을 권리·형식·호출 한도에 맞춰 확대하고 4단계 실자료 자동 처리 완성. 신규 관리·검수 도구 반복 확장 금지.

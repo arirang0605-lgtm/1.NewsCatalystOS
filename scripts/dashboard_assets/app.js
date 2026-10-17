@@ -426,6 +426,43 @@ $("note-text").addEventListener("input",event=>{$("note-count").textContent=even
 $("note-form").addEventListener("submit",async event=>{event.preventDefault();const text=$("note-text").value.trim();if(!text)return;status("메모를 저장하는 중…");try{const response=await fetch("/api/notes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({view:state.view,date:state.date,text})});if(!response.ok)throw new Error("메모를 저장하지 못했습니다.");$("note-text").value="";$("note-count").textContent="0 / 2000";await load()}catch(error){status(error.message,true)}});
 load();
 
+function renderCatalystMaterial(parent,value,entity){
+  if(!value?.materials?.length)return;
+  const box=node("div","finding-detail catalyst-material");
+  box.append(node("p","eyebrow","재료 판단 · NewsCatalystOS → EraLeader"));
+  const paths={CAPEX:"투자지출",SUPPLY:"공급능력",DEMAND:"수요",EARNINGS:"손익",COMPETITION:"사업·경쟁 여건"};
+  const directions={INCREASE:"증가 가능",DECREASE:"감소 가능",MIXED:"복합",UNKNOWN:"방향 미확인"};
+  const hints={CONTEXT_ONLY_MARKET_NOVELTY_UNKNOWN:"기존 자료/첫 관측 맥락으로 제공 · 오늘의 새 호재 아님",
+    REASSESS_UNRESOLVED_SOURCE_REVISION:"원문 변경에 따른 영향 재검토 · 실질 변화 미확정",
+    REASSESS_REPORTED_PROGRESS:"단계 진전 근거를 후보 평가에 함께 반영",
+    REASSESS_WITHDRAWAL:"철회된 재료를 후보 평가에서 재검토",
+    REASSESS_CONFLICT:"상충하는 근거를 후보 평가에 함께 반영",
+    EXCLUDE_INVALIDATED_CATALYST:"무효화된 재료를 새로운 강화 근거로 사용하지 않음",
+    NO_NEW_CATALYST:"반복·유지: 새 재료 가산 근거 없음"};
+  for(const event of value.materials){
+    const companies=event.company_impacts.filter(c=>!entity||c.entity_id===entity||c.source_entity_id===entity);
+    if(entity&&!companies.length&&!event.event_ids?.length)continue;
+    box.append(node("p","",event.reason),
+      node("p","finding-detail",(economicActionLabels[event.source_action]||event.source_action||"행동 미확보")+" · "+
+        (economicPhaseLabels[event.source_phase]||event.source_phase||"단계 미확보")+" · "+(event.topic||"주제 미확보")),
+      node("p","finding-detail","EraLeader 입력: "+(hints[event.news_input_for_era]||event.news_input_for_era)));
+    const impacts=node("details","finding-detail");
+    impacts.append(node("summary","","어느 기업에 왜 영향을 줄 수 있는가"));
+    if(!companies.length)impacts.append(node("p","empty-small","유효한 기업별 영향 경로 없음 · 철회·상충/기업 근거를 확인"));
+    for(const company of companies){
+      impacts.append(node("p","",company.source_entity_id+" · "+(company.role==="DIRECT_SOURCE_ACTION_PARTY"?"이 사건의 직접 당사자":"같은 사건의 별도 공급관계 근거")));
+      for(const h of company.hypotheses||[]){
+        impacts.append(node("p","finding-detail",(paths[h.path]||h.path)+" — "+(directions[h.direction]||h.direction)+" (가설): "+h.premise),
+          node("p","finding-detail","반증·조건: "+h.counter_argument));
+      }
+      if(company.hypothesis)impacts.append(node("p","finding-detail",company.hypothesis));
+    }
+    box.append(impacts,node("p","fineprint","원자료 확보 "+event.first_source_observed_at+" · 사건으로 기록 "+event.first_event_recorded_at));
+  }
+  box.append(node("p","fineprint","시장 최초 발생·주가 선반영 여부 미확인. 회사 선정·가격/거래대금·수급·경쟁력 종합 판단은 EraLeader, 매수·매도·손절은 개별 전략 담당."));
+  parent.append(box);
+}
+
 function renderEraDailyAssessment(parent,assessment){
   if(!assessment)return;
   const panel=node("details","finding-detail era-daily-assessment");
@@ -486,10 +523,12 @@ function renderThemes(term){
     const card=node("article","finding"),meta=node("div","finding-meta");
     meta.append(node("span","pill",labels[theme.status]||theme.status),node("span","","사건 후보 "+theme.scores.distinct_economic_events+" · 기업 "+theme.scores.company_breadth));
     const activity=currentData.theme_activity?.[theme.theme_id];
-    if(activity==="new"||activity==="updated")meta.append(node("span","pill",activity==="new"?"기간 내 신규":"기간 내 갱신"));
+    if(activity==="new"||activity==="updated")meta.append(node("span","pill",activity==="new"?"기간 내 첫 기록":"기간 내 갱신"));
     const title=themeTitle(theme,currentData.theme_presentations?.[theme.theme_id]);
     card.append(meta,node("h4","",title),node("p","finding-detail","최초 발견: "+theme.first_detected_at),node("p","finding-detail","최근 근거: "+theme.last_evidence_at));
     if(title!==theme.provisional_name){const saved=node("details","finding-detail");saved.append(node("summary","","저장 당시 테마명"),node("p","",theme.provisional_name));card.append(saved)}
+    if(currentData.catalyst_material?.[theme.theme_id])
+      renderCatalystMaterial(card,currentData.catalyst_material[theme.theme_id]);
     renderThemeActionOrder(card,currentData.theme_order?.entries?.[theme.theme_id]);
     renderThemeChanges(card,currentData.theme_changes?.[theme.theme_id],labels);
     if(["DEMAND_EXPANSION","DEMAND_RECOVERY","DEMAND_CONTRACTION","PRODUCT_PRICE_INCREASE","PRODUCT_PRICE_DECREASE"].includes(theme.economic_driver)){
@@ -650,6 +689,8 @@ function renderThemes(term){
         theme.scores.distinct_economic_events+"개 · 출처에 명시된 기업 "+companies.length+"개"),
       node("p","finding-detail","확보 시점: "+theme.first_detected_at+
         " · 마지막 판정: "+theme.decision_at+" · 다른 저장소의 같은 이름과 자동 병합하지 않음"));
+    const material=(currentData.additional_source_themes||[]).find(g=>g.scope===scope)?.catalyst_material?.[theme.theme_id];
+    if(material)renderCatalystMaterial(card,material);
     for(const candidate of companies){
       card.append(node("p","","출처 기업: "+candidate.display_name+
         " · 기사/공급망 근거에 나타난 대상 · 실거래·매출·수혜 미확정"));
@@ -904,6 +945,8 @@ function renderSavedArticleCompanyContext(place,context,articleContext){
           party.append(node("p","finding-detail","테마 포함 이유: "+reason));
       }else party.append(node("p","empty-small","N/A · 이 기사 판본의 활성 기업 포함 근거 없음"));
       party.append(node("p","finding-detail","출처 가용: "+company.source_available_at+" · 근거 기록: "+company.recorded_at));
+      if(company.catalyst_materials?.length)
+        renderCatalystMaterial(party,{materials:company.catalyst_materials},company.entity_id);
       if(company.era_daily_assessment)renderEraDailyAssessment(party,company.era_daily_assessment);
       const link=node("a","source-link","해당 기사 기업 행동의 원문 ↗");
       link.href=company.source_url;link.target="_blank";link.rel="noopener noreferrer";party.append(link);

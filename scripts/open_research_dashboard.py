@@ -25,6 +25,7 @@ from newscatalystos.theme_emergence import ThemeStore, period_activity, theme_pr
 from newscatalystos.standard_delivery import build_theme_bundle
 from newscatalystos.article_company_identity import search_article_identities
 from newscatalystos.era_company_assessment import enrich_candidates
+from newscatalystos.catalyst_material import materials_for_store, attach_material, default_since
 from newscatalystos.era_daily_assessment import enrich_daily, read_latest as read_daily, assessment_for, project_themes
 from newscatalystos.theme_changes import compare_themes
 from newscatalystos.theme_action_order import order_theme_actions
@@ -182,6 +183,22 @@ class Handler(BaseHTTPRequestHandler):
                         "status": "N/A", "reason_code": "ARTICLE_COMPANY_CONTEXT_UNAVAILABLE",
                         "themes": [], "verified_real_transaction": False,
                         "verified_real_benefit": False, "investment_merit": "NOT_ASSESSED"}
+                # News owns material novelty and conditional economic effects.
+                # The existing Era financial display is supplemental, not the
+                # main direction of the selection pipeline.
+                try:
+                    material=materials_for_store(ThemeStore(article_root/"theme_history"),
+                        since=_when(query['since'][0],'material since') if 'since' in query else default_since(at),
+                        as_of=at,scope=source_scope,now=now)
+                    for group in detail["article_company_context"].get("themes",[]):
+                        value=material.get(group["theme_id"])
+                        if not value:continue
+                        group["catalyst_material"]=value
+                        for party in group["direct_parties"]:
+                            party["catalyst_materials"]=[m for m in value["materials"]
+                                if party["event_id"] in m["event_ids"]]
+                except (SourceShareError,OSError,ValueError,TypeError,KeyError,sqlite3.Error):
+                    detail["catalyst_material_status"]="UNAVAILABLE"
                 # Optional completed producer evidence enriches the exact
                 # article party, never rewrites source identity or the theme.
                 if self.server.era_daily_root is not None:
@@ -334,6 +351,15 @@ class Handler(BaseHTTPRequestHandler):
                     bundle=json.loads(build_theme_bundle(data["themes"], decision_at=min(end, now), now=now,
                                                          include_company_candidates=True))
                     data['company_candidates']=bundle['CompanyCandidates']
+                    data['catalyst_material']={}
+                    data['catalyst_material_status']='READY'
+                    try:
+                        if self.server.documents:
+                            data['catalyst_material']=materials_for_store(
+                                ThemeStore(self.server.documents/'theme_history'),
+                                since=min(start,now),as_of=min(end,now),scope='base',now=now)
+                    except (SourceShareError,OSError,ValueError,TypeError,KeyError,sqlite3.Error):
+                        data['catalyst_material_status']='UNAVAILABLE'
                     data['common_cause_comparisons']=common_cause_comparisons(data['themes'],data['company_candidates'])
                     data['theme_presentations']={t['theme_id']:theme_presentation(t) for t in data['themes']}
                     try:
@@ -404,8 +430,15 @@ class Handler(BaseHTTPRequestHandler):
                                 if self.server.era_daily_root is not None:
                                     candidates=enrich_daily(candidates,self.server.era_daily_root,
                                         as_of=min(end,now),now=now)
+                                material={};material_status='READY'
+                                try:
+                                    material=materials_for_store(own,since=min(start,now),
+                                        as_of=min(end,now),scope=scope,now=now)
+                                except (SourceShareError,OSError,ValueError,TypeError,KeyError,sqlite3.Error):
+                                    material_status='UNAVAILABLE'
                                 data["additional_source_themes"].append({
                                     "scope": scope, "themes": selected,
+                                    "catalyst_material":material,"catalyst_material_status":material_status,
                                     "company_candidates": candidates})
                         except (SourceShareError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
                             data["additional_source_theme_status"] = "UNAVAILABLE"
@@ -491,7 +524,11 @@ class Handler(BaseHTTPRequestHandler):
                         # Existing base IDs/payloads remain unchanged for
                         # long-lived receiver histories; appended independent
                         # stores have stable source-qualified IDs.
-                        exported.extend(selected if key=="base" else project_themes(selected,key,snap))
+                        material=materials_for_store(ThemeStore(root),
+                            since=_when(query['since'][0],'material since') if 'since' in query else default_since(at),
+                            as_of=at,scope=key,now=now)
+                        projected=selected if key=="base" else project_themes(selected,key,snap)
+                        exported.extend(attach_material(projected,material))
                     payload=build_theme_bundle(exported,decision_at=at,now=now)
                     self._send(200,payload,"application/json; charset=utf-8")
                     return
@@ -499,6 +536,11 @@ class Handler(BaseHTTPRequestHandler):
                     as_of=at, query='' if url.path=='/api/company-research' else query.get("q", [""])[0], now=now,
                     since=_when(query['since'][0],'period start') if 'since' in query else None,
                     activity=query.get('activity',['all'])[0]) if self.server.documents else [])
+                if url.path=="/api/themes" and self.server.documents:
+                    material=materials_for_store(ThemeStore(self.server.documents/'theme_history'),
+                        since=_when(query['since'][0],'material since') if 'since' in query else default_since(at),
+                        as_of=at,scope='base',now=now)
+                    themes=attach_material(themes,material)
                 companies=query.get('company_candidates',['0'])[0]
                 if companies not in {'0','1'}:raise ValueError('invalid company candidate option')
                 payload=build_theme_bundle(themes, decision_at=at, now=now,

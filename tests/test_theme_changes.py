@@ -178,7 +178,14 @@ def test_cli_export_http_period_and_legacy_contract(tmp_path,capsys):
         with urlopen(base+'/api/period?view=day&date=2099-01-01') as r:future=json.load(r)
         assert future['theme_changes']=={} and future['theme_changes_status']=='NOT_STARTED'
         with urlopen(base+'/api/themes?as_of='+LATER.isoformat().replace('+','%2B')) as r:legacy=json.load(r)
-        assert legacy==json.loads(build_theme_bundle(store.search(as_of=LATER),decision_at=LATER))
+        # The original event/history contract is intact; the optional news
+        # material extension must also retain a fully withdrawn catalyst.
+        unextended={**legacy,'ThemeCandidates':[{k:v for k,v in t.items() if k!='catalyst_material'}
+                                              for t in legacy['ThemeCandidates']]}
+        assert unextended==json.loads(build_theme_bundle(store.search(as_of=LATER),decision_at=LATER))
+        material=legacy['ThemeCandidates'][0]['catalyst_material']['materials'][0]
+        assert material['material_status']=='SOURCE_WITHDRAWAL'
+        assert material['company_impacts']==[] and not material['orders_enabled']
         assert (store.root/'themes.sqlite3').read_bytes()==before
         # Optional comparison failure must not hide valid existing theme cards.
         with sqlite3.connect(store.root/'themes.sqlite3') as db:db.execute('UPDATE versions SET digest=? WHERE decision_at=?',('f'*64,T.isoformat()))

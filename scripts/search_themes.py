@@ -28,7 +28,10 @@ def main(argv=None):
     p.add_argument('--identity-root',type=Path,help='candidate identity receipts; defaults next to assessment cache')
     p.add_argument('--comparison',action='store_true',help='pinned read-only cross-product/period query, separate from standard v3')
     p.add_argument('--changes',action='store_true',help='compare theme evidence before --since and at --as-of')
+    p.add_argument('--materials',action='store_true',help='include news material novelty and conditional company impact for the independent selector')
     args=p.parse_args(argv)
+    if args.materials and (args.changes or args.comparison or args.with_financials):
+        p.error('--materials is an optional standard news delivery extension, not a financial report')
     if args.comparison and (args.changes or args.with_financials or args.company_candidates):
         p.error('--comparison cannot be combined with standard, financial or changes modes')
     if args.changes and (not args.since or args.with_financials or args.company_candidates):
@@ -53,6 +56,11 @@ def main(argv=None):
     else:
         themes=ThemeStore(args.root).search(as_of=at,query='' if args.with_financials else args.query,now=now,
             since=_when(args.since,'period start') if args.since else None,activity=args.activity)
+        if args.materials:
+            from newscatalystos.catalyst_material import materials_for_store,attach_material,default_since
+            materials=materials_for_store(ThemeStore(args.root),as_of=at,now=now,
+                since=_when(args.since,'material since') if args.since else default_since(at))
+            themes=attach_material(themes,materials)
         payload=build_theme_bundle(themes,decision_at=at,now=now,
                                    include_company_candidates=args.company_candidates or args.with_financials)
     if args.with_financials:

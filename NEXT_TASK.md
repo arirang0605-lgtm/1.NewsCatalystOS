@@ -1,11 +1,12 @@
-# NEXT_TASK — 읽기전용 연동 이후의 실제 필요 작업
+# NEXT_TASK — 재료 판단을 기존 Era 후보 선정에 실제 반영
 
-## 완료
-사용자 “연동하자” 요청으로 News 측 운영에 EraLeader 완료 일일평가를 연결. 기능/배포 SHA **09e1bfbbf43fabd491c372153452c4962b73ed51**, 관련68PASS. SK 투자계획 기사→공식 DART00164779/종목000660→Era FY2025 연결재무·2026-10-16 종가/기존 긍정·약화·위험한계→뉴스 상세/일간 화면 실제 성공. 완료평가50개 수신·44재무/50가격 중 실제 뉴스 공식기업 연결1. 기존 Era reader의 운영 /api/themes16테마 수신 및 ID match도 read-only 확인. News 시간당 runner는 같은 Era 완료판본 ALREADY_IMPORTED 처리, 새판본이면 최초수신시각을 기록한다.
+## 사용자 최우선 목적
+뉴스/재무표를 함께 보여주는 것으로 완료하지 않는다. **News 새/반복/변경 재료와 기업별 영향근거 → Era 기존 독립 후보 평가·강화/약화/유지/우선 검토 이유 → 수신자 중립 전략 전달**을 먼저 완성한다. Era는 뉴스 없는 기업도 시장가격·거래대금·수급으로 발굴한다. 개별 매매는 독립전략 담당. 새 점수·관리/검수 프레임워크·무한 자료확대로 대체하지 않는다.
 
-## 후속 범위 구분
-1. 사용자가 실제 이용/갱신을 요청하면 이미 지난 News hourly 로그에서 era_daily_connection 최신 상태와 현재 Era 완료 snapshot 갱신만 확인한다. 같은 성공검증·재수집·무의미한 원장 초기화 반복 금지. 생산자 출력이 잠시 없으면 뉴스는 계속, 평가만 N/A.
-2. **Era 자체 화면/정기수신 파이프라인이 최신 daily를 직접 소비하는 부분은 별도 미완료**다. 이번은 News 소비기와 기존 Era pure reader 검증이며, 상대 소스/DB/Git/설정을 직접 바꾼 것이 아니다. Era 개발 담당자의 현재 작업을 방해하지 말고 기존 News API/default16테마, 완료평가 SHA 계약을 재사용한다. 전체 양방향 자동화 완료로 과장하지 않는다.
-3. 미국기업 평가 연결은 SEC 식별/완료평가 판본이 가용한 범위에서 후속 구현; 재무결측·이름모호·복수증권은 N/A. 추가 생산자 수집·인적검수·관리도구·새 투자점수 없음. 원래 INT 완료조건은 실증된 범위로만 구분한다.
+## 지금 작동하는 News 입력
+배포 SHA bed8e9dd5e878509d1a4563e1b88a6861d6cb2b9, 관련61PASS. /api/themes?since=<이전 판단 이후>&as_of=<현재시각>은 original theme/event IDs를 보존하면서 catalyst_material에 **반복/유지=NO_NEW_CATALYST, 첫관측=CONTEXT_ONLY_MARKET_NOVELTY_UNKNOWN, 단계진전/상충/철회=해당 재평가 이유** 및 정확 기업별 경제 경로·반증/원문SHA·시각을 포함한다. 시장신규성 미확인은 새 전역 차단조건이 아니며, 계획/실집행·수혜는 구분된다. 한 출처제목만 바뀌거나 이름만 식별됐다고 독립 새 재료로 가산하지 않음.
+실제 SK 최근30분은 NO_NEW_MATERIAL, 출처 투자계획과 CAPEX·SUPPLY 가설은 맥락으로 유지. 기존 Era 수신모듈로17테마 읽기 정상. **Era 자신의 선정/순위는 아직 변경하지 않았다.** 불변 전달 파일은 기존 search_themes.py --materials --export-root, 최신 실제 proof는 output/role_alignment_20261017.
 
-운영 base=/Users/shmoon/Library/Application Support/NewsCatalystOS; 수신 설정 era_daily_connection.json·document_analysis/era_daily_assessments. 기존 dev output/*_live_dev는 보관본, 실제 뉴스수집은 base/research_workspaces만. News 배포코드 base/releases/09e1bfbbf43fabd491c372153452c4962b73ed51 읽기전용, 개발수정은 repo에서 후속 새snapshot. rollback/proof: output/era_integration_20261017. 코드36/36 기록≠미국연동/상대서비스인수/수익보장. 출처권리·PIT/SHA·비밀·비용/무주문 유지.
+## 이어서 할 핵심 한 건과 경계
+Era 담당 작업에서 현재 완료된 가격/거래대금/재무·수급/경쟁력의 **기존 선정·상태 모델**에 이 News 입력을 재사용하여 후보별 강화·약화·유지 이유와 가용 항목 기준 우선 검토 결과를 실제로 낸다. 목표는 회사 자료 나열이 아니라 후보 판단이다. 결측은 그 항목만 N/A, 없는 자료로 CONFIRMED를 만들거나 모두 갖출 때까지 전체 판단을 멈추지 않음. 전략 전달은 기존 중립 계약 사용, News나 Era가 매수·손절 규칙을 중복 구현하지 않음.
+이 News 프로젝트에서 Era 소스/DB/Git/예약·타 담당자 작업트리를 직접 변경하지 않는다. News 쪽 실제 입력오류나 빠진 명시 영향근거가 발견되면 그 코드만 국소 수정·시험·배포한다. 공개 GitHub/운영원본/실주문/키·원문 비밀 보호 유지. 사용자 dirty3와 기존 운영 소스 원장/예약 보존. 현재 재무연결은 유지하되 개발 우선순위로 되돌리지 않는다.

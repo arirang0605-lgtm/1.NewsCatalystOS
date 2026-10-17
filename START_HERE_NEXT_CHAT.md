@@ -1,16 +1,16 @@
-# START HERE — NewsCatalystOS
+# START HERE — NewsCatalystOS: 재료 판단 → 대장 후보 → 전략
 
-기준 2026-10-17T22:23:35+09:00. 사용자 요청 **“연동하자”**에 따라 EraLeader 완료 평가의 읽기전용 연결을 NewsCatalystOS 운영에 반영. 재개: 이 문서 → AGENTS.md → PROJECT_STATE.md → DECISIONS.md → NEXT_TASK.md 최신 부분과 Git상태만 확인. 핵심 기능·실사용 우선, 정상 코드 CONTINUE, 새 검수/관리도구·인적승인/기간대기 조건 추가 금지. 코드구현36/36 기록과 독립 운영/양방향 전체인수를 구분한다.
+기준 2026-10-17T23:39:34+09:00. 사용자 첨부 목적표와 **“바로 잡자”** 지시가 최우선이다. [역할·개발 우선순위](docs/ROLE_ALIGNMENT_20261017.md)를 적용한다. 재개 시 이 문서 → AGENTS.md → PROJECT_STATE.md → DECISIONS.md → NEXT_TASK.md의 최신 내용과 실제 Git 상태만 확인한다.
 
-## 현행 운영
-- 개발 /Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project, branch codex/real-data-path. 사용자 기존 AGENTS/DECISIONS/비전 dirty3 보존.
-- 대시보드·5개 RSS runner 배포 SHA **09e1bfbbf43fabd491c372153452c4962b73ed51**, 고정 코드 /Users/shmoon/Library/Application Support/NewsCatalystOS/releases/09e1bfbbf43fabd491c372153452c4962b73ed51. 기존 core/MOTIR 서비스는 이전 정상 버전 유지. 운영 http://127.0.0.1:8766/ (Mac 로컬 전용), 화면에서 기사 기업의 **EraLeader 기업 평가 연결**을 펼친다.
-- 현 운영 신규출처 원장 /Users/shmoon/Library/Application Support/NewsCatalystOS/research_workspaces. 개발 output/*_live_dev는 보관본이므로 재수집 실행 금지. 권리/PIT/SHA/기존 비용원장·중복/실주문 금지 유지.
-- News 소유 설정 /Users/shmoon/Library/Application Support/NewsCatalystOS/era_daily_connection.json, 평가 수신함 /Users/shmoon/Library/Application Support/NewsCatalystOS/document_analysis/era_daily_assessments. 기존 시간당 com.newscatalystos.research-approved에 optional refresh 연결. 실제 등록직후 launchd exit0/뉴스5출처 성공/평가50개 ALREADY_IMPORTED, 최초수신시각은 보존. Era 장애는 평가만 N/A, 정상뉴스는 계속.
+## 바로잡은 목표
+**NewsCatalystOS: 무엇이 새로 달라졌나/반복인가/어느 기업에 왜 영향을 주나 → EraLeader: 독립 전시장 발굴과 가격·거래대금·수급·경쟁력/뉴스를 종합한 후보 판단 → 독립 매매전략: 매수·매도·손절.** Era 재무를 News 화면에 보여주는 기존 역방향 조회는 보존하되 후순위다. 새 RSS 수/재무표·관리도구 확장으로 본 흐름 완성을 대신하지 않는다. News는 대장주 점수·선정/매매신호를 만들지 않는다.
 
-## 실제 연결 증거
-EraLeader의 현재 게시 완료 daily snapshot(내용 SHA c1f84378c69d7037902172a809c97655e08f16ced79f86fb6f4fb532ca816a67, 파일 SHA aa310751a5146806aefa5a6bb9b670d7cf2f4480122b294a53c7497f75f974af)을 원본 보고서·browser SHA/기업/날짜·주문금지·사용권 범위 확인 후 News 수신함에 복사. 후보50·연간재무44·종가50 중 현재 뉴스와 **정확 연결1건: SK하이닉스 → DART_CORP:00164779 → 000660**. FY2025 재무, KRX2026-10-16 보관가격/긍정·약화·결측 근거를 원 평가 그대로 표시. 뉴스54조 투자 사건 PLANNED·실수혜미확정 유지. 평가를 새 계산하거나 기존 원본 회사명/테마 DB를 수정하지 않음.
-기존 /api/themes 기본 경로가 base9를 원래 ID 그대로 보존하고 source별 추가7테마를 포함해 총16을 전달. Era 기존 decode/validate/match 함수를 실제 운영 API에서 **읽기전용으로 호출해 정상수신·공식ID 일치1** 확인. 별도 context에 완료 daily 행을 전달한 검증이며 **EraLeader 내부의 오래된 WATCH 수신기/영구 저장/자체 UI·스케줄을 변경한 것은 아님**. 회사 자체 재평가나 통합 전체 인수를 선언하지 않음.
-직접 영향 **68 PASS/0 FAIL**, 실제 운영 기사/일간/평가 API HTTP200, 새 배포 JS SHA 확인. source first import 2026-10-17T13:04:12.387996+00:00 이전 조회는 N/A. 미국/미식별/복수증권은 N/A. 원문·유료AI·새DART/KRX/SEC 수집0.
-증거는 ignored output/era_integration_20261017/ 아래 feature_commit.json·integration_activation.json·operational_integration_proof.json, rollback에 이전 News 설정. Era 프로젝트 원본·DB·Git·예약 쓰기0. Era 담당자가 동시 정상 개발해 HEAD와 상태문서는 바뀌었지만 이번에 읽은 완료 보고서/index 원본 SHA는 그대로; 타 개발을 되돌리지 않는다. Public GitHub push 없음.
-다음은 NEXT_TASK.md. 원본 SSD코드·기존 안정서비스·배포 snapshot 직접 덮어쓰기 금지.
+## 최신 작동
+- News 재료 판정 기능 e735107767cdb51eaf55a49a97f5f3168c4bfbcf 및 문구보정·운영 SHA **bed8e9dd5e878509d1a4563e1b88a6861d6cb2b9**. 기존 ThemeStore 판본/사건·계획→개시/집행 연결·theme_changes·economic_path를 재사용해 로컬첫관측/이전자료분석/반복/원문판본변경미확정/단계진전/상충/철회/유지를 구분. source first_seen은 시장신규 재료 인증이 아니다.
+- 기존 /api/themes에 optional catalyst_material과 기업별 조건부 경제 경로·반증을 포함. search_themes.py --materials --export-root로 같은 입력을 불변 SHA 파일로 발행 가능. 기존 원본 사건/회사/테마점수 변경0. 첫 관측·발행시각/시장선반영 미확인은 해당 항목만 UNKNOWN/null, 독립 Era 발굴을 차단하는 새 조건 아님.
+- 실제 저장 SK 투자계획의 최근30분 비교: NO_NEW_MATERIAL → Era 입력 NO_NEW_CATALYST. 기업 영향은 SK 자신의 CAPEX부담/향후 공급 확대 가설과 집행·수요·가동률 반증. 미확인 장비수혜자 추가0. 운영 기사 상세/일간에서 재료판정을 재무조회보다 먼저 표시. 기존 금융연결 유지.
+- 관련 **61 PASS/0 FAIL**, 문구보정 UI1건 재시험 통과. 운영 HTTP200/배포 JS SHA 확인, 실제 API17테마를 기존 Era 수신 함수로 읽어 extension 포함 호환 확인. 이것은 **Era 실제 후보순위 반영 완료가 아님**. Era 코드·DB·Git·예약 변경0, 유료AI/재수집/공식API0.
+
+## 운영과 보존
+개발 /Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project, branch codex/real-data-path. dashboard만 /Users/shmoon/Library/Application Support/NewsCatalystOS/releases/bed8e9dd5e878509d1a4563e1b88a6861d6cb2b9 고정코드로 교체. 기존 연구수집/core/MOTIR 예약과 데이터/비용원장은 그대로. 운영 http://127.0.0.1:8766/ . 운영 source는 /Users/shmoon/Library/Application Support/NewsCatalystOS/research_workspaces, dev output/*_live_dev는 보관본이므로 재수집 금지. 원본 SSD/EraLeader, 사용자 미커밋 AGENTS·DECISIONS·비전3 보존, Public GitHub push 없음. 증거/롤백은 ignored output/role_alignment_20261017/.
+다음 핵심은 NEXT_TASK.md. 36/36은 과거 코드구현 기록이고 전체 대장선정·전략인수 완료를 뜻하지 않는다.

@@ -15,6 +15,9 @@ TOPICS = (
     ('액침냉각', r'액침\s*냉각|immersion\s+cooling'),
     ('DRAM', r'\bDRAM\b|디램'), ('NAND', r'\bNAND\b|낸드'),
     ('반도체', r'반도체|semiconductor'),
+    # Only an explicit memory-demand response; a generic computer memory
+    # headline is not a semiconductor supply signal.
+    ('메모리', r'메모리(?=\s*수요\s*대응)'),
 )
 TOPIC_ALIASES = {
     'EUV': ('EUV','극자외선'), 'DUV': ('DUV','심자외선'),
@@ -122,7 +125,8 @@ ACTIONS = (
     ('CAPACITY_ADDITION', r'(?:생산능력|생산량|공급량).{0,30}(?:증가|확대|늘렸|증설)'),
     ('SUPPLY_REDUCTION', r'(?:생산|공급).{0,20}(?:중단|축소|감산)|감산(?:을)?\s*(?:결정|시작|실시|단행|추진|계획)|감산(?:했다|한다|에\s*착수)'),
     ('CONTRACT', r'(?:공급\s*계약|수주\s*계약|납품\s*계약).{0,20}(?:체결|수주)'),
-    ('INVESTMENT', r'(?:신규|새로).{0,30}투자.{0,25}(?:결정|확정)|투자.{0,15}(?:결정|확정)'),
+    ('INVESTMENT', r'(?:신규|새로).{0,30}투자.{0,25}(?:결정|확정)|투자.{0,15}(?:결정|확정)'
+     r'|(?<![가-힣A-Za-z0-9])\d{1,3}(?:[.,]\d{1,3})?\s*(?:조|억)\s*(?:원)?\s*투자(?!\s*(?:집행|실행|완료|착수))(?=$|[\s,….])'),
     ('INVESTMENT_EXECUTION', r'(?<![가-힣])투자(?:를)?\s*집행'),
     ('BUSINESS_START', BUSINESS_ACTION),
     ('MARKET_ENTRY', r'시장(?:에|으로)?\s*(?:(?:신규|본격|첫)\s*)?진출'),
@@ -130,6 +134,18 @@ ACTIONS = (
     ('DELIVERY_START', r'(?:납품|공급)(?:을)?\s*(?:시작|개시)'),
     ('CUSTOMER_ACQUISITION', r'신규\s*고객(?:사)?(?:를|을|으로|로)?\s*확보'),
 )
+# A dated corporate RSS title can report a bounded capital commitment
+# without the literal verb "결정/확정". Distinguish this from spending already
+# executed, speculative facilities, personal investments and share buybacks.
+_CAPITAL_COMMITMENT = re.compile(
+    r'(?<![가-힣A-Za-z0-9])\d{1,3}(?:[.,]\d{1,3})?\s*(?:조|억)\s*(?:원)?\s*투자(?!\s*(?:집행|실행|완료|착수))(?=$|[\s,….])'
+)
+_CAPITAL_SITE = re.compile(r'공장|팹|fab|생산\s*(?:시설|거점|기반)|설비|클러스터',re.I)
+_CAPITAL_PRODUCT = re.compile(r'반도체|\bHBM\b|\bDRAM\b|\bNAND\b|메모리',re.I)
+_CAPITAL_EXCLUDE = re.compile(
+    r'자사주|주주환원|주식|증권|채권|펀드|부동산|검토|논의|가능성|전망|예상|여부|미확정|취소|철회|무산'
+)
+
 UNCERTAIN = re.compile(r'검토\s*중|논의\s*중|가능성|(?<!\w)가정(?=$|[^\w]|하|한|해)|미확정|계획이\s*없|하지\s*않|사실이\s*아니|체결되지|취득하지|의결되지')
 PAST = re.compile(r'(?:지난해|작년|과거|기존|이미).{0,45}(?:의결|체결|시작|확대|결정)|지난\s*\d+월.{0,30}(?:체결|발표|결정)')
 COMPANIES = re.compile(r'삼성전자|SK하이닉스|ASML|TSMC|마이크론|[가-힣A-Za-z]{2,20}(?:전자|반도체|소재|장비)')
@@ -859,7 +875,7 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
     first_projects = {}
     units=((paragraph,clause,len(clauses)>1) for paragraph in text.splitlines()
            if paragraph.strip() and len(paragraph)<=5000
-           for sentence in re.split(r'(?<=[.!?。])\s+',paragraph.strip()) if sentence.strip()
+           for sentence in re.split(r'(?<=[!?。])\s+|(?<=\.)(?<!\.\.)\s+',paragraph.strip()) if sentence.strip()
            for clauses in [company_clauses(sentence.strip(),company_names,include_investment_execution=include_investment_execution,include_new_customers=include_new_customers,include_delivery_start=include_delivery_start,include_market_entry=include_market_entry,include_resumption=include_resumption)] for clause in clauses)
     for paragraph,line,scoped in units:
         past=PAST.search(line)
@@ -1067,6 +1083,19 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                          or _DEMAND_DENIAL.search(line)):
             continue
         for action in actions:
+            if (action == 'INVESTMENT' and _CAPITAL_COMMITMENT.search(action_text)
+                    and not re.search(r'투자.{0,15}(?:결정|확정)',action_text)):
+                owners = set(company_names)|set(COMPANIES.findall(evidence_line))
+                speaker = _leading_company_subject(evidence_line, owners)
+                # Only one explicitly named issuer + a facility + a memory/
+                # semiconductor target are sufficient for a *planned* event.
+                # Never mark a bare number or a financial/share transaction
+                # as an actual production investment.
+                if (speaker is None or len(speaker[0]) != 1
+                        or not _CAPITAL_SITE.search(evidence_line)
+                        or not _CAPITAL_PRODUCT.search(evidence_line)
+                        or _CAPITAL_EXCLUDE.search(evidence_line)):
+                    continue
             if shared_parallel and action=='BUSINESS_START':
                 names=business_start_names(shared_parallel[action]['action_expression'])
             if customer_context and action!='DELIVERY_START':continue
@@ -1183,7 +1212,9 @@ def extract_economic_changes(text, *, company_names=(), include_order_growth=Tru
                 continue
             seen[key]=len(changes)
             changes.append({'topic':topic, 'economic_driver':driver, 'action':action,
-                'phase':('ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
+                'phase':('PLANNED' if action == 'INVESTMENT' and _CAPITAL_COMMITMENT.search(action_text)
+                         and not re.search(r'투자.{0,15}(?:결정|확정)',action_text)
+                         else 'ADOPTED_NOT_YET_EFFECTIVE' if action == 'POLICY_CHANGE' and '시행될 예정' in line
                          else policy_investment['phase'] if policy_investment else policy_contract['phase'] if policy_contract else policy_capacity['phase'] if policy_capacity else 'PLANNED' if demand_planned or (project and _BUSINESS_PLAN.search(action_text))
                          else cut_phase if price_drop
                          else commercial_claims[action]['phase'] if action in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'} or (recovery and action in {'CONTRACT','PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT','INVESTMENT_EXECUTION','BUSINESS_START'}) or (policy and action=='BUSINESS_START') or growth_parallel or price_parallel or single_service

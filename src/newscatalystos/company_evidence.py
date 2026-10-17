@@ -216,7 +216,7 @@ def _clause(text,change,entity,ref,*,include_investment_execution=True,include_n
                 ('topic','action','phase','economic_driver','service_name','service_event_key','investment_project','investment_event_key','source_paragraph_sha256'))
                 for found in extract_economic_changes(text,**options)):return None
     matches=[]
-    for sentence in re.split(r'(?<=[.!?。])\s+',text):
+    for sentence in re.split(r'(?<=[!?。])\s+|(?<=\.)(?<!\.\.)\s+',text):
         for clause in company_clauses(sentence,change['entity_ids'],include_resumption=(change['action']=='SUPPLY_RESUMPTION' or 'demand_recovery_cause' in change),include_investment_execution=include_investment_execution,include_new_customers=include_new_customers,include_delivery_start=include_delivery_start,include_market_entry=include_market_entry):
             if ('topic_alias_evidence' in change
                     and change['topic_alias_evidence'] not in explicit_topic_aliases(clause)):

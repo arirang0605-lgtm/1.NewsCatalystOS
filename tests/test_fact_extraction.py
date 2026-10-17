@@ -84,3 +84,18 @@ def test_after_check_as_of_does_not_backdate():
 def test_duplicate_proposals_not_double_counted():
     result=verify(proposals() + [proposals()[0]])
     assert len(result.supported)==3
+
+
+def test_spaced_large_won_units_keep_exact_source_amount_evidence():
+    from newscatalystos.feed_analysis import _krw
+    from newscatalystos.fact_extraction import MONEY
+    from decimal import Decimal
+    title = "가상반도체는 HBM 공급계약 54조 원 체결"
+    fragments = [m.group().strip() for m in MONEY.finditer(title)]
+    assert fragments == ["54조 원"]
+    assert _krw(fragments[0]) == Decimal("54000000000000")
+    assert _krw("54조원") == _krw("54조 원")
+    facts = verify([FactProposal("CONTRACT_AMOUNT", "54조 원", title)], excerpt=title)
+    assert [(row.field,row.value) for row in facts.supported] == [("CONTRACT_AMOUNT", "54조 원")]
+    assert not facts.independently_certified_accuracy
+    assert _krw("$99billion") is None  # no inferred currency conversion

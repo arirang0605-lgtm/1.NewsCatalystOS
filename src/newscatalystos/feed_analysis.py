@@ -34,7 +34,7 @@ from .provider_registry import ProviderRegistry
 from .source_share import SourceShareError, _must_sha, _when
 
 SCHEMA = "newscatalyst.feed_economic_analysis.v1"
-RULE_VERSION = "rss-title-economic-v10"  # named service plan-to-start evidence
+RULE_VERSION = "rss-title-economic-v11"  # large issuer-reported planned capex visibility
 # Screening assumptions, NOT release criteria or a verified economic scale.
 MEDIUM_KRW = Decimal("1000000000")
 LARGE_KRW = Decimal("100000000000")
@@ -142,13 +142,14 @@ def _claim(item: dict, at: datetime) -> FactInput:
 
 
 def _krw(mention: str) -> Decimal | None:
-    match = re.fullmatch(r"₩?\s*(\d+(?:,\d{3})*(?:\.\d+)?)\s*(조원|억원|만원|원)", mention)
+    match = re.fullmatch(r"₩?\s*(\d+(?:,\d{3})*(?:\.\d+)?)\s*(조\s*원|억\s*원|만\s*원|원)", mention)
     if not match:
         return None  # no inferred FX conversion
+    unit = re.sub(r"\s+", "", match[2])
     return Decimal(match[1].replace(",", "")) * {
         "조원": Decimal(10)**12, "억원": Decimal(10)**8,
         "만원": Decimal(10)**4, "원": Decimal(1),
-    }[match[2]]
+    }[unit]
 
 
 def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=()) -> tuple[dict, FactInput | None]:
@@ -223,6 +224,26 @@ def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=()) ->
         change["source_paragraph_sha256"] = item["title_sha256"]
         if not scoped and PLANNED.search(title):
             change["phase"] = "PLANNED"
+    # One unambiguous large investment plan in an approved issuer title
+    # merits VISIBILITY, not realized investment or automatic paid AI.
+    # Existing strict source action parsing rejects buybacks, discussions,
+    # unrealized rumor and vague manufacturing intents before this point.
+    prominent_capex_plan = (
+        item["source_kind"] == "COMPANY_IR"
+        and len(changes) == 1
+        and changes[0]["action"] == "INVESTMENT"
+        and changes[0]["phase"] == "PLANNED"
+        and changes[0]["industry_tags"] == ["SEMICONDUCTOR"]
+        and len(changes[0]["entity_ids"]) == 1
+        and len(amounts) == 1
+        and (_krw(amounts[0]) or Decimal(0)) >= LARGE_KRW
+    )
+    if prominent_capex_plan and numeric is None:
+        dimensions["scale"] = "LARGE"
+        importance = triage_importance(ImpactInputs(event, at, **dimensions), at, now=at)
+        known_score = sum((mapping[dimensions[key]] or 0) for key, mapping in (
+            ("scale", SCALE), ("affected_scope", SCOPE), ("repeatability", REPEAT),
+            ("novelty", NOVELTY)))
     report = {
         "analysis_event_sha256": event, "source_event_sha256": item["event_id"],
         "source_title_sha256": item["title_sha256"], "provider_id": item["provider_id"],
@@ -234,7 +255,8 @@ def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=()) ->
         "category_candidate": category, "novelty": novelty,
         "novelty_scope": "CURRENT_LOCAL_HISTORY_SAME_PROVIDER_AND_DOCUMENT_URL",
         "already_recorded_source_version": bool(own),
-        "reported_plan_only": bool(PLANNED.search(title) or business_start_phase(title)=='PLANNED'),
+        "reported_plan_only": bool(PLANNED.search(title) or business_start_phase(title)=='PLANNED'
+                                   or any(c["phase"] == "PLANNED" for c in changes)),
         "reported_termination_only": category == "CONTRACT_TERMINATION",
         "reported_reduction_only": category == "CONTRACT_REDUCTION",
         "reported_delay_only": category == "CONTRACT_DELAY",
@@ -243,7 +265,8 @@ def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=()) ->
         "known_dimension_score_lower_bound": known_score,
         "known_dimensions": list(importance.known_dimensions),
         "unknown_dimensions": list(importance.unknown_dimensions),
-        "routing_priority": "HIGH_PRIORITY_CANDIDATE" if eligible else "PARTIAL_EVIDENCE_ONLY",
+        "routing_priority": ("HIGH_PRIORITY_CANDIDATE" if eligible or prominent_capex_plan
+                             else "PARTIAL_EVIDENCE_ONLY"),
         "routing_rule_version": RULE_VERSION,
         "source_amount_mentions": amounts,
         "economic_changes": changes,

@@ -65,6 +65,12 @@ def test_approved_corporate_feed_title_reaches_saved_theme_and_company(tmp_path)
     assert len(row["economic_changes"])==1
     event=row["economic_changes"][0]
     assert event["action"]=="INVESTMENT" and event["phase"]=="PLANNED"
+    assert row["reported_plan_only"]
+    assert row["source_amount_mentions"]==["54조 원"]
+    assert row["dimensions"]["scale"]=="LARGE"
+    assert row["routing_priority"]=="HIGH_PRIORITY_CANDIDATE"
+    assert row["ai_eligible"] is False
+    assert row["ai_status"]=="NOT_ELIGIBLE"
     assert not row["verified_beneficiary"]
     assert row.get("semantic_analysis", {}).get("status") in (None,"NOT_ANALYZED_NO_CALL")
     # Normalized RSS text preserves wording but normalizes ellipsis symbols.
@@ -198,3 +204,28 @@ def test_real_grammar_synthetic_corporate_news_through_http(tmp_path):
         assert "54조 원 투자" in proof["article_company_excerpt"]["excerpt"]
     finally:
         server.shutdown();server.server_close();worker.join(2)
+
+
+def test_large_numbers_without_one_explicit_manufacturing_plan_are_not_promoted(tmp_path):
+    """Stock buybacks, rumors, broad intentions and competing sums stay low."""
+    from dataclasses import replace
+    from newscatalystos.provider_registry import ProviderRegistry
+    from test_new_source_adapter import registry
+    issuer="synthetic-manufacturer-rss"
+    reg=ProviderRegistry((replace(registry().providers[0],provider_id=issuer,
+                                 kind="COMPANY_IR",endpoint="https://issuer.example.org/rss"),))
+    w=setup_workspace(tmp_path,"corp",reg)
+    titles=(
+        "가상반도체, 54조 원 자사주 투자... AI 메모리 수요 대응 생산 기반",
+        "가상반도체, 54조 원 투자 검토 중... AI 메모리 수요 대응 생산 기반",
+        "가상반도체, 54조 원 투자... AI 메모리 수요 대응",
+        "가상반도체, 54조 원 및 12조 원 투자... AI 시대 메모리 수요 대응 위한 중장기 생산 기반 확보",
+    )
+    collect(w,reg,issuer,[(str(i),text,f"https://issuer.example.org/notice/{i}")
+                          for i,text in enumerate(titles)],at=datetime.now(timezone.utc))
+    report=analyze_completed_feed(reg,w.inbox_root,w.poll_state,
+           tmp_path/"derived",provider_id=issuer,now=datetime.now(timezone.utc))
+    assert len(report["results"])==len(titles)
+    assert all(r["routing_priority"]=="PARTIAL_EVIDENCE_ONLY"
+               and not r["ai_eligible"] and not r["verified_beneficiary"]
+               for r in report["results"])

@@ -20,7 +20,7 @@ FIELDS = frozenset({
     "PRODUCT", "PROCESS", "POLICY_EFFECTIVE_DATE",
 })
 MONEY = re.compile(
-    r"(?:\$|₩)?\s*\d+(?:[,.]\d+)*\s*(?:억원|조원|만원|원|KRW|USD|달러|million|billion)",
+    r"(?:\$|₩)?\s*\d+(?:[,.]\d+)*\s*(?:억\s*원|조\s*원|만\s*원|원|KRW|USD|달러|million|billion)",
     re.I,
 )
 DATE = re.compile(r"\d{4}[-./]\d{1,2}[-./]\d{1,2}")

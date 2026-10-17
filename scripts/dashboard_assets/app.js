@@ -430,10 +430,15 @@ function renderThemes(term){
   const candidates=currentData.company_candidates||[];
   const search=companySearchResults(currentData.company_search?.candidates,term);
   const themes=(currentData.themes||[]).filter(x=>matchesTheme(x,term,candidates.filter(c=>c.theme_id===x.theme_id),currentData.theme_changes?.[x.theme_id],currentData.theme_presentations?.[x.theme_id])||candidates.some(c=>c.theme_id===x.theme_id&&["DIRECT_COMPANY","AMBIGUOUS_NAME"].includes(search[c.candidate_id]?.match_kind)));
-  $("theme-total").textContent=themes.length+"개";$("themes").replaceChildren();
+  // Additional approved sources retain independent, PIT-safe theme histories:
+  // same topic IDs in two stores are NOT merged into one invented event.
+  const scoped=(currentData.additional_source_themes||[]).flatMap(group=>
+    (group.themes||[]).filter(t=>matchesTheme(t,term,(group.company_candidates||[]).filter(c=>c.theme_id===t.theme_id)))
+      .map(theme=>({scope:group.scope,theme,companies:(group.company_candidates||[]).filter(c=>c.theme_id===theme.theme_id)})));
+  $("theme-total").textContent=(themes.length+scoped.length)+"개";$("themes").replaceChildren();
   renderCrossProductDemand($("themes"),currentData.cross_product_demand,term,search);
   renderCompanyTimelines($("themes"),currentData.company_timelines,term,companySearchResults(currentData.timeline_search_context||currentData.company_search?.candidates,term));
-  if(!themes.length)$("themes").append(node("p","empty-small",currentData.theme_status==="UNAVAILABLE"?"테마 기록을 읽지 못했습니다. 뉴스 분석 기록은 계속 표시합니다.":"이 시점·검색 조건에 해당하는 테마 후보가 없습니다."));
+  if(!themes.length&&!scoped.length)$("themes").append(node("p","empty-small",currentData.theme_status==="UNAVAILABLE"?"테마 기록을 읽지 못했습니다. 뉴스 분석 기록은 계속 표시합니다.":"이 시점·검색 조건에 해당하는 테마 후보가 없습니다."));
   const labels={CANDIDATE:"관찰 후보",EMERGING:"형성 중",EXPANDING:"확산",WEAKENING:"약화",INVALIDATED:"무효",REACTIVATED:"재활성화"};
   if(currentData.theme_order?.mode==="actions")$("themes").append(node("p","fineprint","정렬: 기간 비교가 있는 후보 → 독립 행동 추가 수 → 신규 당사자 수 → 최근 갱신 → 테마 ID 내림차순. 증가가 없는 후보도 표시합니다."));
   for(const theme of themes){
@@ -594,6 +599,35 @@ function renderThemes(term){
     for(const ref of theme.source_refs){const link=node("a","source-link",(ref.entity_ids?.join(", ")||"기업 미식별")+" · "+(ref.topic||theme.provisional_name)+" · "+(actions[ref.action]||ref.action)+" · "+(phases[ref.phase]||ref.phase)+" · "+(ref.content_scope==="RSS_TITLE_METADATA"?"제목 근거 · ":"")+ref.evidence_level+(ref.extraction_method?" · AI 해석/제목 대조":""));link.href=ref.source_url;link.target="_blank";link.rel="noopener noreferrer";details.append(link)}
     for(const item of theme.history)details.append(node("p","finding-detail",item.decision_at+" · "+(labels[item.status]||item.status)));
     card.append(details);$("themes").append(card);
+  }
+  for(const {scope,theme,companies} of scoped){
+    const card=node("article","finding");
+    card.append(node("p","eyebrow",(scope==="msit"?"과기정통부":"추가 승인 출처")+" · 독립 저장 이력"),
+      node("h4","",theme.provisional_name),
+      node("p","finding-detail","상태: "+theme.status+" · 독립 경제 행동 후보 "+
+        theme.scores.distinct_economic_events+"개 · 출처에 명시된 기업 "+companies.length+"개"),
+      node("p","finding-detail","확보 시점: "+theme.first_detected_at+
+        " · 마지막 판정: "+theme.decision_at+" · 다른 저장소의 같은 이름과 자동 병합하지 않음"));
+    for(const candidate of companies){
+      card.append(node("p","","출처 기업: "+candidate.display_name+
+        " · 기사/공급망 근거에 나타난 대상 · 실거래·매출·수혜 미확정"));
+      for(const basis of candidate.inclusion_basis||[])
+        if(basis.kind==="SOURCE_REPORTED_PARTICIPANT"){
+          card.append(node("p","finding-detail","기업 포함 이유: "+basis.reason));
+        }
+    }
+    const evidence=node("details","finding-detail");
+    evidence.append(node("summary","","해당 승인 출처의 경제 행동·기록 근거"));
+    for(const ref of theme.source_refs){
+      const link=node("a","source-link",
+        (ref.entity_ids?.join(", ")||"명시 기업 없음")+" · "+
+        (economicActionLabels[ref.action]||ref.action)+" · "+
+        (economicPhaseLabels[ref.phase]||ref.phase)+" · "+ref.evidence_level);
+      link.href=ref.source_url;link.target="_blank";link.rel="noopener noreferrer";
+      evidence.append(link,node("p","fineprint","출처 관측: "+ref.source_available_at+
+        " · 시스템 저장: "+ref.recorded_at+" · 확정 거래/수혜 아님"));
+    }
+    card.append(evidence);$("themes").append(card);
   }
 }
 

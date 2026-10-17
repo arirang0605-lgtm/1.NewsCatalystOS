@@ -46,13 +46,15 @@ ASSETS = Path(__file__).resolve().parent / "dashboard_assets"
 class DashboardServer(ThreadingHTTPServer):
     def __init__(self, port: int, reports: Path, notes: Path, documents: Path | None = None, *,
                  evidence_base: Path | None = None, news_search_workspaces=None,
-                 additional_reports: tuple[tuple[str, Path], ...] = ()):
+                 additional_reports: tuple[tuple[str, Path], ...] = (),
+                 msit_source_root: Path | None = None):
         super().__init__(("127.0.0.1", port), Handler)
         self.reports = reports
         self.documents = documents
         self.evidence_base = evidence_base
         self.news_search_workspaces = news_search_workspaces
         self.additional_reports = additional_reports
+        self.msit_source_root = msit_source_root
         self.notes = NoteStore(notes)
 
 
@@ -118,8 +120,15 @@ class Handler(BaseHTTPRequestHandler):
                 if not found["results"]:
                     self._json(404, {"error": "exact completed source version unavailable"})
                     return
+                # The new approved feed has an independent saved ThemeStore.
+                # Keep the original theme database immutable; no cross-source
+                # merge or promotion based on a similar company/topic name.
+                source_scope = found["results"][0]["search_scope"]
+                article_root = (self.server.msit_source_root / "document_analysis"
+                                if source_scope == "msit" and self.server.msit_source_root
+                                else self.server.documents)
                 detail = saved_article_evidence(
-                    found["results"][0], self.server.documents / "theme_history",
+                    found["results"][0], article_root / "theme_history",
                     as_of=at, now=now,
                 )
                 detail["source_coverage_complete"] = found["coverage_complete"]
@@ -157,7 +166,7 @@ class Handler(BaseHTTPRequestHandler):
                 # broad company-name/topic search. Failure remains local.
                 try:
                     detail["article_company_context"] = article_company_context(
-                        detail, self.server.documents / "theme_history",
+                        detail, article_root / "theme_history",
                         as_of=at, now=now)
                 except (SourceShareError, OSError, ValueError, TypeError, KeyError, sqlite3.Error):
                     detail["article_company_context"] = {
@@ -174,15 +183,29 @@ class Handler(BaseHTTPRequestHandler):
                             or any(ord(c) < 32 for c in entity_id)):
                         raise ValueError("invalid exact company selection")
                     try:
+                        if source_scope == "msit" and self.server.msit_source_root:
+                            # This source is approved for RSS metadata only,
+                            # never for a separately archived licensed body.
+                            jobs = []
+                            extra = self.server.msit_source_root
+                            feed_sources = [{
+                                "registry": extra / "providers/authorized_sources.json",
+                                "inbox": extra / "inbox/feed_triage",
+                                "state": extra / "state/incremental_feeds.sqlite3"}]
+                            reports_root = extra / "feed_analysis"
+                        else:
+                            feed_sources = jobs = None
+                            reports_root = self.server.reports
                         detail["article_company_excerpt"] = article_company_excerpt(
                             detail, theme_id=query["excerpt_theme_id"][0],
                             entity_id=entity_id,
                             claim_event_id=query["excerpt_claim_event_id"][0],
                             evidence_sha256=query["excerpt_evidence_sha256"][0],
-                            theme_root=self.server.documents / "theme_history",
-                            reports_root=self.server.reports,
-                            document_root=self.server.documents,
+                            theme_root=article_root / "theme_history",
+                            reports_root=reports_root,
+                            document_root=article_root,
                             evidence_base=self.server.evidence_base,
+                            feeds=feed_sources, jobs=jobs,
                             as_of=at, now=now)
                     except (SourceShareError, OSError, ValueError, TypeError, KeyError, sqlite3.Error):
                         detail["article_company_excerpt"] = {
@@ -204,7 +227,7 @@ class Handler(BaseHTTPRequestHandler):
                         return
                     start = _when(query["since"][0], "theme period start")
                     timeline = compare_themes(
-                        ThemeStore(self.server.documents / "theme_history"),
+                        ThemeStore(article_root / "theme_history"),
                         since=start, as_of=at, now=now)
                     change = next((x for x in timeline["ThemeChanges"]
                                    if x["theme_id"] == theme_id), None)
@@ -340,6 +363,27 @@ class Handler(BaseHTTPRequestHandler):
                     data['cross_product_demand']={'status':'UNAVAILABLE','groups':[]}
                     data['company_inclusion_presentations']={}
                     data['company_search']={'query':'','candidates':{}}
+                if self.server.msit_source_root is not None:
+                    # New approved RSS has a separate theme DB. Expose a
+                    # distinct source section instead of silently conflating
+                    # equal topic/theme IDs across independently saved stores.
+                    data["additional_source_themes"] = []
+                    data["additional_source_theme_status"] = "READY"
+                    try:
+                        own = ThemeStore(
+                            self.server.msit_source_root / "document_analysis/theme_history")
+                        selected = (own.search(as_of=min(end,now), now=now,
+                                    since=min(start,now), activity=activity)
+                                    if activity == "all" or start <= now else [])
+                        if selected:
+                            payload = json.loads(build_theme_bundle(
+                                selected, decision_at=min(end,now), now=now,
+                                include_company_candidates=True))
+                            data["additional_source_themes"].append({
+                                "scope": "msit", "themes": selected,
+                                "company_candidates": payload["CompanyCandidates"]})
+                    except (SourceShareError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
+                        data["additional_source_theme_status"] = "UNAVAILABLE"
                 self._json(200, data)
             except (SourceShareError, OSError, ValueError, KeyError, TypeError) as exc:
                 self._json(400, {"error": type(exc).__name__})
@@ -489,7 +533,8 @@ def main(argv: list[str] | None = None) -> int:
         extra_reports = (("msit", extra / "feed_analysis"),)
     server = DashboardServer(options.port, options.reports_root, options.notes_root, options.document_reports_root,
                              evidence_base=base, news_search_workspaces=workspaces,
-                             additional_reports=extra_reports)
+                             additional_reports=extra_reports,
+                             msit_source_root=options.msit_source_root)
     url = f"http://127.0.0.1:{server.server_port}/"
     print(f"NewsCatalystOS dashboard: {url}", flush=True)
     if not options.no_browser:

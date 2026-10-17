@@ -25,6 +25,7 @@ from newscatalystos.theme_emergence import ThemeStore, period_activity, theme_pr
 from newscatalystos.standard_delivery import build_theme_bundle
 from newscatalystos.article_company_identity import search_article_identities
 from newscatalystos.era_company_assessment import enrich_candidates
+from newscatalystos.era_daily_assessment import enrich_daily, read_latest as read_daily, assessment_for, project_themes
 from newscatalystos.theme_changes import compare_themes
 from newscatalystos.theme_action_order import order_theme_actions
 from newscatalystos.cross_product_demand import cross_product_demand
@@ -61,6 +62,7 @@ class DashboardServer(ThreadingHTTPServer):
         if len({scope for scope, _ in roots}) != len(roots):
             raise SourceShareError("duplicate independent source scope")
         self.source_roots = dict(roots)
+        self.era_daily_root = (Path(documents)/"era_daily_assessments" if documents else None)
         self.msit_source_root = msit_source_root  # earlier caller compatibility
         self.notes = NoteStore(notes)
 
@@ -180,6 +182,16 @@ class Handler(BaseHTTPRequestHandler):
                         "status": "N/A", "reason_code": "ARTICLE_COMPANY_CONTEXT_UNAVAILABLE",
                         "themes": [], "verified_real_transaction": False,
                         "verified_real_benefit": False, "investment_merit": "NOT_ASSESSED"}
+                # Optional completed producer evidence enriches the exact
+                # article party, never rewrites source identity or the theme.
+                if self.server.era_daily_root is not None:
+                    try:
+                        snap,_=read_daily(self.server.era_daily_root,as_of=at,now=now)
+                    except (SourceShareError,OSError,ValueError,TypeError,KeyError):
+                        snap=None
+                    for group in detail["article_company_context"].get("themes",[]):
+                        for party in group["direct_parties"]:
+                            party["era_daily_assessment"]=assessment_for(party["entity_id"],snap)
                 if excerpt:
                     from newscatalystos.source_share import _must_sha
                     for key in ("excerpt_theme_id", "excerpt_claim_event_id",
@@ -331,6 +343,9 @@ class Handler(BaseHTTPRequestHandler):
                         if research:
                             data['company_candidates']=research['CompanyCandidates']
                             data['assessment_source_status']=research['assessment_source_status']
+                        if self.server.era_daily_root is not None:
+                            data['company_candidates']=enrich_daily(data['company_candidates'],
+                                self.server.era_daily_root,as_of=min(end,now),now=now)
                     except (SourceShareError,OSError,ValueError,TypeError,KeyError):
                         data['assessment_source_status']='UNAVAILABLE'
                     data['cross_product_demand']=cross_product_demand(data['themes'],data['company_candidates'],data['common_cause_comparisons'],as_of=min(end,now),since=start,query=query.get('q',[''])[0])
@@ -385,9 +400,13 @@ class Handler(BaseHTTPRequestHandler):
                                 payload = json.loads(build_theme_bundle(
                                     selected, decision_at=min(end,now), now=now,
                                     include_company_candidates=True))
+                                candidates=payload["CompanyCandidates"]
+                                if self.server.era_daily_root is not None:
+                                    candidates=enrich_daily(candidates,self.server.era_daily_root,
+                                        as_of=min(end,now),now=now)
                                 data["additional_source_themes"].append({
                                     "scope": scope, "themes": selected,
-                                    "company_candidates": payload["CompanyCandidates"]})
+                                    "company_candidates": candidates})
                         except (SourceShareError, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
                             data["additional_source_theme_status"] = "UNAVAILABLE"
                 self._json(200, data)
@@ -428,12 +447,54 @@ class Handler(BaseHTTPRequestHandler):
             except (SourceShareError,OSError,ValueError,KeyError,TypeError,sqlite3.Error):
                 self._json(400,{'error':'invalid theme change query'})
             return
+        if url.path=="/api/era-assessment":
+            query=parse_qs(url.query)
+            try:
+                from newscatalystos.source_share import _when
+                if set(query)-{'entity_id','as_of'} or len(query.get('entity_id',[]))!=1:
+                    raise ValueError('one company identity required')
+                now=datetime.now(timezone.utc)
+                at=_when(query['as_of'][0],'assessment as of') if 'as_of' in query else now
+                snap,skipped=(read_daily(self.server.era_daily_root,as_of=at,now=now)
+                              if self.server.era_daily_root else (None,0))
+                result=assessment_for(query['entity_id'][0],snap)
+                result['skipped_invalid_snapshots']=skipped
+                self._json(200,result)
+            except (SourceShareError,OSError,ValueError,KeyError,TypeError):
+                self._json(400,{'error':'invalid assessment query'})
+            return
         if url.path in {"/api/themes", "/api/company-research"}:
             query = parse_qs(url.query)
             try:
                 from newscatalystos.source_share import _when
                 now = datetime.now(timezone.utc)
                 at = _when(query["as_of"][0], "as of") if "as_of" in query else now
+                default_scope=("all" if url.path=="/api/themes" and self.server.source_roots
+                               and query.get('company_candidates',['0'])==['0'] else "base")
+                scope=query.get("scope",[default_scope])[0]
+                if (len(query.get("scope",["base"]))!=1 or scope not in {"base","all",*self.server.source_roots}
+                        or (url.path=="/api/company-research" and scope!="base")):
+                    raise ValueError("invalid export scope")
+                if url.path=="/api/themes" and scope!="base":
+                    if query.get('company_candidates',['0'])!=['0']:
+                        raise ValueError('scoped receiver export uses theme delivery v1/v2')
+                    roots={"base":self.server.documents / "theme_history"} if self.server.documents else {}
+                    roots.update({key:root/"document_analysis/theme_history" for key,root in self.server.source_roots.items()})
+                    snap=(read_daily(self.server.era_daily_root,as_of=at,now=now)[0]
+                          if self.server.era_daily_root is not None else None)
+                    exported=[]
+                    for key,root in roots.items():
+                        if scope!="all" and key!=scope:continue
+                        selected=ThemeStore(root).search(as_of=at,now=now,query=query.get('q',[''])[0],
+                            since=_when(query['since'][0],'period start') if 'since' in query else None,
+                            activity=query.get('activity',['all'])[0])
+                        # Existing base IDs/payloads remain unchanged for
+                        # long-lived receiver histories; appended independent
+                        # stores have stable source-qualified IDs.
+                        exported.extend(selected if key=="base" else project_themes(selected,key,snap))
+                    payload=build_theme_bundle(exported,decision_at=at,now=now)
+                    self._send(200,payload,"application/json; charset=utf-8")
+                    return
                 themes = (ThemeStore(self.server.documents / "theme_history").search(
                     as_of=at, query='' if url.path=='/api/company-research' else query.get("q", [""])[0], now=now,
                     since=_when(query['since'][0],'period start') if 'since' in query else None,

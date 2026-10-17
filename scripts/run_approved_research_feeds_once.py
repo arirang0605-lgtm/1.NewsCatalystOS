@@ -45,6 +45,10 @@ def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--workspaces-root", required=True, type=Path,
                    help="absolute parent of 3 isolated, owner-only approved RSS workspaces")
+    p.add_argument("--era-daily-config",type=Path,
+                   help="optional read-only producer daily snapshot connection")
+    p.add_argument("--era-daily-root",type=Path,
+                   help="NewsCatalystOS private received assessment folder")
     operation = p.add_mutually_exclusive_group(required=True)
     operation.add_argument("--once", action="store_true")
     operation.add_argument("--dry-run", action="store_true")
@@ -115,7 +119,20 @@ def execute(opts: argparse.Namespace, *, run_tick=run_scheduled_triage.execute) 
             rows.append({"scope": scope, "provider_id": provider,
                          "status": "DATA_UNAVAILABLE",
                          "error_type": type(exc).__name__, "failed": True})
+    # Producer failure is local to optional corporate context: a working
+    # news source never waits for the independent EraLeader workflow.
+    integration=None
+    if getattr(opts,"era_daily_config",None) is not None:
+        try:
+            if getattr(opts,"era_daily_root",None) is None:
+                raise SourceShareError("explicit consumer-owned daily cache required")
+            from newscatalystos.era_daily_assessment import refresh_daily
+            integration=refresh_daily(opts.era_daily_config,opts.era_daily_root,
+                                      check_only=bool(opts.dry_run))
+        except (SourceShareError,OSError,ValueError,TypeError,KeyError) as exc:
+            integration={"status":"UNAVAILABLE","error_type":type(exc).__name__}
     return (4 if failures else 0), {
+        **({"era_daily_connection":integration} if integration is not None else {}),
         "status": "APPROVED_RESEARCH_FEED_TICK_PARTIAL" if failures
                   else "APPROVED_RESEARCH_FEED_TICK_COMPLETE",
         "mode": operation[2:].upper().replace("-", "_"),

@@ -426,6 +426,47 @@ $("note-text").addEventListener("input",event=>{$("note-count").textContent=even
 $("note-form").addEventListener("submit",async event=>{event.preventDefault();const text=$("note-text").value.trim();if(!text)return;status("메모를 저장하는 중…");try{const response=await fetch("/api/notes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({view:state.view,date:state.date,text})});if(!response.ok)throw new Error("메모를 저장하지 못했습니다.");$("note-text").value="";$("note-count").textContent="0 / 2000";await load()}catch(error){status(error.message,true)}});
 load();
 
+function renderEraDailyAssessment(parent,assessment){
+  if(!assessment)return;
+  const panel=node("details","finding-detail era-daily-assessment");
+  panel.append(node("summary","","EraLeader 기업 평가 연결"));
+  if(assessment.status!=="AVAILABLE"){
+    const labels={NOT_AVAILABLE_AS_OF:"조회 시점에 수신된 기업평가 없음",
+      COMPANY_NOT_IN_SNAPSHOT:"선택한 EraLeader 평가 목록에 없는 기업",
+      AMBIGUOUS_IDENTITY:"동일 이름/발행사에 복수 종목이 있어 자동 연결 보류",
+      OFFICIAL_IDENTITY_UNAVAILABLE:"이 판본의 공식 기업코드/재무 근거 미확보",
+      US_ASSESSMENT_NOT_CONNECTED:"미국 SEC 기업평가 연결은 아직 미완료"};
+    panel.append(node("p","empty-small","N/A · "+(labels[assessment.status]||"기업평가 근거 미확보")));
+    parent.append(panel);return;
+  }
+  const row=assessment.value,annual=row.dart_annual_cfs||{},quote=row.krx_completed_close||{},brief=row.evidence_brief||{};
+  const number=value=>typeof value==="number"?new Intl.NumberFormat("ko-KR",{maximumFractionDigits:4}).format(value):"N/A";
+  panel.append(node("p","",assessment.source_name+" · "+assessment.security_id+" · "+assessment.entity_id),
+    node("p","finding-detail","EraLeader 완료 판본의 공식 기업코드와 정확히 연결 · "+
+      "후보 상태 "+row.formal_selection_state+" (투자순위·매수신호 아님)"));
+  if(annual.status==="DART_VERIFIED_ANNUAL_CFS"){
+    panel.append(node("p","","연결재무 FY"+annual.fiscal_year+" · 매출 "+number(annual.revenue_krw)+
+      "원 · 영업이익 "+number(annual.operating_income_krw)+"원"),
+      node("p","finding-detail","영업이익률 "+number(annual.operating_margin_pct)+"% · 영업현금흐름 "+
+      number(annual.operating_cashflow_krw)+"원"));
+  }else panel.append(node("p","empty-small","연결재무: N/A"));
+  if(quote.status==="OBSERVED_COMPLETED_KRX_CLOSE"){
+    panel.append(node("p","","KRX "+quote.source_market_session+" 보관 종가 "+number(quote.close_krw)+
+      "원 · 실시간 현재가격 아님"));
+  }else panel.append(node("p","empty-small","가격: N/A · 해당 판본 종가 미확보"));
+  for(const [label,rows] of [["긍정 근거",brief.supporting_evidence||[]],["약화·위험 근거",brief.weakening_evidence||[]]]){
+    for(const item of rows.slice(0,3))panel.append(node("p","finding-detail",label+": "+item.reason));
+  }
+  if(!(brief.weakening_evidence||[]).length)
+    panel.append(node("p","finding-detail","이 판본에서 제시된 약화 근거 없음 · 위험이 없다는 인증은 아님"));
+  for(const reason of (brief.unavailable_or_limited||[]).slice(0,3))
+    panel.append(node("p","finding-detail","한계: "+reason));
+  panel.append(node("p","finding-detail","현재 저평가·정식 PER/PBR·뉴스의 실제 수혜는 미확인"),
+    node("p","fineprint","EraLeader 평가 "+assessment.producer_evaluated_at+" · 뉴스 시스템 최초 수신 "+assessment.imported_at),
+    node("p","fineprint","평가판본 SHA "+assessment.source_sha256));
+  parent.append(panel);
+}
+
 function renderThemes(term){
   const candidates=currentData.company_candidates||[];
   const search=companySearchResults(currentData.company_search?.candidates,term);
@@ -580,6 +621,7 @@ function renderThemes(term){
         }else reasons.append(node("p","","재무 근거: "+(missingLabels[financial?.status]||"미확인")));
         reasons.append(node("p","","현재 가격·투자 매력: 미평가"));
         for(const uncertainty of candidate.uncertainties)reasons.append(node("p","",uncertainty));
+        if(candidate.era_daily_assessment)renderEraDailyAssessment(reasons,candidate.era_daily_assessment);
         card.append(reasons);
       }
       for(const rel of company.supply_chain_links||[]){
@@ -615,6 +657,7 @@ function renderThemes(term){
         if(basis.kind==="SOURCE_REPORTED_PARTICIPANT"){
           card.append(node("p","finding-detail","기업 포함 이유: "+basis.reason));
         }
+      if(candidate.era_daily_assessment)renderEraDailyAssessment(card,candidate.era_daily_assessment);
     }
     const evidence=node("details","finding-detail");
     evidence.append(node("summary","","해당 승인 출처의 경제 행동·기록 근거"));
@@ -852,7 +895,7 @@ function renderSavedArticleCompanyContext(place,context,articleContext){
         (economicPhaseLabels[company.phase]||company.phase)));
       party.append(node("p","finding-detail",company.identity_status==="PINNED_OFFICIAL_ID"?
         "같은 출처의 고정 기업식별 근거: "+company.official_entity_id:
-        "기사 속 회사명만 확인 · 공식 DART/KRX/SEC 기업 ID 미확인"));
+        "기사 자체는 회사명만 명시 · 별도 EraLeader 코드 연결은 아래 표시"));
       party.append(node("p","finding-detail",company.active_in_theme?
         "저장된 현재 사건 당사자 · 실제 수혜/매출 미확인":
         "과거/정정·철회 가능 사건 당사자 · 활성 기업 확정 아님"));
@@ -861,6 +904,7 @@ function renderSavedArticleCompanyContext(place,context,articleContext){
           party.append(node("p","finding-detail","테마 포함 이유: "+reason));
       }else party.append(node("p","empty-small","N/A · 이 기사 판본의 활성 기업 포함 근거 없음"));
       party.append(node("p","finding-detail","출처 가용: "+company.source_available_at+" · 근거 기록: "+company.recorded_at));
+      if(company.era_daily_assessment)renderEraDailyAssessment(party,company.era_daily_assessment);
       const link=node("a","source-link","해당 기사 기업 행동의 원문 ↗");
       link.href=company.source_url;link.target="_blank";link.rel="noopener noreferrer";party.append(link);
       if(articleContext&&company.active_in_theme&&company.inclusion_status==="READY"){

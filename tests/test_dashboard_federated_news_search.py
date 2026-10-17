@@ -92,7 +92,7 @@ def test_browser_search_renders_source_title_as_plain_text():
     script=r'''
 const fs=require("node:fs"),vm=require("node:vm"),assert=require("node:assert");
 const all=fs.readFileSync("scripts/dashboard_assets/app.js","utf8");
-const start="function showSavedNewsEvidence(place,data){";
+const start="function renderSavedArticleThemeEvents(place,themes,caption){";
 assert(all.includes(start));
 const code=all.slice(all.indexOf(start),all.indexOf('$("news-search-form").addEventListener'));
 function el(){return {children:[],events:{},value:"",textContent:"",checked:false,
@@ -131,6 +131,19 @@ vm.runInNewContext(code,ctx);
  assert(detail.children.some(x=>x.children.some(y=>y.textContent.includes("가상전자"))));
  const missing=el();ctx.showSavedNewsEvidence(missing,{status:"N/A",reason_code:"NO_SAVED_EXACT_THEME_EVIDENCE"});
  assert(missing.children[0].textContent.includes("N/A"));
+ const bodyOnly=el();
+ ctx.showSavedNewsEvidence(bodyOnly,{status:"N/A",reason_code:"NO_SAVED_EXACT_THEME_EVIDENCE",
+   official_document_evidence:{status:"READY",document_sha256:"d".repeat(64),binding_sha256:"e".repeat(64),
+     binding_available_at:"2026-10-17T00:00:00+00:00",themes:[{
+       ...evidence.themes[0],events:[{...evidence.themes[0].events[0],
+         action:"POLICY_CHANGE",topic:"반도체",companies:[]}]}]}});
+ assert(bodyOnly.children.some(x=>x.textContent.includes("산업부 허용 공식 본문")));
+ assert(bodyOnly.children.some(x=>x.textContent.includes("검증된 공식 본문")));
+ assert(bodyOnly.children.some(x=>x.children.some(y=>y.textContent.includes("POLICY_CHANGE"))));
+ const missingOfficial=el();ctx.showSavedNewsEvidence(missingOfficial,{
+   status:"N/A",reason_code:"NO_SAVED_EXACT_THEME_EVIDENCE",
+   official_document_evidence:{status:"N/A",reason_code:"NO_REPORTED_DOCUMENT_ECONOMIC_CHANGE"}});
+ assert(missingOfficial.children.some(x=>x.textContent.includes("공식 본문 N/A")));
  process.stdout.write("BROWSER_DETAIL_OK");
 })().catch(e=>{process.stderr.write(String(e.stack||e));process.exitCode=1});
 '''

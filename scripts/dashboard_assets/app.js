@@ -653,16 +653,9 @@ function renderCompanyIdentities(term){
   }
 }
 
-function showSavedNewsEvidence(place,data){
-  place.replaceChildren();
-  if(data.status!=="READY"){
-    const reasons={NO_SAVED_EXACT_THEME_EVIDENCE:"이 기사 판본에 연결된 저장 경제 사건·테마 근거 없음",
-                   SOURCE_NOT_AVAILABLE_AS_OF:"선택 시점에는 해당 기사 판본이 아직 가용하지 않음"};
-    place.append(node("p","empty-small","N/A · "+(reasons[data.reason_code]||"검증된 저장 사건 근거 없음")));
-    return;
-  }
-  place.append(node("p","finding-detail","저장된 동일 기사 판본의 테마 "+data.themes.length+"개 · 독립 사실·거래·수혜 인증 아님"));
-  for(const theme of data.themes){
+function renderSavedArticleThemeEvents(place,themes,caption){
+  place.append(node("p","finding-detail",caption+" · 테마 "+themes.length+"개 · 독립 사실·거래·수혜 인증 아님"));
+  for(const theme of themes){
     const card=node("div","news-evidence-theme");
     card.append(node("p","",theme.name+" · "+theme.status),
       node("p","finding-detail","테마 기록 시각: "+theme.decision_at+" · ID: "+theme.theme_id));
@@ -673,13 +666,46 @@ function showSavedNewsEvidence(place,data){
       card.append(node("p","finding-detail",event.companies.length?
         "기사 근거 당사자: "+event.companies.map(c=>c.entity_id+(c.official_entity_id?" / "+c.official_entity_id:" (공식 ID 미확인)")).join(", "):
         "N/A · 이 기사 근거에서 기업 당사자 미식별"));
-      card.append(node("p","finding-detail","출처 가용: "+event.source_available_at+" · 분석 기록: "+event.recorded_at));
+      card.append(node("p","finding-detail","출처 가용: "+event.source_available_at+
+        (event.analysis_available_at?" · 본문 분석 가용: "+event.analysis_available_at:"")+" · 분석 기록: "+event.recorded_at));
       const link=node("a","source-link","동일 기사 사건의 출처 ↗");
       link.href=event.source_url;link.rel="noopener noreferrer";link.target="_blank";
       card.append(link);
     }
     place.append(card);
   }
+}
+function showSavedNewsEvidence(place,data){
+  place.replaceChildren();
+  const reasons={NO_SAVED_EXACT_THEME_EVIDENCE:"이 기사 RSS 판본에 연결된 저장 경제 사건·테마 근거 없음",
+                 SOURCE_NOT_AVAILABLE_AS_OF:"선택 시점에는 해당 기사 판본이 아직 가용하지 않음"};
+  if(data.status==="READY"){
+    renderSavedArticleThemeEvents(place,data.themes,"저장된 동일 기사 판본의 테마");
+  }else{
+    place.append(node("p","empty-small","N/A · "+(reasons[data.reason_code]||"검증된 RSS 제목 근거 없음")));
+  }
+  const official=data.official_document_evidence;
+  if(!official)return;
+  if(official.status!=="READY"){
+    const unavailable={
+      NO_EXACT_OFFICIAL_DOCUMENT_BINDING:"RSS 판본에 직접 결속된 공식 본문 없음",
+      DOCUMENT_NOT_AVAILABLE_AS_OF:"선택 시점에는 공식 본문 바인딩 이전",
+      NO_REPORTED_DOCUMENT_ECONOMIC_CHANGE:"본문 분석은 있지만 명시된 경제 변화 근거 없음",
+      NO_VERIFIED_BOUND_DOCUMENT_ANALYSIS:"같은 공식 본문의 완료 분석 근거 없음",
+      NO_EXACT_BOUND_DOCUMENT_THEME:"공식 본문 분석에 연결된 정확한 반도체 테마 없음",
+      DOCUMENT_RIGHTS_OR_ARCHIVE_UNAVAILABLE:"공식 본문 사용권·보존판본 확인 불가"
+    };
+    place.append(node("p","empty-small","공식 본문 N/A · "+(unavailable[official.reason_code]||"본문 근거 연결 미확인")));
+    return;
+  }
+  place.append(node("p","finding-detail","산업부 허용 공식 본문 근거 · RSS 제목과 별도 본문 SHA로 검증 · 계약·실제 수혜 확인 아님"));
+  const proof=node("details","finding-detail");
+  proof.append(node("summary","","공식 본문 바인딩·SHA 확인"),
+    node("p","","본문 SHA: "+official.document_sha256),
+    node("p","","RSS↔본문 바인딩 SHA: "+official.binding_sha256),
+    node("p","","공식 본문 가용: "+official.binding_available_at));
+  place.append(proof);
+  renderSavedArticleThemeEvents(place,official.themes,"검증된 공식 본문에서 저장한 반도체 정책 사건");
 }
 async function loadSavedNewsEvidence(item,phrase,place){
   place.replaceChildren(node("p","finding-detail","같은 기사 판본의 기존 저장 근거를 조회합니다."));

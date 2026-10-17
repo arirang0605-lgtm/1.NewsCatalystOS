@@ -33,6 +33,7 @@ from newscatalystos.theme_company_candidates import inclusion_presentations
 from newscatalystos.company_search import company_search_context,match_company_search
 from newscatalystos.federated_news_search import TitleSearchWorkspace,search_completed_workspaces
 from newscatalystos.news_search_evidence import saved_article_evidence
+from newscatalystos.motir_saved_document_evidence import bound_motir_document_evidence
 from scripts.run_feed_triage import _registry
 from newscatalystos.common_cause_comparison import common_cause_comparisons
 from newscatalystos.company_timeline import company_timelines,select_timelines,timeline_evidence_view
@@ -111,6 +112,22 @@ class Handler(BaseHTTPRequestHandler):
                     as_of=at, now=now,
                 )
                 detail["source_coverage_complete"] = found["coverage_complete"]
+                # Official licensed-body evidence is a separate, later-available
+                # source scope, never substituted for RSS title metadata.
+                if (self.server.evidence_base is not None
+                        and found["results"][0]["provider_id"] == "motir-official-press"):
+                    try:
+                        detail["official_document_evidence"] = bound_motir_document_evidence(
+                            found["results"][0],
+                            self.server.evidence_base / "document_collection",
+                            self.server.documents, self.server.documents / "theme_history",
+                            registry_reader=_registry, as_of=at, now=now)
+                    except (SourceShareError, OSError, ValueError, TypeError, KeyError, sqlite3.Error):
+                        detail["official_document_evidence"] = {
+                            "status": "N/A", "reason_code": "DOCUMENT_EVIDENCE_UNAVAILABLE",
+                            "content_scope": "LICENSED_ARTICLE_TEXT",
+                            "themes": [], "verified_real_transaction": False,
+                            "verified_real_benefit": False, "independent_fact_verified": False}
                 self._json(200, detail)
             except (SourceShareError, OSError, ValueError, TypeError, KeyError, sqlite3.Error):
                 self._json(400, {"error": "invalid exact saved article evidence query"})

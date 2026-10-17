@@ -752,7 +752,47 @@ function renderSavedTitleAnalysis(place,result){
     node("p","","저장 보고서 SHA: "+result.report_sha256));
   section.append(proof);place.append(section);
 }
-function renderSavedArticleCompanyContext(place,context){
+async function loadSavedArticleCompanyExcerpt(articleContext,theme,company,place){
+  place.replaceChildren(node("p","finding-detail","확인된 저장 원문에서 이 기업의 근거 표현을 조회합니다."));
+  try{
+    const article=articleContext.item;
+    const params=new URLSearchParams({
+      q:articleContext.phrase,provider_id:article.provider_id,
+      event_id:article.event_id,title_sha256:article.title_sha256,
+      excerpt_theme_id:theme.theme_id,
+      excerpt_entity_id:company.entity_id,
+      excerpt_claim_event_id:company.event_id,
+      excerpt_evidence_sha256:company.evidence_sha256
+    });
+    const response=await fetch("/api/news-evidence?"+params);
+    if(!response.ok)throw new Error("N/A · 해당 기사 판본의 기업 근거 요청 불가");
+    const data=await response.json();
+    const result=data.article_company_excerpt;
+    place.replaceChildren();
+    if(!result||result.status!=="READY"){
+      const reasons={NO_EXACT_ACTIVE_ARTICLE_PARTY:"다른 기사·기업이거나 현재 활성인 근거가 아님",
+        EXACT_ARTICLE_CLAUSE_UNAVAILABLE:"정확한 기사 사건 근거 판본을 확인하지 못함",
+        NOT_AVAILABLE_AS_OF:"조회 시점에 이 근거가 아직 없었음",
+        SOURCE_MISMATCH:"저장 원문/경제 행동 SHA가 일치하지 않음",
+        RIGHTS_UNAVAILABLE:"공식 원문 사용권을 확인할 수 없음",
+        CLAUSE_UNRESOLVED:"이 기업의 경제 행동 구간을 유일하게 식별할 수 없음"};
+      place.append(node("p","empty-small","N/A · "+(reasons[result?.reason_code]||"검증된 표현 근거 없음")));
+      return;
+    }
+    place.append(node("p","","원문 근거: "+result.excerpt+(result.excerpt_truncated?"…":"")),
+      node("p","finding-detail",(result.content_scope==="RSS_TITLE_METADATA"?
+        "RSS 제목 표현":"허용 공식 본문 구간")+
+        " · 직접 경제 행동 근거(실거래·수혜 인증 아님)"),
+      node("p","finding-detail","원문 가용: "+result.source_available_at+
+        " · 저장 분석 가용: "+result.analysis_available_at));
+    const link=node("a","source-link","해당 경제 변화 원문 ↗");
+    link.href=result.source_url;link.target="_blank";link.rel="noopener noreferrer";
+    place.append(link);
+  }catch(error){
+    place.replaceChildren(node("p","empty-small",error.message||"N/A · 원문 구간 조회 오류"));
+  }
+}
+function renderSavedArticleCompanyContext(place,context,articleContext){
   if(!context)return;
   const box=node("div","news-evidence-company-context");
   box.append(node("p","finding-detail","이 기사에 연결된 테마·기업 · 기사 당사자와 별도 공급망 근거를 구분 · 실제 수혜·투자 매력 미확정"));
@@ -789,6 +829,19 @@ function renderSavedArticleCompanyContext(place,context){
       party.append(node("p","finding-detail","출처 가용: "+company.source_available_at+" · 근거 기록: "+company.recorded_at));
       const link=node("a","source-link","해당 기사 기업 행동의 원문 ↗");
       link.href=company.source_url;link.target="_blank";link.rel="noopener noreferrer";party.append(link);
+      if(articleContext&&company.active_in_theme&&company.inclusion_status==="READY"){
+        const expandable=node("details","finding-detail");
+        const summary=node("summary","","이 기사 속 경제 변화 근거 문장 보기");
+        const excerptPlace=node("div","finding-detail");
+        expandable.append(summary,excerptPlace);
+        let loaded=false;
+        expandable.addEventListener("toggle",async()=>{
+          if(!expandable.open||loaded)return;
+          loaded=true;
+          await loadSavedArticleCompanyExcerpt(articleContext,theme,company,excerptPlace);
+        });
+        party.append(expandable);
+      }
       card.append(party);
     }
     if(theme.related_supply_context.length){
@@ -816,11 +869,11 @@ function renderSavedArticleCompanyContext(place,context){
 }
 function showSavedNewsEvidence(place,data,article,phrase){
   place.replaceChildren();
+  const articleContext=article&&phrase?{item:article,phrase}:null;
   renderSavedTitleAnalysis(place,data.saved_title_analysis);
-  renderSavedArticleCompanyContext(place,data.article_company_context);
+  renderSavedArticleCompanyContext(place,data.article_company_context,articleContext);
   const reasons={NO_SAVED_EXACT_THEME_EVIDENCE:"이 기사 RSS 판본에 연결된 저장 경제 사건·테마 근거 없음",
                  SOURCE_NOT_AVAILABLE_AS_OF:"선택 시점에는 해당 기사 판본이 아직 가용하지 않음"};
-  const articleContext=article&&phrase?{item:article,phrase}:null;
   if(data.status==="READY"){
     renderSavedArticleThemeEvents(place,data.themes,"저장된 동일 기사 판본의 테마",articleContext);
   }else{

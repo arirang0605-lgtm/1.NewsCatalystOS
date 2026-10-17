@@ -34,7 +34,7 @@ from newscatalystos.company_search import company_search_context,match_company_s
 from newscatalystos.federated_news_search import TitleSearchWorkspace,search_completed_workspaces
 from newscatalystos.news_search_evidence import saved_article_evidence
 from newscatalystos.motir_saved_document_evidence import bound_motir_document_evidence
-from newscatalystos.news_article_company_context import article_company_context
+from newscatalystos.news_article_company_context import article_company_context, article_company_excerpt
 from scripts.run_feed_triage import _registry
 from newscatalystos.common_cause_comparison import common_cause_comparisons
 from newscatalystos.company_timeline import company_timelines,select_timelines,timeline_evidence_view
@@ -92,12 +92,17 @@ class Handler(BaseHTTPRequestHandler):
             query = parse_qs(url.query)
             try:
                 required = ("q", "provider_id", "event_id", "title_sha256")
+                excerpt_keys = ("excerpt_theme_id", "excerpt_entity_id",
+                                "excerpt_claim_event_id", "excerpt_evidence_sha256")
                 history = "since" in query or "theme_id" in query
-                if (set(query) - set(required) - {"as_of", "since", "theme_id"}
+                excerpt = any(k in query for k in excerpt_keys)
+                if (set(query) - set(required) - {"as_of", "since", "theme_id", *excerpt_keys}
                         or any(len(query.get(k, [])) != 1 for k in required)
                         or ("as_of" in query and len(query["as_of"]) != 1)
                         or (history and (any(len(query.get(k, [])) != 1
-                                                for k in ("as_of", "since", "theme_id"))))):
+                                                for k in ("as_of", "since", "theme_id"))))
+                        or (excerpt and (history or any(
+                            len(query.get(k, [])) != 1 for k in excerpt_keys)))):
                     raise ValueError("complete exact article selection required")
                 from newscatalystos.source_share import _when
                 now = datetime.now(timezone.utc)
@@ -156,6 +161,32 @@ class Handler(BaseHTTPRequestHandler):
                         "status": "N/A", "reason_code": "ARTICLE_COMPANY_CONTEXT_UNAVAILABLE",
                         "themes": [], "verified_real_transaction": False,
                         "verified_real_benefit": False, "investment_merit": "NOT_ASSESSED"}
+                if excerpt:
+                    from newscatalystos.source_share import _must_sha
+                    for key in ("excerpt_theme_id", "excerpt_claim_event_id",
+                                "excerpt_evidence_sha256"):
+                        _must_sha(query[key][0], key)
+                    entity_id = query["excerpt_entity_id"][0]
+                    if (not 1 <= len(entity_id) <= 120
+                            or any(ord(c) < 32 for c in entity_id)):
+                        raise ValueError("invalid exact company selection")
+                    try:
+                        detail["article_company_excerpt"] = article_company_excerpt(
+                            detail, theme_id=query["excerpt_theme_id"][0],
+                            entity_id=entity_id,
+                            claim_event_id=query["excerpt_claim_event_id"][0],
+                            evidence_sha256=query["excerpt_evidence_sha256"][0],
+                            theme_root=self.server.documents / "theme_history",
+                            reports_root=self.server.reports,
+                            document_root=self.server.documents,
+                            evidence_base=self.server.evidence_base,
+                            as_of=at, now=now)
+                    except (SourceShareError, OSError, ValueError, TypeError, KeyError, sqlite3.Error):
+                        detail["article_company_excerpt"] = {
+                            "status": "N/A",
+                            "reason_code": "EXACT_ARTICLE_CLAUSE_UNAVAILABLE",
+                            "excerpt": None, "verified_real_transaction": False,
+                            "verified_real_benefit": False}
                 if history:
                     from newscatalystos.source_share import _must_sha
                     theme_id = _must_sha(query["theme_id"][0], "selected article theme")

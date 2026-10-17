@@ -129,7 +129,8 @@ def article_company_context(detail: dict, theme_root: Path, *, as_of=None, now=N
                 "official_entity_id": entity if pinned else None,
                 "identity_status": "PINNED_OFFICIAL_ID" if pinned else "SOURCE_NAME_ONLY",
                 "identity_evidence_sha256": pinned["evidence_sha256"] if pinned else None,
-                "event_id": ref["event_id"], "action": ref["action"],
+                "event_id": ref["event_id"], "evidence_sha256": ref["evidence_sha256"],
+                "action": ref["action"],
                 "phase": ref["phase"], "evidence_level": ref["evidence_level"],
                 "polarity": ref["polarity"], "active_in_theme": bool(event["active_in_theme"]),
                 "inclusion_status": "READY" if matched_basis else "N/A",
@@ -187,4 +188,96 @@ def article_company_context(detail: dict, theme_root: Path, *, as_of=None, now=N
         result.update(status="READY", reason_code=None)
     else:
         result["reason_code"] = "NO_COMPANY_IN_EXACT_ARTICLE_EVENTS"
+    return result
+
+
+def article_company_excerpt(detail, *, theme_id, entity_id, claim_event_id,
+                            evidence_sha256, theme_root, reports_root,
+                            document_root=None, evidence_base=None,
+                            as_of=None, now=None, feeds=None, jobs=None):
+    """Reveal only the selected article's already-preserved company clause.
+
+    The original completed RSS version and any licensed body were validated
+    by the caller. Reuse company_evidence's rights, paragraph/quote, SHA and
+    available-at checks, but never return its unfiltered theme-wide results.
+    """
+    from .company_evidence import company_evidence, installed_sources
+    from .source_share import _must_sha
+
+    present = _when((now or datetime.now(timezone.utc)).isoformat(), "excerpt now")
+    at = _when((as_of or present).isoformat(), "excerpt as-of")
+    if at > present:
+        raise SourceShareError("future article excerpt")
+    for key, value in (("theme", theme_id), ("claim event", claim_event_id),
+                       ("source evidence", evidence_sha256)):
+        _must_sha(value, key)
+    if (not isinstance(entity_id, str) or not 1 <= len(entity_id) <= 120
+            or any(ord(c) < 32 for c in entity_id)):
+        raise SourceShareError("invalid selected article company")
+    result = {
+        "schema": "newscatalyst.article_company_excerpt.v1",
+        "status": "N/A", "reason_code": "NO_EXACT_ACTIVE_ARTICLE_PARTY",
+        "theme_id": theme_id, "entity_id": entity_id,
+        "event_id": claim_event_id, "evidence_sha256": evidence_sha256,
+        "as_of": at.isoformat(), "excerpt": None,
+        "verified_real_transaction": False, "verified_real_benefit": False,
+    }
+    context = detail.get("article_company_context", {}) if isinstance(detail, dict) else {}
+    parties = [
+        party for group in context.get("themes", []) if group["theme_id"] == theme_id
+        for party in group["direct_parties"]
+        if party["entity_id"] == entity_id
+        and party["event_id"] == claim_event_id
+        and party.get("evidence_sha256") == evidence_sha256
+        and party["active_in_theme"] and party["inclusion_status"] == "READY"
+    ] if context.get("status") == "READY" else []
+    if len(parties) != 1:
+        return result
+    party = parties[0]
+    themes = ThemeStore(theme_root).search(as_of=at, now=present)
+    current = [t for t in themes if t["theme_id"] == theme_id]
+    if len(current) != 1:
+        return result
+    if feeds is None or jobs is None:
+        installed_feeds, installed_jobs = installed_sources(evidence_base)
+        feeds = installed_feeds if feeds is None else feeds
+        jobs = installed_jobs if jobs is None else jobs
+    found = company_evidence(
+        current[0], entity_id, reports_root=Path(reports_root),
+        document_root=Path(document_root) if document_root is not None else None,
+        feeds=feeds, jobs=jobs, as_of=at, now=present,
+    )
+    items = [item for item in found["items"]
+             if item["event_id"] == claim_event_id
+             and item["evidence_sha256"] == evidence_sha256
+             and item["source_url"] == party["source_url"]
+             and item["source_available_at"] == party["source_available_at"]
+             and item["content_scope"] == party["content_scope"]
+             and item["action"] == party["action"]
+             and item["phase"] == party["phase"]]
+    if len(items) != 1:
+        result["reason_code"] = "EXACT_ARTICLE_CLAUSE_UNAVAILABLE"
+        return result
+    item = items[0]
+    if item["status"] != "READY" or not item.get("excerpt"):
+        result["reason_code"] = item["status"]
+        return result
+    excerpt = item["excerpt"]
+    if not isinstance(excerpt, str):
+        return result
+    # One short quotation only; the whole licensed article stays private.
+    displayed = excerpt[:240]
+    truncated = len(excerpt) > len(displayed)
+    result.update(
+        status="READY", reason_code=None,
+        excerpt=displayed, excerpt_truncated=truncated,
+        excerpt_sha256=item["excerpt_sha256"],
+        source_url=item["source_url"],
+        source_available_at=item["source_available_at"],
+        analysis_available_at=item["analysis_available_at"],
+        report_sha256=item["report_sha256"],
+        content_scope=item["content_scope"],
+        extraction_method=item.get("extraction_method"),
+        action=item["action"], phase=item["phase"],
+    )
     return result

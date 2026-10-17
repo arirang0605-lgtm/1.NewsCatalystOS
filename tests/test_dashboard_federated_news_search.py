@@ -106,8 +106,9 @@ const seen=[],payload={coverage_complete:true,matched_document_versions:1,keywor
  source_url:"https://example.org/saved-title",source_available_at:"2026-10-17T00:00:00+00:00",semiconductor_keyword_candidate:true}
 ]};
 const evidence={status:"READY",article_company_context:{
- status:"READY",themes:[{name:"합성 테마",theme_status:"CANDIDATE",industry_supported_in_v1:true,
- direct_parties:[{source_name:"가상전자<img src=x>",entity_id:"가상전자",action:"BUSINESS_START",
+ status:"READY",themes:[{theme_id:"c".repeat(64),name:"합성 테마",theme_status:"CANDIDATE",industry_supported_in_v1:true,
+ direct_parties:[{source_name:"가상전자<img src=x>",entity_id:"가상전자",event_id:"e".repeat(64),
+ evidence_sha256:"b".repeat(64),action:"BUSINESS_START",
  phase:"SOURCE_REPORTED",identity_status:"SOURCE_NAME_ONLY",official_entity_id:null,
  active_in_theme:true,inclusion_status:"READY",inclusion_reasons:["기사와 일치한 사업 개시 근거"],
  source_url:"https://example.org/saved-title",source_available_at:"2026-10-17T00:00:00+00:00",
@@ -132,7 +133,11 @@ const change={activity:"updated",events:{independent_actions_added:0,independent
 const ctx={
   $:id=>elements[id],URLSearchParams,
   economicActionLabels:{BUSINESS_START:"사업·서비스 개시"},economicPhaseLabels:{SOURCE_REPORTED:"출처 보도"},
-  fetch:async url=>{seen.push(url);return {ok:true,json:async()=>url.includes("since=")?{
+  fetch:async url=>{seen.push(url);return {ok:true,json:async()=>url.includes("excerpt_theme_id=")?{
+    article_company_excerpt:{status:"READY",excerpt:"가상전자 HBM 생산을 개시했다",
+      source_url:"https://example.org/saved-title",content_scope:"RSS_TITLE_METADATA",
+      source_available_at:"2026-10-17T00:00:00+00:00",
+      analysis_available_at:"2026-10-17T00:01:00+00:00"}}:url.includes("since=")?{
     theme_change:change,theme_change_status:"READY"}:url.startsWith("/api/news-evidence")?evidence:payload}},
   node:(tag,cls,value)=>{const e=el();e.tag=tag;e.className=cls;e.textContent=value||"";return e},
   renderThemeChanges:(place,c)=>{const e=el();e.textContent="기존 기간 렌더러 재사용";place.append(e)}
@@ -162,6 +167,19 @@ vm.runInNewContext(code,ctx);
  assert(companyCard.children.some(x=>x.children.some(y=>y.textContent.includes("기사와 일치한 사업 개시 근거"))));
  assert(companyCard.children.some(x=>x.children.some(y=>y.textContent.includes("SEC_CIK:111111"))));
  assert(companyCard.children.some(x=>x.children.some(y=>y.textContent.includes("별도 공급 관계 근거"))));
+ const party=companyCard.children.find(x=>x.className==="news-evidence-company");
+ const expand=party.children.find(x=>x.tag==="details"&&x.children[0].textContent.includes("근거 문장"));
+ assert(expand&&expand.events.toggle,"company clause expands on demand");
+ expand.open=true;
+ await expand.events.toggle();
+ assert(seen.at(-1).includes("excerpt_theme_id="+"c".repeat(64)));
+ assert(seen.at(-1).includes("excerpt_claim_event_id="+"e".repeat(64)));
+ assert(seen.at(-1).includes("excerpt_evidence_sha256="+"b".repeat(64)));
+ assert(expand.children[1].children.some(x=>x.textContent.includes("가상전자 HBM 생산")));
+ const called=seen.length;
+ expand.open=false;await expand.events.toggle();
+ expand.open=true;await expand.events.toggle();
+ assert.equal(seen.length,called,"one click must not fetch the same clause again");
  const missingCompanies=el();ctx.renderSavedArticleCompanyContext(missingCompanies,{
    status:"N/A",reason_code:"NO_COMPANY_IN_EXACT_ARTICLE_EVENTS",themes:[]});
  assert(missingCompanies.children[0].children.some(x=>x.textContent.includes("기업 당사자")));

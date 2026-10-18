@@ -57,6 +57,8 @@ def parser() -> argparse.ArgumentParser:
                    help="optional event-first watch using current approved stored news, no industry prerequisite")
     p.add_argument("--discovery-source-base",type=Path,
                    help="existing core/MOTIR source base, required with discovery")
+    p.add_argument("--material-news-workspace",action="append",default=[],metavar="SCOPE=ABSOLUTE_ROOT",
+                   help="additional current approved title workspace for company-economic publication; no fetch")
     operation = p.add_mutually_exclusive_group(required=True)
     operation.add_argument("--once", action="store_true")
     operation.add_argument("--dry-run", action="store_true")
@@ -158,8 +160,27 @@ def execute(opts: argparse.Namespace, *, run_tick=run_scheduled_triage.execute) 
             sources={"base":opts.material_base_root}
             sources.update({scope:Path(opts.workspaces_root)/name/"document_analysis/theme_history"
                             for scope,name in WORKSPACES.items()})
+            recent=()
+            if getattr(opts,'economic_discovery_root',None) is not None:
+                from scripts.run_economic_discovery import source_roots
+                from newscatalystos.federated_news_search import TitleSearchWorkspace
+                import re
+                if getattr(opts,'discovery_source_base',None) is None:
+                    raise SourceShareError('current source base required for company changes')
+                recent=tuple(TitleSearchWorkspace(scope,registry,state,inbox) for scope,registry,state,inbox
+                             in source_roots(opts.discovery_source_base,opts.workspaces_root))
+                for item in getattr(opts,'material_news_workspace',[]):
+                    scope,separator,location=item.partition('=');path=Path(location)
+                    if (not separator or not re.fullmatch(r'[a-z][a-z0-9_-]{0,31}',scope)
+                            or any(w.scope==scope for w in recent) or not path.is_absolute()
+                            or path.resolve()!=path or path.is_symlink()
+                            or any('eraleader' in p.casefold() for p in path.parts)):
+                        raise SourceShareError('distinct current approved News workspace required')
+                    recent+=(TitleSearchWorkspace(scope,path/'providers/authorized_sources.json',
+                        path/'state/incremental_feeds.sqlite3',path/'inbox/feed_triage'),)
             delivery=publish_material(opts.material_outbox,sources,
-                identity_root=getattr(opts,"era_daily_root",None),dry_run=bool(opts.dry_run))
+                identity_root=getattr(opts,"era_daily_root",None),dry_run=bool(opts.dry_run),
+                economic_discovery_root=getattr(opts,'economic_discovery_root',None),recent_workspaces=recent)
         except (SourceShareError,OSError,ValueError,TypeError,KeyError) as exc:
             delivery={"status":"UNAVAILABLE","error_type":type(exc).__name__}
     # A delivery problem must be visible without rolling back source collection

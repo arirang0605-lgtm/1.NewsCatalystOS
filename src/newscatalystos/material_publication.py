@@ -114,7 +114,7 @@ def _identity_fingerprint(themes,snapshot):
     return rows
 
 
-def _publish(root,sources,identity_root,now,previous,*,dry_run):
+def _publish(root,sources,identity_root,now,previous,*,dry_run,economic_discovery_root=None,recent_workspaces=()):
     old=previous[0] if previous else None
     old_bundle=_json(previous[1],'previous delivery') if previous else {'ThemeCandidates':[]}
     old_scopes=old['scopes'] if old else {}
@@ -135,6 +135,18 @@ def _publish(root,sources,identity_root,now,previous,*,dry_run):
             # But a previously published immutable theme must never disappear
             # because a source DB was removed or a stale copy was restored.
             themes=store.search(as_of=now,now=now)
+            changes={}
+            if scope=='discovery' and economic_discovery_root is not None:
+                from .discovery_watch import read_discovery
+                from .company_economic_changes import build_changes
+                view=read_discovery(economic_discovery_root,as_of=now,now=now,
+                    include_common_causes=True,recent_workspaces=recent_workspaces)
+                if any(view['theme_outlook'].get(k)=='UNAVAILABLE' for k in
+                       ('public_page_demand_analysis_status','recent_news_comparison_status')):
+                    raise SourceShareError('company economic analysis unavailable')
+                prior={t.get('export_origin',{}).get('theme_id',t['theme_id']):t['company_economic_changes']
+                       for t in old_themes if t.get('company_economic_changes')}
+                changes=build_changes(themes,view,snapshot,as_of=now,previous=prior)
             theme_ids=sorted(t['theme_id'] for t in themes)
             if before and not set(before.get('source_theme_ids',[]))<=set(theme_ids):
                 raise SourceShareError('previously published source themes unavailable')
@@ -146,7 +158,9 @@ def _publish(root,sources,identity_root,now,previous,*,dry_run):
                 if _when(by_id[source_id]['decision_at'],'source edition')<_when(last,'known edition'):
                     raise SourceShareError('source edition regressed')
             identity=_identity_fingerprint(themes,snapshot) if scope!='base' else []
-            signature=sha256(_bytes({'themes':themes,'identity':identity,'method':SCHEMA})).hexdigest()
+            inputs={'themes':themes,'identity':identity,'method':SCHEMA}
+            if scope=='discovery' and economic_discovery_root is not None:inputs['company_economic_changes']=changes
+            signature=sha256(_bytes(inputs)).hexdigest()
             identical=before and before.get('input_sha256')==signature
             if identical:
                 next_themes=old_themes
@@ -155,11 +169,18 @@ def _publish(root,sources,identity_root,now,previous,*,dry_run):
                 since=(_when(before['last_successful_input_at'],'previous cutoff')+timedelta(microseconds=1)
                        if before and before.get('last_successful_input_at') else default_since(now))
                 if since>now:raise SourceShareError('nonmonotonic publication cutoff')
-                materials=materials_for_store(store,since=since,as_of=now,scope=scope,now=now)
+                materials=materials_for_store(store,since=since,as_of=now,scope=scope,now=now,
+                    industry='ALL_DISCOVERED' if scope=='discovery' else 'SEMICONDUCTOR')
                 # Confirm both readers saw one coherent immutable source edition.
                 reread=store.search(as_of=now,now=now)
                 if _bytes(reread)!=_bytes(themes):raise SourceShareError('source changed during publication')
                 next_themes=attach_material(themes if scope=='base' else project_themes(themes,scope,snapshot),materials)
+                for theme in next_themes:
+                    origin=theme.get('export_origin',{}).get('theme_id',theme['theme_id'])
+                    if origin in changes:
+                        theme['company_economic_changes']=changes[origin]
+                        theme['decision_at']=max(theme['decision_at'],
+                            max(e['basis_available_at'] for e in changes[origin]['entries']))
                 good_at=now.isoformat()
             for t in next_themes:
                 t['material_publication_source']={'scope':scope,'status':'CURRENT_SNAPSHOT','input_available_at':good_at}
@@ -199,13 +220,22 @@ def _publish(root,sources,identity_root,now,previous,*,dry_run):
             'themes':len(exported),'unavailable_scopes':failures,'new_publication':True}
 
 
-def publish_material(root,sources,*,identity_root=None,now=None,dry_run=False):
+def publish_material(root,sources,*,identity_root=None,now=None,dry_run=False,
+                     economic_discovery_root=None,recent_workspaces=()):
     """Called once by the existing approved RSS runner after its current tick."""
     at=_when((now or datetime.now(timezone.utc)).isoformat(),'publication now')
+    sources=dict(sources)
+    if economic_discovery_root is not None:
+        discovery=Path(economic_discovery_root)
+        if 'discovery' in sources and Path(sources['discovery'])!=discovery/'theme_history':
+            raise SourceShareError('discovery material root mismatch')
+        if not recent_workspaces:raise SourceShareError('explicit current approved workspaces required')
+        sources['discovery']=discovery/'theme_history'
     root=Path(root);_paths(root,sources)
     if dry_run:
         previous=read_published(root,now=at)
-        return _publish(root,sources,identity_root,at,previous,dry_run=True)
+        return _publish(root,sources,identity_root,at,previous,dry_run=True,
+            economic_discovery_root=economic_discovery_root,recent_workspaces=recent_workspaces)
     root=_private_root(root)
     fd=os.open(root/'.publish.lock',os.O_WRONLY|os.O_CREAT|getattr(os,'O_NOFOLLOW',0),0o600)
     try:
@@ -217,5 +247,6 @@ def publish_material(root,sources,*,identity_root=None,now=None,dry_run=False):
         previous=read_published(root,now=at)
         if previous and _when(previous[0]['published_at'],'last publication')>at:
             raise SourceShareError('future previous publication')
-        return _publish(root,sources,identity_root,at,previous,dry_run=False)
+        return _publish(root,sources,identity_root,at,previous,dry_run=False,
+            economic_discovery_root=economic_discovery_root,recent_workspaces=recent_workspaces)
     finally:os.close(fd)

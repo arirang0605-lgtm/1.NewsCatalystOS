@@ -90,9 +90,9 @@ def read_discovery(root,*,as_of=None,since=None,now=None,_compare_outlook=True,i
         candidate['launch_comparison_group_ids']=[g['comparison_group_id'] for g in comparisons
                                                   if candidate['theme_id'] in g['theme_ids']]
     from .theme_outlook import build_theme_outlook,compare_outlooks
-    outlook=build_theme_outlook(themes,titles,candidates,as_of=at,since=start,now=present)
+    outlook=build_theme_outlook(themes,titles,candidates,as_of=at,since=start,now=present,include_demand_context=include_common_causes)
     if _compare_outlook:
-        previous=read_discovery(root,as_of=start,since=start,now=present,_compare_outlook=False)
+        previous=read_discovery(root,as_of=start,since=start,now=present,_compare_outlook=False,include_common_causes=include_common_causes)
         compare_outlooks(outlook,previous['theme_outlook'])
     causes={}
     if include_common_causes:

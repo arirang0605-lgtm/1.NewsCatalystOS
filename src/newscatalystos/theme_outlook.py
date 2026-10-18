@@ -46,11 +46,12 @@ ROLES = {
 }
 
 
-def _literal(text, expression):
-    match = re.search(re.escape(expression), text, re.I)
+def _literal(text, expression, *, start=0):
+    match = re.search(re.escape(expression), text[start:], re.I)
     if match is None:
         return None
-    start, end = match.span()
+    offset=start
+    start, end = (p+offset for p in match.span())
     return {'text': text[start:end], 'start': start, 'end': end,
             'sha256': sha256(text[start:end].encode()).hexdigest()}
 
@@ -171,7 +172,7 @@ def _observations(themes, titles, candidates, at):
     return sorted(latest.values(), key=lambda r: r['observation_id'])
 
 
-def build_theme_outlook(themes, titles, candidates, *, as_of, since, now):
+def build_theme_outlook(themes, titles, candidates, *, as_of, since, now, include_demand_context=False):
     """Explain research attention and source-described areas; never rank stocks.
 
     Multi-company is a literal source-name breadth, NOT independent legal entity
@@ -183,6 +184,9 @@ def build_theme_outlook(themes, titles, candidates, *, as_of, since, now):
     if start > at or at > _when(now.isoformat(), 'now'):
         raise SourceShareError('invalid theme outlook interval')
     observations = _observations(themes, titles, candidates, at)
+    if include_demand_context:
+        from .business_demand_context import enrich_source_objects
+        enrich_source_objects(observations)
     grouped = defaultdict(list)
     for row in observations:
         for key in row['objects']:
@@ -235,7 +239,8 @@ def build_theme_outlook(themes, titles, candidates, *, as_of, since, now):
         areas = {}
         for row in rows:
             source = {k: v for k, v in row.items() if k != 'objects'}
-            source['shared_object_evidence'] = _literal(row['headline'], row['objects'][key])
+            source['shared_object_evidence'] = _literal(row['headline'], row['objects'][key],
+                start=row['object_evidence']['start'] if include_demand_context else 0)
             sources.append(source)
             role, role_label = ROLES.get(row['action'], ('UNKNOWN', '역할 미확인'))
             area_key = ((row['business_description_evidence'] or row['object_evidence'])['text'], row['action'])
@@ -267,10 +272,17 @@ def build_theme_outlook(themes, titles, candidates, *, as_of, since, now):
             'period_activity': activity, 'market_newness': 'UNKNOWN',
             'growth_or_profitability_verified': False, 'investment_score': None,
             'orders_enabled': False})
+        if include_demand_context:
+            from .business_demand_context import demand_coverage,stated_demand
+            if any(r.get('source_product_word_hint') or stated_demand(r) for r in rows):
+                output[-1]['source_demand_context']=demand_coverage(rows)
         used.update(ids)
     order = {'MULTI_ACTIVITY': 0, 'MULTI_COMPANY': 1, 'CAUTION': 2, 'EARLY_WATCH': 3}
     output.sort(key=lambda r: (order[r['attention_tier']], r['outlook_id']))
-    return {'schema': SCHEMA, 'rule_version': RULE, 'candidates': output,
+    return {**({'context_interpretation_rule':'source-business-demand-v1',
+                'context_is_historical_record':False,'interpretation_at':now.isoformat()}
+               if any("source_demand_context" in r for r in output) else {}),
+            'schema': SCHEMA, 'rule_version': RULE, 'candidates': output,
             'industry_taxonomy_required': False, 'source_writes': False,
             'counts': {'theme_hypotheses': len(output),
                        'priority_research_candidates': sum(r['attention_tier'] == 'MULTI_ACTIVITY' for r in output),

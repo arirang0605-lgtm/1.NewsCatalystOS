@@ -1147,6 +1147,18 @@ function renderThemeOutlook(place,data){
     card.append(node("h4","",row.title),node("p","",row.attention_label),
       node("p","finding-detail","원문 회사명: "+(row.source_company_names.join(" · ")||"미확보")));
     for(const reason of row.attention_reasons)card.append(node("p","finding-detail",reason));
+    const demand=row.source_demand_context;
+    if(demand){
+      card.append(node("p","finding-detail",demand.cross_company_source_cause_match?
+        "기업 간 동일한 수요 원인 표현 확인 · 공통 시장 충격은 미검증":
+        demand.claims.length?"공통 수요 변화 근거: 일부 기업 원문만 명시":"공통 수요 변화 근거: 원문 명시 원인 미확보"));
+      for(const claim of demand.claims)
+        card.append(node("p","finding-detail",claim.source_companies.join(" · ")+" → "+claim.cause_evidence.text+
+          " → "+(economicActionLabels[claim.action]||claim.action)+" · "+(claim.phase==="PLANNED"?"계획·완료 미확인":"출처 보도")));
+      if(demand.companies_without_explicit_cause.length)
+        card.append(node("p","fineprint","같은 수요 원인인지 미확인: "+demand.companies_without_explicit_cause.join(" · ")));
+      card.append(node("p","fineprint","수요 근거는 해당 기사에만 적용합니다. 다른 기업으로 원인을 전이하지 않습니다."));
+    }
     if(row.period_change)card.append(node("p","finding-detail",changes[row.period_change.status]||"관측 변화 확인"));
     const areas=node("details","finding-detail");
     areas.append(node("summary","","관련 산업·사업 분야와 기업 역할"));
@@ -1216,9 +1228,9 @@ function renderLaunchComparisons(place,groups){
 
 
 function renderDiscoveryCauses(place,data){
-  if(!data)return;
+  if(!data?.groups?.length)return;
   const section=node("section","theme-outlook");
-  section.append(node("h3","","명시 수요·정책 원인으로 연결한 반도체 사업 행동"));
+  section.append(node("h3","","명시 수요·정책 원인으로 연결한 사업 행동"));
   if(!data.groups?.length){
     section.append(node("p","empty-small","현재 저장 자료에서 서로 다른 반도체 제품의 행동을 연결하는 명시 수요처·정책 근거는 확보되지 않았습니다."));
   }

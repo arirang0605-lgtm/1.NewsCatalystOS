@@ -12,8 +12,8 @@ from .economic_changes import ACTIONS,business_start_phase,market_entry,normaliz
 from .power_equipment import PRODUCTS
 
 MODE='ECONOMIC_DISCOVERY'
-RULE_VERSION='rss-event-first-v4'
-SUPPORTED_RULE_VERSIONS=('rss-event-first-v1','rss-event-first-v2','rss-event-first-v3',RULE_VERSION)
+RULE_VERSION='rss-event-first-v5'
+SUPPORTED_RULE_VERSIONS=('rss-event-first-v1','rss-event-first-v2','rss-event-first-v3','rss-event-first-v4',RULE_VERSION)
 # Action grammar is sector-independent. Specializations of the existing
 # action vocabulary only bound the verb span; they do not require a product.
 KOREAN=tuple((kind,re.compile(
@@ -72,7 +72,7 @@ _POLICY_MODIFIER=re.compile(
     r'(?:(?:으)?로(?:\s*인해)?|에\s*(?:따라|대응해|대비해))(?=$|\s)\s*')
 
 
-def _raw_events(text, *, include_policy_actions=False, include_order_awards=False):
+def _raw_events(text, *, include_policy_actions=False, include_order_awards=False, include_facility_expansion=False):
     if NEGATIVE.search(text) or CONTEXT.search(text):return []
     events=[]
     # Preserve offsets in the original title; don't translate or rewrite it.
@@ -94,6 +94,12 @@ def _raw_events(text, *, include_policy_actions=False, include_order_awards=Fals
             awards=list(re.finditer(r'(?<![가-힣])수주(?:했다|하였다|했음|함)?(?=[.!。]?\s*$)',body))
             if len(awards)==1 and body[:awards[0].start()].strip():
                 candidates=[('CONTRACT',awards[0])]
+        if include_facility_expansion and not candidates and subject and _companies(subject['actor']):
+            # A nominal factory expansion is an announced capacity action,
+            # never proof of completed construction/installed capacity.
+            facility=re.search(r'(?:공장|시설|설비|생산동|라인)\s*(?:대규모\s*)?증설[.!。]?\s*$',body)
+            verb=re.search(r'증설(?=[.!。]?\s*$)',body)
+            if facility and verb:candidates=[('CAPACITY_ADDITION',verb)]
         if include_policy_actions and len(candidates)!=1 and subject and _companies(subject['actor']):
             modifier=_POLICY_MODIFIER.match(body)
             if (modifier and not SUBJECT.match(body[modifier.end():])
@@ -167,7 +173,7 @@ def _raw_events(text, *, include_policy_actions=False, include_order_awards=Fals
     return events[:30]
 
 
-def _discover_economic_events_v1(text, *, include_policy_actions=False, include_order_awards=False):
+def _discover_economic_events_v1(text, *, include_policy_actions=False, include_order_awards=False, include_facility_expansion=False):
     """Detect -> bind literal object/party -> optional industry hints, in order.
 
     Unknown vocabulary is a stored watch topic, not a reason to drop an event.
@@ -177,7 +183,7 @@ def _discover_economic_events_v1(text, *, include_policy_actions=False, include_
     if not isinstance(text,str) or not 0<len(text)<=5000 or '\x00' in text:
         raise ValueError('bounded original news title required')
     result=[]
-    for action,topic,names,clause,start,end,has_object,issuer in _raw_events(text,include_policy_actions=include_policy_actions,include_order_awards=include_order_awards):
+    for action,topic,names,clause,start,end,has_object,issuer in _raw_events(text,include_policy_actions=include_policy_actions,include_order_awards=include_order_awards,include_facility_expansion=include_facility_expansion):
         # Linking occurs only AFTER an event exists. Removing every label rule
         # below must not change the number of detected events or their parties.
         links=[]
@@ -185,7 +191,10 @@ def _discover_economic_events_v1(text, *, include_policy_actions=False, include_
             found=re.search(pattern,topic,re.I)
             if found:links.append({'industry':tag,'label':label,'source_phrase':found.group(),
                 'evidence_sha256':sha256(found.group().encode()).hexdigest(),'status':'SOURCE_WORD_HINT_NOT_SUPPLY_CHAIN_VALIDATION'})
-        phase='PLANNED' if (action=='INVESTMENT' or PLANNED.search(clause)
+        nominal_expansion=(include_facility_expansion and action=='CAPACITY_ADDITION'
+                           and text[start:end]=='증설'
+                           and re.search(r'(?:공장|시설|설비|생산동|라인)\s*(?:대규모\s*)?$',topic))
+        phase='PLANNED' if (nominal_expansion or action=='INVESTMENT' or PLANNED.search(clause)
                               or (action=='BUSINESS_START' and business_start_phase(clause)=='PLANNED')) else 'SOURCE_REPORTED'
         driver=('POLICY_ENABLEMENT' if action=='POLICY_CHANGE' else 'SUPPLY_CONTRACTION' if action=='SUPPLY_REDUCTION'
                 else 'CAPACITY_EXPANSION' if action in {'PRODUCTION_START','CAPACITY_ADDITION','INVESTMENT_EXECUTION'}
@@ -208,6 +217,8 @@ def _discover_economic_events_v1(text, *, include_policy_actions=False, include_
             'industry_status':'LINKED_BY_SOURCE_WORDS' if links else 'UNCLASSIFIED_OBSERVATION',
             'industry_links':links,'watch_topic':bounded_topic,'source_reports_historical_context':bool(HISTORICAL.search(clause)),
             'market_newness':'UNKNOWN','deep_industry_validation':False,'new_provider_permission_granted':False}
+        if nominal_expansion:
+            observation['phase_basis']='NOMINAL_FACILITY_EXPANSION_COMPLETION_UNCONFIRMED'
         if not any(x['change']==change for x in result):result.append({'change':change,'discovery':observation})
     return result
 
@@ -401,8 +412,9 @@ def discover_economic_events(text,*,rule_version=RULE_VERSION):
     if rule_version not in SUPPORTED_RULE_VERSIONS:raise ValueError('unsupported discovery rule version')
     existing=_discover_economic_events_v1(text)
     if existing or rule_version=='rss-event-first-v1':return existing
-    if rule_version in {'rss-event-first-v3','rss-event-first-v4'}:
+    if rule_version in {'rss-event-first-v3','rss-event-first-v4','rss-event-first-v5'}:
         contextual=_discover_economic_events_v1(text,include_policy_actions=True,
-                                              include_order_awards=rule_version=='rss-event-first-v4')
+                                              include_order_awards=rule_version in {'rss-event-first-v4','rss-event-first-v5'},
+                                              include_facility_expansion=rule_version=='rss-event-first-v5')
         if contextual:return contextual
     return _product_launch(text)

@@ -148,6 +148,9 @@ def test_http_selected_query_snapshot_comparisons_and_standard_v3(tmp_path,monke
   for snapshot,when in [(first,T),(theme,at)]:
    r=json.loads(fetch('/api/company-research',q='가상전자',as_of=when.isoformat()))
    assert r['common_cause_comparisons']==common_cause_comparisons([snapshot])
-   assert fetch('/api/themes',company_candidates='1',as_of=when.isoformat())==build_theme_bundle([snapshot],decision_at=when,now=at,include_company_candidates=True)
+   from newscatalystos.catalyst_material import materials_for_store,attach_material,default_since
+   materials=materials_for_store(store,since=default_since(when),as_of=when,scope='base',now=at)
+   expected=attach_material([snapshot],materials)
+   assert fetch('/api/themes',company_candidates='1',as_of=when.isoformat())==build_theme_bundle(expected,decision_at=when,now=at,include_company_candidates=True)
   assert json.loads(fetch('/api/company-research',q='없는기업',as_of=at.isoformat()))['common_cause_comparisons']=={}
  finally:server.shutdown();server.server_close();worker.join(2)

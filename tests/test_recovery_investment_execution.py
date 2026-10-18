@@ -152,7 +152,9 @@ def test_period_http_execution_search_and_source(tmp_path,monkeypatch):
   with urlopen(url+'/api/period?'+urlencode({'date':day})) as response:data=json.load(response)
   assert len(data['company_candidates'])==10 and len(data['themes'])==5
   with urlopen(url+'/api/themes?'+urlencode({'q':'INVESTMENT_EXECUTION'})) as response:found=json.load(response)
-  assert theme in found['ThemeCandidates']
+  exported=next(t for t in found['ThemeCandidates'] if t['theme_id']==theme['theme_id'])
+  material=exported.pop('catalyst_material')
+  assert material['theme_id']==theme['theme_id'] and exported==theme
   with urlopen(url+'/api/company-evidence?'+urlencode({'theme_id':theme['theme_id'],'entity_id':'가상전자','as_of':data['as_of']})) as response:detail=json.load(response)
   assert detail['items'][0]['status']=='READY' and detail['items'][0]['excerpt']==TITLE
  finally:server.shutdown();server.server_close();thread.join(2)

@@ -1076,6 +1076,7 @@ function renderEconomicDiscovery(data){
   }
   summary.textContent="관찰 주제 "+data.counts.topics+"개 · 원문에 연결된 행동 "+data.counts.events+
     "개 · 미분류 주제 "+data.counts.unclassified_topics+"개 · 먼저 탐지한 뒤 분류 · 심층 산업 검증 아님";
+  renderDiscoveryCauses(place,data.common_cause_connections);
   renderThemeOutlook(place,data.theme_outlook);
   renderLaunchComparisons(place,data.launch_comparisons);
   for(const row of data.candidates){
@@ -1185,6 +1186,35 @@ function renderLaunchComparisons(place,groups){
     }
     block.append(node("p","fineprint","독립 신규 재료 수 미확인 · 자료 확보 시각은 실제 출시일이 아닙니다. 원래 사건 수·후보 점수를 변경하지 않았습니다."));
     section.append(block);
+  }
+  place.append(section);
+}
+
+
+function renderDiscoveryCauses(place,data){
+  if(!data)return;
+  const section=node("section","theme-outlook");
+  section.append(node("h3","","공통 수요 원인으로 연결한 반도체 사업 행동"));
+  if(!data.groups?.length){
+    section.append(node("p","empty-small","현재 저장 자료에서 서로 다른 반도체 제품의 행동을 연결하는 명시 수요처 근거는 확보되지 않았습니다."));
+  }
+  for(const row of data.groups||[]){
+    const card=node("article","finding");
+    const labels={DEMAND_RECOVERY:"수요·주문 회복",DEMAND_EXPANSION:"수요·주문 확대",POLICY_ENABLEMENT:"정책 변화"};
+    card.append(node("h4","",row.subject+" · "+(labels[row.economic_driver]||row.economic_driver)),
+      node("p","",row.products.join(" · ")+"의 행동 연결 · 출처가 명시한 원인에 따른 조사 가설"));
+    for(const source of row.source_evidence){
+      card.append(node("p","",source.cause_evidence.text+" → "+source.product+" · "+
+        (economicActionLabels[source.action]||source.action)+" · "+source.source_companies.join(" · ")+
+        " · "+(source.phase==="PLANNED"?"계획":"출처 보도")),
+        node("p","finding-detail",source.headline),node("p","fineprint","근거 확보 "+source.basis_available_at));
+      const link=node("a","source-link","공통 원인의 원문 ↗");
+      link.href=source.source_url;link.target="_blank";link.rel="noopener noreferrer";card.append(link);
+    }
+    for(const path of row.conditional_paths)
+      card.append(node("p","finding-detail",path.opportunity),node("p","fineprint","반증·미확인: "+path.countercondition));
+    card.append(node("p","fineprint","같은 시장 충격·기업 간 거래·실제 지출·매출·수혜는 미확인입니다. 조회 시 원문 해석이며 기존 사건·점수는 유지됩니다."));
+    section.append(card);
   }
   place.append(section);
 }

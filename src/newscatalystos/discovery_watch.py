@@ -15,7 +15,7 @@ from .standard_delivery import build_theme_bundle
 from .source_share import SourceShareError,_when
 
 
-def read_discovery(root,*,as_of=None,since=None,now=None,_compare_outlook=True):
+def read_discovery(root,*,as_of=None,since=None,now=None,_compare_outlook=True,include_common_causes=False):
     present=now or datetime.now(timezone.utc);at=as_of or present
     start=since or default_since(at)
     present=_when(present.isoformat(),'now');at=_when(at.isoformat(),'as of');start=_when(start.isoformat(),'since')
@@ -94,7 +94,11 @@ def read_discovery(root,*,as_of=None,since=None,now=None,_compare_outlook=True):
     if _compare_outlook:
         previous=read_discovery(root,as_of=start,since=start,now=present,_compare_outlook=False)
         compare_outlooks(outlook,previous['theme_outlook'])
-    return {'schema':'newscatalyst.economic_discovery_watch.v1','status':'READY','as_of':at.isoformat(),
+    causes={}
+    if include_common_causes:
+        from .discovery_cause_links import build_discovery_causes
+        causes['common_cause_connections']=build_discovery_causes(themes,titles,candidates,as_of=at,since=start,now=present)
+    return {**causes,'schema':'newscatalyst.economic_discovery_watch.v1','status':'READY','as_of':at.isoformat(),
         'theme_outlook':outlook,
         'launch_comparisons':comparisons,
         'comparison_since':start.isoformat(),'candidates':candidates,
@@ -112,11 +116,11 @@ def read_discovery(root,*,as_of=None,since=None,now=None,_compare_outlook=True):
         'investment_rank':None,'orders_enabled':False}
 
 
-def export_discovery(root,*,as_of=None,since=None,now=None):
+def export_discovery(root,*,as_of=None,since=None,now=None,include_common_causes=False):
     present=now or datetime.now(timezone.utc);at=as_of or present;start=since or default_since(at)
     store=ThemeStore(Path(root)/'theme_history')
     themes=store.search(as_of=at,now=present)
-    view=read_discovery(root,as_of=at,since=start,now=present)
+    view=read_discovery(root,as_of=at,since=start,now=present,include_common_causes=include_common_causes)
     rows={c['theme_id']:c for c in view['candidates']}
     materials={k:c['material'] for k,c in rows.items() if c['material'] is not None}
     result=attach_material(themes,materials)
@@ -141,6 +145,13 @@ def export_discovery(root,*,as_of=None,since=None,now=None):
                 'basis_available_at':max(g['basis_available_at'] for g in groups),
                 'new_economic_event':False,'independent_market_event_count':None}
             theme['decision_at']=max(theme['decision_at'],theme['discovery_launch_comparison']['basis_available_at'])
+        causes=[g for g in view.get('common_cause_connections',{}).get('groups',[]) if theme['theme_id'] in g['theme_ids']]
+        if causes:
+            theme['discovery_common_causes']={
+                'source_theme_sha256':sha256(_bytes(original)).hexdigest(),
+                'original_theme_decision_at':original['decision_at'],
+                'groups':causes,'interpretation_at':present.isoformat(),
+                'interpretation_is_historical_record':False,'original_events_unchanged':True}
         outlooks=[c for c in view['theme_outlook']['candidates'] if theme['theme_id'] in c['theme_ids']]
         if outlooks:
             theme['discovery_theme_outlook']={

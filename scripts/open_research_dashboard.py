@@ -104,8 +104,11 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 from newscatalystos.discovery_watch import read_discovery,export_discovery
                 from newscatalystos.source_share import _when
-                if set(query)-{'as_of','since','export'} or any(len(v)!=1 for v in query.values()):
+                if set(query)-{'as_of','since','export','common_causes'} or any(len(v)!=1 for v in query.values()):
                     raise ValueError('invalid discovery query')
+                if query.get('common_causes',['0']) not in (['0'],['1']):
+                    raise ValueError('invalid common causes option')
+                causes=query.get('common_causes',['0'])==['1']
                 now=datetime.now(timezone.utc)
                 at=_when(query['as_of'][0],'as of') if 'as_of' in query else now
                 since=_when(query['since'][0],'since') if 'since' in query else None
@@ -113,8 +116,8 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(503,{'status':'DISCOVERY_NOT_CONFIGURED'});return
                 root=self.server.documents/'economic_discovery'
                 if query.get('export',['0'])==['1']:
-                    self._send(200,export_discovery(root,as_of=at,since=since,now=now),'application/json; charset=utf-8')
-                else:self._json(200,read_discovery(root,as_of=at,since=since,now=now))
+                    self._send(200,export_discovery(root,as_of=at,since=since,now=now,include_common_causes=causes),'application/json; charset=utf-8')
+                else:self._json(200,read_discovery(root,as_of=at,since=since,now=now,include_common_causes=causes))
             except (SourceShareError,OSError,ValueError,TypeError,KeyError,sqlite3.Error):
                 self._json(400,{'status':'DISCOVERY_INPUT_UNAVAILABLE'})
             return
@@ -434,7 +437,7 @@ class Handler(BaseHTTPRequestHandler):
                     try:
                         from newscatalystos.discovery_watch import read_discovery
                         data['economic_discovery']=read_discovery(self.server.documents/'economic_discovery',
-                            as_of=min(end,now),since=min(start,now),now=now)
+                            as_of=min(end,now),since=min(start,now),now=now,include_common_causes=True)
                     except (SourceShareError,OSError,ValueError,KeyError,TypeError,sqlite3.Error):
                         data['economic_discovery']={'status':'UNAVAILABLE','candidates':[]}
                 if self.server.source_roots:

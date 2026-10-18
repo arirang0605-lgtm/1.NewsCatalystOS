@@ -88,3 +88,29 @@ def test_financial_receipt_failure_does_not_hide_news_comparison(monkeypatch):
     assert len(comparison['notes'])==1
     assert comparison['company_assessment_comparison']['skipped_receipts']==2
     assert all(r['status']=='ASSESSMENT_UNAVAILABLE' for r in comparison['company_assessment_comparison']['company_results'])
+
+def test_receipt_revision_is_not_new_finance_and_risk_delta_is_visible(monkeypatch):
+    prior=assessment();current=assessment()
+    prior['value']['dart_annual_cfs']['first_receipt_sha256']='old-receipt'
+    current['value']['dart_annual_cfs']['first_receipt_sha256']='new-receipt'
+    current['source_sha256']='new-publication'
+    records={'previous':prior,'current':current}
+    monkeypatch.setattr('newscatalystos.era_daily_assessment.read_latest',
+        lambda root,as_of,now:(('current' if as_of>AT else 'previous'),0))
+    monkeypatch.setattr('newscatalystos.era_daily_assessment.assessment_for',
+        lambda company,snapshot:deepcopy(records[snapshot]))
+    def result():
+        view=outlook([row('news','2026-10-19')])
+        enrich_followup_assessments(view,'unused',since=AT,as_of=datetime(2026,10,19,tzinfo=timezone.utc),now=datetime(2026,10,19,tzinfo=timezone.utc))
+        return view['candidates'][0]['recent_news_comparison']['company_assessment_comparison']['company_results'][0]
+    assert result()['status']=='UNCHANGED_ASSESSMENT'
+    current['value']['dart_annual_cfs']['revenue_krw']=1200
+    prior['value']['evidence_brief']={'supporting_evidence':[{'reason':'이전 긍정'}]}
+    current['value']['evidence_brief']={'supporting_evidence':[{'reason':'새 긍정'}],'weakening_evidence':[{'reason':'새 위험'}]}
+    diff=result()
+    assert diff['status']=='ASSESSMENT_EVIDENCE_CHANGED'
+    assert diff['observation_changes']['metrics']==[{'field':'revenue_krw','previous':1000,'current':1200}]
+    assert diff['observation_changes']['support_added']==['새 긍정']
+    assert diff['observation_changes']['support_removed']==['이전 긍정']
+    assert diff['observation_changes']['risk_added']==['새 위험']
+    assert not diff['news_changes_financial_rating']

@@ -1026,6 +1026,19 @@ function renderRecentThemeComparison(place,data,withButton=false){
     for(const company of assessments.company_results){
       const panel=node("details","finding-detail");
       panel.append(node("summary","",company.source_company+" → "+company.status_label));
+      const changes=company.observation_changes;
+      if(changes){
+        const fields={fiscal_year:"재무연도",revenue_krw:"매출(원)",operating_income_krw:"영업이익(원)",net_income_krw:"순이익(원)",
+          operating_margin_pct:"영업이익률(%)",operating_cashflow_krw:"영업현금흐름(원)",cash_after_ppe_intangibles_krw:"유형·무형자산 투자 후 현금(원)"};
+        const value=v=>v===null?"미확보":typeof v==="number"?new Intl.NumberFormat("ko-KR",{maximumFractionDigits:4}).format(v):String(v);
+        for(const change of changes.metrics)
+          panel.append(node("p","finding-detail",(fields[change.field]||change.field)+": "+value(change.previous)+" → "+value(change.current)));
+        for(const [key,label] of [["support_added","새로 제시된 긍정 근거"],["support_removed","이전 긍정 근거에서 제외"],
+          ["risk_added","새로 제시된 약화·위험 근거"],["risk_removed","이전 약화·위험 근거에서 제외"],
+          ["limitations_added","추가된 평가 한계"],["limitations_removed","이전 평가 한계에서 제외"]])
+          for(const reason of changes[key]||[])panel.append(node("p","finding-detail",label+": "+reason));
+        panel.append(node("p","fineprint","기존 평가 항목의 변화입니다. 투자등급 상향·하향이나 위험 해소를 확정하지 않습니다."));
+      }
       renderEraDailyAssessment(panel,company.current);box.append(panel);
     }
   }

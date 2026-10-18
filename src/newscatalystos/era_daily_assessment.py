@@ -304,12 +304,27 @@ def enrich_followup_assessments(outlook,root,*,since,as_of,now):
             if company not in cache:
                 latest=assessment_for(company,current);prior=assessment_for(company,previous)
                 available=latest['status']=='AVAILABLE';had=prior['status']=='AVAILABLE'
-                # Price/session/rank and publication time are not financial evidence.
+                # Compare displayed observations, excluding receipt and market metadata.
                 def content(a):
-                    v=a['value']
-                    return {k:v.get(k) for k in ('dart_annual_cfs','evidence_brief','official_annual_sources')}
+                    v=a['value'];annual=v.get('dart_annual_cfs',{})
+                    existing=annual.get('existing_financial_assessment',{})
+                    brief=v.get('evidence_brief',{})
+                    reasons=lambda values:sorted({r['reason'] for r in values if isinstance(r,dict) and isinstance(r.get('reason'),str)})
+                    return {'metrics':{k:annual.get(k) for k in (
+                        'fiscal_year','revenue_krw','operating_income_krw','net_income_krw',
+                        'operating_margin_pct','operating_cashflow_krw','cash_after_ppe_intangibles_krw')},
+                        'support':reasons(brief.get('supporting_evidence',existing.get('competitiveness',{}).get('supporting',[]))),
+                        'risk':reasons(brief.get('weakening_evidence',existing.get('competitiveness',{}).get('weakening',[])+existing.get('financial_risk',{}).get('signals',[]))),
+                        'limitations':sorted(set(brief.get('unavailable_or_limited',existing.get('missing',[])+existing.get('limitations',[]))))}
+                changes=None
                 if available and had:
-                    same=(latest['entity_id']==prior['entity_id'] and content(latest)==content(prior))
+                    old=content(prior);new=content(latest)
+                    changes={'metrics':[{'field':k,'previous':v,'current':new['metrics'][k]}
+                        for k,v in old['metrics'].items() if v!=new['metrics'][k]]}
+                    for k in ('support','risk','limitations'):
+                        changes[k+'_added']=sorted(set(new[k])-set(old[k]))
+                        changes[k+'_removed']=sorted(set(old[k])-set(new[k]))
+                    same=(latest['entity_id']==prior['entity_id'] and not any(changes.values()))
                     status='UNCHANGED_ASSESSMENT' if same else 'ASSESSMENT_EVIDENCE_CHANGED'
                 elif available:status='NEWLY_AVAILABLE_ASSESSMENT'
                 else:status='ASSESSMENT_UNAVAILABLE'
@@ -320,6 +335,7 @@ def enrich_followup_assessments(outlook,root,*,since,as_of,now):
                         'ASSESSMENT_UNAVAILABLE':'기업 평가 미확보 · 약화 판정 아님'}[status],
                     'current':latest,'previous_status':prior['status'],
                     'previous_source_sha256':prior.get('source_sha256'),
+                    'previous_producer_evaluated_at':prior.get('producer_evaluated_at'),'observation_changes':changes,
                     'news_changes_financial_rating':False,'investment_merit':'NOT_ASSESSED'}
             results.append(deepcopy(cache[company]))
         comparison['company_assessment_comparison']={'since':since.isoformat(),'as_of':as_of.isoformat(),

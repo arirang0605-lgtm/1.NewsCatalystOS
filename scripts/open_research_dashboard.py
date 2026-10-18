@@ -575,6 +575,9 @@ class Handler(BaseHTTPRequestHandler):
                 from newscatalystos.source_share import _when
                 now = datetime.now(timezone.utc)
                 at = _when(query["as_of"][0], "as of") if "as_of" in query else now
+                if query.get('material',['0']) not in (['0'],['1']):
+                    raise ValueError('invalid material option')
+                with_material=query.get('material',['0'])==['1']
                 # Unfiltered existing receiver URL uses the completed edition
                 # once the hourly producer is connected. Explicit analytical
                 # filters retain the original live comparison behavior.
@@ -622,7 +625,7 @@ class Handler(BaseHTTPRequestHandler):
                             since=_when(query['since'][0],'material since') if 'since' in query else default_since(at),
                             as_of=at,scope=key,now=now)
                         projected=selected if key=="base" else project_themes(selected,key,snap)
-                        exported.extend(attach_material(projected,material))
+                        exported.extend(attach_material(projected,material) if with_material else projected)
                     payload=build_theme_bundle(exported,decision_at=at,now=now)
                     self._send(200,payload,"application/json; charset=utf-8")
                     return
@@ -630,7 +633,7 @@ class Handler(BaseHTTPRequestHandler):
                     as_of=at, query='' if url.path=='/api/company-research' else query.get("q", [""])[0], now=now,
                     since=_when(query['since'][0],'period start') if 'since' in query else None,
                     activity=query.get('activity',['all'])[0]) if self.server.documents else [])
-                if url.path=="/api/themes" and self.server.documents:
+                if url.path=="/api/themes" and self.server.documents and with_material:
                     material=materials_for_store(ThemeStore(self.server.documents/'theme_history'),
                         since=_when(query['since'][0],'material since') if 'since' in query else default_since(at),
                         as_of=at,scope='base',now=now)

@@ -163,7 +163,10 @@ def test_actual_http_contract_and_article_keep_news_to_era_direction(tmp_path,mo
         with urlopen(f'http://127.0.0.1:{server.server_port}'+route+'?'+urlencode(query),timeout=20) as r:
             assert r.status==200;return json.load(r)
     try:
-        a=get('/api/themes',{});b=get('/api/themes',{})
+        # Existing analytical receiver bytes remain stable; material is explicit.
+        legacy=get('/api/themes',{})
+        assert 'catalyst_material' not in legacy['ThemeCandidates'][0]
+        a=get('/api/themes',{'material':'1'});b=get('/api/themes',{'material':'1'})
         assert a==b
         row=next(t for t in a['ThemeCandidates'] if t['theme_id']==theme['theme_id'])
         assert row['catalyst_material']['selection_owner']=='EraLeader'

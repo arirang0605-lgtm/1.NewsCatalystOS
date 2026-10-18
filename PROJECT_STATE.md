@@ -1,27 +1,26 @@
-# PROJECT_STATE — 실제 뉴스·기업 근거 연결과 반복 실행 검증
+# PROJECT_STATE — 발주·납품 근거와 위험 비교
 
-**목적·흐름:** 실제 뉴스 → 뉴스 분석(경제 변화·공통 사건·초기 테마) → 관련 산업·기업 → 기업별 근거·원문 조회. 전력기기를 우선 적용하며 조건부 기업 경제영향은 기존 EraLeader 평가에 연결한다. 사실/추론·계획/실행·미확인을 구분하고 원본/PIT/비밀·무주문을 지킨다.
+**목적·흐름:** 실제 뉴스 → 뉴스 분석(경제 변화·공통 사건·초기 테마) → 관련 산업·기업 → 기업별 근거·원문 조회. 전력기기 우선 적용. 사실/추론·계획/실행·미확인, 원본/PIT/비밀·무주문을 지킨다.
 
-기준 2026-10-18T11:29:34.236449+00:00. News 기능·배포 **fa4e862b707d47decb05ab7df1e10239a61bd457**. 기존 Era 연결 기능 기준 **934ff8fe19c7db2b9dc044ef477ca3272194fc8c**는 다른 작업의 완료 증거를 재사용했으며 이 채팅에서는 Era 코드/DB/Git/수집기에 쓰지 않았다.
+기준 2026-10-18T17:49:35.405544+00:00. News 기능·운영 고정판 **42904c78c2952d0cde5e7660739d399444418a29**. 개발 codex/real-data-path와 SSD 출력 코드 내보내기/운영 release를 분리했다.
 
-실제 후속 기사7건에서 읽기 분석 → 정확 원문 → 기존 회사 평가를 조회했다. LS ELECTRIC·효성중공업은 AVAILABLE, HD현대일렉트릭은 현재 회사 평가 판본 미포함이다. HD 기존 전시장 관측의 정확 회사명/종목·가격은 있으나 연간 연결재무가 WAIT_VERIFIED_ANNUAL_CFS_MISSING이다. 이를 새 완료 평가나 DART 발행자 식별로 바꾸지 않았다.
+## 새로 작동하는 경로
+- LS 10월1일 북미 AI 데이터센터 9개 변전소 초고압변압기 계약, LS America 미국 AI 배전 납품 사례, Collett 영국 National Grid Hyosung 변압기 운송·설치 완료의 제목·원문3건을 기존 입력→분석→연결→조회 경로로 추가했다. 제목 판본406→409, 관찰49주제/54행동. 원문 전문 저장0, 추가 AI0.
+- 기존 비교7→10건. HD 환율·발주 전환 시점 전망과 효성 고마진 매출 인식 이연·중동 운송 지연 설명을 외부 위험 참고로 연결했다. 기존 두 분석의 새 판본이며 새 계약/뉴스 제목으로 중복 집계하지 않았다.
+- 날짜 없는 공식 납품 사례2건은 v3에서 reported_date=null. 실제 수신 시점은 유지하며 PUBLICATION_DATE_UNAVAILABLE로 표시하고 같은 계약의 후속 진전·차질 판정에서 제외한다. 수집일·다른 보도자료 날짜·목록의 월을 발행일로 만들지 않는다.
+- v3에서 원문이 수요 원인을 명시하지 않으면 factor_codes=[]로 보존한다. 영국 납품을 노후 전력망 교체로 추정 분류하지 않았다. 기존 v1/v2 분류 형식은 유지한다.
+- 넓은 사업 근거 SUPPORT_ADDED, 세 회사 추적 계약 모두 NO_NEW_EXECUTION_PROOF. 실제 취소·수요 감소 발생 근거는 선택 자료에서 미확보. 관련 사업의 완료 실례를 기존 계약의 이행으로 전이하지 않는다.
+- 모든 비교10건의 실제 정확 기사 조회 성공. LS·효성은 기존 Era 공식 연결재무·기업 평가 AVAILABLE, HD는 COMPANY_NOT_IN_SNAPSHOT. LS 납품 사례에서 기존 평가까지 실제 화면 확인.
 
-전력기기 사업 수요·공급의 넓은 근거는 SUPPORT_ADDED, 세 기업 모두 추적 개별 계약은 NO_NEW_EXECUTION_PROOF. 실적 대상 기간·고객·제품이 다른 기사와 납품 예정은 같은 계약의 추가 이행으로 합치지 않는다. LS 위험 참고 기사는 실제 취소·수요 감소 발생과 구분한다. 선택 자료에서 실제 취소/수요 감소는 확인하지 못했으며 미확보를 약화로 세지 않는다.
+## 시험·실자료·운영
+- 최종 DEV 관련 시험 **59 PASS/0 FAIL/0 SKIP**, 동일 고정판 SSD 시험 **59 PASS/0 FAIL/0 SKIP**. ERALEADER_SOURCE_ROOT를 읽기 전용으로 지정해 기존 수신 계약 시험10건도 실행했다. 개발 중 UI 조사 표현 오류와 날짜 없는 자료의 수신 계약 불일치는 수정 후 재검증했다.
+- 기존 Era v1 경제영향 입력은 날짜를 요구하며 DELIVERY_PLANNED 실행 단계가 없다. 날짜 없는2건과 해당 계획 단계1건은 News 원문·읽기·기업 평가 화면에 보존하고 이 버전 평가 입력에서는 제외한다. 날짜 위조/분석 삭제/수신기 수정 없이 호환한다. 실제 최신 고정 게시 수신: 3개 주제/7개 입력, 기존 평가 수신 5개, 오류0, HD는 미연결.
+- 과거 고정 시점 기본/확장 내보내기 SHA 동일. 분석 재입력 신규0, 고정 게시 재실행 ALREADY_PUBLISHED. 기존 게시·분석 파일과 기존 제공자 설정 값 보존.
+- dashboard와 research-approved만 새 코드로 교체, 기존 시간당 주기·출처·경로 유지, core/MOTIR 설정 SHA 동일. 최신 RunAtLoad 실행 COMPLETE·신규 분석0·게시 재사용. 고정 게시70테마. Era 코드/DB/Git/운영설정/수집기는 변경하지 않았다.
+- 원V1 **36/36** 기록 유지. 이전 fa4e862 전체 범위 7492 PASS/10 SKIP 증거는 이전 코드 기준이며 이번 전체 재실행으로 표시하지 않는다. 공동 전체 제품·미국·모든 회사 인수 완료와 구분한다.
 
-관찰49주제/54행동/406제목판본, 원문 읽기 기준3건+후속7건. 기본 반복 실행2회 신규분석0, 기존 보고서·등록 설정·과거 시점 내보내기 동일. 신규/정정만 처리하고 보고서 저장 뒤 테마 저장 전 중단도 다음 실행에 재개한다. 정확 기사 조회는 전체 등록/중복 소유 검사를 유지하고 해당 출처의 완료 영수증만 읽어 60초 시간 초과를 해소했다.
+## HD 남은 단절과 권한
+현재 Era 완료 daily50 판본 SHA 17df8208f1e508e1e350c5b97691534867b0feec2364f5c1e749e78b1417989e에는 HD가 없다. 최신 전시장 원본도 WAIT_VERIFIED_ANNUAL_CFS_MISSING. 정확한 종목명/가격이나 공개 IR을 검증 연간재무·완료 기업 평가로 바꾸지 않는다.
+사용자에게 HD(267260)의 누락 2024·2025 연간 CFS만 기존 Era 작업으로 확보·평가하고 새 결과를 소비하는 읽기 전용 예외를 요청했다. **아직 응답·승인 없음**. 원본 재사용, 새 연구 결과만, Era 코드/DB/Git/운영설정 무변경을 제안했으며 실행하지 않았다. 최신 응답이 있으면 그 범위부터 적용한다. 승인 대기는 HD에만 적용했고 가능한 News 기능·실자료·운영 작업은 완료했다.
 
-전체 회귀 범위 확인 fa4e862b707d47decb05ab7df1e10239a61bd457 (선행 통과 6590건 재사용 + 수정 영향/잔여 시험 재검증, 초기404 호환 실패는 수정 후 통과; 단일 연속 재실행으로 표시하지 않음): **7492 PASS / 0 FAIL / 10 SKIP**. 변경 영향 시험117, 수신 호환485, 명시 material 조회73, 정확 출처105 PASS/10 SKIP는 서로 중복될 수 있어 합산하지 않는다. 기존 분석 수신 JSON bytes를 보존하고 조건부 경제영향은 material=1 또는 기존 고정 게시로 제공한다.
-
-배포: 기존 dashboard와 research-approved만 같은 고정판으로 연결했다. 시간당 예약·출처·자료 경로 유지, core/MOTIR 설정 SHA 보존. 실제 새 예약 실행 COMPLETE, 운영 API3사·고정 게시 조회 성공. 별도 폴더 복원 DB2개 integrity=ok. 실제 Gemini 정산109회/89.6434원(운영 확인 시각 2026-10-18T11:28:19.158852+00:00); 미정산 예약15.1552원·월 한도50,000원 유지. 추가 외부 자료/전체 원문/새 의존성·평가 엔진·주문·public push 없음.
-
-## 현재 완료조건 판정
-
-| 조건 | 기능·실자료·운영 판정 | 근거와 남은 범위 |
-|---|---|---|
-| NC-01~06 | News 승인 기능 구현·시험 및 대표 실자료 경로 확인 | 36/36 원V1 기준 유지. 설정 허용 출처·저장 제목/허가 본문 범위이며 모든 인터넷 뉴스나 자동 원문 권리를 뜻하지 않음 |
-| OP-01~04 | News 실제 입력→저장→화면/표준 출력, 예약·복구·중복/PIT·최종 전체 회귀 확인 | 이번 실조회 장애와 기존 수신 형식 회귀 수정. 합성 취소/약화 시험과 실제 미확보를 구분 |
-| OP-05~06 | 별도 폴더 복원 읽기 및 실제 Gemini·비용/캐시/예산 확인 | 기존 유효 복원 증거 재사용 및 현 DB 읽기 검증. 새 장기 대기·인적 검수 조건 없음 |
-| INT-01~04 | 기존 뉴스 게시→Era 실제 후보→읽기 전용 조회/화면·요약·중립출력 연결 증거 재사용·현재 조회 보완 | LS·효성 실제 연결. HD 회사 평가/공식 재무는 해당 경로만 미확보. 모든 회사·미국·Era 전체 제품 인수 완료를 선언하지 않음 |
-| ER-01~06 | 이 채팅의 구현/수정 권한 밖, 전체 인수 판정하지 않음 | Era 자료와 코드/DB/Git는 읽기 전용. 다른 작업의 완료 증거를 이 채팅의 구현으로 세지 않음 |
-
-증거: output/continuous_completion_20261018/의 full_regression_reconciled.json·full_regression.xml·remaining_regression.xml·regression_resume_selection.json·real_incremental.json·real_article_assessments.json·operating_article_proof.json·first_tick_summary.json·activation.json·operational_verification.json·hd_existing_coverage.json·recent_ls_company_proof.png·operating_three_company_comparison.png. 기존 공동 전달 증거는 output/company_economic_bridge_20261018/. DEV와 SSD 테스트 내보내기/운영 release 분리. 사용자 untracked vision 파일 보존. 다음 NEXT_TASK.md.
+증거: output/power_followups_20261019/의 selected_source_metadata.json, followup_reading_input.json, ingest_receipts.json, publication_and_activation_latest.json, live_verification_latest.json, actual_receiver_before.json·after.json, ssd_tests_latest.txt, ls_delivery_company_proof.png. output은 Git 제외·비공개. 기존 untracked vision 파일 보존. 공개 push 없음. 다음 NEXT_TASK.md.

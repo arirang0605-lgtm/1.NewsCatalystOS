@@ -841,7 +841,7 @@ async function loadSavedThemeChange(context,theme,start,end,place){
 function renderSavedTitleAnalysis(place,result){
   if(!result)return;
   const section=node("div","news-evidence-theme");
-  section.append(node("p","","저장 기사 제목 경제 변화 분석 · RSS 제목 근거만"));
+  section.append(node("p","","저장 뉴스 분석 · 원문 제목의 경제 변화 근거"));
   if(result.status!=="READY"){
     const messages={SOURCE_NOT_AVAILABLE_AS_OF:"해당 시점에는 기사가 아직 가용하지 않음",
       NO_EXACT_SAVED_TITLE_ANALYSIS:"이 기사 판본의 저장 분석 보고서 없음",
@@ -863,8 +863,11 @@ function renderSavedTitleAnalysis(place,result){
         "N/A · 명시된 기업 당사자 없음"),
       node("p","","변화 원인: "+change.economic_driver+" · "+change.evidence_level+
         (change.extraction_method==="AI_SOURCE_SPAN_MATCHED"?" · AI 원문구간 대조(미검증)":" · 규칙/출처 보도")));
-    if(!change.industry_tags.includes("SEMICONDUCTOR"))
-      card.append(node("p","empty-small","이 사건은 V1 반도체 산업 검증 사례로 확정되지 않음"));
+    const industries={SEMICONDUCTOR:"반도체",POWER_EQUIPMENT:"전력기기",CRITICAL_MINERALS:"핵심광물",
+      QUANTUM_TECHNOLOGY:"양자기술",ROBOTICS:"로봇",SOFTWARE_SERVICES:"소프트웨어·디지털 서비스"};
+    card.append(node("p","finding-detail",change.industry_tags.length?
+      "관련 산업: "+change.industry_tags.map(x=>industries[x]||x).join(" · ")+" · 원문 표현 기반 연결":
+      "산업 미분류 · 경제 행동과 명시 기업은 보존"));
     section.append(card);
   }
   const proof=node("details","finding-detail");
@@ -929,8 +932,6 @@ function renderSavedArticleCompanyContext(place,context,articleContext){
   for(const theme of context.themes){
     const card=node("div","news-evidence-theme");
     card.append(node("p","",theme.name+" · "+theme.theme_status));
-    if(!theme.industry_supported_in_v1)
-      card.append(node("p","empty-small","이 테마는 V1 반도체 산업 기능 검증 대상으로 확정하지 않음"));
     if(!theme.direct_parties.length)
       card.append(node("p","empty-small","N/A · 기사에서 직접 확인된 기업 당사자 없음"));
     for(const company of theme.direct_parties){
@@ -1061,7 +1062,9 @@ async function searchStoredNews(event){
       action.type="button";
       const evidence=node("div","news-evidence-results");
       action.addEventListener("click",()=>loadSavedNewsEvidence(item,phrase,evidence));
-      card.append(link,action,evidence);place.append(card);
+      const common=node("button","news-evidence-button","공통 뉴스 분석·기업 보기");common.type="button";
+      common.addEventListener("click",()=>loadSavedNewsEvidence({...item,analysis_scope:"ECONOMIC_DISCOVERY"},phrase,evidence));
+      card.append(link,action,common,evidence);place.append(card);
     }
     if(result.has_more_matches)place.append(node("p","fineprint","검색 결과는 최신 20개까지 표시합니다."));
   }catch(error){message.textContent=error.message||"저장 뉴스 검색 실패";}

@@ -150,3 +150,38 @@ def test_exact_news_analysis_industry_company_excerpt_and_export_over_http(tmp_p
     assert code==0 and repeat['discovery']['sources'][0]['theme_versions_created']==0
     assert opener.calls==1
     assert read_discovery(root)['counts']['events']==1
+
+
+def test_discovery_screen_click_preserves_exact_source_and_shows_related_industry(tmp_path,monkeypatch):
+    workspace,documents,_=collect(tmp_path,monkeypatch)
+    data=read_discovery(documents/'economic_discovery')
+    script=r"""const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
+const input=JSON.parse(fs.readFileSync(0,'utf8')),code=fs.readFileSync('scripts/dashboard_assets/app.js','utf8');
+function node(tag,cls,txt){return {tag,textContent:txt||'',children:[],listeners:{},
+ append(...x){this.children.push(...x)},replaceChildren(...x){this.children=x},
+ addEventListener(k,f){this.listeners[k]=f}}}
+const place=node('div'),els={'economic-discovery':place,'discovery-panel':node('div'),'discovery-summary':node('div')};
+let request=null,selection=null;
+const ctx={node,$:id=>els[id],economicActionLabels:{CONTRACT:'수주·계약'},economicPhaseLabels:{SOURCE_REPORTED:'출처 보도'},
+ URLSearchParams,fetch:async u=>{request=u;return {ok:true,json:async()=>({})}},
+ showSavedNewsEvidence:(p,d,item)=>{selection=item},
+ renderDiscoveryCauses:()=>{},renderThemeOutlook:()=>{},renderLaunchComparisons:()=>{},renderCatalystMaterial:()=>{}};
+vm.runInNewContext(code.slice(code.indexOf('async function loadSavedNewsEvidence('),code.indexOf('async function searchStoredNews(')),ctx);
+vm.runInNewContext(code.slice(code.indexOf('function renderEconomicDiscovery('),code.indexOf('function renderThemeOutlook(')),ctx);
+vm.runInNewContext(code.slice(code.indexOf('function renderSavedTitleAnalysis('),code.indexOf('async function loadSavedArticleCompanyExcerpt(')),ctx);
+ctx.renderEconomicDiscovery(input);
+function all(n){return [n,...n.children.flatMap(all)]}
+(async()=>{
+const button=all(place).find(n=>n.textContent==='기업·분석 근거 보기');assert(button);
+await button.listeners.click();
+const query=new URLSearchParams(request.split('?')[1]),source=input.candidates[0].source_evidence[0];
+assert.equal(query.get('discovery'),'1');assert.equal(query.get('event_id'),source.source_event_sha256);
+assert.equal(query.get('title_sha256'),source.title_sha256);assert.equal(selection.analysis_scope,'ECONOMIC_DISCOVERY');
+const analysis=node('div');ctx.renderSavedTitleAnalysis(analysis,{status:'READY',economic_changes:[{
+action:'CONTRACT',topic:'변압기',phase:'SOURCE_REPORTED',entity_ids:['가상전기'],economic_driver:'UNKNOWN',
+industry_tags:['POWER_EQUIPMENT'],evidence_level:'REPORTED'}]});
+assert(all(analysis).some(n=>n.textContent.includes('관련 산업: 전력기기')));
+})().catch(e=>{console.error(e);process.exitCode=1});
+"""
+    subprocess.run(['node','-e',script],input=json.dumps(data),text=True,capture_output=True,
+                   cwd=Path(__file__).resolve().parent.parent,check=True)

@@ -9,7 +9,7 @@ from copy import deepcopy
 from hashlib import sha256
 
 from .common_cause_comparison import _cause
-from .economic_changes import extract_economic_changes, normalized
+from .economic_changes import extract_economic_changes, normalized, policy_cause_key
 from .source_share import _when, SourceShareError
 from .theme_emergence import _bytes
 from .theme_outlook import _observations, _literal
@@ -30,7 +30,7 @@ def _bound_cause(row):
         return None
     change = changes[0]
     driver = change['economic_driver']
-    if driver not in {'DEMAND_EXPANSION', 'DEMAND_RECOVERY'}:
+    if driver not in {'DEMAND_EXPANSION', 'DEMAND_RECOVERY', 'POLICY_ENABLEMENT'}:
         return None
     proof = _cause(change)
     if proof['status'] != 'STORED_EXPRESSION':
@@ -38,14 +38,25 @@ def _bound_cause(row):
     evidence = _literal(row['headline'], proof['source_expression'])
     if evidence is None or evidence['sha256'] != proof['expression_sha256']:
         return None
-    scope = change.get('demand_scope') or {}
-    if scope.get('status') != 'EXPLICIT':
-        return None
-    basis = (change.get('demand_recovery_cause') or {}).get('basis')
-    if basis is None:
-        basis = 'ORDER' if '주문' in scope['source_expression'] else 'DEMAND'
-    key = (driver, basis, normalized(scope['destination']))
-    subject = scope['destination']
+    if driver == 'POLICY_ENABLEMENT':
+        policy = change.get('policy_cause') or {}
+        # Missing names/jurisdictions and shared program labels cannot prove
+        # the same policy. Preserve destination presence in the existing key.
+        if (not policy.get('policy_name') or not policy.get('jurisdiction')
+                or change['action'] not in {'INVESTMENT', 'INVESTMENT_EXECUTION',
+                                           'PRODUCTION_START', 'CAPACITY_ADDITION', 'CONTRACT'}):
+            return None
+        key = (driver, 'POLICY', *policy_cause_key(policy))
+        subject = policy['jurisdiction'] + ' · ' + policy['policy_name']
+    else:
+        scope = change.get('demand_scope') or {}
+        if scope.get('status') != 'EXPLICIT':
+            return None
+        basis = (change.get('demand_recovery_cause') or {}).get('basis')
+        if basis is None:
+            basis = 'ORDER' if '주문' in scope['source_expression'] else 'DEMAND'
+        key = (driver, basis, normalized(scope['destination']))
+        subject = scope['destination']
     # Parser phase is deliberately allowed to be more conservative than the
     # old watch. Future-tense execution cannot become a reported physical act.
     phase = 'PLANNED' if 'PLANNED' in {row['phase'], change['phase']} else 'SOURCE_REPORTED'
@@ -68,6 +79,8 @@ def build_discovery_causes(themes, titles, candidates, *, as_of, since, now):
         source = {k: deepcopy(v) for k, v in row.items() if k != 'objects'}
         source.update(in_period=_when(row['basis_available_at'], 'basis') >= start, product=change['topic'], phase=phase, cause_evidence=cause,
                       source_theme_snapshots={tid: snapshots[tid] for tid in row['theme_ids']})
+        if 'policy_cause' in change:
+            source['policy_cause'] = deepcopy(change['policy_cause'])
         grouped[key].append((subject, source))
     groups = []
     for key, values in sorted(grouped.items()):
@@ -83,7 +96,9 @@ def build_discovery_causes(themes, titles, candidates, *, as_of, since, now):
                  for action in actions for d, direction, premise, counter in PATHS.get(action, [])]
         groups.append({'group_id': sha256(_bytes([SCHEMA, key])).hexdigest(),
             'subject': values[0][0], 'economic_driver': key[0],
-            'cause_basis': key[1], 'status': 'SOURCE_REPORTED_COMMON_CAUSE_HYPOTHESIS',
+            'cause_basis': key[1],
+            **({'policy_cause_key': list(key[2:])} if key[0] == 'POLICY_ENABLEMENT' else {}),
+            'status': 'SOURCE_REPORTED_COMMON_CAUSE_HYPOTHESIS',
             'products': products, 'economic_actions': actions, 'source_company_names': names,
             'theme_ids': sorted({t for r in rows for t in r['theme_ids']}),
             'event_ids': sorted({r['event_id'] for r in rows}),
@@ -99,5 +114,7 @@ def build_discovery_causes(themes, titles, candidates, *, as_of, since, now):
             'since': since.isoformat(), 'interpretation_at': now.isoformat(),
             'interpretation_is_historical_record': False,
             'source_writes': False, 'original_events_unchanged': True,
-            'scope': 'EXPLICIT_SEMICONDUCTOR_END_USE_DEMAND',
+            'scope': ('EXPLICIT_SEMICONDUCTOR_DEMAND_OR_POLICY'
+                      if any(g['economic_driver'] == 'POLICY_ENABLEMENT' for g in groups)
+                      else 'EXPLICIT_SEMICONDUCTOR_END_USE_DEMAND'),
             'note': '조회 시 기존 원문을 해석한 연결 가설 · 당시 저장된 사건·점수·수혜 판정은 변경하지 않음'}

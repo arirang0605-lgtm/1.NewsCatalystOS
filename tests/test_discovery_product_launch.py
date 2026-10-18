@@ -114,7 +114,7 @@ def test_immutable_v1_reports_PIT_and_old_themes_preserved_after_v2_interpretati
     assert _validate_report(old,at)==at  # v1 replay despite newer extraction
     later=at+timedelta(minutes=1);sourcepins=fingerprint(w.registry_path.parent.parent)
     code,new=evaluate(opts,now=later)
-    assert code==0 and new['rule_version']=='rss-event-first-v2' and new['economic_changes_count']==7
+    assert code==0 and new['rule_version']==RULE_VERSION and new['economic_changes_count']==7
     assert new['theme_versions_created']==6
     assert _validate_report(new,later)==later
     current=ThemeStore(root/'theme_history').search(now=later)

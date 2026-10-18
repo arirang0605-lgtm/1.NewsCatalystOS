@@ -1194,9 +1194,9 @@ function renderLaunchComparisons(place,groups){
 function renderDiscoveryCauses(place,data){
   if(!data)return;
   const section=node("section","theme-outlook");
-  section.append(node("h3","","공통 수요 원인으로 연결한 반도체 사업 행동"));
+  section.append(node("h3","","명시 수요·정책 원인으로 연결한 반도체 사업 행동"));
   if(!data.groups?.length){
-    section.append(node("p","empty-small","현재 저장 자료에서 서로 다른 반도체 제품의 행동을 연결하는 명시 수요처 근거는 확보되지 않았습니다."));
+    section.append(node("p","empty-small","현재 저장 자료에서 서로 다른 반도체 제품의 행동을 연결하는 명시 수요처·정책 근거는 확보되지 않았습니다."));
   }
   for(const row of data.groups||[]){
     const card=node("article","finding");

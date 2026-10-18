@@ -12,8 +12,8 @@ from .economic_changes import ACTIONS,business_start_phase,market_entry,normaliz
 from .power_equipment import PRODUCTS
 
 MODE='ECONOMIC_DISCOVERY'
-RULE_VERSION='rss-event-first-v2'
-SUPPORTED_RULE_VERSIONS=('rss-event-first-v1',RULE_VERSION)
+RULE_VERSION='rss-event-first-v3'
+SUPPORTED_RULE_VERSIONS=('rss-event-first-v1','rss-event-first-v2',RULE_VERSION)
 # Action grammar is sector-independent. Specializations of the existing
 # action vocabulary only bound the verb span; they do not require a product.
 KOREAN=tuple((kind,re.compile(
@@ -63,7 +63,16 @@ def _companies(actor):
     return [value] if len(value)<=80 else []
 
 
-def _raw_events(text):
+# A source-stated policy modifier precedes the company's own action. This
+# grammatical boundary has no industry/product dictionary. It is not a policy
+# identity or causal validation; the optional causal view performs those checks.
+_POLICY_MODIFIER=re.compile(
+    r'^[^,;.!?。\n]{1,240}?(?:(?:수출|수입|생산)\s*규제\s*(?:완화|폐지)'
+    r'|(?:수출|수입|생산)\s*허가\s*(?:승인|취득))'
+    r'(?:(?:으)?로(?:\s*인해)?|에\s*(?:따라|대응해|대비해))(?=$|\s)\s*')
+
+
+def _raw_events(text, *, include_policy_actions=False):
     if NEGATIVE.search(text) or CONTEXT.search(text):return []
     events=[]
     # Preserve offsets in the original title; don't translate or rewrite it.
@@ -79,6 +88,16 @@ def _raw_events(text):
         for action,pattern in KOREAN:
             for match in pattern.finditer(body):
                 candidates.append((action,match))
+        if include_policy_actions and len(candidates)!=1 and subject and _companies(subject['actor']):
+            modifier=_POLICY_MODIFIER.match(body)
+            if (modifier and not SUBJECT.match(body[modifier.end():])
+                    and not any(pattern.search(body[:modifier.end()])
+                                for kind,pattern in KOREAN if kind!='POLICY_CHANGE')):
+                # Scan after the connector: a production restriction must not
+                # consume the later production verb. Offsets stay in the title.
+                bounded=[(kind,m) for kind,pattern in KOREAN
+                         for m in pattern.finditer(body,modifier.end())]
+                if len(bounded)==1 and bounded[0][0]!='POLICY_CHANGE':candidates=bounded
         # '생산 재개' is one action; don't let a nested expression double count.
         if len(candidates)==1:
             action,match=candidates[0]
@@ -142,7 +161,7 @@ def _raw_events(text):
     return events[:30]
 
 
-def _discover_economic_events_v1(text):
+def _discover_economic_events_v1(text, *, include_policy_actions=False):
     """Detect -> bind literal object/party -> optional industry hints, in order.
 
     Unknown vocabulary is a stored watch topic, not a reason to drop an event.
@@ -152,7 +171,7 @@ def _discover_economic_events_v1(text):
     if not isinstance(text,str) or not 0<len(text)<=5000 or '\x00' in text:
         raise ValueError('bounded original news title required')
     result=[]
-    for action,topic,names,clause,start,end,has_object,issuer in _raw_events(text):
+    for action,topic,names,clause,start,end,has_object,issuer in _raw_events(text,include_policy_actions=include_policy_actions):
         # Linking occurs only AFTER an event exists. Removing every label rule
         # below must not change the number of detected events or their parties.
         links=[]
@@ -376,4 +395,7 @@ def discover_economic_events(text,*,rule_version=RULE_VERSION):
     if rule_version not in SUPPORTED_RULE_VERSIONS:raise ValueError('unsupported discovery rule version')
     existing=_discover_economic_events_v1(text)
     if existing or rule_version=='rss-event-first-v1':return existing
+    if rule_version=='rss-event-first-v3':
+        contextual=_discover_economic_events_v1(text,include_policy_actions=True)
+        if contextual:return contextual
     return _product_launch(text)

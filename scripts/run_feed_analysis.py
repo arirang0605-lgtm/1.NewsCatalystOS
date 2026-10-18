@@ -33,6 +33,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--scope", choices=("core", "motir"), default="core")
     p.add_argument("--industry",choices=("SEMICONDUCTOR","POWER_EQUIPMENT"),default="SEMICONDUCTOR",
                    help="V1 default unchanged; optional power profile requires separate explicit derived roots")
+    p.add_argument("--discover-economy",action="store_true",
+                   help="find source-stated economic actions first; unknown industry/company stays observable")
     p.add_argument("--registry", type=Path)
     p.add_argument("--inbox-root", type=Path)
     p.add_argument("--state", type=Path, help="existing ingestion state, read-only")
@@ -78,6 +80,9 @@ def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, d
         if identity_config is None and work.resolve() in standard_roots:
             identity_config = base / "company_identity.json"
         industry=getattr(opts,"industry","SEMICONDUCTOR")
+        if getattr(opts,"discover_economy",False):
+            if industry!="SEMICONDUCTOR":raise SourceShareError("event-first discovery does not select an industry")
+            industry="ECONOMIC_DISCOVERY"
         theme_path=getattr(opts,"theme_root",None)
         if industry!="SEMICONDUCTOR":
             if (opts.analysis_root is None or theme_path is None or work.resolve() in standard_roots

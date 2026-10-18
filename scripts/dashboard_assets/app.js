@@ -408,6 +408,7 @@ function render(data){
   const max=Math.max(1,...data.children.map(x=>x.items));
   for(const child of data.children){const row=node("div","breakdown-row"),track=node("div","bar-track"),bar=node("span","bar");bar.style.width=(child.items?Math.max(5,child.items/max*100):0)+"%";track.append(bar);row.append(node("span","",child.label),track,node("strong","",child.items+"건"));$("breakdown").append(row)}
   renderItems();
+  if($("economic-discovery"))renderEconomicDiscovery(data.economic_discovery);
   showNotes($("own-notes"),data.notes,"아직 이 기간의 메모가 없습니다.");
   $("inherited-panel").hidden=data.view==="day";$("inherited-title").textContent=data.view==="week"?"일간 메모":"주간 메모";
   showNotes($("inherited-notes"),data.inherited_notes,"하위 기간의 메모가 아직 없습니다.");
@@ -1063,3 +1064,33 @@ async function searchStoredNews(event){
   }catch(error){message.textContent=error.message||"저장 뉴스 검색 실패";}
 }
 $("news-search-form").addEventListener("submit",searchStoredNews);
+
+
+function renderEconomicDiscovery(data){
+  const place=$("economic-discovery"),panel=$("discovery-panel"),summary=$("discovery-summary");
+  place.replaceChildren();panel.hidden=!data;
+  if(!data)return;
+  if(data.status!=="READY"){
+    summary.textContent=data.status==="NOT_STARTED"?"경제 변화 공통 관찰을 아직 시작하지 않았습니다.":"관찰 자료 일부를 읽지 못했습니다. 기존 뉴스 분석은 유지됩니다.";
+    return;
+  }
+  summary.textContent="관찰 주제 "+data.counts.topics+"개 · 원문에 연결된 행동 "+data.counts.events+
+    "개 · 미분류 주제 "+data.counts.unclassified_topics+"개 · 먼저 탐지한 뒤 분류 · 심층 산업 검증 아님";
+  for(const row of data.candidates){
+    const card=node("article","finding");
+    const labels=[...new Set(row.industry_links.map(x=>x.label))];
+    card.append(node("h4","",row.watch_topic),
+      node("p","",labels.length?"관찰 분야 단서: "+labels.join(" · "):"산업 미분류 · 경제 행동은 계속 관찰"),
+      node("p","finding-detail","직접 명시 기업: "+(row.source_companies.join(" · ")||"미확보 · 회사 추정하지 않음")),
+      node("p","finding-detail",row.economic_actions.map(x=>economicActionLabels[x]||x).join(" · ")),
+      node("p","fineprint","최초 기록 "+row.first_observed_at+" · 공급망·수혜·시장 신규성 미확인"));
+    const evidence=node("details","finding-detail");evidence.append(node("summary","","원래 뉴스와 조건부 영향 확인"));
+    for(const source of row.source_evidence){
+      evidence.append(node("p","",source.headline),node("p","fineprint","원자료 확보 "+source.source_available_at+" · "+source.provider_id));
+      const a=node("a","source-link","뉴스의 원래 출처 ↗");a.href=source.source_url;a.target="_blank";a.rel="noopener noreferrer";evidence.append(a);
+    }
+    if(row.material)renderCatalystMaterial(evidence,row.material);
+    card.append(evidence);place.append(card);
+  }
+  if(!data.candidates.length)place.append(node("p","empty-small","현재 자료에서 명시적 경제 행동을 찾지 못했습니다. 산업 이름이 없다는 이유로 제외한 것은 아닙니다."));
+}

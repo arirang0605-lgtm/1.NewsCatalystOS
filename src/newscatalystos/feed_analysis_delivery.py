@@ -125,8 +125,22 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
         changes = row.get("economic_changes", [])
         if not isinstance(changes, list) or len(changes) > 30:
             raise SourceShareError("bounded title economic changes required")
+        discovery_mode=row.get('analysis_industry')=='ECONOMIC_DISCOVERY'
+        if discovery_mode:
+            from .economic_discovery import discover_economic_events,RULE_VERSION as discovery_rule
+            from .feed_analysis import BLOCKED
+            original=(discover_economic_events(row['headline'])
+                      if row['source_claim_classification'] not in BLOCKED else [])
+            # The existing receipt pins the RAW title. Evidence spans use its
+            # already-normalized display text, with a separate text SHA.
+            for item in original:item['change']['source_paragraph_sha256']=title
+            if (data.get('analysis_industry')!='ECONOMIC_DISCOVERY' or data.get('rule_version')!=discovery_rule
+                    or row.get('economic_discovery')!=original or changes!=[v['change'] for v in original]
+                    or row.get('ai_eligible') is not False):
+                raise SourceShareError('discovered event/industry link must match original evidence in that order')
         for change in changes:
             validate_change(change)
+            if discovery_mode:continue  # exact generic extraction fully validated above
             if row.get('analysis_industry')=='POWER_EQUIPMENT':
                 from .power_equipment import RULE_VERSION as power_rule
                 if (data.get('analysis_industry')!='POWER_EQUIPMENT' or data.get('rule_version')!=power_rule

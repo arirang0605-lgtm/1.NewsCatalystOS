@@ -29,7 +29,7 @@ def main(argv=None):
     p.add_argument('--comparison',action='store_true',help='pinned read-only cross-product/period query, separate from standard v3')
     p.add_argument('--changes',action='store_true',help='compare theme evidence before --since and at --as-of')
     p.add_argument('--materials',action='store_true',help='include news material novelty and conditional company impact for the independent selector')
-    p.add_argument('--material-industry',choices=('SEMICONDUCTOR','POWER_EQUIPMENT'),default='SEMICONDUCTOR',help='explicit material scope, does not modify source stores')
+    p.add_argument('--material-industry',choices=('SEMICONDUCTOR','POWER_EQUIPMENT','ALL_DISCOVERED'),default='SEMICONDUCTOR',help='explicit material scope, does not modify source stores')
     args=p.parse_args(argv)
     if args.materials and (args.changes or args.comparison or args.with_financials):
         p.error('--materials is an optional standard news delivery extension, not a financial report')

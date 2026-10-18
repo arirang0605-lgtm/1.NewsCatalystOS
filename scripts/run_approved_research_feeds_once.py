@@ -53,6 +53,10 @@ def parser() -> argparse.ArgumentParser:
                    help="News-owned immutable forward material delivery after the existing tick")
     p.add_argument("--material-base-root",type=Path,
                    help="existing base ThemeStore; required with --material-outbox")
+    p.add_argument("--economic-discovery-root",type=Path,
+                   help="optional event-first watch using current approved stored news, no industry prerequisite")
+    p.add_argument("--discovery-source-base",type=Path,
+                   help="existing core/MOTIR source base, required with discovery")
     operation = p.add_mutually_exclusive_group(required=True)
     operation.add_argument("--once", action="store_true")
     operation.add_argument("--dry-run", action="store_true")
@@ -135,6 +139,16 @@ def execute(opts: argparse.Namespace, *, run_tick=run_scheduled_triage.execute) 
                                       check_only=bool(opts.dry_run))
         except (SourceShareError,OSError,ValueError,TypeError,KeyError) as exc:
             integration={"status":"UNAVAILABLE","error_type":type(exc).__name__}
+    discovery=None
+    if getattr(opts,"economic_discovery_root",None) is not None:
+        try:
+            if getattr(opts,"discovery_source_base",None) is None:
+                raise SourceShareError("explicit current source base required for discovery")
+            from scripts.run_economic_discovery import execute as discover,source_roots
+            discovery=discover(opts.economic_discovery_root,
+                source_roots(opts.discovery_source_base,opts.workspaces_root),dry_run=bool(opts.dry_run))
+        except (SourceShareError,OSError,ValueError,TypeError,KeyError) as exc:
+            discovery={"status":"UNAVAILABLE","error_type":type(exc).__name__}
     delivery=None
     if getattr(opts,"material_outbox",None) is not None:
         try:
@@ -153,6 +167,7 @@ def execute(opts: argparse.Namespace, *, run_tick=run_scheduled_triage.execute) 
     delivery_failed=delivery is not None and (delivery['status']=='UNAVAILABLE'
                        or bool(delivery.get('unavailable_scopes')))
     return (4 if failures or delivery_failed else 0), {
+        **({"economic_discovery":discovery} if discovery is not None else {}),
         **({"era_daily_connection":integration} if integration is not None else {}),
         **({"material_delivery":delivery} if delivery is not None else {}),
         "status": "APPROVED_RESEARCH_FEED_TICK_PARTIAL" if failures or delivery_failed

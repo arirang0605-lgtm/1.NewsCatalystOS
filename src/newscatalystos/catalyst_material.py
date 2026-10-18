@@ -191,7 +191,7 @@ def assess_theme(before,after,*,since,scope,now):
 
 
 def materials_for_store(store,*,since,as_of,scope='base',now=None,industry='SEMICONDUCTOR'):
-    if industry not in {'SEMICONDUCTOR','POWER_EQUIPMENT'}:raise SourceShareError('unsupported material industry')
+    if industry not in {'SEMICONDUCTOR','POWER_EQUIPMENT','ALL_DISCOVERED'}:raise SourceShareError('unsupported material industry')
     present=now or datetime.now(timezone.utc)
     start=_when(since.isoformat(),'comparison since');at=_when(as_of.isoformat(),'as of')
     if start>at or at>present:raise SourceShareError('invalid material query time')
@@ -200,7 +200,7 @@ def materials_for_store(store,*,since,as_of,scope='base',now=None,industry='SEMI
     for theme_id,history in versions.items():
         before=history[0] if _when(history[0]['decision_at'],'baseline')<start else None
         after=history[-1]
-        supported=any(industry in h['industry_tags'] for h in history)
+        supported=industry=='ALL_DISCOVERED' or any(industry in h['industry_tags'] for h in history)
         if not supported and after['invalidated_event_ids']:
             # A fully retracted theme has no active industry tags. Its exact
             # first saved edition, not a keyword guess, retains its scope.

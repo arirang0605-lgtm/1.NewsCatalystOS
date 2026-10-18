@@ -147,6 +147,10 @@ def scan_saved_analysis(root: Path, *, document_root: Path | None = None, now: d
                         "report_sha256": match.group(1),
                         "evidence_status": "LOCAL_DIGEST_AND_SAVED_SCHEMA_CHECKED",
                     }
+                    if row.get("analysis_industry")=="ECONOMIC_DISCOVERY":
+                        item["economic_discovery"]=row["economic_discovery"]
+                        item["analysis_industry"]="ECONOMIC_DISCOVERY"
+                        item["source_title_sha256"]=row["source_title_sha256"]
                     # The same source version can be reanalyzed. The dashboard places it
                     # on its earliest available analysis day, rather than inflating trends.
                     old = records.get(key)

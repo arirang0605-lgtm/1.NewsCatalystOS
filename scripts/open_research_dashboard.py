@@ -99,6 +99,25 @@ class Handler(BaseHTTPRequestHandler):
             self._json(403, {"error": "local browser origin required"})
             return
         url = urlsplit(self.path)
+        if url.path=="/api/economic-discovery":
+            query=parse_qs(url.query)
+            try:
+                from newscatalystos.discovery_watch import read_discovery,export_discovery
+                from newscatalystos.source_share import _when
+                if set(query)-{'as_of','since','export'} or any(len(v)!=1 for v in query.values()):
+                    raise ValueError('invalid discovery query')
+                now=datetime.now(timezone.utc)
+                at=_when(query['as_of'][0],'as of') if 'as_of' in query else now
+                since=_when(query['since'][0],'since') if 'since' in query else None
+                if not self.server.documents:
+                    self._json(503,{'status':'DISCOVERY_NOT_CONFIGURED'});return
+                root=self.server.documents/'economic_discovery'
+                if query.get('export',['0'])==['1']:
+                    self._send(200,export_discovery(root,as_of=at,since=since,now=now),'application/json; charset=utf-8')
+                else:self._json(200,read_discovery(root,as_of=at,since=since,now=now))
+            except (SourceShareError,OSError,ValueError,TypeError,KeyError,sqlite3.Error):
+                self._json(400,{'status':'DISCOVERY_INPUT_UNAVAILABLE'})
+            return
         if url.path == "/api/news-evidence":
             if self.server.news_search_workspaces is None or self.server.documents is None:
                 self._json(503, {"error": "saved article evidence not configured"})
@@ -411,6 +430,13 @@ class Handler(BaseHTTPRequestHandler):
                     data['cross_product_demand']={'status':'UNAVAILABLE','groups':[]}
                     data['company_inclusion_presentations']={}
                     data['company_search']={'query':'','candidates':{}}
+                if self.server.documents and (self.server.documents/'economic_discovery').is_dir():
+                    try:
+                        from newscatalystos.discovery_watch import read_discovery
+                        data['economic_discovery']=read_discovery(self.server.documents/'economic_discovery',
+                            as_of=min(end,now),since=min(start,now),now=now)
+                    except (SourceShareError,OSError,ValueError,KeyError,TypeError,sqlite3.Error):
+                        data['economic_discovery']={'status':'UNAVAILABLE','candidates':[]}
                 if self.server.source_roots:
                     # Every approved RSS source keeps its own immutable theme
                     # history. Never merge identity merely by matching topic.

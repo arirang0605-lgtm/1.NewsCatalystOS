@@ -156,7 +156,16 @@ def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=(), in
     title, event = item["headline"], _version(item)
     category = _category(title)
     permitted = item["claim_classification"] not in BLOCKED
-    if industry=="POWER_EQUIPMENT":
+    discovery=None
+    if industry=="ECONOMIC_DISCOVERY":
+        from .economic_discovery import discover_economic_events,RULE_VERSION as profile_version
+        discovery=discover_economic_events(title) if permitted else []
+        # An action is admitted before any industry mapping or product filter.
+        terms=()
+        category=({"CONTRACT":"NEW_CONTRACT","INVESTMENT":"NEW_INVESTMENT",
+                   "PRODUCTION_START":"NEW_FACILITY","BUSINESS_START":"BUSINESS_START"}.get(
+                   discovery[0]['change']['action']) if len(discovery)==1 else None)
+    elif industry=="POWER_EQUIPMENT":
         from .power_equipment import matched_equipment,extract_power_equipment_changes,RULE_VERSION as profile_version
         terms=matched_equipment(title)
         if not terms:category=None
@@ -182,7 +191,7 @@ def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=(), in
         proposals.extend(FactProposal("CONTRACT_AMOUNT", value, title) for value in amounts)
     extracted = verify_extracted_facts(event, title, proposals,
         observed_at=_when(item["available_at"], "source seen"), checked_at=at, now=at)
-    fact = _claim(item, at) if category and permitted and (terms or products or category=="BUSINESS_START") else None
+    fact = _claim(item, at) if category and permitted and (terms or products or category=="BUSINESS_START" or discovery) else None
     own = [x for x in prior.facts if x.source_event_sha256 == event]
     baseline = PriorState(prior.reviewed_subject_id, at,
                           tuple(x for x in prior.facts if x.source_event_sha256 != event))
@@ -220,6 +229,9 @@ def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=(), in
     official_chips=official_chips and industry=="SEMICONDUCTOR"
     if official_chips:
         changes = official_us_semiconductor_news_change(title)
+    if industry=="ECONOMIC_DISCOVERY":
+        changes=[d['change'] for d in discovery]
+        eligible=False  # initial discovery uses common source rules, no new paid-AI grant
     if industry=="POWER_EQUIPMENT":
         changes=power_changes
         eligible=False  # initial optional profile: source rules only, no paid/model assumption
@@ -246,7 +258,7 @@ def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=(), in
     for change in changes:
         change["evidence_level"] = "REPORTED"
         change["source_paragraph_sha256"] = item["title_sha256"]
-        if not scoped and PLANNED.search(title):
+        if industry!="ECONOMIC_DISCOVERY" and not scoped and PLANNED.search(title):
             change["phase"] = "PLANNED"
     # One unambiguous large investment plan in an approved issuer title
     # merits VISIBILITY, not realized investment or automatic paid AI.
@@ -319,6 +331,11 @@ def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=(), in
         report.update(analysis_industry=industry,industry_terms=list(terms),
             routing_rule_version=profile_version,
             routing_priority="HIGH_PRIORITY_CANDIDATE" if changes else "PARTIAL_EVIDENCE_ONLY")
+    if industry=="ECONOMIC_DISCOVERY":
+        report.update(analysis_industry=industry,economic_discovery=discovery,
+            routing_rule_version=profile_version,ai_eligible=False,
+            routing_priority="PARTIAL_EVIDENCE_ONLY",
+            analysis_focus="ECONOMIC_ACTION_BEFORE_INDUSTRY")
     return report, fact
 
 
@@ -398,9 +415,9 @@ def analyze_completed_feed(
     Failed AI leaves source-backed fields visible and its cost reservation held.
     """
     at = _stamp(now)
-    if industry not in {"SEMICONDUCTOR","POWER_EQUIPMENT"}:
+    if industry not in {"SEMICONDUCTOR","POWER_EQUIPMENT","ECONOMIC_DISCOVERY"}:
         raise SourceShareError("unsupported analysis industry")
-    if industry=="POWER_EQUIPMENT" and (model is not None or allow_paid or semantic_ai or analyze_existing):
+    if industry in {"POWER_EQUIPMENT","ECONOMIC_DISCOVERY"} and (model is not None or allow_paid or semantic_ai or analyze_existing):
         raise SourceShareError("initial power equipment profile reuses source rules only")
     if (type(semantic_ai) is not bool or type(semantic_call_limit) is not int
             or not 0<=semantic_call_limit<=10 or type(semantic_scheduled_only) is not bool):
@@ -591,6 +608,8 @@ def analyze_completed_feed(
         reports.append(report)
     if industry=="POWER_EQUIPMENT":
         from .power_equipment import RULE_VERSION as rule_version
+    elif industry=="ECONOMIC_DISCOVERY":
+        from .economic_discovery import RULE_VERSION as rule_version
     else:rule_version=RULE_VERSION
     return {"schema": SCHEMA, "status": "FEED_ECONOMIC_ANALYSIS_READY",
         **({"analysis_industry":industry} if industry!="SEMICONDUCTOR" else {}),

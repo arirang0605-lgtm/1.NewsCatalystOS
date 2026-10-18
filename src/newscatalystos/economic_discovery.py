@@ -184,3 +184,78 @@ def discover_economic_events(text):
             'market_newness':'UNKNOWN','deep_industry_validation':False,'new_provider_permission_granted':False}
         if not any(x['change']==change for x in result):result.append({'change':change,'discovery':observation})
     return result
+
+
+# Post-detection context: never changes an existing economic event or industry
+# admission rule. These spans are saved with their own analysis availability.
+_PURPOSE_CONTEXT=re.compile(r'\bto\s+(?:Support|Expand|Develop|Accelerate|Enhance|Increase|Boost)\s+(?P<object>.+)$',re.I)
+_SUBSIDIARY_RECIPIENT=re.compile(
+    r'\b(?:to|with)\s+(?:a|an)\s+(?:wholly[- ]owned\s+)?subsidiary\s+of\s+'
+    r'(?P<parent>[A-Za-z][A-Za-z0-9&.\x27\- ]{1,79}?)\s*'
+    r'\((?P<recipient>[A-Za-z][A-Za-z0-9&.\x27\- ]{1,79})\)'
+    r'(?=\s+to\s+(?:Support|Expand|Develop|Accelerate|Enhance|Increase|Boost)\b|\s*$)',re.I)
+
+
+def connect_discovered_source_context(text,records):
+    """Read literal same-award recipients/purpose AFTER economic detection.
+
+    An explicit parent is a source-stated relationship, not the recipient,
+    confirmed legal ownership, or a listed beneficiary. Ordinary industry
+    hints reuse HINTS; company/program names supply no absent sector evidence.
+    Older extraction output stays byte-compatible and keeps its event identity.
+    """
+    if not isinstance(text,str) or not 0<len(text)<=5000 or not isinstance(records,list) or len(records)>30:
+        raise ValueError('bounded existing discoveries required')
+    connected=[]
+    for index,record in enumerate(records):
+        change=record['change'];meta=record['discovery'];action=meta['action_evidence']
+        issuer=meta.get('source_named_issuer') or ''
+        if (change['action']!='POLICY_CHANGE' or not AUTHORITY.search(issuer)
+                or not EN_AWARD.fullmatch(text[action['start']:action['end']])):
+            continue
+        remainder=text[action['end']:]
+        # A distinct sentence, another announcement or recipient list cannot
+        # lend its industry or subsidiary to this action.
+        if re.search(r'[;\n!?。]|(?<![A-Z])\.(?=\s+[A-Z][a-z])',remainder) or EN_AWARD.search(remainder):continue
+        purposes=list(_PURPOSE_CONTEXT.finditer(remainder))
+        purpose=purposes[0] if len(purposes)==1 else None
+        if purpose and re.search(r'\bto\s+(?:Support|Expand|Develop|Accelerate|Enhance|Increase|Boost)\b',purpose['object'],re.I):continue
+        recipients=list(_SUBSIDIARY_RECIPIENT.finditer(remainder))
+        recipient=recipients[0] if len(recipients)==1 else None
+        parties=[];industry=[];purpose_span=None
+        if recipient:
+            child=recipient['recipient'].strip();parent=recipient['parent'].strip()
+            unambiguous=(not re.search(r'\band\b|\bor\b',parent+' '+child,re.I)
+                         and not re.search(r'\b(?:with|to)\s+',remainder[:recipient.start()],re.I))
+            if (unambiguous and _companies(child)==[child] and _companies(parent)==[parent]
+                    and normalized(child)!=normalized(parent)):
+                offset=action['end']
+                parties.append({'source_name':child,'role':'SOURCE_NAMED_SUBSIDIARY_RECIPIENT',
+                    'name_evidence':_span(text,offset+recipient.start('recipient'),offset+recipient.end('recipient')),
+                    'relation_evidence':_span(text,offset+recipient.start(),offset+recipient.end()),
+                    'source_parent_name':parent,
+                    'parent_name_evidence':_span(text,offset+recipient.start('parent'),offset+recipient.end('parent')),
+                    'parent_is_direct_recipient':False,'ownership_verified':False,
+                    'official_entity_id':None,'listed_security_verified':False,'verified_real_benefit':False})
+        if purpose:
+            lo=action['end']+purpose.start('object');hi=action['end']+purpose.end('object')
+            purpose_span=_span(text,lo,hi)
+            for tag,label,pattern in HINTS:
+                found=re.search(pattern,purpose['object'],re.I)
+                if found:
+                    span=_span(text,lo+found.start(),lo+found.end())
+                    industry.append({'industry':tag,'label':label,'source_phrase':span['text'],
+                        'evidence_sha256':span['sha256'],'evidence':span,
+                        'status':'SOURCE_WORD_HINT_NOT_SUPPLY_CHAIN_VALIDATION'})
+        new_industries={l['industry'] for l in industry}-set(change['industry_tags'])
+        # Store only concrete missing connections, not another copy of every
+        # already understood source. Full purpose remains exact, not truncated.
+        if not parties and not new_industries:continue
+        connected.append({'schema':'newscatalyst.discovery_source_context.v1',
+            'event_index':index,'topic':change['topic'],'action':change['action'],'phase':change['phase'],
+            'original_entity_ids':change['entity_ids'][:],'original_industry_tags':change['industry_tags'][:],
+            'action_evidence':action,'normalized_headline_sha256':sha256(text.encode()).hexdigest(),
+            'company_links':parties,'industry_links':industry,'purpose_evidence':purpose_span,
+            'event_identity_changed':False,'new_economic_event':False,'deep_industry_validation':False,
+            'market_newness':'UNKNOWN','investment_rank':None,'orders_enabled':False})
+    return connected

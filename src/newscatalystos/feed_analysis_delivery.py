@@ -141,6 +141,10 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
                     or row.get('economic_discovery')!=original or changes!=[v['change'] for v in original]
                     or row.get('ai_eligible') is not False):
                 raise SourceShareError('discovered event/industry link must match original evidence in that order')
+            if 'discovery_source_connections' in row:
+                from .economic_discovery import connect_discovered_source_context
+                if row['discovery_source_connections']!=connect_discovered_source_context(row['headline'],original):
+                    raise SourceShareError('additional discovery context must match the same source action')
         for change in changes:
             validate_change(change)
             if discovery_mode:continue  # exact generic extraction fully validated above

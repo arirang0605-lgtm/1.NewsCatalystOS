@@ -1084,6 +1084,19 @@ function renderEconomicDiscovery(data){
       node("p","finding-detail","직접 명시 기업: "+(row.source_companies.join(" · ")||"미확보 · 회사 추정하지 않음")),
       node("p","finding-detail",row.economic_actions.map(x=>economicActionLabels[x]||x).join(" · ")),
       node("p","fineprint","최초 기록 "+row.first_observed_at+" · 공급망·수혜·시장 신규성 미확인"));
+    for(const context of row.source_context_connections||[]){
+      for(const company of context.company_links){
+        card.append(node("p","finding-detail","원문 수신 대상: "+company.source_name+
+          " · 원문에 명시된 모회사: "+company.source_parent_name),
+          node("p","fineprint","관계 표현: "+company.relation_evidence.text+
+          " · 모회사를 직접 지원 대상이나 수혜주로 승격하지 않음 · 법적 소유관계 별도 확인"));
+      }
+      if(context.purpose_evidence){
+        card.append(node("p","finding-detail","지원 목적 원문: "+context.purpose_evidence.text));
+      }
+      card.append(node("p","fineprint","연결 근거 해석시각 "+context.available_at+
+        " · 기존 사건의 연결 보완이며 새 발표 아님"));
+    }
     const evidence=node("details","finding-detail");evidence.append(node("summary","","원래 뉴스와 조건부 영향 확인"));
     for(const source of row.source_evidence){
       evidence.append(node("p","",source.headline),node("p","fineprint","원자료 확보 "+source.source_available_at+" · "+source.provider_id));

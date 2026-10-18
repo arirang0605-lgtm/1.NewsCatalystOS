@@ -332,6 +332,8 @@ def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=(), in
             routing_rule_version=profile_version,
             routing_priority="HIGH_PRIORITY_CANDIDATE" if changes else "PARTIAL_EVIDENCE_ONLY")
     if industry=="ECONOMIC_DISCOVERY":
+        from .economic_discovery import connect_discovered_source_context
+        report['discovery_source_connections']=connect_discovered_source_context(title,discovery)
         report.update(analysis_industry=industry,economic_discovery=discovery,
             routing_rule_version=profile_version,ai_eligible=False,
             routing_priority="PARTIAL_EVIDENCE_ONLY",

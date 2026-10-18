@@ -61,7 +61,7 @@ def _available_as_of(row: dict, at: datetime) -> bool:
     # Includes provenance of a retained prior AI summary/directory enrichment.
     return all(_instant(row[k]) <= at for k in (
         'available_at', 'analysis_available_at', 'source_available_at',
-        'ai_summary_available_at', 'company_identity_analysis_available_at') if row.get(k))
+        'ai_summary_available_at', 'company_identity_analysis_available_at', 'discovery_context_available_at') if row.get(k))
 
 
 def scan_saved_analysis(root: Path, *, document_root: Path | None = None, now: datetime | None = None,
@@ -149,6 +149,10 @@ def scan_saved_analysis(root: Path, *, document_root: Path | None = None, now: d
                     }
                     if row.get("analysis_industry")=="ECONOMIC_DISCOVERY":
                         item["economic_discovery"]=row["economic_discovery"]
+                        if 'discovery_source_connections' in row:
+                            item['discovery_source_connections']=row['discovery_source_connections']
+                            item['discovery_context_available_at']=observed.isoformat()
+                            item['discovery_context_report_sha256']=match.group(1)
                         item["analysis_industry"]="ECONOMIC_DISCOVERY"
                         item["source_title_sha256"]=row["source_title_sha256"]
                     # The same source version can be reanalyzed. The dashboard places it
@@ -168,6 +172,14 @@ def scan_saved_analysis(root: Path, *, document_root: Path | None = None, now: d
                             records[key]["ai_summary_available_at"]=ai_owner.get("ai_summary_available_at",ai_owner["available_at"])
                             records[key]["ai_summary_report_sha256"]=ai_owner.get("ai_summary_report_sha256",ai_owner["report_sha256"])
                         records[key]["day"] = first_day
+                        # Keep the first saved time of this exact interpretation.
+                        # A re-run alone must not look like newly linked evidence.
+                        context=records[key].get('discovery_source_connections')
+                        if context is not None:
+                            candidates=[r for r in (old,item) if r.get('discovery_source_connections')==context]
+                            owner=min(candidates,key=lambda r:r.get('discovery_context_available_at',r['available_at']))
+                            records[key]['discovery_context_available_at']=owner.get('discovery_context_available_at',owner['available_at'])
+                            records[key]['discovery_context_report_sha256']=owner.get('discovery_context_report_sha256',owner['report_sha256'])
                         # AI selection must not hide newer directory enrichment.
                         # Retain its own report/time, rather than backdating it to AI.
                         identity_owner = max((old, item), key=lambda r: r.get(

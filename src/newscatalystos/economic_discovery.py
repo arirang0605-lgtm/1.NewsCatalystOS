@@ -12,7 +12,8 @@ from .economic_changes import ACTIONS,business_start_phase,market_entry,normaliz
 from .power_equipment import PRODUCTS
 
 MODE='ECONOMIC_DISCOVERY'
-RULE_VERSION='rss-event-first-v1'
+RULE_VERSION='rss-event-first-v2'
+SUPPORTED_RULE_VERSIONS=('rss-event-first-v1',RULE_VERSION)
 # Action grammar is sector-independent. Specializations of the existing
 # action vocabulary only bound the verb span; they do not require a product.
 KOREAN=tuple((kind,re.compile(
@@ -141,7 +142,7 @@ def _raw_events(text):
     return events[:30]
 
 
-def discover_economic_events(text):
+def _discover_economic_events_v1(text):
     """Detect -> bind literal object/party -> optional industry hints, in order.
 
     Unknown vocabulary is a stored watch topic, not a reason to drop an event.
@@ -259,3 +260,120 @@ def connect_discovered_source_context(text,records):
             'event_identity_changed':False,'new_economic_event':False,'deep_industry_validation':False,
             'market_newness':'UNKNOWN','investment_rank':None,'orders_enabled':False})
     return connected
+
+
+# Product introduction is an economic observation across industries, not a new
+# service operation, factory, contract or earned revenue. The old v1 extractor
+# remains callable so old immutable reports retain their exact PIT meaning.
+_LAUNCH_KO=re.compile(r'출시(?=$|[\s,.!…·]|했|한|하|해|할|될|된다|를)')
+_LAUNCH_EN=re.compile(r'\b(?:launches|launched|launch)\b',re.I)
+_NON_PRODUCT_LAUNCH=re.compile(
+    r'\b(?:consultation|proposal|investigation|conference|workshop|campaign|'
+    r'initiative|accelerator|program|programme|center|centre|report|survey|fundraising)\b'
+    r'|출시\s*(?:경쟁|전략|계획서)|상담회|기념행사|출시일\s*변경',re.I)
+_LAUNCH_REPORTED_PLAN=re.compile(r'예정|계획|예고|추진|\b(?:plans?|will|scheduled|proposed)\b',re.I)
+
+
+def _product_launch(text):
+    """One literal product object and launch verb; no industry admission gate."""
+    from .feed_analysis import _launch_products,QUOTED_PRODUCT,LAUNCH_CONTEXT_ONLY
+    if NEGATIVE.search(text) or CONTEXT.search(text) or LAUNCH_CONTEXT_ONLY.search(text):return []
+    ko=list(_LAUNCH_KO.finditer(text));en=list(_LAUNCH_EN.finditer(text))
+    if len(ko)+len(en)!=1:return []
+    verb=(ko or en)[0]
+    prefix=text[:verb.start()]
+    # A promotional introduction is not the company's name. Resolve the last
+    # explicit clause only, retaining offsets into the untouched title.
+    boundaries=list(re.finditer(r'\.{2,}|…+',prefix))
+    begin=boundaries[-1].end() if boundaries else 0
+    segment=text[begin:];subject=SUBJECT.match(segment.lstrip())
+    begin+=len(segment)-len(segment.lstrip());segment=text[begin:]
+    subject=SUBJECT.match(segment)
+    names=[];issuer=None;product_name=None;object_start=None;object_end=None
+    if ko:
+        local_verb=verb.start()-begin
+        if local_verb<0:return []
+        issuer=subject['actor'] if subject else None
+        if issuer and AUTHORITY.search(issuer):return []
+        names=_companies(issuer) if issuer else []
+        left=begin+(subject.end() if subject else 0)
+        body=text[left:verb.start()]
+        # Keep exact quoted products using the existing product launch helper.
+        # A quote identifying a company/platform before a different object is
+        # not silently treated as the new product.
+        quoted=[m for m in QUOTED_PRODUCT.finditer(text) if left<=m.start()<verb.start()]
+        named=_launch_products(text)
+        if len(quoted)==1 and len(named)==1:
+            product_name=named[0]
+        elif quoted:
+            # Support an explicitly named app/solution followed by its noun;
+            # do not split a coordinated release into invented transactions.
+            if len(quoted)!=1:return []
+            suffix=text[quoted[0].end():verb.start()]
+            if not re.fullmatch(r'\s*(?:앱|애플리케이션|플랫폼|솔루션|시스템|제품)?\s*(?:을|를)?\s*(?:(?:국내|아시아|글로벌|정식|공식)\s*)?',suffix):return []
+            product_name=next(x for x in quoted[0].groups() if x is not None).strip()
+        # Strip only grammatical/market-launch modifiers, not an industry
+        # dictionary. Unknown products and missing companies remain observable.
+        suffix=re.search(r'\s*(?:을|를)?\s*(?:(?:국내|아시아|글로벌|정식|공식)\s*)*$',body)
+        end=len(body) if suffix is None else suffix.start()
+        obj=body[:end].strip(' ,，')
+        if not obj or len(obj)>240:return []
+        second_subject=SUBJECT.match(obj)
+        if second_subject and _companies(second_subject['actor']):return []
+        object_start=left+body.find(obj);object_end=object_start+len(obj)
+        if not product_name:product_name=obj
+    else:
+        actor=prefix.strip(' ,')
+        if verb.group().casefold()=='launch' and not re.search(r'\b(?:plans?\s+to|will)\s*$',actor,re.I):return []
+        tail=text[verb.end():]
+        if not actor or AUTHORITY.search(actor):return []
+        # "Product 11 launches across Asia" names the product, not its maker.
+        if re.match(r'\s+(?:across|in|on)\b',tail,re.I):
+            product_name=actor;names=[];issuer=None
+            object_start=text.index(actor);object_end=object_start+len(actor)
+        else:
+            if re.search(r'\b(?:plans?\s+to|will|to)\s*$',actor,re.I):
+                actor=re.sub(r'\s+(?:plans?\s+to|will|to)\s*$','',actor,flags=re.I)
+            names=_companies(actor);issuer=actor
+            # One introductory object; descriptive purpose is not another act.
+            stop=re.search(r',|:|\s+to\s+(?:support|enable|accelerate|expand|improve|enhance)\b|\.{2,}|…',tail,re.I)
+            phrase=tail[:stop.start() if stop else len(tail)].strip(' .')
+            phrase=re.sub(r'^(?:a|an|the)\s+','',phrase,flags=re.I)
+            if not phrase or len(phrase)>200:return []
+            product_name=phrase
+            object_start=verb.end()+tail.find(phrase);object_end=object_start+len(phrase)
+    expression=text[object_start:object_end]
+    if _NON_PRODUCT_LAUNCH.search(expression) or _NON_PRODUCT_LAUNCH.search(text[verb.end():]):return []
+    if not 1<len(product_name)<=200:return []
+    topic=product_name if len(product_name)<=80 else product_name[:80].rsplit(' ',1)[0]
+    if not topic:return []
+    links=[]
+    for tag,label,pattern in HINTS:
+        found=re.search(pattern,expression,re.I)
+        if found:links.append({'industry':tag,'label':label,'source_phrase':found.group(),
+            'evidence_sha256':sha256(found.group().encode()).hexdigest(),
+            'status':'SOURCE_WORD_HINT_NOT_SUPPLY_CHAIN_VALIDATION'})
+    phase='PLANNED' if _LAUNCH_REPORTED_PLAN.search(text) else 'SOURCE_REPORTED'
+    change={'topic':topic,'action':'PRODUCT_LAUNCH','phase':phase,'economic_driver':'UNKNOWN',
+        'entity_ids':names,'industry_tags':[x['industry'] for x in links],
+        'source_paragraph_sha256':sha256(text.encode()).hexdigest(),
+        'evidence_level':'REPORTED','verified_economic_effect':False}
+    observation={'mode':MODE,'event_first':True,'industry_required_for_detection':False,
+        'action_evidence':_span(text,verb.start(),verb.end()),'object_expression':expression,
+        'object_evidence':_span(text,object_start,object_end),
+        'normalized_headline_sha256':sha256(text.encode()).hexdigest(),
+        'topic_label_truncated':topic!=product_name,'object_status':'SOURCE_STATED',
+        'source_named_issuer':issuer,'company_status':'SOURCE_NAME_ONLY' if names else 'COMPANY_UNSPECIFIED',
+        'source_company_role':'SOURCE_STATED_LAUNCH_ANNOUNCER_NOT_ATTESTED_MANUFACTURER',
+        'industry_status':'LINKED_BY_SOURCE_WORDS' if links else 'UNCLASSIFIED_OBSERVATION',
+        'industry_links':links,'watch_topic':topic,'source_reports_historical_context':bool(HISTORICAL.search(text)),
+        'market_newness':'UNKNOWN','deep_industry_validation':False,'new_provider_permission_granted':False,
+        'commercial_success_verified':False}
+    return [{'change':change,'discovery':observation}]
+
+
+def discover_economic_events(text,*,rule_version=RULE_VERSION):
+    if rule_version not in SUPPORTED_RULE_VERSIONS:raise ValueError('unsupported discovery rule version')
+    existing=_discover_economic_events_v1(text)
+    if existing or rule_version=='rss-event-first-v1':return existing
+    return _product_launch(text)

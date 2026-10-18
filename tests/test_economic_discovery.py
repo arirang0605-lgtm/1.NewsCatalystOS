@@ -110,7 +110,8 @@ def test_shared_input_storage_unclassified_watch_and_standard_output(tmp_path):
     before=fingerprint(w.registry_path.parent.parent)
     code,result=evaluate(flags(w,provider,root),now=at)
     assert code==0 and result['economic_changes_count']==len(SAMPLES)
-    assert result['rule_version']=='rss-event-first-v1' and result['analysis_industry']=='ECONOMIC_DISCOVERY'
+    from newscatalystos.economic_discovery import RULE_VERSION
+    assert result['rule_version']==RULE_VERSION and result['analysis_industry']=='ECONOMIC_DISCOVERY'
     assert result['source_fetch_calls']==result['semantic_ai_attempts']==0
     assert all(not r['ai_eligible'] and not r['ai_adapter_attempted'] for r in result['results'])
     assert _validate_report(result,at)==at

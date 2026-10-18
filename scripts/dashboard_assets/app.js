@@ -2,7 +2,7 @@ const state={view:"day",date:new Date().toLocaleDateString("sv-SE",{timeZone:"As
 const $=id=>document.getElementById(id);
 let currentData=null,shown=20;
 const economicPhaseLabels={SOURCE_REPORTED:"출처 보도",ADOPTED_NOT_YET_EFFECTIVE:"의결 · 시행 전",PLANNED:"계획 단계"};
-const economicActionLabels={SUPPLY_RESUMPTION:"생산·공급 재개",MARKET_ENTRY:"시장 진출",DELIVERY_START:"납품·공급 개시",POLICY_CHANGE:"정책 변화",BUSINESS_START:"사업·서비스 개시",PRODUCTION_START:"생산 개시",CAPACITY_ADDITION:"생산능력 확대",SUPPLY_REDUCTION:"공급 축소",CONTRACT:"계약",INVESTMENT:"투자 결정",INVESTMENT_EXECUTION:"투자 집행",CUSTOMER_ACQUISITION:"신규 고객 확보"};
+const economicActionLabels={PRODUCT_LAUNCH:"제품·솔루션 출시 발표",SUPPLY_RESUMPTION:"생산·공급 재개",MARKET_ENTRY:"시장 진출",DELIVERY_START:"납품·공급 개시",POLICY_CHANGE:"정책 변화",BUSINESS_START:"사업·서비스 개시",PRODUCTION_START:"생산 개시",CAPACITY_ADDITION:"생산능력 확대",SUPPLY_REDUCTION:"공급 축소",CONTRACT:"계약",INVESTMENT:"투자 결정",INVESTMENT_EXECUTION:"투자 집행",CUSTOMER_ACQUISITION:"신규 고객 확보"};
 const economicDriverLabels={DEMAND_RECOVERY:"수요·주문 회복",DEMAND_EXPANSION:"수요 확대",DEMAND_CONTRACTION:"수요·주문 축소",PRODUCT_PRICE_INCREASE:"제품 가격 상승",PRODUCT_PRICE_DECREASE:"제품 가격 하락",POLICY_ENABLEMENT:"정책 기반 확대",CAPACITY_EXPANSION:"생산능력 확대",SUPPLY_CONTRACTION:"공급 축소",UNKNOWN:"공통 원인 미확인"};
 function node(tag,cls,value){const x=document.createElement(tag);if(cls)x.className=cls;if(value!==undefined)x.textContent=value;return x}
 function status(message,error=false){$("status").textContent=message;$("status").className=error?"error":""}
@@ -19,7 +19,7 @@ function categoryLabel(item){
   const labels=[...new Set((item.economic_changes||[]).map(actionLabel))];
   return labels.length?labels.join(" / "):savedCategoryLabel(item);
 }
-const actionSearchTerms={SUPPLY_RESUMPTION:"생산 재개 공급 재개",MARKET_ENTRY:"시장 진출 신규 시장",DELIVERY_START:"납품 시작 납품 개시 공급 시작 공급 개시",POLICY_CHANGE:"정책 변화 규제 허가",BUSINESS_START:"사업 개시 서비스 개시 사업 시작 서비스 시작",PRODUCTION_START:"생산 개시 생산 시작 양산 가동",CAPACITY_ADDITION:"생산능력 확대 생산량 확대 공급량 확대 증설",SUPPLY_REDUCTION:"공급 축소 생산 축소 감산 공급 중단",CONTRACT:"계약 체결 공급계약 납품계약 수주",INVESTMENT:"투자 결정 투자 확정",INVESTMENT_EXECUTION:"투자 집행",CUSTOMER_ACQUISITION:"신규 고객 확보"};
+const actionSearchTerms={PRODUCT_LAUNCH:"제품 솔루션 출시 발표 launch launches",SUPPLY_RESUMPTION:"생산 재개 공급 재개",MARKET_ENTRY:"시장 진출 신규 시장",DELIVERY_START:"납품 시작 납품 개시 공급 시작 공급 개시",POLICY_CHANGE:"정책 변화 규제 허가",BUSINESS_START:"사업 개시 서비스 개시 사업 시작 서비스 시작",PRODUCTION_START:"생산 개시 생산 시작 양산 가동",CAPACITY_ADDITION:"생산능력 확대 생산량 확대 공급량 확대 증설",SUPPLY_REDUCTION:"공급 축소 생산 축소 감산 공급 중단",CONTRACT:"계약 체결 공급계약 납품계약 수주",INVESTMENT:"투자 결정 투자 확정",INVESTMENT_EXECUTION:"투자 집행",CUSTOMER_ACQUISITION:"신규 고객 확보"};
 function actionSearchText(changes){return (changes||[]).map(c=>[c.action,actionLabel(c),actionSearchTerms[c.action]||""].join(" ")).join(" ")}
 function matchesFinding(item,term){return !term||[item.headline,item.provider,item.category||"",savedCategoryLabel(item),categoryLabel(item),actionSearchText(item.economic_changes),JSON.stringify(item.economic_changes||[]),JSON.stringify(item.company_identity||{})].join(" ").toLocaleLowerCase().includes(term)}
 function themeTitle(theme,presentation){return presentation?.name||theme.provisional_name}
@@ -1084,6 +1084,8 @@ function renderEconomicDiscovery(data){
       node("p","finding-detail","직접 명시 기업: "+(row.source_companies.join(" · ")||"미확보 · 회사 추정하지 않음")),
       node("p","finding-detail",row.economic_actions.map(x=>economicActionLabels[x]||x).join(" · ")),
       node("p","fineprint","최초 기록 "+row.first_observed_at+" · 공급망·수혜·시장 신규성 미확인"));
+    if(row.economic_actions.includes("PRODUCT_LAUNCH"))
+      card.append(node("p","fineprint","제품·솔루션 출시를 보도한 제목의 관측입니다. 출시 주체를 제조사로 단정하거나 판매·매출·수혜를 확정하지 않습니다. 번역·재배포 제목은 독립 시장사건으로 인증하지 않습니다."));
     for(const context of row.source_context_connections||[]){
       for(const company of context.company_links){
         card.append(node("p","finding-detail","원문 수신 대상: "+company.source_name+

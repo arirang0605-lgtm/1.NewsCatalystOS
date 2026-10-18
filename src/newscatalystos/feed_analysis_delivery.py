@@ -130,9 +130,11 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
             raise SourceShareError("bounded title economic changes required")
         discovery_mode=row.get('analysis_industry')=='ECONOMIC_DISCOVERY'
         if discovery_mode:
-            from .economic_discovery import discover_economic_events,RULE_VERSION as discovery_rule
+            from .economic_discovery import discover_economic_events,SUPPORTED_RULE_VERSIONS
             from .feed_analysis import BLOCKED
-            original=(discover_economic_events(row['headline'])
+            discovery_rule=data.get('rule_version')
+            if discovery_rule not in SUPPORTED_RULE_VERSIONS:raise SourceShareError('unsupported discovery extraction edition')
+            original=(discover_economic_events(row['headline'],rule_version=discovery_rule)
                       if row['source_claim_classification'] not in BLOCKED else [])
             # The existing receipt pins the RAW title. Evidence spans use its
             # already-normalized display text, with a separate text SHA.

@@ -905,7 +905,7 @@ async function loadSavedArticleCompanyExcerpt(articleContext,theme,company,place
     }
     place.append(node("p","","원문 근거: "+result.excerpt+(result.excerpt_truncated?"…":"")),
       node("p","finding-detail",(result.content_scope==="RSS_TITLE_METADATA"?
-        "RSS 제목 표현":"허용 공식 본문 구간")+
+        "뉴스 제목 표현":"허용 공식 본문 구간")+
         " · 직접 경제 행동 근거(실거래·수혜 인증 아님)"),
       node("p","finding-detail","원문 가용: "+result.source_available_at+
         " · 저장 분석 가용: "+result.analysis_available_at));

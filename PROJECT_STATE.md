@@ -1,8 +1,21 @@
-# PROJECT_STATE — 발티카2 계약→출하·기업 평가 비교 운영 완료
+# PROJECT_STATE — 새 완료 평가의 크기 제한 장애 수정 · 두 News 서비스 적용 승인 대기
 
 **목적·흐름:** 실제 뉴스 → 뉴스 분석(경제 변화·공통 사건·초기 테마) → 관련 산업·기업 → 기업별 근거·원문 조회. 전력기기 우선 적용. 사실/추론·계획/실행·미확인, 원본/PIT/비밀·무주문을 지킨다.
 
-기준 2026-10-18T20:37:36.527086+00:00. News dashboard8766 운영/기능 고정판 **6f77b68da618c5ce31233ad05a434bc08b19373f**. 원V1 **36/36** 유지. News 독립 운영과 공동 전체 제품 완료를 구분한다.
+기준 2026-10-18T21:03:34.057771+00:00. 실제 수신 장애 수정 고정판 **fc5072bf12f656e16bccd0d32832b7e9e93798f0** / 원V1 **36/36** 유지. 운영은 기존 **6f77b68da618c5ce31233ad05a434bc08b19373f**이며 아직 이번 새 판본을 적용하지 않았다.
+
+Era 현재 홈에 새 완료 일간50기업 게시 f2e248c5b7c396e21b4b637fd8047534f964f11dbf5ed49039ce6134978ff6c5 / 파일 SHA41c03b345565522c2319c8e3e2579f475c7916438b358fd181d214c542b22050 / 평가시각2026-10-18T20:47:50.217894+00:00이 도착했다. 직전 대기의 ‘새 게시 없음’은 해소됐다. 다만17,067,081 bytes가 기존16MiB를 넘어 기존 수신기가 실제 거부했다. 기존 뉴스·평가는 보존됐고 새 원본을 다시 수집하지 않았다.
+
+기존 수신/검증 경로의 JSON32MiB·수신기록64MiB 한도로 수정했다. HTML/기업 식별 view16MiB와 SHA·완료표시·정확 기업·PIT·원본 보존·무주문 검증은 유지한다. DEV52 PASS / SSD고정판52 PASS(19.76초,0실패·0skip). 큰 정상 게시의 저장 바이트·재조회·과거 조회·중복 방지·한도 초과 거부를 확인했다. 새 의존성/평가 엔진/수집기 없음.
+
+분리 폴더 실자료 수신50·반복 ALREADY_IMPORTED·과거 snapshot 동일·무효0. 실제 검증 API 비교15건·과거 전체 비교 객체 동일·HD 공식 종목 조회 AVAILABLE. 새 게시에는 생산자 WATCH의 HD도 있어 세 기업 모두 같은 일간판에 연결되지만 News가 WATCH를 강제 편입하지 않았다. 세 기업 연간 재무 지표 변화0. LS/효성 근거 유지, HD는 기존 개별 평가→일간 평가의 설명/한계 표현 변경으로 근거 변경이며 상향·새 실적·납품 인증이 아니다. 당일 시작 대비 HD 첫 연결과 직전 수신 대비 설명 변경을 구별한다. 가격 정식배수 N/A는 유지한다.
+
+## 운영 적용 승인 대기 — 기존 질문 한 건
+사용자에게 ‘검증된 fc5072b의 큰 평가자료 수신 장애 수정’으로 News 대시보드+기존 research-approved 자동 수신 서비스 **총2개**의 판본 변경·재시작을 한 번 질문했다. 기존 승인은 dashboard 한 서비스에 한정돼 자동 수신까지 확대하지 않는다. 승인 답변 전 실행 금지·같은 질문 재요청 금지. 수신 재시작 시 기존 허용 출처1회 처리가 가능함을 질문에 명시했다. 예약 간격/인자·출처·Era 코드/DB/Git/설정 변경은 제외한다.
+
+고정 dashboard는 /Users/shmoon/Library/Application Support/NewsCatalystOS/releases/fc5072bf12f656e16bccd0d32832b7e9e93798f0. 자동 수신은 기존7e0001c8 판본 복사본 /Users/shmoon/Library/Application Support/NewsCatalystOS/releases/fc5072bf12f656e16bccd0d32832b7e9e93798f0-research에서 era_daily_assessment.py의 크기 검사만 변경했다(다른 파일 바이트 동일). 이 별도 판본으로 실제 새 게시 check_only·세 기업 읽기 AVAILABLE·무효0 확인. before/planned plist·원판본·보호 해시 준비. 실행 도구 /private/tmp/nc_activate_daily_size.py는 문법 확인만 했고 미실행이다. 승인 후 기존 수신 작업이 실행 중이면 현재 PID의 종료를 기다리고 두 서비스만 전환한다. RunAtLoad로 시작한 실제 수신의 완료/첫 수신 시각·반복0·운영15비교·과거 동일을 확인한다. 같은 판본의 수동 수신을 동시에 시작하지 않는다.
+
+검증 화면 http://127.0.0.1:8767/ 은 분리 데이터·임시 PID66221, UI 새 판본 SHA/공식 재무/가격 N/A·LS/효성 유지 확인, preview.png 저장. 운영 수신본·다른 서비스·Era 원본 변경0. 승인/적용 후 임시 화면을 종료한다. 운영 데이터를 미리 신판 수신본으로 바꾸지 않는다.
 
 ## 새로 연결된 실제 입력→분석→기업·원문·출력
 - Semco 2023-06-13 공식 EPC 발표는 Baltica 2 해상변전소 4기와 Hyundai Electric의 주요 하도급 참여를 명시한다. 이 계약 당사자는 Semco/PTSC 컨소시엄이며 HD 개별 수주액·장비 인수 증거로 승격하지 않는다.
@@ -21,14 +34,8 @@
 - 운영 비교15건·이전 조회13건·PTSC 개별 기사→HD 평가 AVAILABLE·이번 추가 전후 세 평가 근거 유지 확인. API 검증3건 합계19.538초이며 단일 요청 응답 시간으로 표시하지 않는다. 기존 중복 평가 읽기 최적화와 저장 기능은 보존했으나 전체 기간 즉시 응답을 보장하지 않는다.
 - 운영 입력 전 표준 내보내기는 바이트 동일하게 재조회했고 반복 읽기 게시0을 확인했다. HD2024/2025 기존 CFS 예외 원본·평가만 재사용하며 재수집/평가 재생산0. 사용자 untracked vision SHA 보존. 이전 dashboard plist/고정판 보존. 구판으로 되돌릴 때는 이 작업에서 추가한 EU/v4 읽기2개도 비공개 보존 영역으로 분리한 뒤 구판을 사용해야 한다.
 
-## 최신 생산자 게시 확인과 외부 대기
-기준 2026-10-18T20:44:32.628272+00:00. Era 현재 코드 db11d2f4942ce50b8f38b89239dd75353c49656e의 재개 문서를 읽었고, News 기존 수신기의 check_only로 운영 홈이 가리키는 완료 게시를 검증했다. 현재 게시 b64465a3fffddf05443f3e94ccc62eab7c4f92232ec575acaf6918834d2106ef / 파일 SHA17df8208f1e508e1e350c5b97691534867b0feec2364f5c1e749e78b1417989e / 50개는 이미 2026-10-18T15:31:20.357264+00:00에 수신된 동일 판본이다. 새 수신0·무효 수신0. HD 개별 평가와 LS/효성 일간 평가 모두 AVAILABLE이며 앞선 운영 비교의 근거 유지 판정은 변하지 않았다. 코드 HEAD의 변경을 새 평가 게시로 계산하지 않는다.
-
-- ER02: 생산자는 FY2025 산업전체 통계의 공식 게시 예정 시각을 2026-10-21 12:00 KST로 기록했다. 현재 FY2024는 참고 자료이며 최신 기간·정확한 분류/범위 연결을 대신하지 않는다. 게시 예정은 확보 완료가 아니다.
-- ER04: KRX 접근 권한과 주식수 귀속·재무 이후 변동 등 공식 가격 평가 분모 자료가 남아 있다. 기존 401/403은 재호출하지 않았고 정식 PER/PBR은 미확보 상태를 유지한다.
-- Era OP02: 승인된 별도 평일10시 예약의 첫 실제 실행·복구 증거가 아직 게시되지 않았다. 예약을 수동 실행·변경하지 않았다. News 자체 예약 운영 완료와 구분한다.
-
-같은 생산자 잔여 조건은 앞선 연속 작업에서도 유지됐다. 가능한 독립 News 핵심 경로는 구현·실자료·운영 확인을 끝냈으며, 현재 승인 범위로 통합 잔여를 진행하려면 새 검증 완료 게시 또는 해당 원본/권한의 외부 상태 변화가 필요하다. 공동 목표는 미완료·외부 자료 대기이며 News 서비스는 계속 운영한다. 이번에는 코드/서비스/수집 변경 없이 기존 게시와 세 기업 조회만 확인했다. 영향 없는 92 PASS·전체 회귀 증거를 재사용하고 시험을 반복하지 않았다. API/수집/평가 재실행0·Era 쓰기0. 비공개 근거 output/completion_dependency_20261019/read_only_publication_check.json.
+## 통합 전체의 별도 잔여
+Era ER02 최신 산업기간/정확 분류·ER04 공식 가격 분모/접근·Era OP02 첫 평일10시 예약 실행 증거는 별도 잔여다. FY2025 산업 통계는 생산자 문서상10/21 12KST 예정이며 게시/원본 검증 전 완료로 세지 않는다. 같은401/403·미실행 확인을 반복하지 않는다. 이 외부 잔여가 이번 News 수신 장애 수정을 차단하지 않았다. 전체 공동 목표는 미완료이며 이번 운영 적용 승인만 해당 두 서비스에 국소 대기한다.
 
 ## 합의한 완료조건의 현재 판정
 조건 정의 docs/PRODUCT_COMPLETION_CRITERIA_20261016.md. 기왕의 유효 증거를 재사용하고 새로운 최소 표본/사람 검수/추가 기다림 게이트를 만들지 않았다.
@@ -50,8 +57,10 @@
 | INT-01 | 대표 실연동 완료: 회사 경제변화→기존 Era 소비→50WATCH·보고, company_economic_bridge_20261018/real_integration_proof.json | 시장 전체/HD WATCH 강제 편입을 뜻하지 않음 |
 | INT-02 | 부분: 세 기업의 사업 근거·공식 연간 재무·위험 평가 실제 연결 및 값 보존. HD는 WATCH 외 개별 연구 | 현재 가격 평가 N/A 및 산업 전체 경쟁력 평가의 생산자 근거 미확보 |
 | INT-03 | 완료: 같은 판본 재소비 ALREADY_IMPORTED/ALREADY_PUBLISHED, 미래·오류 제외·한쪽 결측 격리 기존 시험/실제 반복 | 외부 미확보 자료를 생성하지 않음 |
-| INT-04 | 대표 뉴스→사업·재무·위험→화면/보고 실경로 완료, News6f77b68·Era 게시 소비 기존934ff8f 및 개별 평가 원본SHA 고정 | 가격/시장 전체를 포함한 공동 완료는 부분; 현재 읽기 확인 EraHEAD db11d2f은 생산자 고정판과 혼용 금지 |
+| INT-04 | 대표 뉴스→사업·재무·위험→화면/보고 실경로 완료, News6f77b68·Era 게시 소비 기존934ff8f 및 개별 평가 원본SHA 고정 | 가격/시장 전체를 포함한 공동 완료는 부분; 현재 읽기 확인 EraHEAD db11d2f은 생산자 고정판과 혼용 금지; 새 일간 연결은 fc5072b 분리 검증까지이며 운영 승인 대기 |
 
 Era ER-01~06 전체 인수는 News에서 변경할 권한이 없고 완료 인증하지 않는다. 읽기 확인 당시 Era PROJECT_STATE: KR WATCH50/연간44/peer21/strict가격0/N/A50, FY2025 산업전체 자료 미게시(예정10/21 12:00KST) 및 분류 매핑, KRX 권한/주식 귀속·완료세션 근거, Era 신규 평일10시 예약의 첫 실제 실행/복구가 남아 있다. US 일부 후보는 전시장 완료가 아니다. 같은401/403·결측·미실행을 반복 확인하거나 Era 수집기/평가기를 News에 새로 만들지 않는다. 전체 공동 목표는 미완료이나 News 독립 운영은 계속된다.
 
 비공개 최신 증거 output/project_shipment_20261019/: selected_source_metadata.json, candidate_intake.json, candidate_comparison.json, before_export.json, candidate.json, affected_tests.txt, final_scope_tests.txt, ssd_tests.txt, candidate_verification.json, ui_comparison_download.json, ui_verification.json, preview.png, activation.json, production_intake.json, production_before_export.json, operating_comparison.json, operating_verification.json, operating.png. 이전 query_output_completion_20261019·continuous_completion_20261018·company_economic_bridge_20261018 증거는 그대로 보존한다. 원본/DB/출력/스크린샷은 Git 제외.
+
+이번 비공개 최신 증거 output/daily_publication_size_20261019/: candidate.json, real_verification.json, company_comparison.json, ssd_tests.txt, research_candidate_verification.json, candidate_api_verification.json, candidate_api_view.json, ui_verification.json, preview.png, 두 before/planned plist, public_check.json. 기존 증거는 보존한다.

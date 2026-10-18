@@ -1,11 +1,9 @@
-# START HERE — 명시 정책 원인→발견 기업 행동
+# START HERE — 전력기기 후속 개발 재개
 
-기준 2026-10-18 16:30 KST. START → AGENTS → PROJECT_STATE → DECISIONS → NEXT_TASK와 실제 Git 상태를 확인한다. 최신 기능 **7a3a0074ed2989dd2dbd62b4777df32e14fbf1bc**, 개발 branch=codex/real-data-path. 이전 수요 연결·정책 원인/행동 누락 수정은 완료했으므로 반복 구현하지 않는다.
+기준 2026-10-18 16:35 KST. **현재 개발 대상은 전력기기: 변압기·차단기·배전설비.** 사용자 재확인 “아직도 반도체야? 전력기기 하기로 햇지않나?”를 우선한다. 오래된 반도체 전용 범위/재개 문서 때문에 다시 반도체 보완으로 돌아가지 않는다. V1.0 반도체 검증 기록은 보존하고 전력기기 전환의 추가 선행조건으로 쓰지 않는다.
 
-DEV=/Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project. SSD 기존 코드·미커밋 보존, 최신 기능 고정 시험판은 /Volumes/T5DATA/1.NewsCatalystOS/output/discovery_policy_20261018/code/. 운영 dashboard는 BASE/releases/5a7ada1dd2a5a369f54d9308cd4a87d7bf853376, UI http://127.0.0.1:8766/ 유지. 이번 새 기능은 운영 dashboard/예약 분석에 활성화하지 않았다. BASE=~/Library/Application Support/NewsCatalystOS.
+START → AGENTS → PROJECT_STATE → DECISIONS → NEXT_TASK를 읽되, 작업 선택은 위 최신 사용자 지시와 docs/V1_1_POWER_EQUIPMENT_PROFILE_20261018.md의 전력기기 미완료 경로를 적용한다. 기존 선택형 POWER_EQUIPMENT 코드가 있으므로 재작성하지 않는다. 다음은 공식 실자료 입력→분석→분리 저장→원문 조회·표준 출력 연결이다.
 
-새 v3는 규제 변화→기업 행동의 문법 경계만 보완한다. 같은 명시 정책 이름·관할·규제/허가 변화·대상국의 HBM/DRAM/NAND 투자·생산·계약 행동을 기존 검증/정책key로 묶어 선택 조회·표준 출력·화면에 표시한다. v1/v2 저장 보고서와 기존 성공 사건/ID/SHA/PIT·기본bytes 유지, 계획은 집행으로 승격하지 않는다.
+DEV=/Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project, branch=codex/real-data-path. 실제 개발·시험은 Remote Desktop Commander. SSD 원래 소스/미커밋과 사용자dirty AGENTS/DECISIONS/비전3 보존. BASE=~/Library/Application Support/NewsCatalystOS, 운영 dashboard=5a7ada1dd2a5a369f54d9308cd4a87d7bf853376. 이번 전력기기 방향 복구는 운영 설정/수집/배포 변경이 아니다.
 
-DEV 영향170개 PASS(핵심138+소비32), SSD 고정판28PASS. 실제 저장384제목의 명시 정책 원인0·연결0, 읽은 원본/파생750파일 SHA·기본 export bytes 동일. 합성 양성은 실자료 양성이 아니다. 새 fetch/AI·운영DB replay·설정 변경·Era 변경·Public push0.
-
-DEV/SSD 증거 output/discovery_policy_20261018/. 사용자dirty AGENTS/DECISIONS/비전3 보존. 기존36/36 기능 기록 유지, 전체 제품/공동 연동 완료 미선언. 다음 NEXT_TASK.md.
+기존 반도체 기능7a3a007·인계c203b99는 보존하되 후속 정정·취소 작업을 현재 주 작업에서 내린다. 당시 DEV170PASS/SSD28PASS는 그 반도체 변경의 증거이며 전력기기 완료 증거로 재사용하지 않는다. 원V1 36/36 기록 유지, 전력기기 실자료·운영·제품전체/공동연동 완료는 별도다. 다음 NEXT_TASK.md.

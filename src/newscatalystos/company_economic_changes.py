@@ -54,6 +54,13 @@ def build_changes(themes, view, snapshot, *, as_of, previous=None):
             note = row['note']; baseline = baselines.get(note['baseline_note_id'])
             if baseline is None or note['evidence_kind'] not in ACTIONS:
                 continue
+            # The existing receiver's v1 economic-change contract requires a
+            # reported date and cannot represent the delivery-plan stage.
+            # Keep these notes in News reading/detail views, without forging
+            # dates or stripping their stored execution interpretation.
+            if (note['reported_date'] is None
+                    or note.get('execution', {}).get('evidence_stage') == 'DELIVERY_PLANNED'):
+                continue
             n = baseline['note']; name = n['source_company']
             refs = [r for r in theme['source_refs'] if r['polarity'] == 'SUPPORT'
                     and r['event_id'] in theme['event_ids']

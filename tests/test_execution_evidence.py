@@ -216,3 +216,27 @@ def test_undated_reference_requires_new_version_and_no_invented_period(tmp_path,
     with pytest.raises(SourceShareError):
         publish_followups(root,doc,bases,metadata_resolver((ws,),now=datetime.now(timezone.utc)))
     assert fingerprint(tmp_path)==pins
+
+
+def test_reference_only_notes_stay_queryable_without_entering_legacy_evaluation_contract(tmp_path,monkeypatch):
+    from newscatalystos.recent_theme_followups import SCHEMA_V3
+    from newscatalystos.company_economic_changes import build_changes
+    from newscatalystos.theme_emergence import ThemeStore
+    root,_,_,ws,bases,_,doc,_=fixture(tmp_path,monkeypatch)
+    doc['schema']=SCHEMA_V3
+    first,last=doc['notes'][0],doc['notes'][2]
+    first.update(reported_date=None,evidence_kind='REPORTED_DELIVERY')
+    first['execution'].update(evidence_stage='DELIVERY_COMPLETED',period_end=None)
+    last['evidence_kind']='PLAN_ONLY'
+    last['execution'].update(evidence_stage='DELIVERY_PLANNED',period_end=None)
+    now=datetime.now(timezone.utc)
+    assert publish_followups(root,doc,bases,metadata_resolver((ws,),now=now),now=now)['created']==3
+    now=datetime.now(timezone.utc)
+    view=read_discovery(root,as_of=now,now=now,include_common_causes=True,recent_workspaces=(ws,))
+    reading=[r for g in view['theme_outlook']['candidates'] for r in g.get('recent_news_comparison',{}).get('notes',[])]
+    assert any(r['note']==first for r in reading) and any(r['note']==last for r in reading)
+    changes=build_changes(ThemeStore(root/'theme_history').search(as_of=now,now=now),view,None,as_of=now)
+    exported=[e['recent']['note'] for v in changes.values() for e in v['entries']]
+    assert exported and doc['notes'][1] in exported
+    assert first not in exported and last not in exported
+    assert all(n['reported_date'] is not None for n in exported)

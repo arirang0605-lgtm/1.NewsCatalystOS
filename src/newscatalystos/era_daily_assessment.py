@@ -17,7 +17,10 @@ from .source_share import SourceShareError, _when, _must_sha, _json, _read_regul
 
 SOURCE_SCHEMA = 'eraleader.kr_daily_candidate_explorer.v1'
 SCHEMA = 'newscatalyst.era_daily_snapshot_receipt.v1'
-LIMIT = 16 * 1024 * 1024
+# Completed 50-company editions now exceed 16 MiB. Keep JSON/receipt reads
+# bounded while retaining the existing smaller HTML/identity-view limit.
+LIMIT = 32 * 1024 * 1024
+VIEW_LIMIT = 16 * 1024 * 1024
 
 
 def _name(value):
@@ -100,7 +103,7 @@ def import_daily(era_root, manifest, expected_sha, output_root, *, now=None, che
         raise SourceShareError('completed daily snapshot folder required')
     raw=_read_regular(path,LIMIT);doc=validate_daily(raw,expected_sha,at)
     if doc['content_sha256']!=path.parent.name:raise SourceShareError('daily folder identity mismatch')
-    _read_regular(path.with_name('index.html'),LIMIT)
+    _read_regular(path.with_name('index.html'),VIEW_LIMIT)
     # Bind the same identities to the completed candidate-browser edition;
     # no name-only internet lookup or reconstruction of a WATCH snapshot.
     link=doc['links']['original_candidate_browser']
@@ -108,7 +111,7 @@ def import_daily(era_root, manifest, expected_sha, output_root, *, now=None, che
     if not match:raise SourceShareError('invalid producer browser link')
     viewpath=era_root/'output/candidate_browser'/match[1]/'view.json'
     _check_directory(viewpath.parent,era_root)
-    view_raw=_read_regular(viewpath,LIMIT)
+    view_raw=_read_regular(viewpath,VIEW_LIMIT)
     if sha256(view_raw).hexdigest()!=doc['source']['source_browser_file_sha256']:
         raise SourceShareError('producer browser SHA mismatch')
     view=_json(view_raw,'producer browser')

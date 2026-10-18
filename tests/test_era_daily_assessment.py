@@ -211,3 +211,32 @@ def test_tampering_import_time_cannot_backdate_exact_company(tmp_path):
     file=next(cache.glob('era_daily_*.json'));r=json.loads(file.read_bytes())
     r['imported_at']=T.isoformat();file.write_bytes(canonical(r)+b'\n')
     assert read_latest(cache,as_of=T,now=at)==(None,1)
+
+
+def test_completed_edition_above_old_limit_roundtrips_with_pit_and_hash(tmp_path):
+    # Metadata grows with producer comparison history; preserve its signed bytes.
+    root,path,pin,doc=source(tmp_path,lambda d:d.update(note='x'*(16*1024*1024)))
+    assert 16*1024*1024 < path.stat().st_size < 32*1024*1024
+    cache=tmp_path/'cache';at=T+timedelta(hours=1)
+    with pytest.raises(SourceShareError):
+        import_daily(root,path,'0'*64,cache,now=at)
+    assert not cache.exists()
+    first=import_daily(root,path,pin,cache,now=at)
+    assert first['status']=='IMPORTED'
+    receipt=next(cache.glob('era_daily_*.json'))
+    assert json.loads(receipt.read_bytes())['source_payload'].encode()==path.read_bytes()
+    assert read_latest(cache,as_of=T,now=at)==(None,0)
+    snap,skipped=read_latest(cache,as_of=at,now=at)
+    assert skipped==0 and assessment_for('가상전자',snap)['value']==doc['candidates'][0]
+    assert import_daily(root,path,pin,cache,now=at)['status']=='ALREADY_IMPORTED'
+    assert sha256(path.read_bytes()).hexdigest()==pin
+
+
+def test_daily_size_cap_still_rejects_before_cache_write(tmp_path,monkeypatch):
+    import newscatalystos.era_daily_assessment as daily
+    root,path,pin,_=source(tmp_path)
+    monkeypatch.setattr(daily,'LIMIT',path.stat().st_size-1)
+    cache=tmp_path/'cache'
+    with pytest.raises(SourceShareError):
+        import_daily(root,path,pin,cache,now=T)
+    assert not cache.exists()

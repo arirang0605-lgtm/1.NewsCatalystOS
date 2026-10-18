@@ -248,6 +248,13 @@ class Handler(BaseHTTPRequestHandler):
                     for group in detail["article_company_context"].get("themes",[]):
                         for party in group["direct_parties"]:
                             party["era_daily_assessment"]=assessment_for(party["entity_id"],snap)
+                if discovery:
+                    from newscatalystos.discovery_watch import read_discovery
+                    from newscatalystos.public_demand_analysis import article_notes
+                    if (article_root / "analysis_notes" / "public_demand").exists():
+                        view=read_discovery(article_root,as_of=at,now=now,include_common_causes=True)
+                        notes=article_notes(view["theme_outlook"],*exact)
+                        if notes:detail["public_page_demand_analysis"]=notes
                 if excerpt:
                     from newscatalystos.source_share import _must_sha
                     for key in ("excerpt_theme_id", "excerpt_claim_event_id",

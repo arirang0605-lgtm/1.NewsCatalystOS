@@ -91,6 +91,11 @@ def read_discovery(root,*,as_of=None,since=None,now=None,_compare_outlook=True,i
                                                   if candidate['theme_id'] in g['theme_ids']]
     from .theme_outlook import build_theme_outlook,compare_outlooks
     outlook=build_theme_outlook(themes,titles,candidates,as_of=at,since=start,now=present,include_demand_context=include_common_causes)
+    if include_common_causes:
+        from .public_demand_analysis import attach_comparisons
+        try:attach_comparisons(root,outlook,as_of=at,now=present)
+        except (SourceShareError,OSError,ValueError,KeyError,TypeError):
+            outlook['public_page_demand_analysis_status']='UNAVAILABLE'
     if _compare_outlook:
         previous=read_discovery(root,as_of=start,since=start,now=present,_compare_outlook=False,include_common_causes=include_common_causes)
         compare_outlooks(outlook,previous['theme_outlook'])
@@ -157,7 +162,8 @@ def export_discovery(root,*,as_of=None,since=None,now=None,include_common_causes
             theme['discovery_theme_outlook']={
                 'source_theme_sha256':sha256(_bytes(original)).hexdigest(),
                 'original_theme_decision_at':original['decision_at'],
-                'basis_available_at':max(c['basis_available_at'] for c in outlooks),
+                'basis_available_at':max(max(c['basis_available_at'],
+                    c.get('public_page_demand_analysis',{}).get('basis_available_at',c['basis_available_at'])) for c in outlooks),
                 'candidates':outlooks,'original_events_unchanged':True}
             theme['decision_at']=max(theme['decision_at'],theme['discovery_theme_outlook']['basis_available_at'])
     return build_theme_bundle(result,decision_at=at,now=present)

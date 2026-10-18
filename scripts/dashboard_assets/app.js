@@ -992,11 +992,41 @@ function renderSavedArticleCompanyContext(place,context,articleContext){
   }
   place.append(box);
 }
+function renderPublicDemandNotes(place,notes,withCompany=false){
+  if(!notes?.length)return;
+  const detail=node("details","finding-detail");
+  detail.append(node("summary","","공개 원문을 읽은 기업별 수요 분석"));
+  const markets={US:"미국",KR:"한국",GLOBAL:"글로벌"};
+  const relation={MARKET_BACKGROUND:"시장 배경",PROJECT_PURPOSE:"사업 목적",ACTION_REASON:"행동 이유"};
+  const factors={GRID_REPLACEMENT:"노후 전력망 교체",RENEWABLE_INTEGRATION:"신재생 발전의 전력망 연계",
+    AI_LOAD:"AI·데이터센터 관련 전력 수요",TRANSMISSION_CONSTRAINTS:"송전 제약 해소",LOAD_GROWTH:"전력 수요 증가"};
+  detail.append(node("p","fineprint","공개 원문 내용을 읽어 정리한 분석입니다. 원문 문장 인용·본문 보관·독립 사실 인증이 아닙니다."));
+  for(const row of notes){
+    const n=row.note,card=node("article","finding");
+    card.append(node("h4","",n.source_company+" · "+n.market_codes.map(x=>markets[x]||x).join(" · ")),
+      node("p","",n.analysis_text),
+      node("p","finding-detail",n.factors.map(f=>(factors[f.code]||f.code)+" ("+(relation[f.relation]||f.relation)+")").join(" · ")),
+      node("p","fineprint","원문 위치: "+n.source_location+" · 분석 확보 "+row.available_at+" · 새 뉴스 발생 시각 아님"));
+    const link=node("a","source-link","수요 설명의 공식 원문 ↗");
+    link.href=n.source_url;link.target="_blank";link.rel="noopener noreferrer";card.append(link);
+    if(withCompany){
+      const box=node("div","news-evidence-results"),button=node("button","news-evidence-button","이 수요 분석의 기업·기사 근거 보기");
+      button.type="button";button.addEventListener("click",()=>loadSavedNewsEvidence({
+        provider_id:n.provider_id,event_id:n.source_event_sha256,title_sha256:n.source_title_sha256,
+        analysis_scope:"ECONOMIC_DISCOVERY"
+      },row.source_headline.slice(0,80),box));
+      card.append(button,box);
+    }
+    detail.append(card);
+  }
+  place.append(detail);
+}
 function showSavedNewsEvidence(place,data,article,phrase){
   place.replaceChildren();
   const articleContext=article&&phrase?{item:article,phrase}:null;
   if(data.acquisition_method==="MANUAL_METADATA")
     place.append(node("p","fineprint","공개 원문 확인 후 제목·링크 수동 입력 · 자동 수집 자료 아님"));
+  renderPublicDemandNotes(place,data.public_page_demand_analysis);
   renderSavedTitleAnalysis(place,data.saved_title_analysis);
   renderSavedArticleCompanyContext(place,data.article_company_context,articleContext);
   const reasons={NO_SAVED_EXACT_THEME_EVIDENCE:"이 기사 RSS 판본에 연결된 저장 경제 사건·테마 근거 없음",
@@ -1135,6 +1165,8 @@ function renderThemeOutlook(place,data){
   const section=node("section","theme-outlook");
   section.append(node("h3","","주목할 테마 후보·관련 산업"),
     node("p","fineprint","뉴스 원문의 공통 사업 대상과 기업 행동으로 연결한 조사 후보입니다. 산업분류표 없이 관련 사업 분야와 역할을 정리하며 유망성은 근거·반증과 함께 판단합니다."));
+  if(data.public_page_demand_analysis_status==="UNAVAILABLE")
+    section.append(node("p","fineprint","추가 수요 분석 판본을 확인할 수 없습니다. 기존 원문 제목의 테마는 계속 표시합니다."));
   const early=node("details","finding-detail");
   const earlyCount=data.candidates.filter(row=>row.attention_tier==="EARLY_WATCH").length;
   early.append(node("summary","","초기 관찰 후보 "+earlyCount+"개 · 후속 근거 확인"));
@@ -1147,16 +1179,30 @@ function renderThemeOutlook(place,data){
     card.append(node("h4","",row.title),node("p","",row.attention_label),
       node("p","finding-detail","원문 회사명: "+(row.source_company_names.join(" · ")||"미확보")));
     for(const reason of row.attention_reasons)card.append(node("p","finding-detail",reason));
+    const comparison=row.public_page_demand_analysis;
+    if(comparison){
+      const shared=comparison.shared_background_factors.filter(f=>f.all_group_companies_covered);
+      card.append(node("p","finding-detail","공개 원문 기반 비교 · "+comparison.companies_with_notes.join(" · ")),
+        node("p","finding-detail","공통 배경(분석 분류): "+(shared.map(f=>f.label).join(" · ")||"전체 기업에 공통된 배경 미확보")),
+        node("p","fineprint",comparison.market_scope_comparison==="DIFFERENT_STATED_SCOPES"?
+          "기사의 지역 범위는 서로 다릅니다. 공통 배경 분류가 같은 수요 충격·발주를 뜻하지 않습니다.":
+          "기사의 지역 범위가 같아도 같은 수요 충격·발주인지는 별도 확인이 필요합니다."));
+      for(const factor of comparison.shared_background_factors.filter(f=>!f.all_group_companies_covered))
+        card.append(node("p","finding-detail","일부 기업의 공통 배경(분석 분류): "+factor.label+" → "+factor.source_companies.join(" · ")));
+      if(comparison.companies_without_notes.length)
+        card.append(node("p","fineprint","추가 원문 분석 미확보: "+comparison.companies_without_notes.join(" · ")));
+      renderPublicDemandNotes(card,comparison.notes,true);
+    }
     const demand=row.source_demand_context;
     if(demand){
       card.append(node("p","finding-detail",demand.cross_company_source_cause_match?
         "기업 간 동일한 수요 원인 표현 확인 · 공통 시장 충격은 미검증":
-        demand.claims.length?"공통 수요 변화 근거: 일부 기업 원문만 명시":"공통 수요 변화 근거: 원문 명시 원인 미확보"));
+        demand.claims.length?"공통 수요 변화 근거: 일부 기업 원문만 명시 · 제목 기준":"공통 수요 변화 근거: 원문 명시 원인 미확보"));
       for(const claim of demand.claims)
         card.append(node("p","finding-detail",claim.source_companies.join(" · ")+" → "+claim.cause_evidence.text+
           " → "+(economicActionLabels[claim.action]||claim.action)+" · "+(claim.phase==="PLANNED"?"계획·완료 미확인":"출처 보도")));
       if(demand.companies_without_explicit_cause.length)
-        card.append(node("p","fineprint","같은 수요 원인인지 미확인: "+demand.companies_without_explicit_cause.join(" · ")));
+        card.append(node("p","fineprint","같은 수요 원인인지 미확인: "+demand.companies_without_explicit_cause.join(" · ")+" · 제목 기준"));
       card.append(node("p","fineprint","수요 근거는 해당 기사에만 적용합니다. 다른 기업으로 원인을 전이하지 않습니다."));
     }
     if(row.period_change)card.append(node("p","finding-detail",changes[row.period_change.status]||"관측 변화 확인"));

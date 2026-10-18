@@ -1,21 +1,25 @@
-# PROJECT_STATE — 기간 조회 최적화·표시된 기업 비교 저장 운영 완료
+# PROJECT_STATE — 발티카2 계약→출하·기업 평가 비교 운영 완료
 
 **목적·흐름:** 실제 뉴스 → 뉴스 분석(경제 변화·공통 사건·초기 테마) → 관련 산업·기업 → 기업별 근거·원문 조회. 전력기기 우선 적용. 사실/추론·계획/실행·미확인, 원본/PIT/비밀·무주문을 지킨다.
 
-기준 2026-10-18T20:07:18.188409+00:00. News dashboard8766 운영/기능 고정판 **6bd5b55f1527bcbad2da320b5dd5f08893a48bc1**. 기존 V1 **36/36** 유지. 아래 News 독립 운영과 Era 공동 전체 제품 완료를 구분한다.
+기준 2026-10-18T20:37:36.527086+00:00. News dashboard8766 운영/기능 고정판 **6f77b68da618c5ce31233ad05a434bc08b19373f**. 원V1 **36/36** 유지. News 독립 운영과 공동 전체 제품 완료를 구분한다.
 
-## 새로 작동하는 입력→처리→출력
-- 기존 실제 비교13건·세 기업의 검증된 Era 평가를 재사용한다. 단일 요청 안에서 같은 기준 시점의 완료 평가 수신본을 재사용하며, 다음 요청에서는 원본/PIT/SHA/손상을 다시 확인한다. 영구 캐시나 검증 생략이 아니다. 빈 기업 후보는 재무 파일을 읽지 않는다.
-- 여러 완료 판본을 모두 보유하지 않고 기존 정렬 기준상 최신 가용 판본만 유지한다. 과거 조회·동률 선택·미래 자료 제외·오류 격리는 보존했다.
-- ‘이 비교 자료 저장’은 화면에 표시된 전체 비교와 고정된 as_of/since/outlook_id를 그 순간 JSON으로 묶어 SHA 파일명으로 저장한다. 클릭 후 다른 화면으로 이동해도 이미 선택한 자료가 저장된다. 새 조회/AI/본문 저장 없이 회사별 평가의 실제 변경 전후·원문·계약 실행 비교를 함께 내보낸다.
-- 실제 브라우저 클릭으로 저장 완료 및 파일 생성 확인. 파일273,730 bytes, SHA c13884bee1cab7146570b6ef4b0feb012ba0ffe565501cf3d7a799c0be338e29. 비교13건·기업평가3개를 포함한다. 운영 API의 같은 기준 자료와 일치한다. API별 since/as_of의 KST/UTC 표기는 동일 순간으로 비교했다.
-- 현재 추가 자료 전후 세 기업 평가 근거는 유지된다. 일간 시작 대비 HD는 첫 평가 연결이며 상향이 아니다. LS/효성은 근거 유지다. 넓은 사업 가설은 SUPPORT_ADDED이나 추적 계약 모두 NO_NEW_EXECUTION_PROOF. 실제 취소·수요 감소 미확보는 약화 또는 취소 없음 인증이 아니다. 이번에는 새 뉴스를 확보·추가한 것으로 세지 않았다.
+## 새로 연결된 실제 입력→분석→기업·원문·출력
+- Semco 2023-06-13 공식 EPC 발표는 Baltica 2 해상변전소 4기와 Hyundai Electric의 주요 하도급 참여를 명시한다. 이 계약 당사자는 Semco/PTSC 컨소시엄이며 HD 개별 수주액·장비 인수 증거로 승격하지 않는다.
+- PTSC M&C 2026-09-16 공식 원문은 9월13일까지 4기 상부구조물의 반출·출항 완료를 보도한다. 같은 프로젝트·PGE/Ørsted·Semco/PTSC·4기 범위로 앞선 계약 원문과 연결한다. 후속 원문에는 HD 개별 장비의 인도·대금·최종 인수가 없고 해상 설치/최초 전력·상업 가동은 이후 계획이다.
+- 기존 북미 빅테크 기본계약·765kV 사업과 별도 프로젝트다. 최초 확보 시각을 실제 각 환경의 입력 이후로 보존했다. 2023년 계약·2026년9월 출항을 오늘의 신규 수요로 세지 않는다. 회사 원문·직접 수행사 보도상 주장과 독립 검증을 구분한다.
+- 기존 후속 비교를 v4의 출하 단계와 명시 범위(PROJECT_ONLY/NAMED_COMPANY)로 확장했다. 프로젝트 출하는 SOURCE_REPORTED_PROJECT_PROGRESS로 표시하고 reported_execution_progress=false를 유지한다. 개별 장비 최종 납품·계통 가동으로 자동 변환하지 않는다. 기존 v1~v3 출력은 보존했다. 유럽을 글로벌 수요로 확대하지 않도록 EU 지역 코드를 추가했다.
+- 운영 실제 비교13→15건. 이번 입력 전후 세 기업의 평가 모두 AVAILABLE/UNCHANGED_ASSESSMENT. HD의 프로젝트 출하 진전은 넓은 신재생 전력망 가설의 이행 근거를 보완하며 기업 평가 상향·매출 확정은 아니다. LS/효성은 추적 계약의 새 이행 근거 미확보를 유지한다. 실제 취소·수요 감소 미확보를 약화나 취소 없음 인증으로 만들지 않는다. 일간 시작 대비 HD 평가 첫 연결과 이번 자료 추가 전후 평가 유지를 구분한다.
+- 원문 제목에 HD 이름이 없어도 출처에 묶인 읽기 분석으로 기업을 연결하고, 해당 기사→HD 기존 공식 재무 평가 AVAILABLE와 두 원문을 실제 조회했다. 출처 회사 이름을 기사 제목에 삽입하거나 원래 사건·WATCH 순위를 바꾸지 않았다.
+- 화면 ‘이 비교 자료 저장’의 실제 브라우저 파일15건 확인:281,657 bytes·SHA0b793d71ca40d7c48c34965d7035c38f9b4a39f577459b0aa5bc69a338b23b41. 고정 조회시각·원문·프로젝트 범위·세 기업 평가를 포함한다.
 
-## 기능 시험·실자료·운영 증거
-- DEV 관련117 PASS/0 FAIL/0 SKIP, 고정판 SSD **117 passed in 55.87s**. 요청 내 재사용·다음 요청 손상 탐지·PIT·격리·정렬·실 HTTP 호출 수·다운로드 내용/선택 시점/SHA 검증. JS 구문·diff 검사 통과. 기존 변경 없는 전체 회귀를 다시 실행한 것으로 표시하지 않는다.
-- 동일 실제 입력·고정시각에서 이전/현재 기간 API 응답1,044,502 bytes가 바이트까지 동일했다. 평가 수신 파일 읽기65→26, 스냅샷 선택5→2. 관측 조회69.176→37.000초; 새 측정은 관련 시험과 겹쳐 통제된 성능 보장/SLA로 쓰지 않는다. 실제 UI에서 로딩 대기가 있었으며 전체 기간 조회가 즉시 응답한다고 주장하지 않는다.
-- 사용자 새 명시 승인으로 dashboard 한 서비스만 1b1f1f8→6bd5b55 실행 경로 전환·재시작 완료. 최초 자동 검토는 이전 승인이1b에 한정됐다는 이유로 거절했으며, 새 승인 후 적용했다. 다른 News 예약 plist SHA 동일. Era 코드/DB/Git/설정·수집예약 변경0. 임시8767 종료. 운영 화면 새 저장 버튼·비교13건·세 평가AVAILABLE, 같은 기준 API 확인7.891초.
-- HD2024/2025 기존 CFS 예외는 완료 원본/평가만 재사용. 재수집/재평가0, 유료AI0, 새 의존성0. 기존 사용자 untracked vision SHA 보존.
+## 시험·실자료·운영
+- DEV 영향 시험91 PASS 후 혼재 이행 판정까지 포함한 출하 시험12 PASS. 최종 고정판 SSD **92 passed in 55.82s / 0 FAIL / 0 SKIP**. 중복 실행을 합산하지 않는다. 과거 조회·중복 입력0·스키마/범위 오류 거부·개별 출하/프로젝트 출하 정상 경로·차질 혼재·원문 링크·화면·저장 출력 확인. 기존 전체 회귀는 변경 없는 부분의 유효 증거를 재사용했다.
+- 운영을 먼저 건드리지 않고 문서/출처 워크스페이스 복사본에서 실제 두 원문을 기존 경로로 입력·비교15건·과거13건·기업 평가 유지와 UI/파일 저장을 확인했다.
+- 사용자가 새6f77b68에 대해 ‘News 대시보드 한 서비스 적용 허용’을 명시 승인했다. 기존6bd→6f 실행 경로 전환·재시작 완료. 다른 News 예약 plist SHA 동일. 임시8767 종료. 수집 예약·Era 코드/DB/Git/설정 변경0.
+- 승인 후 운영 입력에서 새 두 제목/읽기를 다시 처리해 운영 확보 시각을 보존했다. 기존 출처 허용 항목 값은 동일하며 신규 수동 메타데이터 출처2개만 추가했다. HTTP 자동 수집이나 예약 출처를 늘리지 않았다. 원문 본문 저장0·유료AI0·새 의존성0. 기존 읽기/입력 파일은 유지했다.
+- 운영 비교15건·이전 조회13건·PTSC 개별 기사→HD 평가 AVAILABLE·이번 추가 전후 세 평가 근거 유지 확인. API 검증3건 합계19.538초이며 단일 요청 응답 시간으로 표시하지 않는다. 기존 중복 평가 읽기 최적화와 저장 기능은 보존했으나 전체 기간 즉시 응답을 보장하지 않는다.
+- 운영 입력 전 표준 내보내기는 바이트 동일하게 재조회했고 반복 읽기 게시0을 확인했다. HD2024/2025 기존 CFS 예외 원본·평가만 재사용하며 재수집/평가 재생산0. 사용자 untracked vision SHA 보존. 이전 dashboard plist/고정판 보존. 구판으로 되돌릴 때는 이 작업에서 추가한 EU/v4 읽기2개도 비공개 보존 영역으로 분리한 뒤 구판을 사용해야 한다.
 
 ## 합의한 완료조건의 현재 판정
 조건 정의 docs/PRODUCT_COMPLETION_CRITERIA_20261016.md. 기왕의 유효 증거를 재사용하고 새로운 최소 표본/사람 검수/추가 기다림 게이트를 만들지 않았다.
@@ -23,22 +27,22 @@
 | 조건 | 기능·시험 / 실제 자료·운영 / 근거 | 남은 항목 |
 |---|---|---|
 | NC-01 | 완료: 허용 출처 자동 수집·중복/재개. continuous_completion_20261018/first_tick_summary.json 실제 예약 COMPLETE·5출처 실패0, real_incremental.json 반복 중복 방지 | 새 원문이 없으면 없다고 유지 |
-| NC-02 | 완료: 경제 행동·발표/계획/취소·정정 및 원문 연결. 기존 전체 회귀와 관련117, 실제 전력기기 비교13 | 개별 자료에 없는 이행 사실을 생성하지 않음 |
+| NC-02 | 완료: 경제 행동·발표/계획/취소·정정 및 원문 연결. 기존 전체 회귀와 기존117 및 이번92, 실제 전력기기 비교13 | 개별 자료에 없는 이행 사실을 생성하지 않음 |
 | NC-03 | 완료: 기존 이름표에 한정하지 않는 공통 사업/행동 관찰50주제·55행동·미분류39, 실제 관찰→테마→출처 조회 | 공통 인과·독립 시장사건 확정은 별도 사실 |
 | NC-04 | 완료: 기업 식별·직접/추론·분리된 수혜 가설. 실제3기업 뉴스→검증 평가 AVAILABLE·원문 조회 | 기업 언급을 실수혜 확정으로 만들지 않음 |
-| NC-05 | 완료: 최초·이전 판본/PIT 보존, 후속·정정·취소 판정 및 중복 방지 시험. 실제13자료의 과거/별도 사업과 동일 계약 후속을 구분 | 같은 계약 실제 추가 발주/납품/취소는 현재 선택 자료에 미확보; 기능 실패/새 출시 게이트 아님 |
+| NC-05 | 완료: 최초·이전 판본/PIT 보존, 후속·정정·취소 판정 및 중복 방지 시험. 실제15자료의 과거/별도 사업·프로젝트 출하와 개별 기업 최종 납품을 구분 | 같은 계약 실제 추가 발주/납품/취소는 현재 선택 자료에 미확보; 기능 실패/새 출시 게이트 아님 |
 | NC-06 | 완료: 대시보드·검색·기간 비교·기존 보고/표준 출력. 이번 화면 비교 저장의 실제 파일+운영 일치 | 전체 기간 로딩 지연 관측은 남김 |
 | OP-01 | News 완료: continuous_completion_20261018/first_tick_summary.json·company_economic_bridge_20261018/real_integration_proof.json·이번 운영 API/UI | Era 전체 운영 완료와 구분 |
 | OP-02 | News 완료: 기존 core/MOTIR/research-approved 실제 예약·오류 재시도/재개 시험과 operational_verification.json, 예약 설정 보존 | Era 별도 첫 예약 실행/복구는 읽기 전용 외부 경로 |
 | OP-03 | News 완료: 실제 source/SHA/PIT, 읽기 전용 Era 공유·비밀/원본 분리·관련 시험 | 새로 찾은 과거 뉴스를 과거에 가용했던 것으로 만들지 않음 |
-| OP-04 | News 완료: 기존 출시 전체 회귀7502개 적용 범위(7492통과10skip0실패 및 수정 후 coverage reconciliation) + 이번117 영향 시험. 출력 full_regression_reconciled.json·ssd_tests.txt | 이번117을 새 전체 회귀로 합산하지 않음 |
+| OP-04 | News 완료: 기존 출시 전체 회귀7502개 적용 범위(7492통과10skip0실패 및 수정 후 coverage reconciliation) + 기존117 및 이번92 영향 시험. 출력 full_regression_reconciled.json·ssd_tests.txt | 기존117 및 이번92을 새 전체 회귀로 합산하지 않음 |
 | OP-05 | News 완료: operational_verification.json의 비용/캐시 DB 별도 폴더 복원·무결성, dashboard 이전 plist/고정판 보존 및 재개 | 다른 물리 장치 새 조건 없음 |
 | OP-06 | News 완료: 실제 Gemini 생성·비용/캐시·월5만원 제한. 기존 증거 settled110건90.279원/미정산2건예약15.1552원(당시 값), 이번 호출0 | 현재 잔액 재검사를 새 게이트로 추가하지 않음 |
 | INT-01 | 대표 실연동 완료: 회사 경제변화→기존 Era 소비→50WATCH·보고, company_economic_bridge_20261018/real_integration_proof.json | 시장 전체/HD WATCH 강제 편입을 뜻하지 않음 |
 | INT-02 | 부분: 세 기업의 사업 근거·공식 연간 재무·위험 평가 실제 연결 및 값 보존. HD는 WATCH 외 개별 연구 | 현재 가격 평가 N/A 및 산업 전체 경쟁력 평가의 생산자 근거 미확보 |
 | INT-03 | 완료: 같은 판본 재소비 ALREADY_IMPORTED/ALREADY_PUBLISHED, 미래·오류 제외·한쪽 결측 격리 기존 시험/실제 반복 | 외부 미확보 자료를 생성하지 않음 |
-| INT-04 | 대표 뉴스→사업·재무·위험→화면/보고 실경로 완료, News6bd5b55·Era 게시 소비 기존934ff8f 및 개별 평가 원본SHA 고정 | 가격/시장 전체를 포함한 공동 완료는 부분; 현재 EraHEAD bb7f5a7은 읽기 확인이며 생산자 고정판과 혼용 금지 |
+| INT-04 | 대표 뉴스→사업·재무·위험→화면/보고 실경로 완료, News6f77b68·Era 게시 소비 기존934ff8f 및 개별 평가 원본SHA 고정 | 가격/시장 전체를 포함한 공동 완료는 부분; 현재 EraHEAD bb7f5a7은 읽기 확인이며 생산자 고정판과 혼용 금지 |
 
 Era ER-01~06 전체 인수는 News에서 변경할 권한이 없고 완료 인증하지 않는다. 읽기 확인 당시 Era PROJECT_STATE: KR WATCH50/연간44/peer21/strict가격0/N/A50, FY2025 산업전체 자료 미게시(예정10/21 12:00KST) 및 분류 매핑, KRX 권한/주식 귀속·완료세션 근거, Era 신규 평일10시 예약의 첫 실제 실행/복구가 남아 있다. US 일부 후보는 전시장 완료가 아니다. 같은401/403·결측·미실행을 반복 확인하거나 Era 수집기/평가기를 News에 새로 만들지 않는다. 전체 공동 목표는 미완료이나 News 독립 운영은 계속된다.
 
-비공개 최신 증거 output/query_output_completion_20261019/: actual_query_comparison.json, ui_comparison_download.json, candidate.json, ssd_tests.txt, saved_comparison_ui.png, activation.json, operating_verification.json, operating_query_output_ui.png, public_range_check.json. 기존 continuous_completion_20261018 및 company_economic_bridge_20261018 증거 보존. 비공개 원본·DB·출력은 Git 제외.
+비공개 최신 증거 output/project_shipment_20261019/: selected_source_metadata.json, candidate_intake.json, candidate_comparison.json, before_export.json, candidate.json, affected_tests.txt, final_scope_tests.txt, ssd_tests.txt, candidate_verification.json, ui_comparison_download.json, ui_verification.json, preview.png, activation.json, production_intake.json, production_before_export.json, operating_comparison.json, operating_verification.json, operating.png. 이전 query_output_completion_20261019·continuous_completion_20261018·company_economic_bridge_20261018 증거는 그대로 보존한다. 원본/DB/출력/스크린샷은 Git 제외.

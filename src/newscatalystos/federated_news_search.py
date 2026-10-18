@@ -180,6 +180,8 @@ def search_completed_workspaces(
                         "confirmed_beneficiary": False,
                         "article_body_included": False,
                     }
+                    if registry.active(item["provider_id"], at=at).method == "MANUAL_METADATA":
+                        row["acquisition_method"] = "MANUAL_METADATA"
                     key = _identity(row)
                     previous = scoped.get(key)
                     if previous is None or _order(row) > _order(previous):

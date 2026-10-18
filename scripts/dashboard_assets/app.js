@@ -995,6 +995,8 @@ function renderSavedArticleCompanyContext(place,context,articleContext){
 function showSavedNewsEvidence(place,data,article,phrase){
   place.replaceChildren();
   const articleContext=article&&phrase?{item:article,phrase}:null;
+  if(data.acquisition_method==="MANUAL_METADATA")
+    place.append(node("p","fineprint","공개 원문 확인 후 제목·링크 수동 입력 · 자동 수집 자료 아님"));
   renderSavedTitleAnalysis(place,data.saved_title_analysis);
   renderSavedArticleCompanyContext(place,data.article_company_context,articleContext);
   const reasons={NO_SAVED_EXACT_THEME_EVIDENCE:"이 기사 RSS 판본에 연결된 저장 경제 사건·테마 근거 없음",
@@ -1056,6 +1058,8 @@ async function searchStoredNews(event){
       card.append(node("h4","",item.headline),
         node("p","finding-detail",item.provider_id+" · 출처 가용: "+item.source_available_at+" · "+(item.semiconductor_keyword_candidate?"반도체 단어 후보":"일반 제목 맥락")),
         node("p","finding-detail","뉴스 제목 메타데이터 · 기사 본문 미포함 · 사실/거래/수혜 확인 아님"));
+      if(item.acquisition_method==="MANUAL_METADATA")
+        card.append(node("p","fineprint","공개 원문 확인 후 제목·링크 수동 입력 · 자동 수집 자료 아님"));
       const link=node("a","source-link","저장 뉴스의 원래 출처 ↗");
       link.href=item.source_url;link.target="_blank";link.rel="noopener noreferrer";
       const action=node("button","news-evidence-button","경제 사건·테마·기업 근거 보기");
@@ -1162,6 +1166,14 @@ function renderThemeOutlook(place,data){
           " · "+(economicActionLabels[source.action]||source.action)+
           " · "+(source.phase==="PLANNED"?"계획":"출처 보도")),
         node("p","fineprint","근거 확보 "+source.basis_available_at));
+      const evidence=node("div","news-evidence-results");
+      const company=node("button","news-evidence-button","이 테마의 기업·분석 근거 보기");company.type="button";
+      company.addEventListener("click",()=>loadSavedNewsEvidence({
+        provider_id:source.provider_id,event_id:source.source_event_sha256,
+        title_sha256:source.source_title_sha256,headline:source.headline,
+        source_url:source.source_url,analysis_scope:"ECONOMIC_DISCOVERY"
+      },source.headline.slice(0,80),evidence));
+      detail.append(company,evidence);
       const link=node("a","source-link","테마 후보의 원문 ↗");
       link.href=source.source_url;link.target="_blank";link.rel="noopener noreferrer";detail.append(link);
     }

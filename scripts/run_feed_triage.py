@@ -59,9 +59,18 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
-def evaluate(opts: argparse.Namespace) -> tuple[int, dict]:
+def evaluate(opts: argparse.Namespace, *, manual_metadata: bytes | None = None) -> tuple[int, dict]:
     try:
         registry = _registry(opts.registry)
+        manual = registry.active(opts.provider_id).method == "MANUAL_METADATA"
+        if manual_metadata is not None and not manual:
+            raise SourceShareError("local metadata input requires explicit manual source")
+        if manual_metadata is not None:
+            from newscatalystos.new_source_adapter import parse_authorized_feed
+            # Reject malformed/body-bearing input before any ledger mutation.
+            parse_authorized_feed(registry, opts.provider_id, manual_metadata)
+        if manual and manual_metadata is None and not opts.replay_only:
+            raise SourceShareError("manual source requires explicit local metadata input")
         pending = pending_retry_checkpoints(
             opts.inbox_root, opts.state, registry, opts.provider_id,
         )
@@ -77,6 +86,8 @@ def evaluate(opts: argparse.Namespace) -> tuple[int, dict]:
             written = []
             poll = incremental_poll(
                 registry, opts.provider_id, opts.state,
+                fetcher=(lambda reg, name, at=None: parse_authorized_feed(
+                    reg, name, manual_metadata, observed_at=at)) if manual else None,
                 before_commit=lambda result: written.append(
                     save_retry_checkpoint(opts.inbox_root, result)),
             )
@@ -99,7 +110,8 @@ def evaluate(opts: argparse.Namespace) -> tuple[int, dict]:
         return 0, {
             "status": ("RECOVERED_FROM_DURABLE_CHECKPOINT"
                        if recovered else "FEED_METADATA_TRIAGE_READY"),
-            "network_called": not recovered,
+            "network_called": not recovered and not manual,
+            **({"acquisition_method": "MANUAL_METADATA"} if manual else {}),
             "provider_id": opts.provider_id,
             "checkpoint_sha256": receipt.payload_sha256,
             "poll_status": poll.status,

@@ -194,7 +194,7 @@ def test_theme_UI_shows_reason_business_roles_counterconditions_and_safe_source_
     script = r'''
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
 const s=fs.readFileSync('scripts/dashboard_assets/app.js','utf8');
-function node(t,c,txt){return {textContent:txt||'',children:[],append(...x){this.children.push(...x)},replaceChildren(...x){this.children=x}}}
+function node(t,c,txt){return {textContent:txt||'',children:[],append(...x){this.children.push(...x)},replaceChildren(...x){this.children=x},addEventListener(){}}}
 const p=node('div');const ctx={node,economicActionLabels:{CONTRACT:'공급계약'}};
 vm.runInNewContext(s.slice(s.indexOf('function renderThemeOutlook(')),ctx);
 ctx.renderThemeOutlook(p,{candidates:[{title:'새소재<script> 관련 경제 변화',attention_label:'우선 조사 후보',

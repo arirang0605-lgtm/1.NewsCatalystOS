@@ -74,7 +74,7 @@ def parse_authorized_feed(
                 item.findtext("title") or "",
                 item.findtext("link") or "",
             ))
-    elif provider.method == "JSON_API":
+    elif provider.method in ("JSON_API", "MANUAL_METADATA"):
         data = _json(feed, "JSON source feed")
         if set(data) != {"items"} or not isinstance(data["items"], list):
             raise SourceShareError("invalid JSON metadata structure")
@@ -95,6 +95,10 @@ def parse_authorized_feed(
         identity = _text(doc_id, "feed document_id", 512)
         headline = _text(headline, "headline", 256)
         url = _safe_https_endpoint(url)
+        if provider.method == "MANUAL_METADATA":
+            from urllib.parse import urlsplit
+            if identity != url or urlsplit(url).hostname != urlsplit(provider.endpoint).hostname:
+                raise SourceShareError("manual metadata link must belong to reviewed company origin")
         event_id = sha256((provider_id + "\0" + identity).encode()).hexdigest()
         if event_id in seen:
             continue  # same feed id repeated; no duplicate novelty

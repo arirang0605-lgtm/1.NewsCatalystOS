@@ -59,6 +59,8 @@ def fetch_authorized_once(
         raise SourceShareError("approved provider registry required")
     instant = _when((at or datetime.now(timezone.utc)).isoformat(), "at")
     provider = registry.active(provider_id, at=instant)
+    if provider.method == "MANUAL_METADATA":
+        raise SourceShareError("manual metadata has no automatic HTTP transport")
     endpoint = _safe_https_endpoint(provider.endpoint)
     if (type(timeout_seconds) not in (int, float)
             or not 0 < timeout_seconds <= MAX_TIMEOUT_SECONDS):

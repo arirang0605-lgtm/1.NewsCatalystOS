@@ -172,6 +172,8 @@ class Handler(BaseHTTPRequestHandler):
                     as_of=at, now=now,
                 )
                 detail["source_coverage_complete"] = found["coverage_complete"]
+                if found["results"][0].get("acquisition_method") == "MANUAL_METADATA":
+                    detail["acquisition_method"] = "MANUAL_METADATA"
                 # The saved rule analysis is distinct from a ThemeStore event.
                 # One missing or unreadable derived report does not prevent
                 # viewing the independent theme or licensed ministry evidence.

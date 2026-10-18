@@ -16,7 +16,7 @@ from .source_share import SourceShareError, _json, _must_id, _when
 
 SCHEMA = "newscatalyst.provider_registry.v1"
 TYPES = frozenset({"GOVERNMENT_POLICY", "COMPANY_IR", "LICENSED_NEWS", "SNS_TIP"})
-METHODS = frozenset({"RSS", "JSON_API", "RSS_POST", "DOCUMENT", "HTML_METADATA"})
+METHODS = frozenset({"RSS", "JSON_API", "RSS_POST", "DOCUMENT", "HTML_METADATA", "MANUAL_METADATA"})
 GRANTS = frozenset({"OFFICIAL_TERMS_REVIEWED", "WRITTEN_LICENSE", "PUBLIC_LICENSE_KOGL_1", "NOT_REVIEWED"})
 MOTIR_PRESS_RIGHTS = "https://www.motir.go.kr/kor/article/ATCL3f49a5a8c"
 MOTIR_PRESS_DOCUMENT = re.compile(
@@ -164,6 +164,11 @@ def parse_provider_registry(data: bytes, *, now: datetime | None = None) -> Prov
             if (kind != "COMPANY_IR" or grant != "OFFICIAL_TERMS_REVIEWED"
                     or ENDPOINT.fullmatch(endpoint) is None or row["allow_full_text_storage"]):
                 raise SourceShareError("official news metadata limited to reviewed public listing")
+        if method == "MANUAL_METADATA" and (
+            kind != "COMPANY_IR" or grant != "OFFICIAL_TERMS_REVIEWED"
+            or row["allow_full_text_storage"]
+        ):
+            raise SourceShareError("manual metadata requires reviewed public company titles only")
         permission = row["rights_reference"]
         if permission is not None and (not isinstance(permission, str)
                 or not 0 < len(permission) <= 512):

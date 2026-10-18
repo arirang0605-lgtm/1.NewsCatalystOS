@@ -1,17 +1,13 @@
-# START HERE — 실제 수주·납품 계획·반론과 계약 이행 비교
+# START HERE — 뉴스 경제변화가 Era 후보 평가까지 연결됨
 
-**목적·개발 기준:** 실제 뉴스 → 뉴스 분석(경제 변화·공통 사건·초기 테마) → 관련 산업·기업 연결 → 기업별 근거·원문 조회. 여러 사건과 기업을 연결해 초기 테마와 잠재 수혜 기회를 근거와 함께 발견한다. 산업·기업은 분석 결과로 연결하고 미분류/미확보 사건도 보존한다. 전력기기는 이 공통 흐름의 첫 실자료 적용 분야다. 매 개발 시작·진행·종료 시 목적 기여를 확인하며 세부 산업 규칙/검증 보완에만 치우치지 않는다. AGENTS.md/DECISIONS.md의 PROJECT-PURPOSE-20261018을 적용한다.
+**현재 개발 목적:** 실제 뉴스의 실질 변화 → 관련 기업의 조건부 경제적 영향 → EraLeader의 기존 투자 후보 평가 → 같은 화면·요약·중립 출력. 테마는 기업 발굴의 수단이며 기존 독립 전시장 발굴도 유지한다. 기존 기능·정식 상태·100점 배점·원본/PIT/비밀·무주문을 보존한다.
 
-기준 2026-10-18 19:10 KST. 기능/운영 **834c4cbecd140c351a554e4ded23128ce99cbaf1**. 공식 뉴스4건(HD2·LS1·효성1)의 수주/매출·제작/납품 계획과 외부 반론 참고 기사1건을 기존 세 기업의 실제 뉴스·수요 근거에 연결했다. 실제 뉴스→기존 수요/이행 분석→초기 테마 비교→관련 기업→정확한 기사 판본·공식 원문·반론 링크 조회가 작동한다.
+기준 2026-10-18T19:28:01+09:00. 최신 사용자 요청에 따라 기존 기능을 유지하며 핵심 연결을 구현했다. News **f8f42801e6a82ccadce5357afbc4984ed2b56fc7**, Era 기능 **b3c5b2e2ad09ad9213e345ad28d935c98884b5d5** + 보완 **934ff8fe19c7db2b9dc044ef477ca3272194fc8c**. 실제 저장 뉴스/회사 읽기 분석 → News 고정 material 게시 → Era 정확 DART 기업 → 기존 후보 판단/경제경로·반증 → 화면·digest·중립JSON을 실행했다.
 
-현재: **관련 사업의 수요 근거는 보강(SUPPORT_ADDED), 앞서 추적한 개별 계약/공장 가동의 추가 이행은 미확인(NO_NEW_EXECUTION_PROOF)**. 분기 실적이 좋아도 특정 계약의 개별 발주/납품 확인으로 전이하지 않는다. 시점·기간·고객·제품·프로젝트가 다르면 관련 사업 자료로 보존한다. 우려/가정은 실제 취소·지연·수요 감소와 구분하며 확보하지 못했다는 이유로 약화라고 판단하지 않는다. 이번 확보 자료에서 원문상 실제 취소/수요 감소 발생은 미확인이다.
+실자료: 회사 경제변화 분석7건(HD·LS·효성)이70테마의 고정 게시에 포함된다. LS ELECTRIC(010120)·효성중공업(298040) 각2분석이 Era 실제 후보에 연결됐다. HD현대일렉트릭은 현재 평가 목록과 미연결이다. 실제 판정 강화0/약화0/유지50·검토순서변경0이며 첫 관측·다른 사업/기간·조건을 새 확정호재로 올리지 않았다. 기존 WATCH50·전시장 확장 검토28·가격·재무·원 평가시각/시장세션 보존.
 
-DEV=/Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project, branch=codex/real-data-path. BASE=~/Library/Application Support/NewsCatalystOS, release=BASE/releases/834c4cbecd140c351a554e4ded23128ce99cbaf1, 분석=BASE/document_analysis/economic_discovery. 운영 http://127.0.0.1:8766/ → 변압기 관련 경제 변화 → 최근 실제 뉴스와 기존 수요 근거 비교 → 실행 비교/반증 후보 → 최근 뉴스의 기업·비교 근거 보기 → 공식 원문/반론 원문. DEV/SSD output/execution_evidence_20261018/에 비공개 입력·시험·실행 증거, SSD code_final/에 최종 고정판.
+운영: 기존 research-approved 시간당예약의 코드만 BASE/releases/f8f42801e6a82ccadce5357afbc4984ed2b56fc7로 연결하고 기존 power/ls_power/hyosung 승인 제목 저장영역은 읽기만 추가했다. 첫 예약실행5출처/실패0·새기사0·AI0·동일게시재사용. core/MOTIR/dashboard 설정SHA3개 보존. /api/themes HTTP200·고정 게시bytes 동일·과거판본 유지. Era 뉴스전용 갱신은 원 가격·재무를 재계산하지 않고 새 보고서/기존 운영홈/중립JSON으로 발행·재실행 ALREADY_PUBLISHED 확인.
 
-검증: DEV 영향시험125 PASS(신규20 포함), 최종 작은 필드 정리 후 신규20 재확인 PASS. SSD 최종 고정판125 PASS. 합성자료로 정상 발주/납품 진전·지연/취소/수요 감소·혼재/계획/배경·앞선 기간·잘못된 기준/프로젝트/원문 필드·외부 링크 입력·PIT·중복·수동 입력/네트워크 요청 예산 분리·기존 보고서 보존·주 화면/정확한 기사 조회를 시험했다. 전체 회귀나 전체 제품 인수로 확장 선언하지 않는다.
+실제 보고서SHA 16e90554713d434631f6675467ff0b7ccbf1fcfaebf7d10e4c1f17c9c779176d, 중립JSON KR_20261016_4702e32d4ae63be2.json. 운영홈 LINKED. 증거 output/company_economic_bridge_20261018/의 real_integration_proof.json·operating_api_proof.json·activation.json·first_tick_summary.json·news_tests.xml·era_tests_final.xml. 관련 News107+Era48 PASS. 전체 제품 인수·전체 회귀 완료를 의미하지 않는다.
 
-실자료: 추가 공식 제목4건·v2 읽기 분석4건·반론 참고1건. 기존 v1 비교3건과 public_demand3건 보존, 현재 활성 recent_followups7건. 동일 분석 입력 추가0. 49주제54사건·명시 회사명37·제목판본406. 이번 제목4건을 새 경제 사건으로 강제 추출하지 않았다. 실제 HTTP에서4개 정확한 기사 분석/기준/시간 관계, 주 화면, 선택 export와 과거 기본/선택 export bytes 보존을 확인했다. 기존 수집/예약3 SHA와 세 워크스페이스 등록 구성 bytes 동일. 본문/인용 보관0·유료AI0·Public push0, Era 코드/DB/Git/공식API 중복 수집0. 웹 조사와 무네트워크 로컬 입력 실행은 구분한다.
-
-사용자dirty3 SHA·SSD 원래 코드/Git/미커밋 보존. 원V1 36/36 기록 유지, 전력기기 전체/자동 본문 분석/실제 약화 사건 확보/특정 계약 이행·수혜/공동연동 완료는 미선언.
-
-START→AGENTS→PROJECT_STATE→DECISIONS→NEXT_TASK의 최신 기준만 읽는다.
+DEV=/Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project, branch=codex/real-data-path. BASE=~/Library/Application Support/NewsCatalystOS. Era의 기존 개발폴더·뉴스수신기/선정기만 최소 연결했고 기존 다른 진행 중 파일은 보존했다. Public push/새스케줄/메시지/주문0. 원V1 36/36 유지. START→AGENTS→PROJECT_STATE→DECISIONS→NEXT_TASK와 실제 Git 상태부터 확인. 상세 docs/COMPANY_ECONOMIC_BRIDGE_20261018.md, Era docs/320_NEWS_COMPANY_ECONOMIC_CHANGE_BRIDGE_20261018.md.

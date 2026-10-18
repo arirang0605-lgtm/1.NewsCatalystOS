@@ -35,6 +35,8 @@ def parser() -> argparse.ArgumentParser:
                    help="V1 default unchanged; optional power profile requires separate explicit derived roots")
     p.add_argument("--discover-economy",action="store_true",
                    help="find source-stated economic actions first; unknown industry/company stays observable")
+    p.add_argument("--discovery-offset",type=int,default=0,
+                   help="event-first pagination of already stored source titles; never fetches more news")
     p.add_argument("--registry", type=Path)
     p.add_argument("--inbox-root", type=Path)
     p.add_argument("--state", type=Path, help="existing ingestion state, read-only")
@@ -105,7 +107,8 @@ def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, d
             analyze_existing=getattr(opts, "analyze_existing", False),
             ai_ledger=getattr(opts, "ai_ledger", None), company_identity_config=identity_config, semantic_ai=getattr(opts,"semantic_ai",False),
             semantic_call_limit=getattr(opts,"semantic_call_limit",3),
-            semantic_scheduled_only=getattr(opts,"semantic_scheduled_only",False),industry=industry)
+            semantic_scheduled_only=getattr(opts,"semantic_scheduled_only",False),industry=industry,
+            discovery_offset=getattr(opts,"discovery_offset",0))
         failures = sum((row["ai_eligible"] or row.get("analysis_purpose") == "EXISTING_ARTICLE") and row["ai_status"] not in
                        ("ANALYZED_UNVERIFIED", "CACHE_HIT") for row in report["results"])
         if getattr(opts,"semantic_ai",False):

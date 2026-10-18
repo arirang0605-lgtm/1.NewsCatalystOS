@@ -29,17 +29,38 @@ def execute(root,sources,*,now=None,dry_run=False):
             if dry_run:
                 outcomes.append({'scope':scope,'provider_id':provider,'status':'DRY_RUN'});continue
             folder='d_'+sha256((scope+':'+provider).encode()).hexdigest()[:16]
-            opts=analysis_parser().parse_args(['--registry',str(registry_path),'--state',str(state_path),
-                '--inbox-root',str(inbox_path),'--provider-id',provider,'--discover-economy','--limit','100',
-                '--analysis-root',str(root/'feed_analysis'/folder/'core'),
-                '--theme-root',str(root/'theme_history')])
-            code,data=evaluate(opts,now=at)
-            outcomes.append({'scope':scope,'provider_id':provider,'status':data.get('status'),
-                'exit_code':code,'titles':len(data.get('results',[])),
-                'has_more_older_titles':data.get('has_more_results',False),
-                'events':data.get('economic_changes_count',0),'theme_versions_created':data.get('theme_versions_created',0),
-                'unclassified_events':sum(not c['industry_tags'] for r in data.get('results',[]) for c in r.get('economic_changes',[])),
-                'source_fetch_calls':data.get('source_fetch_calls',0),'paid_ai_calls':0})
+            # Keep the existing 100-title report bound, but finish the same
+            # approved source snapshot. Older stored news used to remain forever
+            # behind the newest 100 even when it contained an unmapped industry.
+            offset=0;expected=None
+            outcome={'scope':scope,'provider_id':provider,'titles':0,'events':0,
+                'theme_versions_created':0,'unclassified_events':0,'analysis_batches':0,
+                'has_more_older_titles':False,'source_fetch_calls':0,'paid_ai_calls':0}
+            while True:
+                opts=analysis_parser().parse_args(['--registry',str(registry_path),'--state',str(state_path),
+                    '--inbox-root',str(inbox_path),'--provider-id',provider,'--discover-economy','--limit','100',
+                    '--discovery-offset',str(offset),'--analysis-root',str(root/'feed_analysis'/folder/'core'),
+                    '--theme-root',str(root/'theme_history')])
+                code,data=evaluate(opts,now=at)
+                rows=data.get('results',[]);total=data.get('matched_versions',0)
+                more=data.get('has_more_results',False)
+                outcome.update(status=data.get('status'),exit_code=code,has_more_older_titles=more)
+                if code!=0:
+                    outcome['has_more_older_titles']=True
+                    break
+                if (expected is not None and total!=expected) or (more and not rows):
+                    outcome.update(status='SOURCE_SNAPSHOT_CHANGED',exit_code=4,has_more_older_titles=True)
+                    break
+                expected=total
+                outcome['analysis_batches']+=1
+                outcome['titles']+=len(rows)
+                outcome['events']+=data.get('economic_changes_count',0)
+                outcome['theme_versions_created']+=data.get('theme_versions_created',0)
+                outcome['unclassified_events']+=sum(not c['industry_tags'] for r in rows for c in r.get('economic_changes',[]))
+                outcome['source_fetch_calls']+=data.get('source_fetch_calls',0)
+                if not more:break
+                offset+=len(rows)
+            outcomes.append(outcome)
     bad=sum(r.get('exit_code',0)!=0 or r['status']=='SOURCE_UNAVAILABLE' for r in outcomes)
     return {'status':'PARTIAL' if bad else 'READY','sources_failed':bad,'sources':outcomes,
             'analyzed_titles':sum(r.get('titles',0) for r in outcomes),'economic_events':sum(r.get('events',0) for r in outcomes),

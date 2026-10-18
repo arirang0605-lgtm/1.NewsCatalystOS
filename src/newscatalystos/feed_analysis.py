@@ -408,6 +408,7 @@ def analyze_completed_feed(
     opener=None, now: datetime | None = None, company_identity_config: Path | None = None,
     semantic_ai: bool = False, semantic_call_limit: int = 3,
     semantic_scheduled_only: bool = False, industry: str = "SEMICONDUCTOR",
+    discovery_offset: int = 0,
 ) -> dict:
     """Reuse committed sources and separate analysis state; paid execution is opt-in.
 
@@ -417,6 +418,9 @@ def analyze_completed_feed(
     at = _stamp(now)
     if industry not in {"SEMICONDUCTOR","POWER_EQUIPMENT","ECONOMIC_DISCOVERY"}:
         raise SourceShareError("unsupported analysis industry")
+    if (type(discovery_offset) is not int or discovery_offset<0 or
+            (discovery_offset and (industry!="ECONOMIC_DISCOVERY" or event_id is not None or title_sha256 is not None))):
+        raise SourceShareError("discovery offset requires an unfiltered event-first source")
     if industry in {"POWER_EQUIPMENT","ECONOMIC_DISCOVERY"} and (model is not None or allow_paid or semantic_ai or analyze_existing):
         raise SourceShareError("initial power equipment profile reuses source rules only")
     if (type(semantic_ai) is not bool or type(semantic_call_limit) is not int
@@ -473,6 +477,8 @@ def analyze_completed_feed(
         selected = list(latest.values())
     selected.sort(key=lambda x: (x["available_at"], x["provider_id"], x["event_id"]), reverse=True)
     matched = len(selected)
+    if discovery_offset and discovery_offset>=matched:
+        raise SourceShareError("discovery offset outside available source versions")
     if event_id is not None and not selected:
         raise SourceShareError("selected committed source version unavailable")
     if not selected:
@@ -501,7 +507,7 @@ def analyze_completed_feed(
         except (SourceShareError, OSError, ValueError, TypeError):
             identity_status = "UNAVAILABLE"
     reports = []
-    for item in selected[:limit]:
+    for item in selected[discovery_offset:discovery_offset+limit]:
         decision = _stamp(now)
         registry.active(item["provider_id"], at=decision)
         # Earlier title revisions are known NOW, never backfilled to an old decision.
@@ -618,7 +624,8 @@ def analyze_completed_feed(
             "medium_krw": str(MEDIUM_KRW), "large_krw": str(LARGE_KRW),
             "minimum_known_score": HIGH_REVIEW_SCORE},
         "source_versions_checked": len(rows), "matched_versions": matched,
-        "has_more_results": matched > len(reports), "results": reports,
+        **({"discovery_offset":discovery_offset} if industry=="ECONOMIC_DISCOVERY" else {}),
+        "has_more_results": matched > discovery_offset+len(reports), "results": reports,
         "ai_eligible_candidates": sum(x["ai_eligible"] for x in reports),
         "new_ai_results": sum(x["ai_status"] == "ANALYZED_UNVERIFIED" for x in reports),
         "cache_hits": sum(x["ai_status"] == "CACHE_HIT" for x in reports),

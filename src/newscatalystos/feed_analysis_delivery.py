@@ -72,8 +72,11 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
                   "new_ai_results", "cache_hits"):
         if type(data.get(field)) is not int or data[field] < 0:
             raise SourceShareError("invalid producer result count")
-    if (not data["source_versions_checked"] >= data["matched_versions"] >= len(rows)
-            or data.get("has_more_results") is not (data["matched_versions"] > len(rows))):
+    offset=data.get('discovery_offset',0)
+    if (type(offset) is not int or offset<0
+            or ('discovery_offset' in data and data.get('analysis_industry')!='ECONOMIC_DISCOVERY')
+            or not data["source_versions_checked"] >= data["matched_versions"] >= offset+len(rows)
+            or data.get("has_more_results") is not (data["matched_versions"] > offset+len(rows))):
         raise SourceShareError("producer coverage counts disagree")
     seen = set()
     for row in rows:

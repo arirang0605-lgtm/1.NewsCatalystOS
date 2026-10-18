@@ -118,3 +118,51 @@ assert(!text.includes('undefined'));
 """
     subprocess.run(['node','-e',script],input=json.dumps(value),text=True,capture_output=True,check=True,
                    cwd=Path(__file__).resolve().parent.parent)
+
+
+def test_scheduled_individual_receipt_dry_run_replay_and_isolated_failure(tmp_path,monkeypatch):
+    class Clock(datetime):
+        @classmethod
+        def now(cls,tz=None):return NOW
+    monkeypatch.setattr("newscatalystos.era_individual_assessment.datetime",Clock)
+    from scripts.run_approved_research_feeds_once import parser,execute
+    from test_approved_research_feeds_once import _setup
+    e,cache,d,p,pin,_=fixture(tmp_path)
+    workspaces=_setup(tmp_path)
+    original={f:sha256(f.read_bytes()).hexdigest() for f in e.rglob('*') if f.is_file()}
+    flags=['--workspaces-root',str(workspaces),'--era-individual-producer-root',str(e),
+           '--era-daily-root',str(cache),'--era-individual-manifest',pin+'='+str(p)]
+    code,dry=execute(parser().parse_args([*flags,'--dry-run']))
+    assert code==0 and dry['era_individual_connections'][0]['status']=='VERIFIED_READ_ONLY'
+    assert not (cache/'individual').exists()
+    code,first=execute(parser().parse_args([*flags,'--replay-only']))
+    assert code==0 and first['era_individual_connections'][0]['status']=='IMPORTED'
+    imported=first['era_individual_connections'][0]['imported_at']
+    # A failed daily refresh or a bad second individual must not prevent this
+    # exact company from reaching the existing lookup cache on later ticks.
+    code,again=execute(parser().parse_args([*flags,'--replay-only',
+        '--era-daily-config',str(tmp_path/'missing-config.json'),
+        '--era-individual-manifest','0'*64+'='+str(p)]))
+    assert code==0 and again['sources_failed']==0
+    assert again['era_daily_connection']['status']=='UNAVAILABLE'
+    good,bad=again['era_individual_connections']
+    assert good['status']=='ALREADY_IMPORTED' and good['imported_at']==imported
+    assert bad['status']=='UNAVAILABLE'
+    at=NOW
+    snap,skipped=read_latest(cache,as_of=at,now=at)
+    assert skipped==0 and assessment_for('가상전기',snap)['status']=='AVAILABLE'
+    assert read_latest(cache,as_of=datetime.fromisoformat(imported)-timedelta(seconds=1),now=at)[0] is None
+    assert len(list((cache/'individual').glob('*.json')))==1
+    assert all(sha256(f.read_bytes()).hexdigest()==h for f,h in original.items())
+    assert again['era_api_calls']==again['ai_calls']==0
+
+
+def test_scheduled_individual_requires_explicit_news_cache(tmp_path):
+    from scripts.run_approved_research_feeds_once import parser,execute
+    from test_approved_research_feeds_once import _setup
+    e,cache,d,p,pin,_=fixture(tmp_path)
+    code,result=execute(parser().parse_args(['--workspaces-root',str(_setup(tmp_path)),
+        '--dry-run','--era-individual-producer-root',str(e),
+        '--era-individual-manifest',pin+'='+str(p)]))
+    assert code==0 and result['era_individual_connections'][0]['status']=='UNAVAILABLE'
+    assert not (cache/'individual').exists()

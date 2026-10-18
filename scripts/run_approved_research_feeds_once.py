@@ -49,6 +49,10 @@ def parser() -> argparse.ArgumentParser:
                    help="optional read-only producer daily snapshot connection")
     p.add_argument("--era-daily-root",type=Path,
                    help="NewsCatalystOS private received assessment folder")
+    p.add_argument("--era-individual-producer-root",type=Path,
+                   help="read-only Era root for explicitly pinned completed individual assessments")
+    p.add_argument("--era-individual-manifest",action="append",default=[],metavar="SHA256=ABSOLUTE_REPORT",
+                   help="completed company report to receive into --era-daily-root; repeat per report")
     p.add_argument("--material-outbox",type=Path,
                    help="News-owned immutable forward material delivery after the existing tick")
     p.add_argument("--material-base-root",type=Path,
@@ -141,6 +145,20 @@ def execute(opts: argparse.Namespace, *, run_tick=run_scheduled_triage.execute) 
                                       check_only=bool(opts.dry_run))
         except (SourceShareError,OSError,ValueError,TypeError,KeyError) as exc:
             integration={"status":"UNAVAILABLE","error_type":type(exc).__name__}
+    individual=[]
+    for item in getattr(opts,"era_individual_manifest",[]):
+        try:
+            pin,separator,location=item.partition('=')
+            producer=getattr(opts,"era_individual_producer_root",None)
+            cache=getattr(opts,"era_daily_root",None)
+            if not separator or producer is None or cache is None:
+                raise SourceShareError("explicit producer, pinned report and News cache required")
+            from newscatalystos.era_individual_assessment import import_individual
+            result=import_individual(producer,Path(location),pin,cache,
+                                     check_only=bool(opts.dry_run))
+            individual.append(result)
+        except (SourceShareError,OSError,ValueError,TypeError,KeyError) as exc:
+            individual.append({"status":"UNAVAILABLE","error_type":type(exc).__name__})
     discovery=None
     if getattr(opts,"economic_discovery_root",None) is not None:
         try:
@@ -190,6 +208,7 @@ def execute(opts: argparse.Namespace, *, run_tick=run_scheduled_triage.execute) 
     return (4 if failures or delivery_failed else 0), {
         **({"economic_discovery":discovery} if discovery is not None else {}),
         **({"era_daily_connection":integration} if integration is not None else {}),
+        **({"era_individual_connections":individual} if individual else {}),
         **({"material_delivery":delivery} if delivery is not None else {}),
         "status": "APPROVED_RESEARCH_FEED_TICK_PARTIAL" if failures or delivery_failed
                   else "APPROVED_RESEARCH_FEED_TICK_COMPLETE",

@@ -68,7 +68,7 @@ def validate_document(raw,pin,at):
         _must_sha(s['first_receipt_sha256'],'annual receipt');_must_sha(s['raw_sha256'],'annual raw')
     return d
 
-def import_individual(era_root,manifest,expected_sha,output_root,*,now=None):
+def import_individual(era_root,manifest,expected_sha,output_root,*,now=None,check_only=False):
     at=now or datetime.now(timezone.utc);era_root=Path(era_root);p=Path(manifest);out=Path(output_root)
     _check_directory(p.parent,era_root)
     if (p.name!='report.json' or p.parent.parent!=era_root/'output/news_company_assessment'
@@ -102,6 +102,9 @@ def import_individual(era_root,manifest,expected_sha,output_root,*,now=None):
                 or meta['first_local_received_at_utc']!=s['available_at']):
             raise SourceShareError('individual original annual mismatch')
     if _read_regular(p,LIMIT)!=raw:raise SourceShareError('individual publication changed')
+    if check_only:
+        return {'status':'VERIFIED_READ_ONLY','source_sha256':expected_sha,
+                'security_id':company['security_id']}
     root=_private_root(out/'individual')
     for receipt,_ in read_individuals(out,as_of=at,now=at)[0]:
         if receipt['source_sha256']==expected_sha:

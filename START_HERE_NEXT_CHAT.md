@@ -1,13 +1,19 @@
-# START HERE — 뉴스 경제변화가 Era 후보 평가까지 연결됨
+# START HERE — 실제 뉴스·기업 근거 조회와 예약 재개 검증
 
-**현재 개발 목적:** 실제 뉴스의 실질 변화 → 관련 기업의 조건부 경제적 영향 → EraLeader의 기존 투자 후보 평가 → 같은 화면·요약·중립 출력. 테마는 기업 발굴의 수단이며 기존 독립 전시장 발굴도 유지한다. 기존 기능·정식 상태·100점 배점·원본/PIT/비밀·무주문을 보존한다.
+**목적·흐름:** 실제 뉴스 → 뉴스 분석(경제 변화·공통 사건·초기 테마) → 관련 산업·기업 → 기업별 근거·원문 조회. 전력기기를 우선 적용하며 조건부 기업 경제영향은 기존 EraLeader 평가에 연결한다. 사실/추론·계획/실행·미확인을 구분하고 원본/PIT/비밀·무주문을 지킨다.
 
-기준 2026-10-18T19:28:01+09:00. 최신 사용자 요청에 따라 기존 기능을 유지하며 핵심 연결을 구현했다. News **f8f42801e6a82ccadce5357afbc4984ed2b56fc7**, Era 기능 **b3c5b2e2ad09ad9213e345ad28d935c98884b5d5** + 보완 **934ff8fe19c7db2b9dc044ef477ca3272194fc8c**. 실제 저장 뉴스/회사 읽기 분석 → News 고정 material 게시 → Era 정확 DART 기업 → 기존 후보 판단/경제경로·반증 → 화면·digest·중립JSON을 실행했다.
+기준 2026-10-18T11:29:34.236449+00:00. News 기능·배포 **fa4e862b707d47decb05ab7df1e10239a61bd457**. 기존 Era 연결 기능 기준 **934ff8fe19c7db2b9dc044ef477ca3272194fc8c**는 다른 작업의 완료 증거를 재사용했으며 이 채팅에서는 Era 코드/DB/Git/수집기에 쓰지 않았다.
 
-실자료: 회사 경제변화 분석7건(HD·LS·효성)이70테마의 고정 게시에 포함된다. LS ELECTRIC(010120)·효성중공업(298040) 각2분석이 Era 실제 후보에 연결됐다. HD현대일렉트릭은 현재 평가 목록과 미연결이다. 실제 판정 강화0/약화0/유지50·검토순서변경0이며 첫 관측·다른 사업/기간·조건을 새 확정호재로 올리지 않았다. 기존 WATCH50·전시장 확장 검토28·가격·재무·원 평가시각/시장세션 보존.
+실제 후속 기사7건에서 읽기 분석 → 정확 원문 → 기존 회사 평가를 조회했다. LS ELECTRIC·효성중공업은 AVAILABLE, HD현대일렉트릭은 현재 회사 평가 판본 미포함이다. HD 기존 전시장 관측의 정확 회사명/종목·가격은 있으나 연간 연결재무가 WAIT_VERIFIED_ANNUAL_CFS_MISSING이다. 이를 새 완료 평가나 DART 발행자 식별로 바꾸지 않았다.
 
-운영: 기존 research-approved 시간당예약의 코드만 BASE/releases/f8f42801e6a82ccadce5357afbc4984ed2b56fc7로 연결하고 기존 power/ls_power/hyosung 승인 제목 저장영역은 읽기만 추가했다. 첫 예약실행5출처/실패0·새기사0·AI0·동일게시재사용. core/MOTIR/dashboard 설정SHA3개 보존. /api/themes HTTP200·고정 게시bytes 동일·과거판본 유지. Era 뉴스전용 갱신은 원 가격·재무를 재계산하지 않고 새 보고서/기존 운영홈/중립JSON으로 발행·재실행 ALREADY_PUBLISHED 확인.
+전력기기 사업 수요·공급의 넓은 근거는 SUPPORT_ADDED, 세 기업 모두 추적 개별 계약은 NO_NEW_EXECUTION_PROOF. 실적 대상 기간·고객·제품이 다른 기사와 납품 예정은 같은 계약의 추가 이행으로 합치지 않는다. LS 위험 참고 기사는 실제 취소·수요 감소 발생과 구분한다. 선택 자료에서 실제 취소/수요 감소는 확인하지 못했으며 미확보를 약화로 세지 않는다.
 
-실제 보고서SHA 16e90554713d434631f6675467ff0b7ccbf1fcfaebf7d10e4c1f17c9c779176d, 중립JSON KR_20261016_4702e32d4ae63be2.json. 운영홈 LINKED. 증거 output/company_economic_bridge_20261018/의 real_integration_proof.json·operating_api_proof.json·activation.json·first_tick_summary.json·news_tests.xml·era_tests_final.xml. 관련 News107+Era48 PASS. 전체 제품 인수·전체 회귀 완료를 의미하지 않는다.
+관찰49주제/54행동/406제목판본, 원문 읽기 기준3건+후속7건. 기본 반복 실행2회 신규분석0, 기존 보고서·등록 설정·과거 시점 내보내기 동일. 신규/정정만 처리하고 보고서 저장 뒤 테마 저장 전 중단도 다음 실행에 재개한다. 정확 기사 조회는 전체 등록/중복 소유 검사를 유지하고 해당 출처의 완료 영수증만 읽어 60초 시간 초과를 해소했다.
 
-DEV=/Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project, branch=codex/real-data-path. BASE=~/Library/Application Support/NewsCatalystOS. Era의 기존 개발폴더·뉴스수신기/선정기만 최소 연결했고 기존 다른 진행 중 파일은 보존했다. Public push/새스케줄/메시지/주문0. 원V1 36/36 유지. START→AGENTS→PROJECT_STATE→DECISIONS→NEXT_TASK와 실제 Git 상태부터 확인. 상세 docs/COMPANY_ECONOMIC_BRIDGE_20261018.md, Era docs/320_NEWS_COMPANY_ECONOMIC_CHANGE_BRIDGE_20261018.md.
+전체 회귀 범위 확인 fa4e862b707d47decb05ab7df1e10239a61bd457 (선행 통과 6590건 재사용 + 수정 영향/잔여 시험 재검증, 초기404 호환 실패는 수정 후 통과; 단일 연속 재실행으로 표시하지 않음): **7492 PASS / 0 FAIL / 10 SKIP**. 변경 영향 시험117, 수신 호환485, 명시 material 조회73, 정확 출처105 PASS/10 SKIP는 서로 중복될 수 있어 합산하지 않는다. 기존 분석 수신 JSON bytes를 보존하고 조건부 경제영향은 material=1 또는 기존 고정 게시로 제공한다.
+
+배포: 기존 dashboard와 research-approved만 같은 고정판으로 연결했다. 시간당 예약·출처·자료 경로 유지, core/MOTIR 설정 SHA 보존. 실제 새 예약 실행 COMPLETE, 운영 API3사·고정 게시 조회 성공. 별도 폴더 복원 DB2개 integrity=ok. 실제 Gemini 정산109회/89.6434원(운영 확인 시각 2026-10-18T11:28:19.158852+00:00); 미정산 예약15.1552원·월 한도50,000원 유지. 추가 외부 자료/전체 원문/새 의존성·평가 엔진·주문·public push 없음.
+
+기능/시험·실자료 확인·News 운영 확인과 Era 전체 제품 인수를 구분한다. 작은 단계에서 종료하지 않는 연속 개발 원칙은 AGENTS/DECISIONS에 유지한다. 새로운 실제 발주·납품·취소 자료가 없다는 이유로 강화·약화를 만들지 않는다.
+
+재개: START_HERE_NEXT_CHAT.md → AGENTS.md → PROJECT_STATE.md → DECISIONS.md → NEXT_TASK.md. DEV 기존 codex/real-data-path를 재사용하고 최신 Git/사용자 변경을 확인한다. 전체 회귀는 같은 코드에 반복하지 않는다.

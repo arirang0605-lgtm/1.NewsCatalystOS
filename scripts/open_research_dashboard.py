@@ -473,7 +473,8 @@ class Handler(BaseHTTPRequestHandler):
                     try:
                         from newscatalystos.discovery_watch import read_discovery
                         data['economic_discovery']=read_discovery(self.server.documents/'economic_discovery',
-                            as_of=min(end,now),since=min(start,now),now=now,include_common_causes=True)
+                            as_of=min(end,now),since=min(start,now),now=now,include_common_causes=True,
+                            recent_workspaces=self.server.news_search_workspaces)
                     except (SourceShareError,OSError,ValueError,KeyError,TypeError,sqlite3.Error):
                         data['economic_discovery']={'status':'UNAVAILABLE','candidates':[]}
                 if self.server.source_roots:

@@ -78,6 +78,8 @@ def test_completed_recent_path_comparison_duplicate_pit_export_and_exact_http(tm
     def get(route,**args):
         with urlopen(f'http://127.0.0.1:{server.server_port}'+route+'?'+urlencode(args)) as r:return json.load(r)
     try:
+        period=get('/api/period',view='day')
+        assert any(g.get('recent_news_comparison') for g in period['economic_discovery']['theme_outlook']['candidates'])
         api=get('/api/economic-discovery',common_causes='1')
         assert any(g.get('recent_news_comparison') for g in api['theme_outlook']['candidates'])
         for n in document['notes']:

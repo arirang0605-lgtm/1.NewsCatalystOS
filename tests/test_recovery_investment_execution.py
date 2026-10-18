@@ -151,7 +151,7 @@ def test_period_http_execution_search_and_source(tmp_path,monkeypatch):
   day=args['now'].astimezone(dashboard.KST).date().isoformat()
   with urlopen(url+'/api/period?'+urlencode({'date':day})) as response:data=json.load(response)
   assert len(data['company_candidates'])==10 and len(data['themes'])==5
-  with urlopen(url+'/api/themes?'+urlencode({'q':'INVESTMENT_EXECUTION'})) as response:found=json.load(response)
+  with urlopen(url+'/api/themes?'+urlencode({'q':'INVESTMENT_EXECUTION','material':'1'})) as response:found=json.load(response)
   exported=next(t for t in found['ThemeCandidates'] if t['theme_id']==theme['theme_id'])
   material=exported.pop('catalyst_material')
   assert material['theme_id']==theme['theme_id'] and exported==theme

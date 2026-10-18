@@ -177,7 +177,7 @@ def test_cli_export_http_period_and_legacy_contract(tmp_path,capsys):
         assert period['theme_changes_status']=='READY'
         with urlopen(base+'/api/period?view=day&date=2099-01-01') as r:future=json.load(r)
         assert future['theme_changes']=={} and future['theme_changes_status']=='NOT_STARTED'
-        with urlopen(base+'/api/themes?as_of='+LATER.isoformat().replace('+','%2B')) as r:legacy=json.load(r)
+        with urlopen(base+'/api/themes?material=1&as_of='+LATER.isoformat().replace('+','%2B')) as r:legacy=json.load(r)
         # The original event/history contract is intact; the optional news
         # material extension must also retain a fully withdrawn catalyst.
         unextended={**legacy,'ThemeCandidates':[{k:v for k,v in t.items() if k!='catalyst_material'}

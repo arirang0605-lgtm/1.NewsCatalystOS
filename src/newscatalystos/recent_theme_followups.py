@@ -4,7 +4,7 @@ Only bounded analyst paraphrases/classifications are stored. A completed title
 snapshot authenticates the recent article identity, not its body's claims.
 No article bodies, event merges, market novelty scores or company alias rules.
 """
-from datetime import datetime,timezone,date
+from datetime import datetime,timezone,date,timedelta
 from hashlib import sha256
 import os,re,tempfile
 from .theme_emergence import _bytes
@@ -231,3 +231,49 @@ def article_followups(outlook,provider,event,title):
             r=row['note']['recent_source']
             if (r['provider_id'],r['event_id'],r['title_sha256'])==(provider,event,title):rows[row['note_id']]=row
     return list(rows.values())
+
+
+def compare_followup_periods(current,previous,since):
+    """New local readings are not proof that demand grew during this period."""
+    old={g['outlook_id']:g.get('recent_news_comparison',{}) for g in previous['candidates']}
+    for group in current['candidates']:
+        comparison=group.get('recent_news_comparison')
+        if not comparison:continue
+        prior=old.get(group['outlook_id'],{})
+        before={(r['source_company'],r['note']['recent_source']['source_url']):r
+                for r in prior.get('notes',[])}
+        company_results=[]
+        for company in group['source_company_names']:
+            rows=[r for r in comparison['notes'] if r['source_company']==company]
+            added=[];revised=[]
+            for row in rows:
+                earlier=before.get((company,row['note']['recent_source']['source_url']))
+                if earlier is None:added.append(row)
+                elif row['analysis_fingerprint']!=earlier['analysis_fingerprint']:revised.append(row)
+            changed=added+revised
+            progress=any(r.get('execution_context',{}).get('reported_execution_progress') for r in changed)
+            setback=any(r.get('execution_context',{}).get('reported_execution_setback') for r in changed)
+            direction=('MIXED_EXECUTION_EVIDENCE' if progress and setback else
+                'SOURCE_REPORTED_PROGRESS' if progress else 'SOURCE_REPORTED_SETBACK' if setback else 'NO_NEW_EXECUTION_PROOF')
+            # Without a publisher timezone, UTC+14 is the earliest possible day start.
+            dated=[r for r in added if r['note']['reported_date'] and
+                   datetime.fromisoformat(r['note']['reported_date']).replace(tzinfo=timezone.utc)-timedelta(hours=14)>since]
+            kinds={r['note']['evidence_kind'] for r in dated}
+            status=('MIXED_EVIDENCE' if kinds & NEGATIVE and kinds & POSITIVE else
+                'WEAKENING_EVIDENCE' if kinds & NEGATIVE else
+                'SUPPORT_ADDED' if kinds & POSITIVE else
+                'CONDITIONAL_SUPPORT_ONLY' if 'CONDITIONAL_FRAMEWORK' in kinds else
+                'NON_DIRECTIONAL_READING_ADDED' if dated else
+                'HISTORICAL_READING_ADDED' if added else
+                'READING_REVISED' if revised else 'NO_SUBSTANTIVE_CHANGE')
+            company_results.append({'source_company':company,'status':status,
+                'status_label':{**STATUS_LABELS,'HISTORICAL_READING_ADDED':'기존 발표·시점 미확정 사업 근거 추가',
+                                'READING_REVISED':'기존 원문의 분석 수정','NON_DIRECTIONAL_READING_ADDED':'방향 미확정 자료 추가'}[status],
+                'added_note_ids':[r['note_id'] for r in added],
+                'revised_note_ids':[r['note_id'] for r in revised],
+                'later_publication_note_ids':[r['note_id'] for r in dated],
+                'execution_status':direction,
+                'market_demand_growth_verified':False})
+        comparison['period_comparison']={'since':since.isoformat(),'company_results':company_results,
+            'unavailable_is_weakening':False,'article_count_used_as_strength':False,
+            'new_local_reading_is_new_market_event':False,'date_only_publication_order_is_conservative':True}

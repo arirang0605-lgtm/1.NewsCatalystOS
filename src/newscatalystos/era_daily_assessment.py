@@ -285,3 +285,43 @@ def refresh_daily(config, output_root, *, now=None, check_only=False):
     _check_directory(path.parent,root)
     pin=sha256(_read_regular(path,LIMIT)).hexdigest()
     return import_daily(root,path,pin,output_root,now=now,check_only=check_only)
+
+
+def enrich_followup_assessments(outlook,root,*,since,as_of,now):
+    """Compare completed producer assessment contents, never rate news as finance."""
+    if not any(g.get('recent_news_comparison') for g in outlook.get('candidates',[])):return
+    def safe_read(at):
+        try:return read_latest(root,as_of=at,now=now)
+        except (SourceShareError,OSError,ValueError,KeyError,TypeError):return None,1
+    current,errors=safe_read(as_of)
+    previous,old_errors=safe_read(since)
+    cache={}
+    for group in outlook.get('candidates',[]):
+        comparison=group.get('recent_news_comparison')
+        if not comparison:continue
+        results=[]
+        for company in group['source_company_names']:
+            if company not in cache:
+                latest=assessment_for(company,current);prior=assessment_for(company,previous)
+                available=latest['status']=='AVAILABLE';had=prior['status']=='AVAILABLE'
+                # Price/session/rank and publication time are not financial evidence.
+                def content(a):
+                    v=a['value']
+                    return {k:v.get(k) for k in ('dart_annual_cfs','evidence_brief','official_annual_sources')}
+                if available and had:
+                    same=(latest['entity_id']==prior['entity_id'] and content(latest)==content(prior))
+                    status='UNCHANGED_ASSESSMENT' if same else 'ASSESSMENT_EVIDENCE_CHANGED'
+                elif available:status='NEWLY_AVAILABLE_ASSESSMENT'
+                else:status='ASSESSMENT_UNAVAILABLE'
+                cache[company]={'source_company':company,'status':status,
+                    'status_label':{'UNCHANGED_ASSESSMENT':'기존 기업 평가 근거 유지',
+                        'ASSESSMENT_EVIDENCE_CHANGED':'기업 평가 근거 변경 · 방향은 항목별 확인',
+                        'NEWLY_AVAILABLE_ASSESSMENT':'기업 평가 첫 연결 · 평가 상향 아님',
+                        'ASSESSMENT_UNAVAILABLE':'기업 평가 미확보 · 약화 판정 아님'}[status],
+                    'current':latest,'previous_status':prior['status'],
+                    'previous_source_sha256':prior.get('source_sha256'),
+                    'news_changes_financial_rating':False,'investment_merit':'NOT_ASSESSED'}
+            results.append(deepcopy(cache[company]))
+        comparison['company_assessment_comparison']={'since':since.isoformat(),'as_of':as_of.isoformat(),
+            'company_results':results,'skipped_receipts':errors+old_errors,
+            'assessment_direction_inferred_from_news':False}

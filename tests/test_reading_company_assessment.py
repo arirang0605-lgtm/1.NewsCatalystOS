@@ -55,6 +55,13 @@ def test_exact_recent_article_company_snapshot_pit_and_local_failure(tmp_path,mo
         with urlopen(f'http://127.0.0.1:{server.server_port}/api/news-evidence?'+urlencode(query)) as response:
             return json.load(response)
     try:
+        with urlopen(f'http://127.0.0.1:{server.server_port}/api/economic-discovery?common_causes=1&since='+before.isoformat().replace('+','%2B')) as response:
+            comparison=json.load(response)
+        group=next(g['recent_news_comparison'] for g in comparison['theme_outlook']['candidates'] if g.get('recent_news_comparison'))
+        assert group['period_comparison']['company_results']
+        entries=group['company_assessment_comparison']['company_results']
+        bound=next(r for r in entries if r['source_company']=='가상배전')
+        assert bound['status']==('NEWLY_AVAILABLE_ASSESSMENT' if mode=='available' else 'ASSESSMENT_UNAVAILABLE')
         for n in doc['notes']:
             detail=get(n);row,=detail['recent_theme_followup_analysis']
             assert row['company_connection_basis']=='SOURCE_BOUND_READING_ANALYSIS'
@@ -82,7 +89,10 @@ const ctx={node},place=node('div');
 for(const [a,b] of [['function renderEraDailyAssessment(','function renderThemes('],
 ['function renderRecentThemeComparison(','function renderPublicDemandNotes(']])
 vm.runInNewContext(src.slice(src.indexOf(a),src.indexOf(b)),ctx);
-ctx.renderRecentThemeComparison(place,{notes:[{source_company:'합성 배전',recent_available_at:'2026-10-18',
+ctx.renderRecentThemeComparison(place,{period_comparison:{since:'2026-10-18',company_results:[{
+source_company:'합성 배전',status_label:'기존 발표·시점 미확정 사업 근거 추가',execution_status:'NO_NEW_EXECUTION_PROOF'}]},
+company_assessment_comparison:{company_results:[{source_company:'합성 배전',status_label:'기존 기업 평가 근거 유지',
+current:{status:'NOT_AVAILABLE_AS_OF'}}]},notes:[{source_company:'합성 배전',recent_available_at:'2026-10-18',
 available_at:'2026-10-18',baseline_headline:'이전 근거',baseline_analysis:'기존 수요 분석',baseline_source_url:'https://example.org/old',
 note:{evidence_kind:'REPORTED_CONTRACT',recent_source:{headline:'공급 제목',source_url:'https://example.org/new'},
 reported_date:'2026-10-13',analysis_text:'읽기 분석 <img src=x>',product_scope:'배전',limitation:'납품 예정',source_location:'공식 자료'},
@@ -95,7 +105,7 @@ evidence_brief:{supporting_evidence:[{reason:'양수 현금흐름'}],weakening_e
 function all(n){return [n,...n.children.flatMap(all)]}
 const text=all(place).map(n=>n.textContent).join(' ');
 for(const s of ['읽기 분석 <img src=x>','읽기 분석을 사용합니다','EraLeader 기업 평가 연결','연결재무 FY2025',
-'보관 종가','관측 위험'])assert(text.includes(s),s);
+'보관 종가','관측 위험','기간 시작과 비교한 근거 변화','기존 기업 평가 근거 유지','같은 계약의 새 이행 근거 미확보'])assert(text.includes(s),s);
 assert(all(place).some(n=>n.href==='https://example.org/new'));
 """
     subprocess.run(['node','-e',code],cwd=Path(__file__).resolve().parent.parent,capture_output=True,text=True,check=True)

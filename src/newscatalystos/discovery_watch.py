@@ -104,6 +104,9 @@ def read_discovery(root,*,as_of=None,since=None,now=None,_compare_outlook=True,i
     if _compare_outlook:
         previous=read_discovery(root,as_of=start,since=start,now=present,_compare_outlook=False,include_common_causes=include_common_causes,recent_workspaces=recent_workspaces)
         compare_outlooks(outlook,previous['theme_outlook'])
+        if include_common_causes and recent_workspaces:
+            from .recent_theme_followups import compare_followup_periods
+            compare_followup_periods(outlook,previous['theme_outlook'],start)
     causes={}
     if include_common_causes:
         from .discovery_cause_links import build_discovery_causes

@@ -117,7 +117,13 @@ class Handler(BaseHTTPRequestHandler):
                 root=self.server.documents/'economic_discovery'
                 if query.get('export',['0'])==['1']:
                     self._send(200,export_discovery(root,as_of=at,since=since,now=now,include_common_causes=causes,recent_workspaces=self.server.news_search_workspaces),'application/json; charset=utf-8')
-                else:self._json(200,read_discovery(root,as_of=at,since=since,now=now,include_common_causes=causes,recent_workspaces=self.server.news_search_workspaces))
+                else:
+                    view=read_discovery(root,as_of=at,since=since,now=now,include_common_causes=causes,recent_workspaces=self.server.news_search_workspaces)
+                    if causes and self.server.era_daily_root is not None and view.get("comparison_since"):
+                        from newscatalystos.era_daily_assessment import enrich_followup_assessments
+                        enrich_followup_assessments(view['theme_outlook'],self.server.era_daily_root,
+                            since=_when(view['comparison_since'],'comparison since'),as_of=at,now=now)
+                    self._json(200,view)
             except (SourceShareError,OSError,ValueError,TypeError,KeyError,sqlite3.Error):
                 self._json(400,{'status':'DISCOVERY_INPUT_UNAVAILABLE'})
             return
@@ -482,6 +488,10 @@ class Handler(BaseHTTPRequestHandler):
                         data['economic_discovery']=read_discovery(self.server.documents/'economic_discovery',
                             as_of=min(end,now),since=min(start,now),now=now,include_common_causes=True,
                             recent_workspaces=self.server.news_search_workspaces)
+                        if self.server.era_daily_root is not None:
+                            from newscatalystos.era_daily_assessment import enrich_followup_assessments
+                            enrich_followup_assessments(data['economic_discovery']['theme_outlook'],self.server.era_daily_root,
+                                since=min(start,now),as_of=min(end,now),now=now)
                     except (SourceShareError,OSError,ValueError,KeyError,TypeError,sqlite3.Error):
                         data['economic_discovery']={'status':'UNAVAILABLE','candidates':[]}
                 if self.server.source_roots:

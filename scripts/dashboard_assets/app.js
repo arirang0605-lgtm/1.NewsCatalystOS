@@ -1010,6 +1010,25 @@ function renderRecentThemeComparison(place,data,withButton=false){
   if(data.status_label)box.append(node("p","",data.status_label+" · 조건·제품 범위는 기업별로 확인"));
   for(const f of data.shared_recent_factors||[])
     box.append(node("p","finding-detail","최근 공통 배경(분석 분류): "+f.label+" → "+f.source_companies.join(" · ")));
+  const period=data.period_comparison;
+  if(period){
+    box.append(node("h4","","기간 시작과 비교한 근거 변화"),
+      node("p","fineprint","비교 시작 "+period.since+" · 새로 읽은 과거 자료를 최근 수요 증가로 계산하지 않습니다."));
+    for(const company of period.company_results)
+      box.append(node("p","finding-detail",company.source_company+" → "+company.status_label+
+        " · "+({SOURCE_REPORTED_PROGRESS:"같은 계약의 이행 진전",SOURCE_REPORTED_SETBACK:"같은 계약의 이행 차질",
+          MIXED_EXECUTION_EVIDENCE:"진전·차질 혼재",NO_NEW_EXECUTION_PROOF:"같은 계약의 새 이행 근거 미확보"}[company.execution_status])));
+  }
+  const assessments=data.company_assessment_comparison;
+  if(assessments){
+    box.append(node("h4","","기업 평가 근거의 변화"),
+      node("p","fineprint","뉴스의 사업 근거와 기존 재무·위험 평가를 각각 비교합니다."));
+    for(const company of assessments.company_results){
+      const panel=node("details","finding-detail");
+      panel.append(node("summary","",company.source_company+" → "+company.status_label));
+      renderEraDailyAssessment(panel,company.current);box.append(panel);
+    }
+  }
   const execution=data.execution_comparison;
   if(execution){
     box.append(node("h4","","개별 발주·납품·수주 실적의 실행 비교"),

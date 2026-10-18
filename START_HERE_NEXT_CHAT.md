@@ -8,6 +8,6 @@
 
 ## 경로·운영 경계
 DEV=/Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project, branch=codex/real-data-path. BASE=~/Library/Application Support/NewsCatalystOS. dashboard만 BASE/releases/35b039c4139a36727a91407cde9205864de6cc6c. research-approved는 기존4fd8c755d3c4/시간당예약, core/MOTIR 설정과 Era코드·DB·Git·순위 보존. 기존 /api/themes 고정 게시bytes 불변. UI http://127.0.0.1:8766/.
-증거·rollback은 output/theme_outlook_20261018/{targeted_tests.json,real_data_proof.json,activation.json,operating_screen.png}. 상세 docs/THEME_OUTLOOK_20261018.md. 사용자dirty AGENTS/DECISIONS/비전3 보존, Public GitHub push0.
+증거·rollback은 output/theme_outlook_20261018/{targeted_tests.json,real_data_proof.json,activation.json,operating_screen.jpg}. 상세 docs/THEME_OUTLOOK_20261018.md. 사용자dirty AGENTS/DECISIONS/비전3 보존, Public GitHub push0.
 
 현재는 **공통 원문 사업대상 기반 조사 후보의 첫 버전**이다. 주가·수익성/독립사건/공통 수요 인과관계·전체 산업의 공급망을 확정하지 않는다. V1 36/36은 기존 범위 기록이며 이번 가설38개를38산업 완료로 계산하지 않는다. 다음 NEXT_TASK.md.

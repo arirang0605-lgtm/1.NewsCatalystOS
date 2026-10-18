@@ -1076,6 +1076,7 @@ function renderEconomicDiscovery(data){
   }
   summary.textContent="관찰 주제 "+data.counts.topics+"개 · 원문에 연결된 행동 "+data.counts.events+
     "개 · 미분류 주제 "+data.counts.unclassified_topics+"개 · 먼저 탐지한 뒤 분류 · 심층 산업 검증 아님";
+  renderLaunchComparisons(place,data.launch_comparisons);
   for(const row of data.candidates){
     const card=node("article","finding");
     const labels=[...new Set(row.industry_links.map(x=>x.label))];
@@ -1108,4 +1109,31 @@ function renderEconomicDiscovery(data){
     card.append(evidence);place.append(card);
   }
   if(!data.candidates.length)place.append(node("p","empty-small","현재 자료에서 명시적 경제 행동을 찾지 못했습니다. 산업 이름이 없다는 이유로 제외한 것은 아닙니다."));
+}
+
+
+function renderLaunchComparisons(place,groups){
+  if(!groups?.length)return;
+  const section=node("section","finding");
+  section.append(node("h3","","같은 회사·제품의 출시 보도 비교"),
+    node("p","fineprint","회사·제품이 같아도 같은 발표라고 합치지 않습니다. 원문별 기록을 보존하고 반복·판본 변경·단계 차이를 나란히 봅니다."));
+  for(const group of groups){
+    const block=node("details","finding-detail launch-comparison");
+    block.append(node("summary","",group.source_company_name+" · "+group.source_product_name+" · 제목 "+group.source_observation_count+"개 비교"));
+    for(const pair of group.pairs){
+      block.append(node("p","",pair.reason));
+      if(pair.scripts_differ)block.append(node("p","finding-detail","표기 언어 차이 있음 · 번역·재배포 여부는 미확인"));
+      if(pair.source_phase_differs)block.append(node("p","finding-detail","계획·발표 단계가 다름 · 실제 이행으로 확정하지 않음"));
+    }
+    for(const source of group.observations){
+      block.append(node("p","",source.headline),
+        node("p","finding-detail","출처 회사: "+source.company_evidence.text+" · 제품: "+source.product_evidence.text),
+        node("p","fineprint","출처 확보 "+source.source_available_at+" · 발표 단계 "+(economicPhaseLabels[source.phase]||source.phase)),
+        node("p","fineprint","원문 판본 SHA "+source.source_title_sha256));
+      const a=node("a","source-link","비교한 원래 뉴스 ↗");a.href=source.source_url;a.target="_blank";a.rel="noopener noreferrer";block.append(a);
+    }
+    block.append(node("p","fineprint","독립 신규 재료 수 미확인 · 자료 확보 시각은 실제 출시일이 아닙니다. 원래 사건 수·후보 점수를 변경하지 않았습니다."));
+    section.append(block);
+  }
+  place.append(section);
 }

@@ -83,13 +83,21 @@ def read_discovery(root,*,as_of=None,since=None,now=None):
             'source_evidence':matched,'material':materials.get(theme['theme_id']),
             'deep_industry_validation':False,'market_newness':'UNKNOWN','orders_enabled':False})
     candidates.sort(key=lambda r:(r['last_changed_at'],r['theme_id']),reverse=True)
+    from .discovery_launch_comparison import compare_launch_observations
+    comparisons=compare_launch_observations(themes,titles,as_of=at,now=present)
+    for candidate in candidates:
+        candidate['launch_comparison_group_ids']=[g['comparison_group_id'] for g in comparisons
+                                                  if candidate['theme_id'] in g['theme_ids']]
     return {'schema':'newscatalyst.economic_discovery_watch.v1','status':'READY','as_of':at.isoformat(),
+        'launch_comparisons':comparisons,
         'comparison_since':start.isoformat(),'candidates':candidates,
         'counts':{'topics':len(candidates),'events':sum(c['distinct_event_count'] for c in candidates),
                   'unclassified_topics':sum(not c['industry_tags'] for c in candidates),
                   'observed_company_names':len({e for c in candidates for e in c['source_companies']}),
                   'analysis_title_versions':len(reports),
-                  'source_context_enriched_topics':sum(bool(c['source_context_connections']) for c in candidates)},
+                  'source_context_enriched_topics':sum(bool(c['source_context_connections']) for c in candidates),
+                  'launch_comparison_groups':len(comparisons),
+                  'compared_launch_source_observations':sum(g['source_observation_count'] for g in comparisons)},
         'observed_industries':sorted({v for c in candidates for v in c['industry_tags']}),
         'source_coverage':coverage,'industry_module_required_for_detection':False,
         'scope_limit':'REGISTERED_SOURCES_STORED_TITLES_COMMON_ACTION_GRAMMAR_NOT_ALL_NEWS',
@@ -117,4 +125,13 @@ def export_discovery(root,*,as_of=None,since=None,now=None):
                 'industry_word_hints':row['industry_tags'],
                 'event_ids_unchanged':True,'new_economic_event':False,'ownership_or_benefit_verified':False}
             theme['decision_at']=max(theme['decision_at'],row['context_connected_at'])
+        groups=[g for g in view['launch_comparisons'] if theme['theme_id'] in g['theme_ids']]
+        if groups:
+            theme['discovery_launch_comparison']={
+                'source_theme_sha256':sha256(_bytes(original)).hexdigest(),
+                'original_theme_decision_at':original['decision_at'],
+                'comparison_groups':groups,'source_rows_merged':False,
+                'basis_available_at':max(g['basis_available_at'] for g in groups),
+                'new_economic_event':False,'independent_market_event_count':None}
+            theme['decision_at']=max(theme['decision_at'],theme['discovery_launch_comparison']['basis_available_at'])
     return build_theme_bundle(result,decision_at=at,now=present)

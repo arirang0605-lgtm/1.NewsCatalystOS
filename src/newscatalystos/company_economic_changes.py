@@ -26,6 +26,9 @@ def _identity(name, snapshot, previous):
     matched = assessment_for(name, snapshot)
     if matched['status'] != 'AVAILABLE':
         return {'status': matched['status'], 'source_name': name}
+    if matched.get('assessment_scope') == 'INDIVIDUAL_COMPANY_RESEARCH':
+        # A completed individual assessment does not add a WATCH candidate.
+        return {'status': 'INDIVIDUAL_ASSESSMENT_OUTSIDE_WATCH', 'source_name': name}
     binding = {k: matched[k] for k in ('entity_id', 'security_id', 'identity_evidence_sha256')}
     # New quotes do not turn an unchanged official issuer mapping into news.
     old = (previous or {}).get('identity', {})

@@ -164,6 +164,19 @@ def read_latest(root, *, as_of, now=None):
         except (SourceShareError,KeyError,TypeError,ValueError,OSError):skipped+=1
     latest=max(eligible,key=lambda x:(x[1]['source']['market_session'],
         x[1]['source']['evaluated_at_utc'],x[0]['imported_at'],x[0]['source_sha256']),default=None)
+    from .era_individual_assessment import read_individuals
+    individual,errors=read_individuals(root,as_of=as_of,now=now)
+    skipped+=errors
+    if individual:
+        if latest:
+            latest=({**latest[0],'individual_assessments':individual},latest[1])
+        else:
+            # Explicit local lookup context, never a fabricated WATCH edition.
+            r,d=max(individual,key=lambda pair:pair[1]['published_at'])
+            latest=({**r,'individual_assessments':individual},
+                {'schema':'newscatalyst.individual_assessment_context.v1','candidates':[],
+                 'source':{'market_session':d['market_source']['market_session'],
+                           'evaluated_at_utc':d['published_at']}})
     return latest,skipped
 
 
@@ -171,14 +184,18 @@ def assessment_for(entity, snapshot):
     missing={'status':'NOT_AVAILABLE_AS_OF','value':None,'verified_real_benefit':False,'orders_enabled':False}
     if not snapshot:return missing
     receipt,doc=snapshot
+    from .era_individual_assessment import assessment_for_individual
+    individual=assessment_for_individual(entity,receipt.get('individual_assessments',[]))
     rows=doc['candidates'];official=bool(re.fullmatch(r'(DART_CORP:[0-9]{8}|KRX_STOCK:[0-9]{6})',entity))
     if entity.startswith('SEC_CIK:'):return {**missing,'status':'US_ASSESSMENT_NOT_CONNECTED'}
     matches=[r for r in rows if (entity in {'DART_CORP:'+str(r['dart_annual_cfs'].get('issuer_corp_code')),
                     'KRX_STOCK:'+r['security_id']} if official else _name(entity)==_name(r['name']))]
-    if len(matches)!=1:return {**missing,'status':'AMBIGUOUS_IDENTITY' if len(matches)>1 else 'COMPANY_NOT_IN_SNAPSHOT'}
+    if len(matches)!=1:
+        return ({**missing,'status':'AMBIGUOUS_IDENTITY'} if len(matches)>1 else
+                individual or {**missing,'status':'COMPANY_NOT_IN_SNAPSHOT'})
     row=matches[0];annual=row['dart_annual_cfs'];issuer=annual.get('issuer_corp_code')
     if annual.get('status')!='DART_VERIFIED_ANNUAL_CFS' or not issuer:
-        return {**missing,'status':'OFFICIAL_IDENTITY_UNAVAILABLE'}
+        return individual or {**missing,'status':'OFFICIAL_IDENTITY_UNAVAILABLE'}
     # More than one security of this issuer cannot silently collapse to one.
     if sum(r['dart_annual_cfs'].get('issuer_corp_code')==issuer for r in rows)!=1:
         return {**missing,'status':'AMBIGUOUS_IDENTITY'}
@@ -219,7 +236,8 @@ def project_themes(themes, scope, snapshot):
         if not t.get('supply_chain_evidence'):
             for entity in t['entity_ids']:
                 a=assessment_for(entity,snapshot)
-                if a['status']=='AVAILABLE' and entity!=a['entity_id']:bindings[entity]=a
+                if (a['status']=='AVAILABLE' and entity!=a['entity_id']
+                        and a.get('assessment_scope')!='INDIVIDUAL_COMPANY_RESEARCH'):bindings[entity]=a
         t['theme_id']=sha256(canonical({'scope':scope,'theme_id':source['theme_id']})).hexdigest()
         t['export_origin']={'scope':scope,'theme_id':source['theme_id'],
             'theme_sha256':sha256(canonical(source)).hexdigest(),'decision_at':source['decision_at'],

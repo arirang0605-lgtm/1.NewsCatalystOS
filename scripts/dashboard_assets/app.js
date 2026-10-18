@@ -481,7 +481,9 @@ function renderEraDailyAssessment(parent,assessment){
   const number=value=>typeof value==="number"?new Intl.NumberFormat("ko-KR",{maximumFractionDigits:4}).format(value):"N/A";
   panel.append(node("p","",assessment.source_name+" · "+assessment.security_id+" · "+assessment.entity_id),
     node("p","finding-detail","EraLeader 완료 판본의 공식 기업코드와 정확히 연결 · "+
-      "후보 상태 "+row.formal_selection_state+" (투자순위·매수신호 아님)"));
+      (assessment.assessment_scope==="INDIVIDUAL_COMPANY_RESEARCH"?
+        "뉴스에 연결된 개별 기업 평가 · WATCH 선정과 별개":
+        "후보 상태 "+row.formal_selection_state+" (투자순위·매수신호 아님)")));
   if(annual.status==="DART_VERIFIED_ANNUAL_CFS"){
     panel.append(node("p","","연결재무 FY"+annual.fiscal_year+" · 매출 "+number(annual.revenue_krw)+
       "원 · 영업이익 "+number(annual.operating_income_krw)+"원"),
@@ -492,16 +494,24 @@ function renderEraDailyAssessment(parent,assessment){
     panel.append(node("p","","KRX "+quote.source_market_session+" 보관 종가 "+number(quote.close_krw)+
       "원 · 실시간 현재가격 아님"));
   }else panel.append(node("p","empty-small","가격: N/A · 해당 판본 종가 미확보"));
-  for(const [label,rows] of [["긍정 근거",brief.supporting_evidence||[]],["약화·위험 근거",brief.weakening_evidence||[]]]){
+  const existing=annual.existing_financial_assessment||{};
+  const supporting=brief.supporting_evidence||existing.competitiveness?.supporting||[];
+  const weakening=brief.weakening_evidence||[...(existing.competitiveness?.weakening||[]),...(existing.financial_risk?.signals||[])];
+  for(const [label,rows] of [["긍정 근거",supporting],["약화·위험 근거",weakening]]){
     for(const item of rows.slice(0,3))panel.append(node("p","finding-detail",label+": "+item.reason));
   }
-  if(!(brief.weakening_evidence||[]).length)
+  if(!weakening.length)
     panel.append(node("p","finding-detail","이 판본에서 제시된 약화 근거 없음 · 위험이 없다는 인증은 아님"));
-  for(const reason of (brief.unavailable_or_limited||[]).slice(0,3))
+  for(const reason of (brief.unavailable_or_limited||[...(existing.missing||[]),...(existing.limitations||[])]).slice(0,3))
     panel.append(node("p","finding-detail","한계: "+reason));
   panel.append(node("p","finding-detail","현재 저평가·정식 PER/PBR·뉴스의 실제 수혜는 미확인"),
     node("p","fineprint","EraLeader 평가 "+assessment.producer_evaluated_at+" · 뉴스 시스템 최초 수신 "+assessment.imported_at),
     node("p","fineprint","평가판본 SHA "+assessment.source_sha256));
+  for(const source of row.official_annual_sources||[]){
+    const link=node("a","source-link","FY"+source.fiscal_year+" 공식 연간공시 원문 ↗");
+    link.href="https://dart.fss.or.kr/dsaf001/main.do?rcpNo="+source.report_accession;
+    link.target="_blank";link.rel="noopener noreferrer";panel.append(link);
+  }
   parent.append(panel);
 }
 

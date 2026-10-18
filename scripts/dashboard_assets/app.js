@@ -1043,6 +1043,10 @@ function renderRecentThemeComparison(place,data,withButton=false){
         refLink.target="_blank";refLink.rel="noopener noreferrer";refBox.append(refLink);card.append(refBox);
       }
     }
+    if(row.era_daily_assessment){
+      card.append(node("p","fineprint","기업 연결은 이 기사와 기준 근거에 결속된 읽기 분석을 사용합니다. 평가는 가용한 EraLeader 완료 판본의 정확한 기업 식별로 연결합니다."));
+      renderEraDailyAssessment(card,row.era_daily_assessment);
+    }
     const link=node("a","source-link","최근 뉴스 공식 원문 ↗");link.href=r.source_url;link.target="_blank";link.rel="noopener noreferrer";
     const baseline=node("a","source-link","기존 근거 공식 원문 ↗");baseline.href=row.baseline_source_url;baseline.target="_blank";baseline.rel="noopener noreferrer";
     card.append(link,baseline);

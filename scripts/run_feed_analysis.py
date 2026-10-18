@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import fields
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 import sqlite3
@@ -35,6 +36,8 @@ def parser() -> argparse.ArgumentParser:
                    help="V1 default unchanged; optional power profile requires separate explicit derived roots")
     p.add_argument("--discover-economy",action="store_true",
                    help="find source-stated economic actions first; unknown industry/company stays observable")
+    p.add_argument("--new-discovery-only",action="store_true",
+                   help="reuse valid prior event-first reports; process only unprocessed title versions")
     p.add_argument("--discovery-offset",type=int,default=0,
                    help="event-first pagination of already stored source titles; never fetches more news")
     p.add_argument("--registry", type=Path)
@@ -68,6 +71,47 @@ def read_model_config(path: Path | None) -> AIModel | None:
     return model
 
 
+
+def report_observations(report):
+    return [economic_observation(change,
+                origin_reference=row["source_url"], source_url=row["source_url"],
+                source_id=row["provider_id"], source_available_at=row["source_available_at"],
+                content_scope="RSS_TITLE_METADATA", source_binding={
+                    "source_event_sha256":row["source_event_sha256"],
+                    "document_sha256":row["source_title_sha256"]},
+                company_mappings=[{k: match[k] for k in ("source_name", "entity_id", "evidence_sha256")}
+                    for match in row.get("company_identity", {}).get("matches", [])
+                    if normalized(match["source_name"]) in {normalized(n) for n in change["entity_ids"]}] or None)
+                for row in report["results"] for change in row.get("economic_changes", [])]
+
+
+def known_discovery_versions(work,theme_root,at):
+    """Reuse the existing SHA/schema/PIT report reader, including empty-event titles."""
+    from newscatalystos.feed_analysis_delivery import consume_feed_analysis
+    import re
+    root=Path(work)/'reports';known=set()
+    stored=ThemeStore(theme_root).search(as_of=at,now=at)
+    refs={(r['event_id'],r['source_id'],r['evidence_sha256'],
+           r.get('source_binding',{}).get('source_event_sha256'),r['action'],r['phase'])
+          for t in stored for r in t['source_refs']}
+    if not root.exists():return known
+    for path in sorted(root.glob('feed_analysis_*.json')):
+        match=re.fullmatch(r'feed_analysis_([0-9a-f]{64})\.json',path.name)
+        if not match:continue
+        try:
+            data=consume_feed_analysis(path,root,match[1],limit=100,now=at)
+        except (SourceShareError,OSError,ValueError,TypeError,KeyError):continue
+        for row in data['results']:
+            if row.get('analysis_industry')=='ECONOMIC_DISCOVERY':
+                observations=report_observations({'results':[row]})
+                if any((o['event_id'],o['source_id'],o['change']['source_paragraph_sha256'],
+                        o.get('source_binding',{}).get('source_event_sha256'),
+                        o['change']['action'],o['change']['phase']) not in refs for o in observations):
+                    continue  # report may precede an interrupted ThemeStore commit
+                known.add((row['provider_id'],row['source_event_sha256'],row['source_title_sha256']))
+    return known
+
+
 def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, dict]:
     try:
         base = Path.home() / "Library/Application Support/NewsCatalystOS"
@@ -99,6 +143,11 @@ def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, d
             elif theme_path.exists() and any(theme_path.iterdir()):raise SourceShareError('separate empty power theme root required')
         elif theme_path and (Path(theme_path)/'industry_profile.json').exists():
             raise SourceShareError('default analysis cannot use another industry store')
+        new_only=getattr(opts,'new_discovery_only',False)
+        if new_only and (industry!='ECONOMIC_DISCOVERY' or opts.event_id is not None
+                         or opts.title_sha256 is not None or getattr(opts,'discovery_offset',0)):
+            raise SourceShareError('new discovery mode requires unpaged event-first selection')
+        excluded=known_discovery_versions(work,theme_path,now or datetime.now(timezone.utc)) if new_only else ()
         model = read_model_config(opts.model_config)
         report = analyze_completed_feed(_registry(registry_path), inbox, state, work,
             provider_id=opts.provider_id, event_id=opts.event_id,
@@ -108,7 +157,14 @@ def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, d
             ai_ledger=getattr(opts, "ai_ledger", None), company_identity_config=identity_config, semantic_ai=getattr(opts,"semantic_ai",False),
             semantic_call_limit=getattr(opts,"semantic_call_limit",3),
             semantic_scheduled_only=getattr(opts,"semantic_scheduled_only",False),industry=industry,
-            discovery_offset=getattr(opts,"discovery_offset",0))
+            discovery_offset=getattr(opts,"discovery_offset",0),
+            **({"excluded_versions":excluded} if new_only else {}))
+        if new_only:
+            report['discovery_selection_scope']='UNPROCESSED_SOURCE_VERSIONS'
+            if not report['results']:
+                return 0,{**report,'status':'NO_NEW_DISCOVERY_TITLES' if excluded else report['status'],'matched_versions':0,
+                    'has_more_results':False,'economic_changes_count':0,'theme_versions_created':0,
+                    'reports_published':0}
         failures = sum((row["ai_eligible"] or row.get("analysis_purpose") == "EXISTING_ARTICLE") and row["ai_status"] not in
                        ("ANALYZED_UNVERIFIED", "CACHE_HIT") for row in report["results"])
         if getattr(opts,"semantic_ai",False):
@@ -125,16 +181,7 @@ def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, d
         # This happens after original source/rights/PIT validation above.
         _private_root(work)
         path, digest = publish_feed_analysis(report, work / "reports")
-        observations = [economic_observation(change,
-            origin_reference=row["source_url"], source_url=row["source_url"],
-            source_id=row["provider_id"], source_available_at=row["source_available_at"],
-            content_scope="RSS_TITLE_METADATA", source_binding={
-                "source_event_sha256":row["source_event_sha256"],
-                "document_sha256":row["source_title_sha256"]},
-            company_mappings=[{k: match[k] for k in ("source_name", "entity_id", "evidence_sha256")}
-                for match in row.get("company_identity", {}).get("matches", [])
-                if normalized(match["source_name"]) in {normalized(n) for n in change["entity_ids"]}] or None)
-            for row in report["results"] for change in row.get("economic_changes", [])]
+        observations = report_observations(report)
         # Standard installed scopes share the existing document theme store;
         # custom/test analysis roots remain isolated unless explicitly joined.
         theme_root = getattr(opts, "theme_root", None) or (

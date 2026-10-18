@@ -110,7 +110,7 @@ def test_later_batch_failure_is_visible_and_does_not_skip_other_source(tmp_path,
         return 0,{'status':'FEED_ECONOMIC_ANALYSIS_READY','results':[{'economic_changes':[]}],
                   'matched_versions':1,'has_more_results':False}
     monkeypatch.setattr(module,'evaluate',mock)
-    result=execute(tmp_path/'watch',[('core',w.registry_path,w.poll_state,w.inbox_root)])
+    result=execute(tmp_path/'watch',[('core',w.registry_path,w.poll_state,w.inbox_root)],reanalyze_existing=True)
     assert result['status']=='PARTIAL' and result['sources_failed']==1
     failed=next(r for r in result['sources'] if r['provider_id']==base.provider_id)
     healthy=next(r for r in result['sources'] if r['provider_id']=='second-source')
@@ -126,6 +126,6 @@ def test_unchanged_snapshot_count_required_between_pages(tmp_path,monkeypatch):
         return 0,{'status':'FEED_ECONOMIC_ANALYSIS_READY','results':[{'economic_changes':[]}]*100,
                   'matched_versions':201 if opts.discovery_offset else 200,'has_more_results':True}
     monkeypatch.setattr(module,'evaluate',mock)
-    result=execute(tmp_path/'watch',[('core',w.registry_path,w.poll_state,w.inbox_root)])
+    result=execute(tmp_path/'watch',[('core',w.registry_path,w.poll_state,w.inbox_root)],reanalyze_existing=True)
     assert result['status']=='PARTIAL' and result['sources'][0]['status']=='SOURCE_SNAPSHOT_CHANGED'
     assert result['sources'][0]['titles']==100 and result['sources'][0]['has_more_older_titles']

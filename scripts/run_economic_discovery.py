@@ -14,7 +14,7 @@ from scripts.run_feed_analysis import parser as analysis_parser,evaluate
 from newscatalystos.source_share import SourceShareError
 
 
-def execute(root,sources,*,now=None,dry_run=False,selected_versions=None):
+def execute(root,sources,*,now=None,dry_run=False,selected_versions=None,reanalyze_existing=False):
     root=Path(root);at=now or datetime.now(timezone.utc)
     if not root.is_absolute() or root.resolve()!=root or any('eraleader' in p.casefold() for p in root.parts):
         raise SourceShareError('separate News discovery root required')
@@ -51,7 +51,7 @@ def execute(root,sources,*,now=None,dry_run=False,selected_versions=None):
                     if code:selected_outcome.update(exit_code=code,status=data.get('status','UNAVAILABLE'))
                 outcomes.append(selected_outcome)
                 continue
-            offset=0;expected=None
+            offset=0;expected=None;processed=set()
             outcome={'scope':scope,'provider_id':provider,'titles':0,'events':0,
                 'theme_versions_created':0,'unclassified_events':0,'analysis_batches':0,
                 'has_more_older_titles':False,'source_fetch_calls':0,'paid_ai_calls':0}
@@ -60,6 +60,7 @@ def execute(root,sources,*,now=None,dry_run=False,selected_versions=None):
                     '--inbox-root',str(inbox_path),'--provider-id',provider,'--discover-economy','--limit','100',
                     '--discovery-offset',str(offset),'--analysis-root',str(root/'feed_analysis'/folder/'core'),
                     '--theme-root',str(root/'theme_history')])
+                if not reanalyze_existing:opts.new_discovery_only=True
                 code,data=evaluate(opts,now=at)
                 rows=data.get('results',[]);total=data.get('matched_versions',0)
                 more=data.get('has_more_results',False)
@@ -67,18 +68,25 @@ def execute(root,sources,*,now=None,dry_run=False,selected_versions=None):
                 if code!=0:
                     outcome['has_more_older_titles']=True
                     break
-                if (expected is not None and total!=expected) or (more and not rows):
+                basis=data.get('source_versions_checked',total) if not reanalyze_existing else total
+                if (expected is not None and basis!=expected) or (more and not rows):
                     outcome.update(status='SOURCE_SNAPSHOT_CHANGED',exit_code=4,has_more_older_titles=True)
                     break
-                expected=total
-                outcome['analysis_batches']+=1
+                if not reanalyze_existing:
+                    keys={(r['provider_id'],r['source_event_sha256'],r['source_title_sha256']) for r in rows}
+                    if keys & processed:
+                        outcome.update(status='DISCOVERY_REPLAY_INCOMPLETE',exit_code=4,has_more_older_titles=True)
+                        break
+                    processed.update(keys)
+                expected=basis
+                outcome['analysis_batches']+=int(bool(rows))
                 outcome['titles']+=len(rows)
                 outcome['events']+=data.get('economic_changes_count',0)
                 outcome['theme_versions_created']+=data.get('theme_versions_created',0)
                 outcome['unclassified_events']+=sum(not c['industry_tags'] for r in rows for c in r.get('economic_changes',[]))
                 outcome['source_fetch_calls']+=data.get('source_fetch_calls',0)
                 if not more:break
-                offset+=len(rows)
+                if reanalyze_existing:offset+=len(rows)
             outcomes.append(outcome)
     bad=sum(r.get('exit_code',0)!=0 or r['status']=='SOURCE_UNAVAILABLE' for r in outcomes)
     return {'status':'PARTIAL' if bad else 'READY','sources_failed':bad,'sources':outcomes,
@@ -103,9 +111,10 @@ def main(argv=None):
     p.add_argument('--source-base',type=Path,required=True)
     p.add_argument('--workspaces-root',type=Path,required=True)
     p.add_argument('--dry-run',action='store_true')
+    p.add_argument('--reanalyze-existing',action='store_true',help='explicitly rerun previous interpretations; default reuses them')
     args=p.parse_args(argv)
     try:
-        result=execute(args.root,source_roots(args.source_base,args.workspaces_root),dry_run=args.dry_run)
+        result=execute(args.root,source_roots(args.source_base,args.workspaces_root),dry_run=args.dry_run,reanalyze_existing=args.reanalyze_existing)
     except (SourceShareError,OSError,ValueError,TypeError) as e:
         result={'status':'UNAVAILABLE','error_type':type(e).__name__}
     print(json.dumps(result,ensure_ascii=False,sort_keys=True))

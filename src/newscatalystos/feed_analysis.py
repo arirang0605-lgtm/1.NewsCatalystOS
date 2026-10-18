@@ -410,7 +410,7 @@ def analyze_completed_feed(
     opener=None, now: datetime | None = None, company_identity_config: Path | None = None,
     semantic_ai: bool = False, semantic_call_limit: int = 3,
     semantic_scheduled_only: bool = False, industry: str = "SEMICONDUCTOR",
-    discovery_offset: int = 0,
+    discovery_offset: int = 0, excluded_versions=(),
 ) -> dict:
     """Reuse committed sources and separate analysis state; paid execution is opt-in.
 
@@ -428,6 +428,16 @@ def analyze_completed_feed(
     if (type(semantic_ai) is not bool or type(semantic_call_limit) is not int
             or not 0<=semantic_call_limit<=10 or type(semantic_scheduled_only) is not bool):
         raise SourceShareError("invalid bounded semantic analysis options")
+    if not isinstance(excluded_versions,(tuple,list,set,frozenset)):
+        raise SourceShareError('bounded completed source version selection required')
+    for key in excluded_versions:
+        if (not isinstance(key,tuple) or len(key)!=3 or not isinstance(key[0],str)
+                or not 1<=len(key[0])<=128):
+            raise SourceShareError('exact completed source version selection required')
+        _must_sha(key[1],'excluded event');_must_sha(key[2],'excluded title')
+    if excluded_versions and industry!='ECONOMIC_DISCOVERY':
+        raise SourceShareError('source version exclusion is event-first only')
+    excluded_versions=set(excluded_versions)
     semantic_calls=0
     if type(analyze_existing) is not bool or (analyze_existing and
             (not provider_id or not event_id or not title_sha256 or limit != 1 or model is None)):
@@ -477,6 +487,7 @@ def analyze_completed_feed(
             if key not in latest or item["last_observed_at"] > latest[key]["last_observed_at"]:
                 latest[key] = item
         selected = list(latest.values())
+    selected=[x for x in selected if (x['provider_id'],x['event_id'],x['title_sha256']) not in excluded_versions]
     selected.sort(key=lambda x: (x["available_at"], x["provider_id"], x["event_id"]), reverse=True)
     matched = len(selected)
     if discovery_offset and discovery_offset>=matched:

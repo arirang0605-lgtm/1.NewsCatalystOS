@@ -258,7 +258,14 @@ class Handler(BaseHTTPRequestHandler):
                         if notes:detail["public_page_demand_analysis"]=notes
                         from newscatalystos.recent_theme_followups import article_followups
                         recent=article_followups(view["theme_outlook"],*exact)
-                        if recent:detail["recent_theme_followup_analysis"]=recent
+                        if recent:
+                            # These companies are bound reading-analysis links,
+                            # not names invented by a failed title event parser.
+                            for row in recent:
+                                row["company_connection_basis"]="SOURCE_BOUND_READING_ANALYSIS"
+                                if self.server.era_daily_root is not None:
+                                    row["era_daily_assessment"]=assessment_for(row["source_company"],snap)
+                            detail["recent_theme_followup_analysis"]=recent
                 if excerpt:
                     from newscatalystos.source_share import _must_sha
                     for key in ("excerpt_theme_id", "excerpt_claim_event_id",

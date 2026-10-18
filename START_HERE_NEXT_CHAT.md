@@ -1,21 +1,15 @@
-# START HERE — 세 기업의 실제 수요 설명·공통 배경·차이 비교
+# START HERE — 최근 실제 뉴스와 기존 수요 근거 비교
 
 **목적·개발 기준:** 실제 뉴스 → 뉴스 분석(경제 변화·공통 사건·초기 테마) → 관련 산업·기업 연결 → 기업별 근거·원문 조회. 여러 사건과 기업을 연결해 초기 테마와 잠재 수혜 기회를 근거와 함께 발견한다. 산업·기업은 분석 결과로 연결하고 미분류/미확보 사건도 보존한다. 전력기기는 이 공통 흐름의 첫 실자료 적용 분야다. 매 개발 시작·진행·종료 시 목적 기여를 확인하며 세부 산업 규칙/검증 보완에만 치우치지 않는다. AGENTS.md/DECISIONS.md의 PROJECT-PURPOSE-20261018을 적용한다.
 
-기준 2026-10-18 18:12 KST. 기능/운영 **7e3cbcae2599e4954d8d33dc451f9fd88b6d3dd3**. HD현대일렉트릭·LS ELECTRIC·효성중공업의 공개 공식 뉴스에서 읽은 수요 설명을 원문 문장/본문 저장 없이 짧은 별도 분석3건으로 연결했다. 기존 제목 근거와 새 분석은 분리한다. 세 기업 테마→공통/부분 공통 배경→지역/사업 목적 차이→각 기업의 정확한 기사 근거·공식 원문이 이어진다.
+기준 2026-10-18 18:43 KST. 기능/운영 **847d3bfd73bffdc9e2962f8cf1539f58ba721bf9**. 세 전력기기 기업의 실제 최근 뉴스 제목·공식 원문을 기존 기업별 수요 읽기 분석에 연결했다. 실제 뉴스→기존 수요 근거와 변화 분석→초기 테마 비교→관련 기업→정확한 기사 판본·공식 원문 조회 경로가 작동한다.
 
-HD: 미국 장거리 송전·노후 설비 교체·AI/데이터센터·신재생 발전의 수요 배경. LS: 국내 동해안 발전 제약 해소와 수도권 송전 목적, 전력 수요/재생에너지 송전의 시장 배경. 효성: 글로벌 전력망 수요 및 재생 발전·AI/전기차 등을 증설 배경으로 설명. 세 자료의 공통 분석 분류는 **신재생 발전의 전력망 연계**. AI 관련 배경은 HD/효성, 전력 수요 증가 분류는 LS/효성에 연결한다. 지역은 미국/한국/글로벌이며 동일 수요 충격·동일 발주·직접 거래·수혜는 미검증이다. LS의 국내 HVDC 사업에 미국 데이터센터 원인을 전이하지 않는다.
+현재 비교는 **전력 인프라 수요 가설의 강화 근거 추가(조건부 근거 포함)**. 최근 세 자료에서 AI·데이터센터와 전력 수요 증가를 공통 분석 분류로 연결한다. 기존 자료의 전체 공통 분류는 신재생 발전의 전력망 연계였다. 최근에 이 표현이 없다는 이유로 기존 신재생 수요가 약화됐다고 판단하지 않는다. 동일 수요 충격·동일 발주·같은 프로젝트·수혜·매출/이익 확정은 미검증이다.
 
-원문: HD https://www.hd-hyundaielectric.com/elect/ko/PR/newsView.jsp?commBoardSeq=5722 (2025-09-22), LS https://www.lsholdings.com/ko/media/news/73503435576655704a5651473669346761776f5678586d50576e646f34736a76 (2024-12-02), 효성 https://blog.hyosung.com/6137 (2024-06-12). 새 뉴스가 아니라 실제 역사 자료에서 이번에 확보한 분석이며 분석 가용일2026-10-18 이전으로 소급하지 않는다.
+DEV=/Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project, branch=codex/real-data-path. BASE=~/Library/Application Support/NewsCatalystOS, release=BASE/releases/847d3bfd73bffdc9e2962f8cf1539f58ba721bf9, 분석=BASE/document_analysis/economic_discovery. 운영 http://127.0.0.1:8766/ → 변압기 관련 경제 변화 → 최근 실제 뉴스와 기존 수요 근거 비교 → 최근 뉴스의 기업·비교 근거 보기 → 최근 뉴스 공식 원문. DEV/SSD output/recent_power_theme_20261018/에 비공개 입력·실행 증거, SSD code_final/에 최종 시험판. 첫 후보판은 code_prior_56b9485/로 보존했다.
 
-운영 http://127.0.0.1:8766/ → 변압기 관련 경제 변화 → 공개 원문 기반 비교/공통 배경 → 공개 원문을 읽은 기업별 수요 분석 → 이 수요 분석의 기업·기사 근거 보기 → 기존 제목 근거/공식 원문. 제목의 직접 표현과 읽기 분석을 혼동하지 않는다.
+검증: 최종 DEV 영향시험184 PASS, SSD 최종 고정판74 PASS. 신규 비교17개 시험은 정상 강화/조건부/약화/혼재/계획·배경 경로, 중복, PIT, 잘못된 출처/기준 노트/상태/원문 필드 거부, 승인 해제·손상 격리, 정확한 기사 HTTP 조회와 주 화면 /api/period 전달을 포함한다. 전체 제품 인수나 전체 회귀 통과로 확장해 선언하지 않는다.
 
-DEV=/Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project, branch=codex/real-data-path. BASE=~/Library/Application Support/NewsCatalystOS, release=BASE/releases/7e3cbcae2599e4954d8d33dc451f9fd88b6d3dd3, 분석=BASE/document_analysis/economic_discovery. 기존 power_live_dev/ls_power_manual_dev/hyosung_manual_dev 출처 유지. 실제 읽기 분석은 비공개이며 Git 제외한다. 입력 계약은 새 스크립트 --help 및 public_demand_analysis.py를 참고한다.
+실자료: 제목3건, 새 일반 경제 사건1건. 현재49주제54사건·명시 회사명37·제목판본402. 기존 읽기 분석3건 보존, 새 비교 분석3건 게시·동일 입력 추가0. 분석 가용 이전 조회에 후속 비교 없음. 과거 기본/선택 export bytes와 고정 /api/themes bytes 보존, 기존 수집/예약 설정3 SHA 동일. 기존 제공자 권한/주소 보존, 본문 보관0·유료AI0·Public push0. 기존 사용자dirty3 SHA 및 SSD 원래 코드/Git/미커밋·Era 코드/DB/Git 보존. 원V1 36/36 기록 유지. 전력기기 전체·자동 본문 분석·공통 시장 충격/수혜·공동연동 완료는 미선언.
 
-검증: DEV94개 고유 영향시험 PASS(기존50 + 최종44; 별도 새시험15는 최종44와 중첩). SSD 고정판35PASS. 원문 읽기 분석3건 게시·재처리 추가0, 실제3개사의 기업/원래 제목 근거 HTTP READY, 추가 분석 확보 이전 조회에는 노트 없음, 선택export도 분석 가용일 이후만 포함. 본문/인용 필드 거부·출처/회사/사건/report 바꿔치기 거부·손상 추가분석 격리·정상 양성 경로 확인. 전체 회귀나 제품 전체 인수로 선언하지 않는다.
-
-기존48주제53사건·명시 회사명37·제목판본399 유지. 분석3건을 새 뉴스/새 사건으로 세지 않는다. 과거 기본/선택export bytes·기존 release의 기본export·고정 /api/themes bytes 보존. 기존 수집/예약 설정3 SHA 동일, 새 수집/예약 설치0, 원문 본문 보관0·유료API AI0. 공개 페이지 읽기 자체는 분석 입력 명령의 무네트워크 처리와 별개다. 운영은 새 고정 release로 정상 재시작·HTTP 확인했다.
-
-사용자dirty3 SHA·SSD 원래 코드/Git/미커밋·Era 읽기전용 보존, Era 코드/DB/Git 변경0, Public push0. 원V1 36/36 기록 유지, 전력기기 전체·자동 원문 분석·공통 시장충격/수혜·공동연동 완료는 미선언. 증거 DEV/SSD output/three_company_causes_20261018/, SSD 최신 고정판 code_final/.
-
-다음 NEXT_TASK.md. START→AGENTS→PROJECT_STATE→DECISIONS→NEXT_TASK의 최신 내용만 읽는다.
+다음 NEXT_TASK.md. START→AGENTS→PROJECT_STATE→DECISIONS→NEXT_TASK의 최신 기준만 읽는다.

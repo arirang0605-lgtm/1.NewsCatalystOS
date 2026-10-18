@@ -1,23 +1,23 @@
-# PROJECT_STATE — 세 기업의 수주·증설과 수요 근거 조회 작동
+# PROJECT_STATE — 공개 뉴스 수요 분석3건과 초기 테마 비교 작동
 
 **목적·개발 기준:** 실제 뉴스 → 뉴스 분석(경제 변화·공통 사건·초기 테마) → 관련 산업·기업 연결 → 기업별 근거·원문 조회. 여러 사건과 기업을 연결해 초기 테마와 잠재 수혜 기회를 근거와 함께 발견한다. 산업·기업은 분석 결과로 연결하고 미분류/미확보 사건도 보존한다. 전력기기는 이 공통 흐름의 첫 실자료 적용 분야다. 매 개발 시작·진행·종료 시 목적 기여를 확인하며 세부 산업 규칙/검증 보완에만 치우치지 않는다. AGENTS.md/DECISIONS.md의 PROJECT-PURPOSE-20261018을 적용한다.
 
-기준 2026-10-18 17:51 KST. 기능/운영 **73dcd85a3d4e3a938f69c4bd1fe393cc3adaff12**. 효성중공업 실제 공식 제목을 기존 공통 분석·정확한 기업/원문 조회에 연결했다. 화면과 common_causes=1 출력에서 HD현대일렉트릭·LS ELECTRIC·효성중공업의 변압기 수주2건+증설1건이 '변압기 관련 경제 변화 / 우선 조사 후보'로 함께 나타난다.
+기준 2026-10-18 18:12 KST. 기능/운영 **7e3cbcae2599e4954d8d33dc451f9fd88b6d3dd3**. HD현대일렉트릭·LS ELECTRIC·효성중공업의 공개 공식 뉴스에서 읽은 수요 설명을 원문 문장/본문 저장 없이 짧은 별도 분석3건으로 연결했다. 기존 제목 근거와 새 분석은 분리한다. 세 기업 테마→공통/부분 공통 배경→지역/사업 목적 차이→각 기업의 정확한 기사 근거·공식 원문이 이어진다.
 
-효성 원문 https://blog.hyosung.com/6137 , 제목 '효성중공업, 글로벌 전력 인프라 수요 폭증에 초고압변압기 공장 증설', 게시일2024-06-12. 제목/주소를 MANUAL_METADATA로 명시해 입력했다. 자동수집·본문 사용권 확보로 주장하지 않는다. 기존 LS2024-12-02/HD2025-09-22와 모두 역사적 실제 뉴스이며 이번 확보2026-10-18 이후만 가용하다. 오늘 발생한 뉴스나 시장 신규 테마라고 소급하지 않는다.
+HD: 미국 장거리 송전·노후 설비 교체·AI/데이터센터·신재생 발전의 수요 배경. LS: 국내 동해안 발전 제약 해소와 수도권 송전 목적, 전력 수요/재생에너지 송전의 시장 배경. 효성: 글로벌 전력망 수요 및 재생 발전·AI/전기차 등을 증설 배경으로 설명. 세 자료의 공통 분석 분류는 **신재생 발전의 전력망 연계**. AI 관련 배경은 HD/효성, 전력 수요 증가 분류는 LS/효성에 연결한다. 지역은 미국/한국/글로벌이며 동일 수요 충격·동일 발주·직접 거래·수혜는 미검증이다. LS의 국내 HVDC 사업에 미국 데이터센터 원인을 전이하지 않는다.
 
-실자료 수요 근거는 **효성 원문에만 '글로벌 전력 인프라 수요 폭증' 명시**. HD·LS의 동일 원인은 미확인이다. PARTIAL_SOURCE_COVERAGE이며 기업 간 동일 수요원인 일치/공통 시장충격·납품·매출·수혜·독립 사건은 미검증. 다른 기업에 효성의 원인을 전이하지 않는다. 증설의 물리적 완료도 제목만으로 단정하지 않아 PLANNED/완료 미확인으로 보존한다.
+원문: HD https://www.hd-hyundaielectric.com/elect/ko/PR/newsView.jsp?commBoardSeq=5722 (2025-09-22), LS https://www.lsholdings.com/ko/media/news/73503435576655704a5651473669346761776f5678586d50576e646f34736a76 (2024-12-02), 효성 https://blog.hyosung.com/6137 (2024-06-12). 새 뉴스가 아니라 실제 역사 자료에서 이번에 확보한 분석이며 분석 가용일2026-10-18 이전으로 소급하지 않는다.
 
-명시 회사+시설 증설 제목을 산업 사전 없이 탐지하는 v5를 추가했다. v1~v4 보고서 의미·사건ID는 보존한다. 관찰 뒤 기존 제품 표현을 이용해 초고압변압기/초고압 변압기의 동일한 원문 단어 '변압기'를 연결한다. 수요/주문+증가/회복/축소+원인 연결어가 같은 회사의 정확한 행동에 붙는 경우만 수요 근거로 읽는다. 다른 회사/범위/방향/주문과 수요를 섞지 않으며 동일 원인 명시의 정상 양성 경로는 시험했다.
+새 scripts/run_public_demand_analysis_once.py 는 소유자 전용 짧은 사실 요약·분석 분류를 기존 활성 source/회사/사건/report SHA에 결속해 append-only analysis_notes/public_demand/에 게시한다. 원문 문장/본문/quote 필드를 받지 않으며 본문 사용권 확보·자동 본문 수집·독립 사실 인증을 주장하지 않는다. 출처 URL은 정확한 기존 자료와 같아야 한다. 저장 자료는 ASSISTANT reading analysis 성격이며 source_truth_verified=false, source_text_stored=false다.
 
-선택 조회 common_causes=1의 theme_outlook에 source_demand_context를 추가해 현재 해석·원문 근거·미확인 기업을 표시한다. 기본export는 기존 계약을 보존한다. 기본 분석/이전 사건을 다시 쓰지 않는다. 빈 반도체 전용 원인 안내가 실제 전력기기 테마 앞에 반복 표시되던 화면도 정리했다.
+common_causes=1의 theme_outlook.public_page_demand_analysis에서 세 기업 전체/일부 기업 공통 분류와 지역 범위를 비교한다. 같은 단어/지역/점수/시장충격을 인증하지 않는다. 기존 source_demand_context는 제목의 직접 표현만 유지하므로 효성만 제목 원인을 명시한다. article_demand_analysis 전용 새 공급망은 없으며 기존 /api/news-evidence discovery=1에 public_page_demand_analysis를 선택적으로 붙여 정확한 기사 조회를 재사용한다. 별도 분석 실패는 이 확장만 UNAVAILABLE 처리하고 기존 제목 테마는 표시한다.
 
-검증: DEV258개 고유시험 단계별PASS(115 + 후속163, 새 시험20 중첩). SSD 고정판42PASS. 합성 기능시험과 별도로 실제3개사 정확한 HTTP 기업·제목 근거 READY, 선택 공통테마 export 확인. 실제 화면 공통테마→효성 기업/산업→정확한 근거 문장 확인. 이전 운영 release와 새 코드의 입력 전 기본export bytes 동일, 입력 전 시점export/고정 /api/themes bytes 보존, 재처리 추가판본0, 기존 수집/예약 설정3 SHA 동일.
+검증: DEV94개 고유 영향시험 PASS(기존50 + 최종44; 별도 새시험15는 최종44와 중첩). SSD 고정판35PASS. 원문 읽기 분석3건 게시·재처리 추가0, 실제3개사의 기업/원래 제목 근거 HTTP READY, 추가 분석 확보 이전 조회에는 노트 없음, 선택export도 분석 가용일 이후만 포함. 본문/인용 필드 거부·출처/회사/사건/report 바꿔치기 거부·손상 추가분석 격리·정상 양성 경로 확인. 전체 회귀나 제품 전체 인수로 선언하지 않는다.
 
-현재 공통 발견48주제53사건·명시 회사명37·제목판본399. 새 자동 수집/예약 설치0, 본문·요약·이미지 저장0, 유료AI0. dashboard만 고정 release와 hyosung 읽기 source를 추가했다. 재시작 실패는 기존 설정 복구 후 단계별 재시작으로 해소, 운영 HTTP/화면 정상. 사용자dirty3 SHA·SSD 원래 소스/Git/미커밋·Era 읽기전용 보존, Era 코드/DB/Git 변경0, Public push0.
+기존48주제53사건·명시 회사명37·제목판본399 유지. 분석3건을 새 뉴스/새 사건으로 세지 않는다. 과거 기본/선택export bytes·기존 release의 기본export·고정 /api/themes bytes 보존. 기존 수집/예약 설정3 SHA 동일, 새 수집/예약 설치0, 원문 본문 보관0·유료API AI0. 공개 페이지 읽기 자체는 분석 입력 명령의 무네트워크 처리와 별개다. 운영은 새 고정 release로 정상 재시작·HTTP 확인했다.
 
-기존 V1 36/36 기록은 유지한다. 전력기기/전체제품·공동연동·정기수집·공통 수요 원인 검증 완료로 환산하지 않는다. 증거 DEV/SSD output/hyosung_demand_20261018/, SSD 최신 고정 시험판 code_final/.
+사용자dirty3 SHA·SSD 원래 코드/Git/미커밋·Era 읽기전용 보존, Era 코드/DB/Git 변경0, Public push0. 원V1 36/36 기록 유지, 전력기기 전체·자동 원문 분석·공통 시장충격/수혜·공동연동 완료는 미선언. 증거 DEV/SSD output/three_company_causes_20261018/, SSD 최신 고정판 code_final/.
 
-운영 http://127.0.0.1:8766/ → 뉴스에서 발견한 경제 변화 → 변압기 관련 경제 변화 → 수요 근거와 미확인 기업 → 기회·반증·원문 근거 → 이 테마의 기업·분석 근거 보기 → 기업 근거 문장·공식 원문. 저장뉴스 검색도 같은 경로다.
+운영 http://127.0.0.1:8766/ → 변압기 관련 경제 변화 → 공개 원문 기반 비교/공통 배경 → 공개 원문을 읽은 기업별 수요 분석 → 이 수요 분석의 기업·기사 근거 보기 → 기존 제목 근거/공식 원문. 제목의 직접 표현과 읽기 분석을 혼동하지 않는다.
 
-DEV=/Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project, branch=codex/real-data-path. BASE=~/Library/Application Support/NewsCatalystOS, release=BASE/releases/73dcd85a3d4e3a938f69c4bd1fe393cc3adaff12. 분석=BASE/document_analysis/economic_discovery. 추가 source=BASE/research_workspaces/hyosung_manual_dev (scope hyosung); 기존 power_live_dev/ls_power_manual_dev 유지. 수동 입력 명령 scripts/run_manual_company_news_once.py 재사용. 실제 입력 자료는 소유자 전용이며 Git 제외.
+DEV=/Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project, branch=codex/real-data-path. BASE=~/Library/Application Support/NewsCatalystOS, release=BASE/releases/7e3cbcae2599e4954d8d33dc451f9fd88b6d3dd3, 분석=BASE/document_analysis/economic_discovery. 기존 power_live_dev/ls_power_manual_dev/hyosung_manual_dev 출처 유지. 실제 읽기 분석은 비공개이며 Git 제외한다. 입력 계약은 새 스크립트 --help 및 public_demand_analysis.py를 참고한다.

@@ -47,7 +47,8 @@ def test_exact_source_rechecks_revocation_and_pit(sample):
     scopes,regs,_,_=sample;row=next(r for r in search(scopes)['results'] if r['search_scope']=='motir')
     assert exact(scopes,row,now=NOW)['results']==[]
     write_registry(scopes[1].registry_path,ProviderRegistry(tuple(replace(p,approved=False) for p in regs[1].providers)))
-    with pytest.raises(SourceShareError,match='unapproved'):exact(scopes,row)
+    revoked=exact(scopes,row)
+    assert revoked['results']==[] and not revoked['coverage_complete']
 
 
 @pytest.mark.parametrize('flag,identity',[(True,None),('yes',None)])

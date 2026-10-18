@@ -136,9 +136,9 @@ def search_completed_workspaces(
         raise SourceShareError("search source currently unapproved or unavailable")
     selected_scope=None
     if exact_source_only:
-        selected_scope=owners.get(exact_identity[0])
-        if selected_scope is None:
-            raise SourceShareError("exact search source currently unapproved or unavailable")
+        # Unknown/revoked exact providers produce no rows, matching the
+        # existing exact article 404 contract without reading any source.
+        selected_scope=owners.get(exact_identity[0], "")
     versions, summaries = {}, []
     for workspace in workspaces:
         # All registry/path/ambiguous ownership checks above still run. An
@@ -225,7 +225,7 @@ def search_completed_workspaces(
                           row["semiconductor_keyword_candidate"] and row["analysis_candidate"]))),
                      key=_order)
     results = [dict(row, search_verified_at=checked.isoformat()) for row in matches[:limit]]
-    coverage = all(scope["coverage_complete"] for scope in summaries)
+    coverage = bool(summaries) and all(scope["coverage_complete"] for scope in summaries)
     return {
         **({"coverage_scope":"EXACT_PROVIDER_WORKSPACE"} if exact_source_only else {}),
         "schema": SCHEMA,

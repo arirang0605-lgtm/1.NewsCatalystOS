@@ -74,6 +74,7 @@ def search_completed_workspaces(
     source_id: str | None = None, semiconductor_only: bool = False,
     limit: int = 20, now: datetime | None = None,
     exact_identity: tuple[str, str, str] | None = None,
+    exact_source_only: bool = False,
 ) -> dict:
     """Search bounded completed snapshots; damaged scopes are explicit partials.
 
@@ -85,6 +86,8 @@ def search_completed_workspaces(
             or any(ord(ch) < 32 for ch in phrase)
             or type(limit) is not int or not 1 <= limit <= MAX_RESULTS
             or type(semiconductor_only) is not bool
+            or type(exact_source_only) is not bool
+            or (exact_source_only and exact_identity is None)
             or (source_id is not None and (not isinstance(source_id, str)
                 or not source_id or len(source_id) > 128))
             or not isinstance(workspaces, tuple) or not 1 <= len(workspaces) <= 8):
@@ -131,8 +134,17 @@ def search_completed_workspaces(
         registries[workspace.scope] = registry
     if source_id is not None and source_id not in owners:
         raise SourceShareError("search source currently unapproved or unavailable")
+    selected_scope=None
+    if exact_source_only:
+        selected_scope=owners.get(exact_identity[0])
+        if selected_scope is None:
+            raise SourceShareError("exact search source currently unapproved or unavailable")
     versions, summaries = {}, []
     for workspace in workspaces:
+        # All registry/path/ambiguous ownership checks above still run. An
+        # exact article only needs completed receipts from its owning scope.
+        if selected_scope is not None and workspace.scope!=selected_scope:
+            continue
         summary = {
             "scope": workspace.scope, "status": "SEARCH_DATA_UNAVAILABLE",
             "approved_provider_ids": [], "verified_provider_ids": [],
@@ -215,6 +227,7 @@ def search_completed_workspaces(
     results = [dict(row, search_verified_at=checked.isoformat()) for row in matches[:limit]]
     coverage = all(scope["coverage_complete"] for scope in summaries)
     return {
+        **({"coverage_scope":"EXACT_PROVIDER_WORKSPACE"} if exact_source_only else {}),
         "schema": SCHEMA,
         "status": "FEDERATED_APPROVED_METADATA_SEARCH" if coverage
                   else "FEDERATED_SEARCH_PARTIAL_DATA_UNAVAILABLE",

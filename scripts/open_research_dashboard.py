@@ -150,7 +150,7 @@ class Handler(BaseHTTPRequestHandler):
                 exact = tuple(query[k][0] for k in required[1:])
                 found = search_completed_workspaces(
                     self.server.news_search_workspaces, query["q"][0],
-                    registry_reader=_registry, exact_identity=exact, limit=1, now=now,
+                    registry_reader=_registry, exact_identity=exact, exact_source_only=True, limit=1, now=now,
                 )
                 if not found["results"]:
                     self._json(404, {"error": "exact completed source version unavailable"})

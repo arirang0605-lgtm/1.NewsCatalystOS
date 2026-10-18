@@ -74,7 +74,7 @@ def metadata_resolver(workspaces,*,now):
         if key not in cache:
             result=search_completed_workspaces(tuple(workspaces),recent['headline'][:80],
                 registry_reader=lambda p:parse_provider_registry(_private_input(p,32768),now=now),
-                exact_identity=identity,limit=1,now=now)
+                exact_identity=identity,exact_source_only=True,limit=1,now=now)
             rows=result['results']
             cache[key]=rows[0] if len(rows)==1 else None
         row=cache[key]

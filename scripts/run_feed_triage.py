@@ -86,8 +86,7 @@ def evaluate(opts: argparse.Namespace, *, manual_metadata: bytes | None = None) 
             written = []
             poll = incremental_poll(
                 registry, opts.provider_id, opts.state,
-                fetcher=(lambda reg, name, at=None: parse_authorized_feed(
-                    reg, name, manual_metadata, observed_at=at)) if manual else None,
+                manual_payload=manual_metadata if manual else None,
                 before_commit=lambda result: written.append(
                     save_retry_checkpoint(opts.inbox_root, result)),
             )

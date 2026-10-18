@@ -15,6 +15,8 @@ from .provider_registry import parse_provider_registry
 from .federated_news_search import search_completed_workspaces
 
 SCHEMA='newscatalyst.recent_theme_followup.v1'
+SCHEMA_V2='newscatalyst.recent_theme_followup.v2'
+from .execution_evidence import validate_execution,bind_anchor,attach_anchor,summarize_execution
 RECENT_FIELDS={'search_scope','provider_id','event_id','title_sha256','headline','source_url','triage_evidence_sha256'}
 FIELDS={'baseline_note_id','recent_source','reported_date','evidence_kind','factor_codes',
         'market_codes','analysis_text','limitation','source_location','product_scope'}
@@ -25,20 +27,24 @@ KINDS={
  'PLAN_ONLY':'계획·완료 미확인',
  'DEMAND_REDUCTION':'수요 감소 보도',
  'CANCELLATION':'취소 보도',
- 'CONTEXT_ONLY':'배경·누적 실적 설명'}
+ 'CONTEXT_ONLY':'배경·누적 실적 설명','REPORTED_ORDER_PERFORMANCE':'수주·매출 실적 보도',
+ 'REPORTED_DELIVERY':'납품 완료 보도','REPORTED_DELAY':'납품 지연 보도','RISK_ONLY':'위험·반론 설명'}
 STATUS_LABELS={'SUPPORT_ADDED':'강화 근거 추가','CONDITIONAL_SUPPORT_ONLY':'조건부 강화 근거만 추가',
  'WEAKENING_EVIDENCE':'약화 근거 추가','MIXED_EVIDENCE':'강화·약화 근거 혼재',
  'NO_SUBSTANTIVE_CHANGE':'실질 변화 근거 미확보'}
-POSITIVE={'REPORTED_CONTRACT','REPORTED_CAPACITY_OPERATION'}
+POSITIVE={'REPORTED_CONTRACT','REPORTED_CAPACITY_OPERATION','REPORTED_ORDER_PERFORMANCE','REPORTED_DELIVERY'}
 NEGATIVE={'DEMAND_REDUCTION','CANCELLATION'}
 ENTRY_FIELDS={'schema','note','available_at','baseline_available_at','recent_available_at',
               'source_text_stored','source_truth_verified'}
 
 def _validate(note):
-    if not isinstance(note,dict) or set(note)!=FIELDS:
+    if not isinstance(note,dict) or set(note) not in (FIELDS,FIELDS|{'execution'}):
         raise SourceShareError('exact bounded follow-up fields required; no source text')
     if not re.fullmatch('[0-9a-f]{64}',str(note['baseline_note_id'])):
         raise SourceShareError('exact baseline note required')
+    if 'execution' in note:validate_execution(note)
+    elif note['evidence_kind'] not in {'REPORTED_CONTRACT','REPORTED_CAPACITY_OPERATION','CONDITIONAL_FRAMEWORK','PLAN_ONLY','DEMAND_REDUCTION','CANCELLATION','CONTEXT_ONLY'}:
+        raise SourceShareError('new execution kind requires versioned comparison')
     r=note['recent_source']
     if not isinstance(r,dict) or set(r)!=RECENT_FIELDS:
         raise SourceShareError('exact completed recent title required')
@@ -105,15 +111,16 @@ def read_followups(root,baselines,resolve,*,as_of,now):
     if at>_when(now.isoformat(),'follow-up now'):raise SourceShareError('future follow-up query')
     paths=sorted(_store(root).glob('*.json'))
     if len(paths)>200:raise SourceShareError('follow-up store limit')
-    latest={}
+    latest={};valid=[]
     for path in paths:
         raw=_private_input(path,8192)
         if path.stem!=sha256(raw).hexdigest():raise SourceShareError('follow-up digest mismatch')
         entry=_json(raw,'recent follow-up');note=entry.get('note')
-        if (set(entry)!=ENTRY_FIELDS or entry['schema']!=SCHEMA
+        if (set(entry)!=ENTRY_FIELDS or entry['schema'] not in {SCHEMA,SCHEMA_V2}
                 or entry['source_text_stored'] is not False or entry['source_truth_verified'] is not False):
             raise SourceShareError('invalid follow-up envelope')
         _validate(note)
+        if (entry['schema']==SCHEMA_V2)!=('execution' in note):raise SourceShareError('follow-up version mismatch')
         available=_when(entry['available_at'],'follow-up availability')
         if available<max(_when(entry[k],k) for k in ('baseline_available_at','recent_available_at')):
             raise SourceShareError('follow-up predates evidence')
@@ -130,24 +137,44 @@ def read_followups(root,baselines,resolve,*,as_of,now):
                'source_company':company,'baseline_headline':base['source_headline'],
                'baseline_analysis':base['note']['analysis_text'],'baseline_source_url':base['note']['source_url'],
                'baseline_factor_codes':[f['code'] for f in base['note']['factors']]}
+        valid.append((key,value))
+    current_anchors={}
+    for key,r in valid:
+        if 'execution' not in r['note'] and (key not in current_anchors or
+                (r['available_at'],r['note_id'])>(current_anchors[key]['available_at'],current_anchors[key]['note_id'])):
+            current_anchors[key]=r
+    anchors={r['note_id']:r for r in current_anchors.values()}
+    for key,value in valid:
+        if 'execution' in value['note']:
+            try:
+                anchor=bind_anchor(value['note'],value['source_company'],anchors,_when(value['available_at'],'follow-up availability'))
+                value=attach_anchor(value,anchor)
+            except (SourceShareError,ValueError):continue
         if key not in latest or (value['available_at'],value['note_id'])>(latest[key]['available_at'],latest[key]['note_id']):
             latest[key]=value
     return sorted(latest.values(),key=lambda r:(r['note']['reported_date'],r['source_company']))
 
 def publish_followups(root,document,baselines,resolve,*,now=None):
     at=now or datetime.now(timezone.utc)
-    if (not isinstance(document,dict) or set(document)!={'schema','notes'} or document['schema']!=SCHEMA
+    if (not isinstance(document,dict) or set(document)!={'schema','notes'} or document['schema'] not in {SCHEMA,SCHEMA_V2}
             or not isinstance(document['notes'],list) or not 1<=len(document['notes'])<=20):
         raise SourceShareError('bounded follow-up notes required')
-    for note in document['notes']:_validate(note);_bound(note,baselines,resolve,at)
+    for note in document['notes']:
+        _validate(note);_bound(note,baselines,resolve,at)
+        if (document['schema']==SCHEMA_V2)!=('execution' in note):raise SourceShareError('input comparison version mismatch')
     current=read_followups(root,baselines,resolve,as_of=at,now=at)
+    anchors={r['note_id']:r for r in current if 'execution' not in r['note']}
+    for note in document['notes']:
+        if 'execution' in note:
+            company=baselines[note['baseline_note_id']]['note']['source_company']
+            bind_anchor(note,company,anchors,at)
     fingerprints={r['analysis_fingerprint'] for r in current}
     folder=_store(root,create=True);ids=[]
     for note in document['notes']:
         fingerprint=sha256(_bytes(note)).hexdigest()
         if fingerprint in fingerprints:continue
         base,row=_bound(note,baselines,resolve,at)
-        entry={'schema':SCHEMA,'note':note,'available_at':at.isoformat(),
+        entry={'schema':SCHEMA_V2 if 'execution' in note else SCHEMA,'note':note,'available_at':at.isoformat(),
                'baseline_available_at':base['available_at'],'recent_available_at':row['source_available_at'],
                'source_text_stored':False,'source_truth_verified':False}
         raw=_bytes(entry);digest=sha256(raw).hexdigest()
@@ -157,7 +184,7 @@ def publish_followups(root,document,baselines,resolve,*,now=None):
             os.link(temp,folder/(digest+'.json'))
         finally:os.unlink(temp)
         fingerprints.add(fingerprint);ids.append(digest)
-    return {'schema':SCHEMA,'created':len(ids),'note_ids':ids,'source_text_stored':False,'network_called':False}
+    return {'schema':document['schema'],'created':len(ids),'note_ids':ids,'source_text_stored':False,'network_called':False}
 
 def assess(rows,companies):
     kinds={r['note']['evidence_kind'] for r in rows}
@@ -186,7 +213,11 @@ def attach_followups(root,outlook,workspaces,*,as_of,now):
     for group in outlook['candidates']:
         ids={n['note_id'] for n in group.get('public_page_demand_analysis',{}).get('notes',[])}
         selected=[r for r in rows if r['note']['baseline_note_id'] in ids]
-        if selected:group['recent_news_comparison']=assess(selected,group['source_company_names'])
+        if selected:
+            comparison=assess(selected,group['source_company_names'])
+            execution=summarize_execution(selected,group['source_company_names'])
+            if execution:comparison['execution_comparison']=execution
+            group['recent_news_comparison']=comparison
 
 def article_followups(outlook,provider,event,title):
     rows={}

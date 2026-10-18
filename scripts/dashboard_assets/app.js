@@ -1000,9 +1000,20 @@ function renderRecentThemeComparison(place,data,withButton=false){
   if(data.status_label)box.append(node("p","",data.status_label+" · 조건·제품 범위는 기업별로 확인"));
   for(const f of data.shared_recent_factors||[])
     box.append(node("p","finding-detail","최근 공통 배경(분석 분류): "+f.label+" → "+f.source_companies.join(" · ")));
+  const execution=data.execution_comparison;
+  if(execution){
+    box.append(node("h4","","개별 발주·납품·수주 실적의 실행 비교"),
+      node("p","",execution.status_label),
+      node("p","fineprint","관련 사업의 실적 개선과 특정 계약의 이행을 구분합니다. 발표가 뒤여도 실적 대상 기간이 앞서면 해당 계약의 실행 증거로 쓰지 않습니다."));
+    for(const company of execution.company_results)
+      box.append(node("p","finding-detail",company.source_company+" → "+company.status_label+
+        (company.risk_reference_note_ids.length?" · 별도 반론·위험 참고자료 있음":"")));
+    box.append(node("p","fineprint","우려·전망은 실제 취소·수요 감소와 구분합니다. 미확보는 약화 판정이 아닙니다."));
+  }
   const kinds={REPORTED_CONTRACT:"신규 계약 보도",REPORTED_CAPACITY_OPERATION:"생산 능력 가동 보도",
     CONDITIONAL_FRAMEWORK:"후속 발주가 필요한 기본 공급계약",PLAN_ONLY:"계획·완료 미확인",
-    DEMAND_REDUCTION:"수요 감소 보도",CANCELLATION:"취소 보도",CONTEXT_ONLY:"배경·누적 실적 설명"};
+    DEMAND_REDUCTION:"수요 감소 보도",CANCELLATION:"취소 보도",CONTEXT_ONLY:"배경·누적 실적 설명",REPORTED_ORDER_PERFORMANCE:"수주·매출 실적 보도",
+    REPORTED_DELIVERY:"납품 완료 보도",REPORTED_DELAY:"납품 지연 보도",RISK_ONLY:"위험·반론 설명"};
   for(const row of data.notes){
     const n=row.note,r=n.recent_source,card=node("article","finding");
     card.append(node("h4","",row.source_company+" · "+(kinds[n.evidence_kind]||n.evidence_kind)),
@@ -1012,6 +1023,26 @@ function renderRecentThemeComparison(place,data,withButton=false){
       node("p","",n.analysis_text),node("p","finding-detail","제품·사업 범위: "+n.product_scope),
       node("p","fineprint","조건·차이·미확인: "+n.limitation),
       node("p","fineprint","원문 위치: "+n.source_location+" · 공개 원문을 읽은 별도 분석 · 독립 거래·수혜 인증 아님"));
+    const x=n.execution,context=row.execution_context;
+    if(x&&context){
+      const timing={EARLIER_PUBLICATION:"기준 기사보다 앞선 발표",LATER_PUBLICATION_PRIOR_PERIOD:"발표는 뒤지만 실적 대상 기간은 앞섬",
+        ON_OR_AFTER_ANCHOR:"기준 기사 이후 또는 같은 날의 자료"};
+      card.append(node("p","finding-detail","비교 기준 기사: "+context.anchor_headline+" · "+context.anchor_reported_date),
+        node("p","fineprint","시간 관계: "+timing[context.chronology]+(x.period_end?" · 실적 기간 말 "+x.period_end:"")),
+        node("p","fineprint","프로젝트 관계: "+(x.project_relation==="SAME_PROJECT_EXPLICIT"?"원문상 같은 프로젝트로 분류(분석)":"관련 사업·별도 프로젝트")+" · "+x.matching_basis),
+        node("p","finding-detail",context.reported_execution_progress?"원문상 개별 발주·납품 진전 근거":
+          context.reported_execution_setback?"원문상 이행 차질 근거":"이 자료만으로 기준 계약의 개별 발주·납품 진전을 확인할 수 없습니다."));
+      const anchorLink=node("a","source-link","비교 기준 기사 원문 ↗");anchorLink.href=context.anchor_source_url;
+      anchorLink.target="_blank";anchorLink.rel="noopener noreferrer";card.append(anchorLink);
+      if(x.counter_reference){
+        const ref=x.counter_reference,refBox=node("details","finding-detail");
+        refBox.append(node("summary","","반증 후보·위험 참고 기사"),node("p","",ref.title+" · "+ref.reported_date),
+          node("p","",ref.analysis_text),
+          node("p","fineprint","공개 검색 결과를 읽은 별도 분석 · 수집 원장 미등록 외부 참고 링크 · 실제 취소·수요 감소를 확인한 자료 아님"));
+        const refLink=node("a","source-link","반론 기사 원문 ↗");refLink.href=ref.source_url;
+        refLink.target="_blank";refLink.rel="noopener noreferrer";refBox.append(refLink);card.append(refBox);
+      }
+    }
     const link=node("a","source-link","최근 뉴스 공식 원문 ↗");link.href=r.source_url;link.target="_blank";link.rel="noopener noreferrer";
     const baseline=node("a","source-link","기존 근거 공식 원문 ↗");baseline.href=row.baseline_source_url;baseline.target="_blank";baseline.rel="noopener noreferrer";
     card.append(link,baseline);

@@ -19,6 +19,7 @@ from scripts.run_feed_triage import _registry, parser as triage_parser, evaluate
 from scripts.run_economic_discovery import execute as discover
 from newscatalystos.news_search import read_completed_title_snapshots
 from newscatalystos.text_normalization import canonicalize_url
+from newscatalystos.research_dashboard import scan_saved_analysis
 
 
 def prepare(workspace, provider_id, official_list_url, at):
@@ -73,6 +74,8 @@ def execute(workspace, discovery_root, *, provider_id, official_list_url, metada
         '--inbox-root',str(root/'inbox/feed_triage'),'--output-root',str(root/'triage')])
     code,receipt=evaluate(opts,manual_metadata=payload)
     if code:return code,{'status':'INPUT_UNAVAILABLE','ingest':receipt,'network_called':False}
+    if receipt.get('status')=='NOT_DUE':
+        return 0,{'status':'NOT_DUE','ingest':receipt,'network_called':False,'discovery_run':False}
     result=analyze_submitted(discovery_root,root,registry,payload,scope,provider_id)
     return (0 if result['status']=='READY' else 4),{
         'status':result['status'],'ingest':receipt,'discovery':result,
@@ -94,6 +97,12 @@ def analyze_submitted(discovery_root,root,registry,payload,scope,provider_id):
             if item['provider_id']==provider_id and (item['canonical_url'],item['title_sha256']) in desired:
                 selected.add((item['event_id'],item['title_sha256']))
     if len(selected)!=len(desired):raise SourceShareError('submitted metadata not fully checkpointed')
+    folder='d_'+sha256((scope+':'+provider_id).encode()).hexdigest()[:16]
+    stored,_=scan_saved_analysis(Path(discovery_root)/'none',
+        additional_roots=((folder,Path(discovery_root)/'feed_analysis'/folder),))
+    analyzed={(r['source_event_sha256'],r['source_title_sha256']) for r in stored
+              if r.get('analysis_industry')=='ECONOMIC_DISCOVERY' and r['provider']==provider_id}
+    selected-=analyzed
     result=discover(discovery_root,[(scope,registry,state,inbox)],
                     selected_versions={provider_id:sorted(selected)})
     return result

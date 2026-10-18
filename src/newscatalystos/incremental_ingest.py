@@ -102,7 +102,7 @@ def _connect(path: Path) -> sqlite3.Connection:
 
 
 def _reserve(conn: sqlite3.Connection, name: str, at: datetime, hourly_limit: int,
-             configuration_checked_at: datetime | None = None) -> None:
+             configuration_checked_at: datetime | None = None, *, local_metadata=False) -> None:
     """Atomic lock/reserve BEFORE opening network; no simultaneous double fetch."""
     timestamp = at.isoformat()
     cutoff = (at - timedelta(hours=1)).isoformat()
@@ -132,16 +132,16 @@ def _reserve(conn: sqlite3.Connection, name: str, at: datetime, hourly_limit: in
             "SELECT COUNT(*) FROM requests WHERE provider_id=? AND requested_at>=?",
             (name, cutoff),
         ).fetchone()[0]
-        if count >= hourly_limit:
+        if not local_metadata and count >= hourly_limit:
             raise SourceShareError("provider hourly request budget exhausted")
-        if next_allowed is not None and _when(next_allowed, "next allowed") > at:
+        if not local_metadata and next_allowed is not None and _when(next_allowed, "next allowed") > at:
             raise SourceShareError("provider rate or backoff window not elapsed")
         conn.execute("DELETE FROM requests WHERE requested_at<?", (cutoff,))
-        conn.execute("INSERT INTO requests VALUES(?,?)", (name, timestamp))
+        if not local_metadata:conn.execute("INSERT INTO requests VALUES(?,?)", (name, timestamp))
         conn.execute(
             "UPDATE source_state SET last_attempt_at=?,next_allowed_at=? "
             "WHERE provider_id=?",
-            (timestamp, (at + timedelta(seconds=interval)).isoformat(), name),
+            (timestamp, (at if local_metadata else at + timedelta(seconds=interval)).isoformat(), name),
         )
         conn.execute("COMMIT")
     except Exception:
@@ -180,7 +180,7 @@ def _failure(conn: sqlite3.Connection, name: str, at: datetime,
 
 def incremental_poll(
     registry: ProviderRegistry, provider_id: str, database_path: Path,
-    *, now: datetime | None = None, fetcher=None, before_commit=None,
+    *, now: datetime | None = None, fetcher=None, before_commit=None, manual_payload: bytes | None = None,
 ) -> IncrementalResult:
     """One safe attempt: reserve -> one bounded feed read -> atomic watermark.
 
@@ -194,12 +194,18 @@ def incremental_poll(
     if not isinstance(registry, ProviderRegistry):
         raise SourceShareError("approved provider registry required")
     provider = registry.active(provider_id, at=observed)
+    local_rows=None
+    if manual_payload is not None:
+        if provider.method!="MANUAL_METADATA" or fetcher is not None:
+            raise SourceShareError("explicit manual provider and local bytes required")
+        from .new_source_adapter import parse_authorized_feed
+        local_rows=parse_authorized_feed(registry,provider_id,manual_payload,observed_at=observed)
     conn = _connect(database_path)
     try:
-        _reserve(conn, provider_id, observed, provider.hourly_limit, provider.reviewed_at)
+        _reserve(conn, provider_id, observed, provider.hourly_limit, provider.reviewed_at,local_metadata=local_rows is not None)
         reader = fetch_authorized_once if fetcher is None else fetcher
         try:
-            rows = reader(registry, provider_id, at=now)
+            rows = local_rows if local_rows is not None else reader(registry, provider_id, at=now)
             if not rows:
                 raise SourceShareError("empty feed: no new success watermark")
         except SourceShareError as exc:
@@ -210,6 +216,9 @@ def incremental_poll(
             raise SourceShareError("system clock moved during feed collection")
         conn.execute("BEGIN IMMEDIATE")
         try:
+            last_success=conn.execute("SELECT last_success_at FROM source_state WHERE provider_id=?",(provider_id,)).fetchone()[0]
+            if last_success is not None and _when(last_success,"last success")>verified:
+                raise SourceShareError("system clock moved before committed success")
             fresh, duplicates = 0, 0
             newly_observed = []
             for row in rows:

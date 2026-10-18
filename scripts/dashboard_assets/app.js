@@ -1002,7 +1002,18 @@ function renderSavedArticleCompanyContext(place,context,articleContext){
   }
   place.append(box);
 }
-function renderRecentThemeComparison(place,data,withButton=false){
+async function saveFollowupComparison(data,query={}){
+  const bytes=new TextEncoder().encode(JSON.stringify({
+    schema:"newscatalyst.company_followup_comparison.v1",query,comparison:data,
+    source_text_stored:false,orders_enabled:false},null,2)+"\n");
+  const hash=await crypto.subtle.digest("SHA-256",bytes);
+  const digest=Array.from(new Uint8Array(hash)).map(x=>x.toString(16).padStart(2,"0")).join("");
+  const url=URL.createObjectURL(new Blob([bytes],{type:"application/json"}));
+  const link=document.createElement("a");link.href=url;
+  link.download="news_company_comparison_"+digest+".json";
+  document.body.append(link);link.click();link.remove();URL.revokeObjectURL(url);
+}
+function renderRecentThemeComparison(place,data,withButton=false,query={}){
   if(!data?.notes?.length)return;
   const box=node("details","finding-detail");
   box.append(node("summary","","최근 실제 뉴스와 기존 수요 근거 비교 · "+(data.status_label||"기업별 근거")),
@@ -1041,6 +1052,15 @@ function renderRecentThemeComparison(place,data,withButton=false){
       }
       renderEraDailyAssessment(panel,company.current);box.append(panel);
     }
+  }
+  if(withButton&&data.period_comparison){
+    const save=node("button","news-evidence-button","이 비교 자료 저장");
+    save.addEventListener("click",async()=>{
+      save.disabled=true;
+      try{await saveFollowupComparison(data,query);save.textContent="비교 자료 저장 완료";}
+      catch{save.textContent="비교 자료 저장 실패 · 다시 시도";}
+      finally{save.disabled=false;}
+    });box.append(save);
   }
   const execution=data.execution_comparison;
   if(execution){
@@ -1232,7 +1252,7 @@ function renderEconomicDiscovery(data){
   summary.textContent="관찰 주제 "+data.counts.topics+"개 · 원문에 연결된 행동 "+data.counts.events+
     "개 · 미분류 주제 "+data.counts.unclassified_topics+"개 · 먼저 탐지한 뒤 분류 · 심층 산업 검증 아님";
   renderDiscoveryCauses(place,data.common_cause_connections);
-  renderThemeOutlook(place,data.theme_outlook);
+  renderThemeOutlook(place,data.theme_outlook,{as_of:data.as_of,since:data.comparison_since});
   renderLaunchComparisons(place,data.launch_comparisons);
   for(const row of data.candidates){
     const card=node("article","finding");
@@ -1275,7 +1295,7 @@ function renderEconomicDiscovery(data){
 }
 
 
-function renderThemeOutlook(place,data){
+function renderThemeOutlook(place,data,query={}){
   if(!data?.candidates?.length)return;
   const section=node("section","theme-outlook");
   section.append(node("h3","","주목할 테마 후보·관련 산업"),
@@ -1310,7 +1330,7 @@ function renderThemeOutlook(place,data){
         card.append(node("p","fineprint","추가 원문 분석 미확보: "+comparison.companies_without_notes.join(" · ")));
       renderPublicDemandNotes(card,comparison.notes,true);
     }
-    if(row.recent_news_comparison)renderRecentThemeComparison(card,row.recent_news_comparison,true);
+    if(row.recent_news_comparison)renderRecentThemeComparison(card,row.recent_news_comparison,true,{...query,outlook_id:row.outlook_id});
     const demand=row.source_demand_context;
     if(demand){
       card.append(node("p","finding-detail",demand.cross_company_source_cause_match?

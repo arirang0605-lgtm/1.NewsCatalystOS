@@ -406,6 +406,9 @@ class Handler(BaseHTTPRequestHandler):
                 if timeline_activity not in {'all','observed'}:raise ValueError('invalid timeline activity')
                 activity=query.get('theme_activity',['all'])[0]
                 if activity not in {'all','changed','new','updated'}:raise ValueError('invalid theme activity')
+                from newscatalystos.era_daily_assessment import request_assessment_reader
+                daily_reader=(request_assessment_reader(self.server.era_daily_root,now=now)
+                              if self.server.era_daily_root is not None else None)
                 start = datetime.fromisoformat(data['start']).replace(tzinfo=KST)
                 end = datetime.fromisoformat(data["end"]).replace(tzinfo=KST) + timedelta(days=1) - timedelta(microseconds=1)
                 try:
@@ -442,7 +445,7 @@ class Handler(BaseHTTPRequestHandler):
                             data['assessment_source_status']=research['assessment_source_status']
                         if self.server.era_daily_root is not None:
                             data['company_candidates']=enrich_daily(data['company_candidates'],
-                                self.server.era_daily_root,as_of=min(end,now),now=now)
+                                self.server.era_daily_root,as_of=min(end,now),now=now,snapshot_reader=daily_reader)
                     except (SourceShareError,OSError,ValueError,TypeError,KeyError):
                         data['assessment_source_status']='UNAVAILABLE'
                     data['cross_product_demand']=cross_product_demand(data['themes'],data['company_candidates'],data['common_cause_comparisons'],as_of=min(end,now),since=start,query=query.get('q',[''])[0])
@@ -491,7 +494,7 @@ class Handler(BaseHTTPRequestHandler):
                         if self.server.era_daily_root is not None:
                             from newscatalystos.era_daily_assessment import enrich_followup_assessments
                             enrich_followup_assessments(data['economic_discovery']['theme_outlook'],self.server.era_daily_root,
-                                since=min(start,now),as_of=min(end,now),now=now)
+                                since=min(start,now),as_of=min(end,now),now=now,snapshot_reader=daily_reader)
                     except (SourceShareError,OSError,ValueError,KeyError,TypeError,sqlite3.Error):
                         data['economic_discovery']={'status':'UNAVAILABLE','candidates':[]}
                 if self.server.source_roots:
@@ -512,7 +515,7 @@ class Handler(BaseHTTPRequestHandler):
                                 candidates=payload["CompanyCandidates"]
                                 if self.server.era_daily_root is not None:
                                     candidates=enrich_daily(candidates,self.server.era_daily_root,
-                                        as_of=min(end,now),now=now)
+                                        as_of=min(end,now),now=now,snapshot_reader=daily_reader)
                                 material={};material_status='READY'
                                 try:
                                     material=materials_for_store(own,since=min(start,now),

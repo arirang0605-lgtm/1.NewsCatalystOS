@@ -149,10 +149,25 @@ def _load(path,now):
     return receipt,doc
 
 
+def _publication_order(value):
+    receipt,doc=value
+    return (doc['source']['market_session'],doc['source']['evaluated_at_utc'],
+            receipt['imported_at'],receipt['source_sha256'])
+
+
+def request_assessment_reader(root,*,now):
+    """Reuse verified results only within one request; later requests revalidate."""
+    cache={}
+    def read(as_of):
+        if as_of not in cache:cache[as_of]=read_latest(root,as_of=as_of,now=now)
+        return cache[as_of]
+    return read
+
+
 def read_latest(root, *, as_of, now=None):
     now=now or datetime.now(timezone.utc)
     if as_of>now:raise SourceShareError('future daily assessment query')
-    root=Path(root);eligible=[];skipped=0
+    root=Path(root);latest=None;skipped=0
     if not root.exists():return None,0
     if not root.is_absolute() or root.resolve()!=root:raise SourceShareError('unsafe daily cache')
     paths=sorted(root.glob('era_daily_*_*.json'))
@@ -160,10 +175,10 @@ def read_latest(root, *, as_of, now=None):
     for path in paths:
         try:
             receipt,doc=_load(path,now)
-            if _when(receipt['imported_at'],'imported')<=as_of:eligible.append((receipt,doc))
+            if _when(receipt['imported_at'],'imported')<=as_of:
+                value=(receipt,doc)
+                if latest is None or _publication_order(value)>_publication_order(latest):latest=value
         except (SourceShareError,KeyError,TypeError,ValueError,OSError):skipped+=1
-    latest=max(eligible,key=lambda x:(x[1]['source']['market_session'],
-        x[1]['source']['evaluated_at_utc'],x[0]['imported_at'],x[0]['source_sha256']),default=None)
     from .era_individual_assessment import read_individuals
     individual,errors=read_individuals(root,as_of=as_of,now=now)
     skipped+=errors
@@ -210,10 +225,12 @@ def assessment_for(entity, snapshot):
         'investment_merit':'NOT_ASSESSED','verified_real_benefit':False,'orders_enabled':False}
 
 
-def enrich_daily(candidates, root, *, as_of, now=None, snapshot=None):
+def enrich_daily(candidates, root, *, as_of, now=None, snapshot=None, snapshot_reader=None):
     now=now or datetime.now(timezone.utc)
-    snap=read_latest(root,as_of=as_of,now=now)[0] if snapshot is None else snapshot
     out=deepcopy(candidates)
+    if not out:return out
+    snap=((snapshot_reader(as_of) if snapshot_reader else read_latest(root,as_of=as_of,now=now))[0]
+          if snapshot is None else snapshot)
     for candidate in out:
         if _when(candidate['decision_at'],'candidate decision')>as_of:raise SourceShareError('future candidate')
         candidate['era_daily_assessment']=assessment_for(candidate['entity_id'],snap)
@@ -287,11 +304,11 @@ def refresh_daily(config, output_root, *, now=None, check_only=False):
     return import_daily(root,path,pin,output_root,now=now,check_only=check_only)
 
 
-def enrich_followup_assessments(outlook,root,*,since,as_of,now):
+def enrich_followup_assessments(outlook,root,*,since,as_of,now,snapshot_reader=None):
     """Compare completed producer assessment contents, never rate news as finance."""
     if not any(g.get('recent_news_comparison') for g in outlook.get('candidates',[])):return
     def safe_read(at):
-        try:return read_latest(root,as_of=at,now=now)
+        try:return snapshot_reader(at) if snapshot_reader else read_latest(root,as_of=at,now=now)
         except (SourceShareError,OSError,ValueError,KeyError,TypeError):return None,1
     current,errors=safe_read(as_of)
     previous,old_errors=safe_read(since)

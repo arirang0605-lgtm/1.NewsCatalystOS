@@ -152,11 +152,22 @@ def _krw(mention: str) -> Decimal | None:
     }[unit]
 
 
-def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=()) -> tuple[dict, FactInput | None]:
+def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=(), industry="SEMICONDUCTOR") -> tuple[dict, FactInput | None]:
     title, event = item["headline"], _version(item)
     category = _category(title)
     permitted = item["claim_classification"] not in BLOCKED
-    terms = _matched_terms(title)
+    if industry=="POWER_EQUIPMENT":
+        from .power_equipment import matched_equipment,extract_power_equipment_changes,RULE_VERSION as profile_version
+        terms=matched_equipment(title)
+        if not terms:category=None
+        power_changes=extract_power_equipment_changes(title,company_names=company_names) if permitted else []
+        if len(power_changes)==1:
+            # Reuse only established novelty categories. Delivery/execution
+            # remains a distinct source action, not a fabricated new contract.
+            category={"CONTRACT":"NEW_CONTRACT","INVESTMENT":"NEW_INVESTMENT",
+                      "PRODUCTION_START":"NEW_FACILITY"}.get(power_changes[0]["action"])
+    elif industry=="SEMICONDUCTOR":terms=_matched_terms(title)
+    else:raise SourceShareError("unsupported analysis industry")
     products = _launch_products(title) if category == "PRODUCT_LAUNCH" else []
     if category == "BUSINESS_START":
         products = business_start_names(title) or business_start_functions(title)
@@ -206,12 +217,16 @@ def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=()) ->
         and item['provider_id']=='nist-official-electronics'
         and item['source_kind']=='OFFICIAL_AGENCY'
         and item['canonical_url'].startswith('https://www.nist.gov/news-events/'))
+    official_chips=official_chips and industry=="SEMICONDUCTOR"
     if official_chips:
         changes = official_us_semiconductor_news_change(title)
+    if industry=="POWER_EQUIPMENT":
+        changes=power_changes
+        eligible=False  # initial optional profile: source rules only, no paid/model assumption
     # Identity enrichment must not reinterpret an already extracted event's
     # topic/driver (e.g. a comma becomes an actor separator after name lookup).
     # Preserve its semantic key; never union every clause's names by title SHA.
-    baseline_changes = extract_economic_changes(title) if changes and company_names else []
+    baseline_changes = extract_economic_changes(title) if changes and company_names and industry=="SEMICONDUCTOR" else []
     if baseline_changes and len(baseline_changes)==len(changes):
         paired=[]
         for baseline in baseline_changes:
@@ -300,6 +315,10 @@ def _screen(item: dict, prior: PriorState, at: datetime, *, company_names=()) ->
         "verified_economic_fact": False, "verified_supply_transaction": False,
         "verified_beneficiary": False, "revenue_estimate_krw": None,
     }
+    if industry=="POWER_EQUIPMENT":
+        report.update(analysis_industry=industry,industry_terms=list(terms),
+            routing_rule_version=profile_version,
+            routing_priority="HIGH_PRIORITY_CANDIDATE" if changes else "PARTIAL_EVIDENCE_ONLY")
     return report, fact
 
 
@@ -371,7 +390,7 @@ def analyze_completed_feed(
     analyze_existing: bool = False, ai_ledger: Path | None = None,
     opener=None, now: datetime | None = None, company_identity_config: Path | None = None,
     semantic_ai: bool = False, semantic_call_limit: int = 3,
-    semantic_scheduled_only: bool = False,
+    semantic_scheduled_only: bool = False, industry: str = "SEMICONDUCTOR",
 ) -> dict:
     """Reuse committed sources and separate analysis state; paid execution is opt-in.
 
@@ -379,6 +398,10 @@ def analyze_completed_feed(
     Failed AI leaves source-backed fields visible and its cost reservation held.
     """
     at = _stamp(now)
+    if industry not in {"SEMICONDUCTOR","POWER_EQUIPMENT"}:
+        raise SourceShareError("unsupported analysis industry")
+    if industry=="POWER_EQUIPMENT" and (model is not None or allow_paid or semantic_ai or analyze_existing):
+        raise SourceShareError("initial power equipment profile reuses source rules only")
     if (type(semantic_ai) is not bool or type(semantic_call_limit) is not int
             or not 0<=semantic_call_limit<=10 or type(semantic_scheduled_only) is not bool):
         raise SourceShareError("invalid bounded semantic analysis options")
@@ -410,6 +433,14 @@ def analyze_completed_feed(
                        if provider_id is not None else registry)
     rows = _sources(inbox_root, poll_state, source_registry, at)
     root = Path(analysis_root)
+    marker=root/"industry_profile.json"
+    # Opt-in derived state must not reuse the completed V1 analysis databases.
+    if marker.exists():
+        from .evidence_archive import _read_once
+        if _read_once(marker,4096)!=_encoded({"industry":industry}):
+            raise SourceShareError("analysis industry root differs")
+    elif industry!="SEMICONDUCTOR" and root.exists() and any(root.iterdir()):
+        raise SourceShareError("separate empty power analysis root required")
     for source in (Path(inbox_root), Path(poll_state)):
         if root == source or root in source.parents or source in root.parents:
             raise SourceShareError("analysis writes must be separate from source inputs")
@@ -428,10 +459,16 @@ def analyze_completed_feed(
     if event_id is not None and not selected:
         raise SourceShareError("selected committed source version unavailable")
     if not selected:
+        if industry!="SEMICONDUCTOR":
+            _private_root(root)
+            if not marker.exists():_write_new(marker,_encoded({"industry":industry}))
         return {"schema": SCHEMA, "status": "NO_COMPLETED_FEED_INPUT", "results": [],
+                **({"analysis_industry":industry} if industry!="SEMICONDUCTOR" else {}),
                 "source_versions_checked": len(rows), "new_ai_results": 0, "cache_hits": 0,
                 "source_fetch_calls": 0}
     root = _private_root(root)
+    if industry!="SEMICONDUCTOR" and not marker.exists():
+        _write_new(marker,_encoded({"industry":industry}))
     facts, cache, ledger = (root / n for n in ("facts.sqlite3", "ai_cache.sqlite3", "ai_costs.sqlite3"))
     if ai_ledger is not None:
         ledger = Path(ai_ledger)
@@ -465,7 +502,7 @@ def analyze_completed_feed(
                 identity = ensure_feed_identity(item, contexts, root / "company_identity", at=decision)
             except (SourceShareError, OSError, ValueError, TypeError, KeyError):
                 row_identity_status = "UNAVAILABLE"
-        report, fact = _screen(item, prior, decision, company_names=[
+        report, fact = _screen(item, prior, decision, industry=industry, company_names=[
             r["source_name"] for r in (identity or {}).get("matches", [])
             if len(r["source_name"]) <= 120])
         report["company_identity_status"] = row_identity_status
@@ -552,8 +589,12 @@ def analyze_completed_feed(
                 report["semantic_analysis"]={"status":"UNAVAILABLE"}
         report["analysis_available_at"] = _stamp(now).isoformat()
         reports.append(report)
+    if industry=="POWER_EQUIPMENT":
+        from .power_equipment import RULE_VERSION as rule_version
+    else:rule_version=RULE_VERSION
     return {"schema": SCHEMA, "status": "FEED_ECONOMIC_ANALYSIS_READY",
-        "checked_at": _stamp(now).isoformat(), "rule_version": RULE_VERSION,
+        **({"analysis_industry":industry} if industry!="SEMICONDUCTOR" else {}),
+        "checked_at": _stamp(now).isoformat(), "rule_version": rule_version,
         "routing_assumptions_not_acceptance_criteria": {
             "medium_krw": str(MEDIUM_KRW), "large_krw": str(LARGE_KRW),
             "minimum_known_score": HIGH_REVIEW_SCORE},

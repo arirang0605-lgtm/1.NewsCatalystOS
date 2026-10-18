@@ -29,6 +29,7 @@ def main(argv=None):
     p.add_argument('--comparison',action='store_true',help='pinned read-only cross-product/period query, separate from standard v3')
     p.add_argument('--changes',action='store_true',help='compare theme evidence before --since and at --as-of')
     p.add_argument('--materials',action='store_true',help='include news material novelty and conditional company impact for the independent selector')
+    p.add_argument('--material-industry',choices=('SEMICONDUCTOR','POWER_EQUIPMENT'),default='SEMICONDUCTOR',help='explicit material scope, does not modify source stores')
     args=p.parse_args(argv)
     if args.materials and (args.changes or args.comparison or args.with_financials):
         p.error('--materials is an optional standard news delivery extension, not a financial report')
@@ -59,7 +60,7 @@ def main(argv=None):
         if args.materials:
             from newscatalystos.catalyst_material import materials_for_store,attach_material,default_since
             materials=materials_for_store(ThemeStore(args.root),as_of=at,now=now,
-                since=_when(args.since,'material since') if args.since else default_since(at))
+                since=_when(args.since,'material since') if args.since else default_since(at),industry=args.material_industry)
             themes=attach_material(themes,materials)
         payload=build_theme_bundle(themes,decision_at=at,now=now,
                                    include_company_candidates=args.company_candidates or args.with_financials)

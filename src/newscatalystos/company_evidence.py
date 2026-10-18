@@ -225,6 +225,14 @@ def _clause(text,change,entity,ref,*,include_investment_execution=True,include_n
             return text  # source-only title; no independent factual certification
         return None
     names=[m['source_name'] for m in ref.get('company_mappings',[]) if m['entity_id']==entity] or [entity]
+    if change.get('industry_tags')==['POWER_EQUIPMENT'] and ref.get('content_scope')=='RSS_TITLE_METADATA':
+        from .power_equipment import extract_power_equipment_changes
+        rows=extract_power_equipment_changes(text,company_names=names)
+        matched=[row for row in rows if any(n in row['entity_ids'] for n in names)
+                 and all(row.get(k)==change.get(k) for k in ('topic','action','phase','economic_driver','industry_tags'))]
+        if len(matched)==1 and sha256(text.encode()).hexdigest()==ref['evidence_sha256']:
+            return text  # exact full headline, never a reconstructed source quote
+        return None
     options=dict(company_names=change['entity_ids'],include_investment_execution=include_investment_execution,
                  include_demand_recovery='demand_recovery_cause' in change,include_resumption=(change['action']=='SUPPLY_RESUMPTION' or 'demand_recovery_cause' in change),include_demand_scopes='demand_scope' in change,include_product_prices='product_price_cause' in change,
                  include_investment_projects='investment_project' in change,include_new_customers=include_new_customers,include_delivery_start=include_delivery_start,include_market_entry=include_market_entry)

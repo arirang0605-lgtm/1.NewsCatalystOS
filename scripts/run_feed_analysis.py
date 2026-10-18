@@ -31,6 +31,8 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--semantic-ai", action="store_true", help="extract source-bounded events with existing Gemini; cache works without --allow-paid")
     p.add_argument("--semantic-call-limit", type=int, default=3)
     p.add_argument("--scope", choices=("core", "motir"), default="core")
+    p.add_argument("--industry",choices=("SEMICONDUCTOR","POWER_EQUIPMENT"),default="SEMICONDUCTOR",
+                   help="V1 default unchanged; optional power profile requires separate explicit derived roots")
     p.add_argument("--registry", type=Path)
     p.add_argument("--inbox-root", type=Path)
     p.add_argument("--state", type=Path, help="existing ingestion state, read-only")
@@ -75,6 +77,21 @@ def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, d
         identity_config = getattr(opts, "company_identity_config", None)
         if identity_config is None and work.resolve() in standard_roots:
             identity_config = base / "company_identity.json"
+        industry=getattr(opts,"industry","SEMICONDUCTOR")
+        theme_path=getattr(opts,"theme_root",None)
+        if industry!="SEMICONDUCTOR":
+            if (opts.analysis_root is None or theme_path is None or work.resolve() in standard_roots
+                    or Path(theme_path).resolve()==(base/'document_analysis/theme_history').resolve()):
+                raise SourceShareError("power analysis requires explicit isolated derived roots")
+            theme_path=Path(theme_path)
+            marker=theme_path/'industry_profile.json'
+            from newscatalystos.feed_analysis import _encoded
+            from newscatalystos.evidence_archive import _read_once
+            if marker.exists():
+                if _read_once(marker,4096)!=_encoded({'industry':industry}):raise SourceShareError('theme industry differs')
+            elif theme_path.exists() and any(theme_path.iterdir()):raise SourceShareError('separate empty power theme root required')
+        elif theme_path and (Path(theme_path)/'industry_profile.json').exists():
+            raise SourceShareError('default analysis cannot use another industry store')
         model = read_model_config(opts.model_config)
         report = analyze_completed_feed(_registry(registry_path), inbox, state, work,
             provider_id=opts.provider_id, event_id=opts.event_id,
@@ -83,7 +100,7 @@ def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, d
             analyze_existing=getattr(opts, "analyze_existing", False),
             ai_ledger=getattr(opts, "ai_ledger", None), company_identity_config=identity_config, semantic_ai=getattr(opts,"semantic_ai",False),
             semantic_call_limit=getattr(opts,"semantic_call_limit",3),
-            semantic_scheduled_only=getattr(opts,"semantic_scheduled_only",False))
+            semantic_scheduled_only=getattr(opts,"semantic_scheduled_only",False),industry=industry)
         failures = sum((row["ai_eligible"] or row.get("analysis_purpose") == "EXISTING_ARTICLE") and row["ai_status"] not in
                        ("ANALYZED_UNVERIFIED", "CACHE_HIT") for row in report["results"])
         if getattr(opts,"semantic_ai",False):
@@ -115,6 +132,10 @@ def evaluate(opts: argparse.Namespace, *, opener=None, now=None) -> tuple[int, d
         theme_root = getattr(opts, "theme_root", None) or (
             base / "document_analysis/theme_history" if work.resolve() in standard_roots
             else work / "theme_history")
+        if industry!="SEMICONDUCTOR":
+            from newscatalystos.evidence_archive import _write_new
+            _private_root(Path(theme_root));marker=Path(theme_root)/'industry_profile.json'
+            if not marker.exists():_write_new(marker,_encoded({'industry':industry}))
         themes = ThemeStore(theme_root).ingest(observations, now=now) if observations else []
         identity_resolution={'status':'NOT_CONFIGURED'}
         if identity_config is not None:

@@ -37,6 +37,9 @@ def _text(value: object, name: str, limit: int) -> str:
 def _source_changes(headline,change):
     """Match current claims or pre-market-entry clauses without rewriting data."""
     from .economic_changes import extract_economic_changes
+    if change.get('industry_tags')==['POWER_EQUIPMENT']:
+        from .power_equipment import extract_power_equipment_changes
+        return extract_power_equipment_changes(headline,company_names=change['entity_ids'])
     options=dict(include_function_service_actions='function_service_action' in change,include_price_parallel='price_parallel_action' in change,include_price_services='price_service_action' in change,include_order_services='order_service_action' in change,include_growth_parallel='growth_parallel_action' in change,include_recovery_parallel='recovery_parallel_action' in change,include_policy_parallel='policy_parallel_action' in change,include_policy_services=(change['action']=='BUSINESS_START' and 'policy_cause' in change),include_policy_investment_actions=('policy_investment_action' in change or ('policy_cause' in change and 'investment_event_key' in change)),company_names=change['entity_ids'],include_adjacent_demand='adjacent_demand_cause' in change,include_adjacent_reductions=change.get('adjacent_demand_cause',{}).get('action')=='SUPPLY_REDUCTION',include_adjacent_contracts=change['action']=='CONTRACT',include_adjacent_amounts='contract_amount' in change.get('adjacent_demand_cause',{}),include_adjacent_scopes='demand_scope' in change,include_demand_recovery='demand_recovery_cause' in change,include_product_prices='product_price_cause' in change,include_resumption=(change['action']=='SUPPLY_RESUMPTION' or 'demand_recovery_cause' in change or 'growth_parallel_action' in change))
     rows=extract_economic_changes(headline,**options)
     if change['action']!='MARKET_ENTRY' and '진출' in headline:
@@ -124,6 +127,14 @@ def _validate_report(data: dict, now: datetime) -> datetime | None:
             raise SourceShareError("bounded title economic changes required")
         for change in changes:
             validate_change(change)
+            if row.get('analysis_industry')=='POWER_EQUIPMENT':
+                from .power_equipment import RULE_VERSION as power_rule
+                if (data.get('analysis_industry')!='POWER_EQUIPMENT' or data.get('rule_version')!=power_rule
+                        or change['industry_tags']!=['POWER_EQUIPMENT']
+                        or change['source_paragraph_sha256']!=title
+                        or not any(all(c.get(k)==change.get(k) for k in ('topic','action','phase','economic_driver','entity_ids','industry_tags'))
+                                   for c in _source_changes(row['headline'],change))):
+                    raise SourceShareError('power action does not match exact saved source')
             if change['action'] in {'CUSTOMER_ACQUISITION','DELIVERY_START','MARKET_ENTRY','SUPPLY_RESUMPTION'}:
                 from .economic_changes import extract_economic_changes
                 if not any(all(c.get(k)==change.get(k) for k in

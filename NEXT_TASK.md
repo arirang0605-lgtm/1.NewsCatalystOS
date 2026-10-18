@@ -1,11 +1,11 @@
-# NEXT_TASK — 원문 차이를 실제 재료 차이로 구분하는 연결
+# NEXT_TASK — 공통 원인과 서로 다른 사업대상의 연결
 
 ## 완료 기준선
-기능/dashboard **2c3b80c5b01343ea63de7cf64aea58d74f9d57ff**, 관련175PASS. 기존 산업독립 제품출시 관측의 같은 원문회사·정확제품명을 비교하고, 동일제목내용/같은문서수정/단계차이/단순이름일치를 구분하는 UI·표준선택출력 완성. 실제 UVJC/NovaJet 한영제목2개가 비교묶음1로 표시되나 동일발표 확정/원사건병합/점수수정은 하지 않았다. 382제목/45주제/50출처관측 유지, 파생 DB·수집기·보고서 쓰기없음.
+기능/dashboard **35b039c4139a36727a91407cde9205864de6cc6c**, 관련188PASS. 기존 경제행동과 원문 공통 사업대상을 묶어 주목할 테마 후보·사업 분야/행동/기업·조건부 기회/반증·기간변화를 운영 UI/API/선택JSON으로 제공한다. 실제 Bosch·I-Pulse의 Silicon Carbide Semiconductors 지원 발표가 복수기업 후보1, 초기37이며 복수기업/복수행동 우선후보0. 원문비교·기본45주제50관측·Era고정게시·기존예약 보존.
 
 ## 다음 핵심 가치
-관찰 중인 같은제품/회사 발표에서 **추가된 실제 경제행동·정정·철회 또는 원문이 제공하는 동일발표 연결 근거**가 있으면 기존 사건비교/출처관계로 이어간다. 같은 단어/날짜·가까운 기사번호만으로 번역·동일거래를 확정하거나 서로다른 버전·발표지역을 합치지 않는다. 회사/제품이 번역되어 정확매칭되지 않는 자료도 원문에 별칭·연결근거가 없으면 추정회사로 묶지 않되 원관찰을 유지한다. 미확인만 없애기 위한 이름사전·관리도구·인적검수/추가필수조건을 만들지 않는다.
-관찰에 쓰일 새로운 회사·제품/수치/행동이 실제 제목에 누락되어 있으면 그 공통 해석경로를 국소 보완할 수 있다. 제품출시를 실제매출/계약·수혜로 올리지 않는다. 기존 코드/표준라이브러리·기존허용source 자료를 우선 사용한다. 이미 완료된 공통발견/페이지처리/제품출시·Era재료선정 연결을 다시 재구현하거나 반복회귀만 수행하지 않는다.
+현재는 원문에 같은 사업대상이 명시된 관측의 종합이다. **원문에 명시된 공통 수요/정책 원인이 서로 다른 제품·공정의 투자·생산·계약을 연결하는 경로**를 기존 economic_changes·theme_emergence·common_cause_comparison·economic_path와 자료근거로 이어간다. 기존 허용 저장 본문/제목에 실제 연결근거가 있는 사례를 먼저 찾는다. 새 업종표 확보나 산업별 분석기 전부 완성을 선행조건으로 만들지 않는다.
+같은 AI/지원프로그램·기업명만으로 공통 원인이나 전후방 거래를 추정하지 않는다. 공급 확대를 수요 성장·수익성으로 승격하지 않고 실제 근거와 조건부 해석을 보여준다. 다른 이름의 분야를 무분별하게 합치지 않되 확인된 원문 수요·투자·계약 연결을 사용자에게 설명하는 것이 우선이다. 새 관리도구·사람검수·AI정확도 임계값/대기조건을 만들지 않는다.
 
-## 경계·경로
-DEV=/Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project. BASE=~/Library/Application Support/NewsCatalystOS. dashboard BASE/releases/2c3b80c5b01343ea63de7cf64aea58d74f9d57ff; research-approved는 기존4fd8c755d3c4. 기존 source/비용/예약·공통관찰 DB와 Era코드/DB/Git/설정은 보존. 증거/이전dashboard config는 output/discovery_launch_comparison_20261018/. UI8766/공통관찰 상단 비교·/api/economic-discovery·?export=1. 원 source BASE/research_workspaces, dev output/*_live_dev 보관본 재수집금지. 사용자dirty3·원문권리·비밀/예산·PIT/SHA·무주문·무public push 유지. V1완료36/36은 후속공통관찰의 독립산업/새호재 개수와 무관하다.
+## 경계
+DEV=/Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project. BASE=~/Library/Application Support/NewsCatalystOS. dashboard BASE/releases/35b039c4139a36727a91407cde9205864de6cc6c; research-approved 기존4fd8c755d3c4·기존예약 유지. 원source BASE/research_workspaces, 파생 BASE/document_analysis/economic_discovery. dev output/*_live_dev는 보관본·재수집금지. 증거/rollback output/theme_outlook_20261018/. 사용자dirty3·Era코드/DB/Git/선정·원문권리·비밀/예산·PIT/SHA·무주문·무public push 보존. 기존V1 36/36은 유지하고 후속 조사 가설 수를 산업완료 수로 계산하지 않는다.

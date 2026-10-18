@@ -2,6 +2,8 @@
 
 Evidence-first economic news and disclosure analysis. V1.0 development is staged across 36 tasks (1_1–6_6); only the semiconductor industry is included for supply-chain validation.
 
+**Latest extension (2026-10-18):** The operating dashboard now synthesizes research theme candidates from shared source-described business objects without a KRX or other industry taxonomy. It explains company actions, related business areas, conditional opportunities, counterconditions and changes between stored snapshots. Actual stored SiC support announcements connect Bosch and I-Pulse as one multi-company research hypothesis; common demand growth and investment returns remain unverified. See [theme outlook scope and evidence](docs/THEME_OUTLOOK_20261018.md).
+
 **Current status (2026-10-15):** Core code paths are implemented for **36/36 tasks**. Operational readiness now requires a successful real pipeline run, a live AI response with cost records, source linkage, a backup restore, passing regression tests and no unresolved critical incidents. Unattended operation: no reviewer assignments, manual review queues or per-article approvals. Human review tools and Gold schedules are removed; five trading sessions are a post-start observation goal. External consumer integration and off-device backup are follow-ups. See [current operating policy](docs/V1_RELEASE_POLICY_2026-10-15.md). One real Gemini analysis of existing official RSS title metadata now completes through saved output, read-only consumption and the local dashboard. Both installed feed schedules share one AI cost ledger. This demonstrates the connection, not full-article analysis or measured industry accuracy.
 
 ## Development checkpoints

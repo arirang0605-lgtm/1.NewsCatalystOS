@@ -130,9 +130,10 @@ class Handler(BaseHTTPRequestHandler):
                 required = ("q", "provider_id", "event_id", "title_sha256")
                 excerpt_keys = ("excerpt_theme_id", "excerpt_entity_id",
                                 "excerpt_claim_event_id", "excerpt_evidence_sha256")
+                discovery = query.get("discovery", ["0"]) == ["1"]
                 history = "since" in query or "theme_id" in query
                 excerpt = any(k in query for k in excerpt_keys)
-                if (set(query) - set(required) - {"as_of", "since", "theme_id", *excerpt_keys}
+                if (set(query) - set(required) - {"as_of", "since", "theme_id", "discovery", *excerpt_keys}
                         or any(len(query.get(k, [])) != 1 for k in required)
                         or ("as_of" in query and len(query["as_of"]) != 1)
                         or (history and (any(len(query.get(k, [])) != 1
@@ -140,6 +141,8 @@ class Handler(BaseHTTPRequestHandler):
                         or (excerpt and (history or any(
                             len(query.get(k, [])) != 1 for k in excerpt_keys)))):
                     raise ValueError("complete exact article selection required")
+                if query.get("discovery", ["0"]) not in (["0"], ["1"]):
+                    raise ValueError("invalid discovery evidence option")
                 from newscatalystos.source_share import _when
                 now = datetime.now(timezone.utc)
                 at = (_when(query["as_of"][0], "evidence as of")
@@ -159,6 +162,11 @@ class Handler(BaseHTTPRequestHandler):
                 external_root = self.server.source_roots.get(source_scope)
                 article_root = (external_root / "document_analysis" if external_root
                                 else self.server.documents)
+                discovery_reports = None
+                if discovery:
+                    article_root = self.server.documents / "economic_discovery"
+                    folder = "d_" + sha256((source_scope+":"+exact[0]).encode()).hexdigest()[:16]
+                    discovery_reports = article_root / "feed_analysis" / folder
                 detail = saved_article_evidence(
                     found["results"][0], article_root / "theme_history",
                     as_of=at, now=now,
@@ -168,9 +176,16 @@ class Handler(BaseHTTPRequestHandler):
                 # One missing or unreadable derived report does not prevent
                 # viewing the independent theme or licensed ministry evidence.
                 try:
-                    detail["saved_title_analysis"] = saved_title_analysis(
-                        found["results"][0], self.server.reports, as_of=at, now=now,
-                        additional_roots=self.server.additional_reports)
+                    if discovery:
+                        selected = dict(found["results"][0], search_scope="discovery")
+                        detail["saved_title_analysis"] = saved_title_analysis(
+                            selected, article_root / "none", as_of=at, now=now,
+                            additional_roots=(("discovery", discovery_reports),))
+                        detail["analysis_scope"] = "ECONOMIC_DISCOVERY"
+                    else:
+                        detail["saved_title_analysis"] = saved_title_analysis(
+                            found["results"][0], self.server.reports, as_of=at, now=now,
+                            additional_roots=self.server.additional_reports)
                 except (SourceShareError, OSError, ValueError, TypeError, KeyError, sqlite3.Error):
                     detail["saved_title_analysis"] = {
                         "status": "N/A", "reason_code": "SAVED_TITLE_ANALYSIS_UNAVAILABLE",
@@ -181,7 +196,7 @@ class Handler(BaseHTTPRequestHandler):
                 # Official licensed-body evidence is a separate, later-available
                 # source scope, never substituted for RSS title metadata.
                 if (self.server.evidence_base is not None
-                        and found["results"][0]["provider_id"] == "motir-official-press"):
+                        and not discovery and found["results"][0]["provider_id"] == "motir-official-press"):
                     try:
                         detail["official_document_evidence"] = bound_motir_document_evidence(
                             found["results"][0],
@@ -254,6 +269,14 @@ class Handler(BaseHTTPRequestHandler):
                         else:
                             feed_sources = jobs = None
                             reports_root = self.server.reports
+                        if discovery:
+                            reports_root = discovery_reports
+                            if feed_sources is None:
+                                selected_workspace = next(w for w in self.server.news_search_workspaces if w.scope == source_scope)
+                                feed_sources = [{"registry": selected_workspace.registry_path,
+                                                 "inbox": selected_workspace.inbox_root,
+                                                 "state": selected_workspace.poll_state}]
+                                jobs = []
                         detail["article_company_excerpt"] = article_company_excerpt(
                             detail, theme_id=query["excerpt_theme_id"][0],
                             entity_id=entity_id,

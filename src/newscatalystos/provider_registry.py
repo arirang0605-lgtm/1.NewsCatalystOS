@@ -16,7 +16,7 @@ from .source_share import SourceShareError, _json, _must_id, _when
 
 SCHEMA = "newscatalyst.provider_registry.v1"
 TYPES = frozenset({"GOVERNMENT_POLICY", "COMPANY_IR", "LICENSED_NEWS", "SNS_TIP"})
-METHODS = frozenset({"RSS", "JSON_API", "RSS_POST", "DOCUMENT"})
+METHODS = frozenset({"RSS", "JSON_API", "RSS_POST", "DOCUMENT", "HTML_METADATA"})
 GRANTS = frozenset({"OFFICIAL_TERMS_REVIEWED", "WRITTEN_LICENSE", "PUBLIC_LICENSE_KOGL_1", "NOT_REVIEWED"})
 MOTIR_PRESS_RIGHTS = "https://www.motir.go.kr/kor/article/ATCL3f49a5a8c"
 MOTIR_PRESS_DOCUMENT = re.compile(
@@ -159,6 +159,11 @@ def parse_provider_registry(data: bytes, *, now: datetime | None = None) -> Prov
             raise SourceShareError("RSS_POST allowed only for reviewed ministry feed")
         if method == "DOCUMENT" and grant != "PUBLIC_LICENSE_KOGL_1":
             raise SourceShareError("manual document method requires reviewed public license")
+        if method == "HTML_METADATA":
+            from .official_news_metadata import ENDPOINT
+            if (kind != "COMPANY_IR" or grant != "OFFICIAL_TERMS_REVIEWED"
+                    or ENDPOINT.fullmatch(endpoint) is None or row["allow_full_text_storage"]):
+                raise SourceShareError("official news metadata limited to reviewed public listing")
         permission = row["rights_reference"]
         if permission is not None and (not isinstance(permission, str)
                 or not 0 < len(permission) <= 512):

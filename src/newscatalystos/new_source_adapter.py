@@ -84,6 +84,9 @@ def parse_authorized_feed(
             if not isinstance(row, dict) or set(row) != {"id", "title", "url"}:
                 raise SourceShareError("unrecognized JSON metadata fields")
             results.append((row["id"], row["title"], row["url"]))
+    elif provider.method == "HTML_METADATA":
+        from .official_news_metadata import parse_listing
+        results.extend(parse_listing(feed))
     else:
         raise SourceShareError("unsupported provider adapter")
     parsed = []

@@ -72,7 +72,8 @@ def fetch_authorized_once(
     request = Request(
         endpoint, data=b"" if post else None,
         method="POST" if post else "GET",
-        headers={"Accept": "application/rss+xml,application/xml,text/xml,application/json",
+        headers={"Accept": ("text/html" if provider.method == "HTML_METADATA" else
+                            "application/rss+xml,application/xml,text/xml,application/json"),
                  "User-Agent": "NewsCatalystOS/1.0 (authorized metadata feed reader)"},
     )
     try:
@@ -81,7 +82,8 @@ def fetch_authorized_once(
                 raise SourceShareError("official feed HTTP response not successful")
             if response.geturl() != endpoint:
                 raise SourceShareError("feed redirected to an unapproved endpoint")
-            expected = RSS_MEDIA if provider.method in ("RSS", "RSS_POST") else JSON_MEDIA
+            expected = ({"text/html"} if provider.method == "HTML_METADATA" else
+                        RSS_MEDIA if provider.method in ("RSS", "RSS_POST") else JSON_MEDIA)
             mime = response.headers.get("Content-Type", "").split(";", 1)[0].lower().strip()
             if mime not in expected:
                 raise SourceShareError("unapproved feed content type")

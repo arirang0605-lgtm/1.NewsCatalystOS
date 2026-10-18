@@ -823,6 +823,7 @@ async function loadSavedThemeChange(context,theme,start,end,place){
     const item=context.item,params=new URLSearchParams({q:context.phrase,provider_id:item.provider_id,
       event_id:item.event_id,title_sha256:item.title_sha256,theme_id:theme.theme_id,
       since:beginning.toISOString(),as_of:upper.toISOString()});
+    if(context.item.analysis_scope==="ECONOMIC_DISCOVERY")params.set("discovery","1");
     const response=await fetch("/api/news-evidence?"+params);
     if(!response.ok)throw new Error("N/A · 해당 시점에서 연결된 테마·기사 근거를 확인할 수 없습니다.");
     const result=await response.json(),change=result.theme_change;
@@ -883,6 +884,7 @@ async function loadSavedArticleCompanyExcerpt(articleContext,theme,company,place
       excerpt_claim_event_id:company.event_id,
       excerpt_evidence_sha256:company.evidence_sha256
     });
+    if(article.analysis_scope==="ECONOMIC_DISCOVERY")params.set("discovery","1");
     const response=await fetch("/api/news-evidence?"+params);
     if(!response.ok)throw new Error("N/A · 해당 기사 판본의 기업 근거 요청 불가");
     const data=await response.json();
@@ -999,7 +1001,7 @@ function showSavedNewsEvidence(place,data,article,phrase){
   if(data.status==="READY"){
     renderSavedArticleThemeEvents(place,data.themes,"저장된 동일 기사 판본의 테마",articleContext);
   }else{
-    place.append(node("p","empty-small","N/A · "+(reasons[data.reason_code]||"검증된 RSS 제목 근거 없음")));
+    place.append(node("p","empty-small","N/A · "+(reasons[data.reason_code]||"검증된 뉴스 제목 근거 없음")));
   }
   const official=data.official_document_evidence;
   if(!official)return;
@@ -1028,6 +1030,7 @@ async function loadSavedNewsEvidence(item,phrase,place){
   place.replaceChildren(node("p","finding-detail","같은 기사 판본의 기존 저장 근거를 조회합니다."));
   try{
     const query=new URLSearchParams({q:phrase,provider_id:item.provider_id,event_id:item.event_id,title_sha256:item.title_sha256});
+    if(item.analysis_scope==="ECONOMIC_DISCOVERY")query.set("discovery","1");
     const response=await fetch("/api/news-evidence?"+query);
     if(!response.ok)throw new Error("N/A · 이 기사 판본을 검증할 수 없습니다.");
     showSavedNewsEvidence(place,await response.json(),item,phrase);
@@ -1051,7 +1054,7 @@ async function searchStoredNews(event){
       const card=node("article","finding");
       card.append(node("h4","",item.headline),
         node("p","finding-detail",item.provider_id+" · 출처 가용: "+item.source_available_at+" · "+(item.semiconductor_keyword_candidate?"반도체 단어 후보":"일반 제목 맥락")),
-        node("p","finding-detail","RSS 제목 메타데이터 · 기사 본문 미포함 · 사실/거래/수혜 확인 아님"));
+        node("p","finding-detail","뉴스 제목 메타데이터 · 기사 본문 미포함 · 사실/거래/수혜 확인 아님"));
       const link=node("a","source-link","저장 뉴스의 원래 출처 ↗");
       link.href=item.source_url;link.target="_blank";link.rel="noopener noreferrer";
       const action=node("button","news-evidence-button","경제 사건·테마·기업 근거 보기");
@@ -1106,6 +1109,12 @@ function renderEconomicDiscovery(data){
     for(const source of row.source_evidence){
       evidence.append(node("p","",source.headline),node("p","fineprint","원자료 확보 "+source.source_available_at+" · "+source.provider_id));
       const a=node("a","source-link","뉴스의 원래 출처 ↗");a.href=source.source_url;a.target="_blank";a.rel="noopener noreferrer";evidence.append(a);
+      const action=node("button","news-evidence-button","기업·분석 근거 보기");action.type="button";
+      const detail=node("div","news-evidence-results");
+      const item={provider_id:source.provider_id,event_id:source.source_event_sha256,
+        title_sha256:source.title_sha256,analysis_scope:"ECONOMIC_DISCOVERY"};
+      action.addEventListener("click",()=>loadSavedNewsEvidence(item,source.headline.slice(0,80),detail));
+      evidence.append(action,detail);
     }
     if(row.material)renderCatalystMaterial(evidence,row.material);
     card.append(evidence);place.append(card);

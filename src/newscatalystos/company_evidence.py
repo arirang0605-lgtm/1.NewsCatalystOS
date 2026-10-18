@@ -314,7 +314,15 @@ def company_evidence(theme,entity,*,reports_root,document_root=None,feeds=(),job
                     text,status=(_body_source(ref,row,jobs,at,now) if body else _rss_source(ref,row,feeds,at,now))
                     item['status']=status
                     if text is None:continue
-                    excerpt=_clause(text,change,entity,ref)
+                    if not body and row.get('analysis_industry')=='ECONOMIC_DISCOVERY':
+                        # _reports validated the recorded rule edition; _rss_source
+                        # authenticated the exact completed source version/rights.
+                        records=[v for v in row['economic_discovery'] if v['change']==change
+                                 and entity in v['change']['entity_ids']
+                                 and v['discovery']['normalized_headline_sha256']==sha256(text.encode()).hexdigest()]
+                        excerpt=text if len(records)==1 and text==row['headline'] else None
+                    else:
+                        excerpt=_clause(text,change,entity,ref)
                     if excerpt is None:excerpt=_semantic_clause(text,row,change,entity,ref,body)
                     if excerpt is None:item['status']='CLAUSE_UNRESOLVED';continue
                     if change.get('extraction_method')=='AI_SOURCE_SPAN_MATCHED':

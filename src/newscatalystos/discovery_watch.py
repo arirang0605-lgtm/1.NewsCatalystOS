@@ -15,7 +15,7 @@ from .standard_delivery import build_theme_bundle
 from .source_share import SourceShareError,_when
 
 
-def read_discovery(root,*,as_of=None,since=None,now=None):
+def read_discovery(root,*,as_of=None,since=None,now=None,_compare_outlook=True):
     present=now or datetime.now(timezone.utc);at=as_of or present
     start=since or default_since(at)
     present=_when(present.isoformat(),'now');at=_when(at.isoformat(),'as of');start=_when(start.isoformat(),'since')
@@ -23,7 +23,8 @@ def read_discovery(root,*,as_of=None,since=None,now=None):
     root=Path(root)
     if not root.is_absolute() or root.resolve()!=root:raise SourceShareError('unsafe discovery root')
     if not root.exists():
-        return {'status':'NOT_STARTED','candidates':[],'counts':{'events':0,'unclassified_topics':0},'observed_industries':[]}
+        return {'status':'NOT_STARTED','candidates':[],'counts':{'events':0,'unclassified_topics':0},'observed_industries':[],
+                'theme_outlook':{'candidates':[],'counts':{'theme_hypotheses':0}}}
     themes=ThemeStore(root/'theme_history').search(as_of=at,now=present)
     materials=materials_for_store(ThemeStore(root/'theme_history'),since=start,as_of=at,scope='discovery',now=present,industry='ALL_DISCOVERED')
     parents=sorted(p for p in (root/'feed_analysis').glob('d_*') if p.is_dir() and not p.is_symlink())
@@ -88,7 +89,13 @@ def read_discovery(root,*,as_of=None,since=None,now=None):
     for candidate in candidates:
         candidate['launch_comparison_group_ids']=[g['comparison_group_id'] for g in comparisons
                                                   if candidate['theme_id'] in g['theme_ids']]
+    from .theme_outlook import build_theme_outlook,compare_outlooks
+    outlook=build_theme_outlook(themes,titles,candidates,as_of=at,since=start,now=present)
+    if _compare_outlook:
+        previous=read_discovery(root,as_of=start,since=start,now=present,_compare_outlook=False)
+        compare_outlooks(outlook,previous['theme_outlook'])
     return {'schema':'newscatalyst.economic_discovery_watch.v1','status':'READY','as_of':at.isoformat(),
+        'theme_outlook':outlook,
         'launch_comparisons':comparisons,
         'comparison_since':start.isoformat(),'candidates':candidates,
         'counts':{'topics':len(candidates),'events':sum(c['distinct_event_count'] for c in candidates),
@@ -134,4 +141,12 @@ def export_discovery(root,*,as_of=None,since=None,now=None):
                 'basis_available_at':max(g['basis_available_at'] for g in groups),
                 'new_economic_event':False,'independent_market_event_count':None}
             theme['decision_at']=max(theme['decision_at'],theme['discovery_launch_comparison']['basis_available_at'])
+        outlooks=[c for c in view['theme_outlook']['candidates'] if theme['theme_id'] in c['theme_ids']]
+        if outlooks:
+            theme['discovery_theme_outlook']={
+                'source_theme_sha256':sha256(_bytes(original)).hexdigest(),
+                'original_theme_decision_at':original['decision_at'],
+                'basis_available_at':max(c['basis_available_at'] for c in outlooks),
+                'candidates':outlooks,'original_events_unchanged':True}
+            theme['decision_at']=max(theme['decision_at'],theme['discovery_theme_outlook']['basis_available_at'])
     return build_theme_bundle(result,decision_at=at,now=present)

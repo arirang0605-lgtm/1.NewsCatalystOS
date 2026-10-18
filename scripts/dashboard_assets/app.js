@@ -1076,6 +1076,7 @@ function renderEconomicDiscovery(data){
   }
   summary.textContent="관찰 주제 "+data.counts.topics+"개 · 원문에 연결된 행동 "+data.counts.events+
     "개 · 미분류 주제 "+data.counts.unclassified_topics+"개 · 먼저 탐지한 뒤 분류 · 심층 산업 검증 아님";
+  renderThemeOutlook(place,data.theme_outlook);
   renderLaunchComparisons(place,data.launch_comparisons);
   for(const row of data.candidates){
     const card=node("article","finding");
@@ -1109,6 +1110,56 @@ function renderEconomicDiscovery(data){
     card.append(evidence);place.append(card);
   }
   if(!data.candidates.length)place.append(node("p","empty-small","현재 자료에서 명시적 경제 행동을 찾지 못했습니다. 산업 이름이 없다는 이유로 제외한 것은 아닙니다."));
+}
+
+
+function renderThemeOutlook(place,data){
+  if(!data?.candidates?.length)return;
+  const section=node("section","theme-outlook");
+  section.append(node("h3","","주목할 테마 후보·관련 산업"),
+    node("p","fineprint","뉴스 원문의 공통 사업 대상과 기업 행동으로 연결한 조사 후보입니다. 산업분류표 없이 관련 사업 분야와 역할을 정리하며 유망성은 근거·반증과 함께 판단합니다."));
+  const early=node("details","finding-detail");
+  const earlyCount=data.candidates.filter(row=>row.attention_tier==="EARLY_WATCH").length;
+  early.append(node("summary","","초기 관찰 후보 "+earlyCount+"개 · 후속 근거 확인"));
+  const changes={FIRST_LOCAL_OBSERVATION:"비교기간에 처음 관측 · 시장 신규성 미확인",
+    NO_SUBSTANTIVE_OBSERVATION_CHANGE:"비교기간의 실질 관측 변화 없음",
+    SUPPORT_BROADENED:"관측 범위 확대 · 회사명 또는 행동 추가",
+    SUPPORT_NARROWED:"현재 유효 근거의 회사명 범위 축소",EVIDENCE_CHANGED:"관측 근거 변경"};
+  for(const row of data.candidates){
+    const card=node("article","finding");
+    card.append(node("h4","",row.title),node("p","",row.attention_label),
+      node("p","finding-detail","원문 회사명: "+(row.source_company_names.join(" · ")||"미확보")));
+    for(const reason of row.attention_reasons)card.append(node("p","finding-detail",reason));
+    if(row.period_change)card.append(node("p","finding-detail",changes[row.period_change.status]||"관측 변화 확인"));
+    const areas=node("details","finding-detail");
+    areas.append(node("summary","","관련 산업·사업 분야와 기업 역할"));
+    for(const area of row.related_business_areas){
+      areas.append(node("p","",area.source_described_area+" → "+area.role_label+
+        " · "+(area.source_companies.join(" · ")||"회사 미확보")));
+    }
+    areas.append(node("p","fineprint","원문에 적힌 사업 대상·행동을 정리했습니다. 분야 사이의 공급망 거래는 별도 근거가 필요합니다."));
+    card.append(areas);
+    const detail=node("details","finding-detail");detail.append(node("summary","","기회·반증·원문 근거"));
+    for(const path of row.conditional_paths){
+      detail.append(node("p","",path.opportunity),node("p","fineprint","반증·미확인: "+path.countercondition));
+    }
+    for(const source of row.source_evidence){
+      detail.append(node("p","",source.headline),
+        node("p","finding-detail","연결 단서: "+source.shared_object_evidence.text+
+          " · "+(economicActionLabels[source.action]||source.action)+
+          " · "+(source.phase==="PLANNED"?"계획":"출처 보도")),
+        node("p","fineprint","근거 확보 "+source.basis_available_at));
+      const link=node("a","source-link","테마 후보의 원문 ↗");
+      link.href=source.source_url;link.target="_blank";link.rel="noopener noreferrer";detail.append(link);
+    }
+    card.append(detail,node("p","fineprint","원문 회사명의 개수는 독립 법인·독립 사건 수가 아닙니다. 수요 증가·매출·수혜·주가 상승은 미확인입니다."));
+    if(row.attention_tier==="EARLY_WATCH")early.append(card);else section.append(card);
+  }
+  if(earlyCount)section.append(early);
+  if(data.previous_groups_not_currently_matched?.length)
+    section.append(node("p","fineprint","이전 비교 묶음 "+data.previous_groups_not_currently_matched.length+
+      "개는 현재 근거·묶음과 달라졌습니다. 철회·취소로 단정하지 않습니다."));
+  place.append(section);
 }
 
 

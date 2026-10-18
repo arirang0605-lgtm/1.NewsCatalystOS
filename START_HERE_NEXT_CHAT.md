@@ -1,15 +1,13 @@
-# START HERE — 산업 독립 경제발견 / 제품·솔루션 출시 누락 해소
+# START HERE — 산업 독립 발견 / 같은 제품의 원문 비교
 
-기준 2026-10-18T14:27:15+09:00. 사용자 흐름 **허용 뉴스 → 경제행동 먼저 → 산업·기업/제품 근거 연결 → 미분류 포함 관찰** 유지. 반도체 V1·전력기기 심층해석과 기존 Era연결을 보존한다. Chat+Remote로 이 문서→AGENTS.md→PROJECT_STATE.md→DECISIONS.md→NEXT_TASK.md와 현재 Git 상태만 확인하고 CONTINUE. 기존 정상코드 재작성/불필요 전체검사/관리도구 확대 금지.
+기준 2026-10-18T14:48:14+09:00. 사용자 승인: **허용 뉴스 → 경제행동 우선 발견 → 원문 기업·제품·산업 연결 → 미분류 포함 관찰**. 기존 반도체V1/전력기기 심층해석·Era 연결은 보존. Chat+Remote로 이 문서→AGENTS.md→PROJECT_STATE.md→DECISIONS.md→NEXT_TASK.md 최신내용과 Git 상태를 확인하고 CONTINUE. 관리도구·반복검수·새산업 전용분석기보다 실제 입력→처리→출력 우선.
 
-## 최신 운영
-기능·배포 SHA **4fd8c755d3c452246c29e5111e4fe2eaa44c63a7**. 기존 공통발견에서 놓치던 한국어/영문 **제품·솔루션 출시 발표**를 PRODUCT_LAUNCH로 추가. 기존 인용제품명 추출·원문 span/SHA·보고서/ThemeStore·조건부 영향과 반증·조회/표준export 재사용. 산업을 모르는 제품도 남기고, 제품만 표기된 제목은 회사미확보로 둔다. 의견수렴/행사/연구보고서의 launch·부인/취소·모호복수행동은 제품출시로 넣지 않는다. 이미 v1에서 발견되는 경제행동/회사/테마는 그대로 보존한다.
-새 판정은 rss-event-first-v2, 기존 v1 보고서는 당시 추출규칙으로 검증한다. 기존 빈 분석이나 원보고서를 재작성하지 않고 새로운 해석시각 후에만 관찰이 늘어난다. 출시=제조/매출/수익/주가 인증이 아니며 번역·재배포 수를 독립 신규시장사건으로 단정하지 않는다.
+## 최신 기능/운영
+기능 및 dashboard 배포 **2c3b80c5b01343ea63de7cf64aea58d74f9d57ff**. 기존 PRODUCT_LAUNCH 관측에서 **같은 원문회사명·정확제품명**을 가진 제목을 비교해 동일제목내용/같은문서판본수정/계획·보도단계차이/단순회사제품일치를 구분한다. 기존 normalization·출처보고서 SHA/PIT·제품 span·ThemeStore·선택export 재사용. 별칭/번역·유사명·버전숫자 제거로 매칭하지 않고, 미확보회사/불명확제품도 원 관찰에는 남긴다. 비교는 병합·신규시장재료 인증·후보점수 조정이 아니다.
+실자료 **UVJC/NovaJet 한국어·영문 제목2개 → 비교묶음1**. 회사·제품·출시행동 일치/표기언어차이를 보여주되 같은발표·번역·재배포/독립사건 여부는 미확인. 원 source별 ID/제목SHA·관측시각·두제목·일치단어 span을 함께 표시. 동일제품의 다른날 발표도 함부로 합치지 않고 비교근거가 나타나기 전 as_of에는 표시하지 않는다. 비교ID는 요청시각이 아니라 원문/사건기준이다.
+기존 **382제목·45주제·50출처관측·37미분류·회사명34** 유지, 추가비교1(제목2). 관련 **175PASS/FAIL0**. 실제 운영14:46 HTTP200/배포JS/선택export45테마 중 비교확장2 확인. 기존18source·설정·user파일 및35보고서SHA불변. source/파생DB 쓰기0·재수집/AI0·Era코드/DB/Git/순위 변경0. 중복제목은 내용추가근거 없음, 모호한 교차언어는 확인된중복으로 세지 않는다.
 
-## 실제 증거
-2026-10-18 14:25 운영 HTTP200: 같은 **382개 저장 제목에서 이전에 놓친 제품출시 관련 제목24개** 추가. **관찰45주제/50출처별 경제행동**, 산업미분류37·출처이름34. 새 출시중23개는 미분류이지만 관찰 유지. 과거자료 첫 해석(EXISTING_SOURCE_NEWLY_ANALYZED)/시장신규 UNKNOWN, 현재 새호재24건이 아님. 기존21주제·26관측/보고서26개·기존 사건ID는 그대로. 예: Yolara AI/YYForce, 리브레링크업/한국애보트, eM Client11 회사미확보. UVJC/NovaJet 등 한영 제목의 독립성은 확정하지 않음.
-관련 **245PASS/FAIL0**(이전 기본반도체·선택power·발견·페이지처리·문맥연결·PIT·구보고서·HTTP 포함), 실제 저장자료 replay·운영 자동실행exit0/원수집5성공·새기사0/AI0. 기존 고정 Era 재료전달 ALREADY_PUBLISHED, 넓은 관찰은 별도 선택export45테마. Era코드/DB/Git·순위·예약 변경0.
-
-## 위치·보존
-개발 /Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project (codex/real-data-path). BASE=~/Library/Application Support/NewsCatalystOS. dashboard/research-approved 코드는 BASE/releases/4fd8c755d3c452246c29e5111e4fe2eaa44c63a7 읽기전용. core/MOTIR 기존 서비스 보존. 관찰 BASE/document_analysis/economic_discovery, 기존 source BASE/research_workspaces; dev output/*_live_dev는 보관본(재수집금지). UI http://127.0.0.1:8766/ 의 뉴스에서 발견한 경제 변화·관찰 분야.
-새 action을 이전 코드로 되돌려야 할 경우에 대비해 옵션관찰 파생만 BASE/deployment_backups에 이전판본을 보존. 원source/공유비용 원장롤백 금지. 증거/이전plist는 output/discovery_product_launch_20261018/, 사용자dirty AGENTS/DECISIONS/비전3·비밀/권리·PIT/SHA·무주문 유지. Public GitHub push없음. 36/36은 기존V1기록이며45주제=45산업완료가 아니다. 다음 NEXT_TASK.md.
+## 현재 경로·버전
+개발 /Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project (codex/real-data-path). BASE=~/Library/Application Support/NewsCatalystOS. **dashboard만 BASE/releases/2c3b80c5b01343ea63de7cf64aea58d74f9d57ff로 교체**, research-approved는 기존4fd8c755d3c4 공통추출v2/기존시간당예약 유지. core/MOTIR·분석 DB·키/예산/원문권리·PIT/SHA·무주문 보존. 원 source BASE/research_workspaces; dev output/*_live_dev는 보관본(재수집금지). 파생관찰 BASE/document_analysis/economic_discovery.
+UI http://127.0.0.1:8766/ → 뉴스에서 발견한 경제 변화·관찰 분야 → 같은 회사·제품의 출시 보도 비교. API /api/economic-discovery의 launch_comparisons와 ?export=1의 선택 discovery_launch_comparison. 전방 기존 Era 고정판본/순위에 무분별한 자동가산 없음. 증거/rollback output/discovery_launch_comparison_20261018/targeted_tests.json·real_comparison_proof.json·activation.json.
+사용자dirty AGENTS/DECISIONS/비전3·Era/운영SSD 원본 보존·Public GitHub 무push. 기존36/36은 V1기록,45주제=45산업완료가 아니다. 다음 NEXT_TASK.md.

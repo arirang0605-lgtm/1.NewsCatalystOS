@@ -1,11 +1,11 @@
-# NEXT_TASK — 발견된 발표의 실제 차이·연결을 보완
+# NEXT_TASK — 원문 차이를 실제 재료 차이로 구분하는 연결
 
-## 지금 완료
-배포 **4fd8c755d3c452246c29e5111e4fe2eaa44c63a7**, 관련245PASS. 제품·솔루션 출시도 산업선택 없이 경제발견/관찰에 포함, 기존인용제품명·보고서·테마·조건부영향·표준export 재사용. 실제382제목 중 누락24개를 보완하여45관찰주제/50출처행동; 신규23개는 산업미분류여도 보관. 과거v1보고서는 예전규칙으로 읽고 새v2해석은 해석시각이후에만 보이므로 과거PIT/기존21주제26관측/보고서26개 보존. 이전 서비스/정책·같은출처회사문맥·Era수신은 그대로.
+## 완료 기준선
+기능/dashboard **2c3b80c5b01343ea63de7cf64aea58d74f9d57ff**, 관련175PASS. 기존 산업독립 제품출시 관측의 같은 원문회사·정확제품명을 비교하고, 동일제목내용/같은문서수정/단계차이/단순이름일치를 구분하는 UI·표준선택출력 완성. 실제 UVJC/NovaJet 한영제목2개가 비교묶음1로 표시되나 동일발표 확정/원사건병합/점수수정은 하지 않았다. 382제목/45주제/50출처관측 유지, 파생 DB·수집기·보고서 쓰기없음.
 
-## 다음 실제 가치 작업
-현재 발견된 출시보도에는 **같은 회사/제품의 한국어·영어 재배포 제목**도 있다(예: source-named UVJC/NovaJet). 다음에는 기존 사건비교·출처근거를 사용해 같은 발표의 반복일 가능성과 실제새변경을 구분해 보여주는 연결을 우선 검토한다. 같은 회사명/제품명만으로 다른 날짜의 거래를 합치거나, 이름이 비슷하다는 이유로 종목·회사·산업을 추정하지 않는다. 동일 발표를 뒷받침할 근거가 부족하면 '독립성 미확인·비교대상'으로 유지하며 개별원문/사건ID는 보존한다.
-다른 신규 경제행동 입력의 구체적 누락이 확인되면 그 공통문장/회사·목적 연결을 국소 보완할 수 있다. 새로운 산업전용 분석기·큰 분류사전·관리도구·표본목표/추가 인수기준을 먼저 만들지 않는다. 실제 데이터가 없는 항목만 미확인, 기완료뉴스/Era연동을 다시 미완료로 돌리지 않음.
+## 다음 핵심 가치
+관찰 중인 같은제품/회사 발표에서 **추가된 실제 경제행동·정정·철회 또는 원문이 제공하는 동일발표 연결 근거**가 있으면 기존 사건비교/출처관계로 이어간다. 같은 단어/날짜·가까운 기사번호만으로 번역·동일거래를 확정하거나 서로다른 버전·발표지역을 합치지 않는다. 회사/제품이 번역되어 정확매칭되지 않는 자료도 원문에 별칭·연결근거가 없으면 추정회사로 묶지 않되 원관찰을 유지한다. 미확인만 없애기 위한 이름사전·관리도구·인적검수/추가필수조건을 만들지 않는다.
+관찰에 쓰일 새로운 회사·제품/수치/행동이 실제 제목에 누락되어 있으면 그 공통 해석경로를 국소 보완할 수 있다. 제품출시를 실제매출/계약·수혜로 올리지 않는다. 기존 코드/표준라이브러리·기존허용source 자료를 우선 사용한다. 이미 완료된 공통발견/페이지처리/제품출시·Era재료선정 연결을 다시 재구현하거나 반복회귀만 수행하지 않는다.
 
-## 실행 경계
-DEV=/Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project. BASE=~/Library/Application Support/NewsCatalystOS. 운영코드 BASE/releases/4fd8c755d3c452246c29e5111e4fe2eaa44c63a7, 관찰 BASE/document_analysis/economic_discovery, source BASE/research_workspaces. dev output/*_live_dev 보관본 재수집금지. 현재UI8766과 /api/economic-discovery/?export=1은 넓은 관찰, 기존 Era 고정판본/순위에 무분별하게 자동가산 안 함. 사용자dirty3·원문/권리·시점/SHA·공유예산/비밀·무주문·Era코드/DB/Git/예약 보존. Public 무push. 기존36/36은 V1기록이고 이번관찰수가 독립산업/새호재 수는 아니다. 증거/롤백은 output/discovery_product_launch_20261018/ 및 BASE/deployment_backups/.
+## 경계·경로
+DEV=/Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project. BASE=~/Library/Application Support/NewsCatalystOS. dashboard BASE/releases/2c3b80c5b01343ea63de7cf64aea58d74f9d57ff; research-approved는 기존4fd8c755d3c4. 기존 source/비용/예약·공통관찰 DB와 Era코드/DB/Git/설정은 보존. 증거/이전dashboard config는 output/discovery_launch_comparison_20261018/. UI8766/공통관찰 상단 비교·/api/economic-discovery·?export=1. 원 source BASE/research_workspaces, dev output/*_live_dev 보관본 재수집금지. 사용자dirty3·원문권리·비밀/예산·PIT/SHA·무주문·무public push 유지. V1완료36/36은 후속공통관찰의 독립산업/새호재 개수와 무관하다.

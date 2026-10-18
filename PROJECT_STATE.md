@@ -2,7 +2,7 @@
 
 **목적·흐름:** 실제 뉴스 → 뉴스 분석(경제 변화·공통 사건·초기 테마) → 관련 산업·기업 → 기업별 근거·원문 조회. 전력기기 우선 적용. 사실/추론·계획/실행·미확인, 원본/PIT/비밀·무주문을 지킨다.
 
-기준 2026-10-18T19:07:35.553113+00:00. News 운영 **7e0001c8b1349847c3e0a66f454197530003368a**, 기능 고정판 **1b1f1f8262b477339288139fedb889ca75457419**. 기능 구현/실자료 연결/운영 반영을 구분한다.
+기준 2026-10-18T19:16:23.856369+00:00. News dashboard8766 운영/기능 고정판 **1b1f1f8262b477339288139fedb889ca75457419**. 기능 구현/실자료 연결/운영 반영을 구분한다.
 
 ## 새로 작동하는 경로
 - 기존 회사별 완료 제목 입력과 읽기 분석 저장을 재사용해 실제 자료3건을 연결했다. 비교10→13건, 반복 게시0. 원문 본문은 저장하지 않았고 기존 출처 허용 설정은 변경하지 않았다.
@@ -18,8 +18,10 @@
 - DEV 관련 시험109 PASS 후 날짜 경계/화면/오류 격리33 PASS 및 평가 항목 비교17 PASS. 최종 고정판 SSD 내보내기에서 **112 passed in 50.94s / 0 FAIL / 0 SKIP**. 중복 시험을 합산하지 않고 이번 전체 회귀를 실행한 것으로 표시하지 않는다.
 - 현재8766 및 검증8767에서 새3건 정확한 기사→기업 평가 AVAILABLE를 확인했다. 검증 API 기간 비교13건, 추가 전 과거 조회10건·새3건 제외, 과거 기본 내보내기 SHA 보존. 기업 평가 파일/SHA는 재사용했다. PIT 가용시각을 발행일로 되돌리지 않았다.
 - 최종 실제 UI 확인: 일간 시작15:00Z 대비 HD는 기업 평가 첫 연결(상향 아님), LS/효성은 근거 유지다. 이번 자료 추가 직전2026-10-18T18:53:13.191517+00:00와 비교하면 세 기업 모두 근거 유지로 API에서 확인했다. 비교 시작 시점이 달라지는 두 결과를 구분한다. 새 비교 API는 단독 조회30.346초로 즉시 응답은 아니며, 전체 기간 화면도 로딩 지연이 있다. 추가 성능 게이트를 새로 만들지 않고 현재 응답 한계로 남긴다.
-- 새 비교 UI는 검증용8767에서 확인했다. 운영8766 서비스 경로는 기존 7e0001c8b1349847c3e0a66f454197530003368a을 유지한다. 앞선 자동 승인 검토의 서비스 변경 명시 승인 부족 경계를 우회하지 않고 기존 dashboard 하나의 판본 전환·재시작 승인을 요청할 검토 가능한 후보를 준비했다. research-approved/core/MOTIR·Era 운영 서비스는 변경 대상이 아니다.
+- 사용자가 “News 대시보드 1개 서비스 적용 허용”을 명시 승인해 dashboard8766의 실행 판본만 1b1f1f8262b477339288139fedb889ca75457419으로 전환·재시작했다. 기존 News LaunchAgent SHA 비교에서 dashboard 외 변경0. research-approved/core/MOTIR·Era 서비스/설정은 변경하지 않았다. 승인 범위를 다른 서비스로 확대하지 않는다.
+- 첫 bootstrap이 OS 오류5를 반환해 기존 판본으로 자동 복구하고 running을 확인했다. 이전 프로세스와 작업의 종료를 확인한 뒤 재시도해 새 판본 running을 확인했다. root 권한을 사용하지 않았다. 되돌릴 이전 plist와 적용 증거를 비공개 출력에 보존했다.
+- 운영 API에서 비교13건, 새3개 원문 링크, 세 기업 평가 AVAILABLE·이번 추가 전후 UNCHANGED_ASSESSMENT, 추적 계약 NO_NEW_EXECUTION_PROOF·HD 개별 평가 원본 SHA/공식 연간공시2개를 확인했다. 조회 8.368초. 실제 운영 화면의 기간 비교도 확인하고 임시 검증8767은 종료했다. 추가 승인 대기 없음. 이전112 PASS 시험은 고정판 그대로 재사용했고 변경 없는 전체시험을 반복하지 않았다.
 - HD 한시 예외는 기존2024/2025 CFS2회 확보·기존 평가 연결을 완료한 범위다. 이번에 재수집/재평가하지 않았다. Era 코드/DB/Git/설정 변경0, 유료 AI0, 새 의존성0.
 - 원V1 **36/36** 유지. 이번 비교 기능을 Era 전체/모든 회사/미국/공동 전체 인수 완료로 확대하지 않는다.
 
-비공개 증거 output/followup_period_comparison_20261019/의 selected_source_metadata.json·actual_comparison.json·ssd_tests.txt·candidate.json·verification.json·comparison_ui.png. 운영 자료/원문/출력은 Git 제외. 기존 사용자 untracked vision 보존, public push 없음.
+비공개 증거 output/followup_period_comparison_20261019/의 selected_source_metadata.json·actual_comparison.json·ssd_tests.txt·candidate.json·verification.json·comparison_ui.png·activation.json·operating_verification.json·operating_comparison_ui.png. 운영 자료/원문/출력은 Git 제외. 기존 사용자 untracked vision 보존, public push 없음.

@@ -1,13 +1,12 @@
-# NEXT_TASK — 전력기기 실제 뉴스 입력 연결
+# NEXT_TASK — 사건 먼저 발견하는 공통 관찰의 실제 누락 보완
 
-## 현재 완료와 재개 기준
-개발 SHA **c2393d4379d996142425c1ee90593eb1b55a33bc**, 관련157PASS. V1.1 선택형 POWER_EQUIPMENT 분석(변압기·차단기·배전설비)은 기존 source/ACK·경제판정·ThemeStore·회사 원문/표준전달을 재사용하며 별도 analysis/theme root에서만 작동한다. 합성7사건 정상, 승인 기존216기사 실자료 재분석은 대상0/사건0. 기존 반도체 운영release168ea012·4예약/원본/비용·사용자dirty3 유지, 새로운 산업 운영 활성화는 하지 않았다.
-Era 기존 후보선정 연결은 docs/313_NEWS_MATERIAL_EXISTING_PRIORITY_20261018.md에 구현/실자료 완료. 이를 다시 미완료라고 보고하거나 재구현하지 않는다.
+## 완료 상태
+최신 코드·운영 **7610f2357a4b02d98b7d360953106ba08093173c**, 공통발견 bc9e06c를 보존하여 이어감. 산업사전 없이 명시적 경제행동을 먼저 관측하고 산업·기업은 후속 연결, 미분류/당사자미확보 보존. 기존 최근100개만 되풀이하던 제한을 페이지연결로 해결하여 승인8제공자의 현재378제목 모두 처리. 26사건/21관찰주제/15미분류·회사명15, 신규시장재료·수혜인증 아님. 관련181시험 성공, launchd 실제exit0/발견8source정상/남은페이지0/새수집·유료AI0. 기존반도체/전력기기 깊은규칙·원본·Era소비연결 재구현금지.
 
-## 다음 단일 핵심 작업
-**전력기기 회사가 명시된 실제 계약·증설·생산/납품 발표를 제공하는 사용권 확보 공식 뉴스원**을 찾고, 기존 허용 source 계약/호출한도·ACK를 통해 하나의 실제 입력→전력기기 사건→같은기업 근거/표준 재료전달을 완주한다. 새 기사 수집기는 만들지 않는다. 사용권 불명확·비상업 제한 원문은 활성화하지 않고 대체 공식 경로를 찾는다. Era DART/SEC/KRX 재수집은 금지, 검증 완료 스냅샷만 읽는다.
-새 실제 제목 표현이 현재 좁은 규칙에서 누락되면 그 구체적 표현만 보완하고 관련시험한다. 기존 default semiconductor는 byte/내용 보존, power profile만 선택하며 파생 저장소를 혼용하지 않는다. 실제 거래/매출·수혜 인증은 아님. 원문/자료에 없는 기업·액수·납기·관계를 추가하지 않음.
-양성 실자료 근거를 확보한 뒤 이 추가 산업을 기존 정기처리·산업별조회·고정발행에 연결할 범위를 명시한다. 여러산업 동시추가, 신규점수모델/관리도구, 불필요한 반복전체회귀로 대체하지 않는다. 현재 단계의 새 산업 실사용 완료를 미리 선언하지 않는다.
+## 다음 우선순위
+1. 새 산업 전용 분석기를 먼저 만들지 않는다. 실제 경제발견 목록의 원문 대상·기업·행동에서 구체적 누락이나 잘못된 결합을 찾은 경우 **공통 문장 해석 또는 기존 공식기업/제품 자료와의 연결**만 최소수정한다. 업종미분류는 정상 관찰 상태이므로 억지 업종명이나 수혜기업을 만들지 않는다. 다음산업 공급망의 깊은해석은 중요 실제사건에 근거가 충분할 때 기존선택형 기능으로 보완.
+2. 기존 정기실행이 확보한 뉴스자료를 쓰며 같은 제목을 새기사로 재수집하지 않는다. 새 source가 실제로 필요하면 그 출처의 권리/호출한도 확인 후 기존수집기에 연결. Era DART/SEC/KRX는 완료 검증snapshot 선택읽기만, 원본/DB/Git/스케줄 변경금지. 중복매체·자료판본을 독립사건/독립증거로 부풀리지 않는다.
+3. 개발/합성시험, 실제뉴스관찰, 심층산업검증·전략반영을 구별한다. 21주제는 21산업완료가 아니고 기존반도체/전력기기 개발도 버리지 않는다. 새로운 검수·라벨/관리도구·장기대기를 필수화하지 않는다. Chat+Remote를 유지하고 실제로 큰 이득이 있을 때만 다른 개발모드 전환 제안.
 
-## 경로/제약
-개발 /Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project. 선택형 이전 실자료근거 output/v11_power_equipment_20261018/saved_source_replay.json, 사용법 docs/V1_1_POWER_EQUIPMENT_PROFILE_20261018.md. 운영 원장 /Users/shmoon/Library/Application Support/NewsCatalystOS/research_workspaces, 기존 dev output/*_live_dev는 재수집금지. 운영코드·설정·Era 원본·사용자dirty·키/예산/원문·PIT·SHA·무주문 유지. 기존36/36은 V1 기록, V1.1실자료/운영 진도와 분리한다.
+## 현재 경로
+개발 /Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project. 운영 /Users/shmoon/Library/Application Support/NewsCatalystOS/releases/7610f2357a4b02d98b7d360953106ba08093173c, 공통파생 /Users/shmoon/Library/Application Support/NewsCatalystOS/document_analysis/economic_discovery, 기존source /Users/shmoon/Library/Application Support/NewsCatalystOS/research_workspaces. dev output/*_live_dev는 보관본·수집실행금지. 운영API /api/economic-discovery 및 ?export=1, UI 8766의 뉴스에서 발견한 경제 변화·관찰 분야. 직전완료증거는 output/event_first_resume_20261018에 private로 저장. 원본SSD·사용자dirty3·기존예산/키/권리·PIT/SHA·무주문/공개push없음 유지. 기존36/36은 V1코드기록, 관찰확장은 별도로 보고한다.

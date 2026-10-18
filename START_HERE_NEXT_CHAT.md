@@ -1,14 +1,15 @@
-# START HERE — V1 운영 보존 / V1.1 선택형 전력기기 개발
+# START HERE — 뉴스 경제 변화 먼저 → 산업·기업 연결 → 관찰 확대
 
-기준 2026-10-18T10:59:16+09:00. Chat + Remote Desktop Commander로 계속한다. 기존 재개 순서: 이 문서 → AGENTS.md → PROJECT_STATE.md → DECISIONS.md → NEXT_TASK.md의 최신 내용과 Git 상태. 기본 V1은 반도체 한 산업·기존36/36 구현/독립 운영 유지, 후속 V1.1과 구별한다. 완료한 V1이나 Era 연결을 미완료로 되돌리지 않는다.
+기준 2026-10-18T13:16:02+09:00. 사용자 최신 요청: **산업을 먼저 정해 분석기를 추가하는 대신, 허용된 뉴스에서 경제 행동을 먼저 발견하고 산업·기업은 그 뒤 연결한다.** 기존 반도체/전력기기 분석은 심층 해석 기능으로 보존한다. Chat + Remote Desktop Commander로 CONTINUE. 이 문서 → AGENTS.md → PROJECT_STATE.md → DECISIONS.md → NEXT_TASK.md 최신 항목과 Git 상태만 읽는다. 과거 V1 완료를 다시 미완료로 만들거나 인적검수·관찰기간·관리도구를 새 필수조건으로 추가하지 않는다.
 
-## 현재 단계
-- News 재료→Era 기존 후보 강화/약화/유지 연결은 Era의 docs/313_NEWS_MATERIAL_EXISTING_PRIORITY_20261018.md에 완료. 해당 실제 기록은 SK 유지 판정이며 억지 순위 상승 아님. 상대 프로젝트 코드·DB·Git·설정 변경 금지.
-- 이번 대화에서 제안한 **전력기기(변압기·차단기·배전설비)**를 V1.1의 선택형 개발 옵션으로 시작했다. 신규 기능 SHA **c2393d4379d996142425c1ee90593eb1b55a33bc**. 기본 SEMICONDUCTOR 규칙·운영 예약을 바꾸지 않는다. 별도 유료AI·다른 산업/발전·원전·배터리까지 확대하지 않는다.
-- 기존 run_feed_analysis.py --industry POWER_EQUIPMENT에 **분리된 analysis-root/theme-root**를 지정해 기존 승인된 RSS 저장자료를 읽고 계약·투자결정/집행·증설·생산/납품 개시를 처리. 기존 ThemeStore·원문 근거 조회·search_themes.py --materials --material-industry POWER_EQUIPMENT 표준 내보내기 재사용. 한 제목의 실제 기업/설비/행동만 인정, 수혜기업·주가상승/매출 확정 없음.
-- 관련 **157 PASS/0 FAIL**, 합성 양성7개 입력→저장→테마→기업 원문→전달 성공. 실제 기존 승인216기사(6제공자) 재분석은 power제목/사건0이었다. 이것은 실제 전력기기 사건 양성 검증이 아니며, 새 산업 모니터링·운영완료로 주장하지 않음. 원본/설정 등18파일 replay 전후SHA동일, 새수집/유료AI0.
+## 현행 완료 기능
+공통 경로 bc9e06c의 구현/운영을 재개하여 이어갔다. 기존 run_feed_analysis.py --discover-economy는 산업 선택 없이 공통 경제 행동·원문 대상/회사 → 선택적 산업 단어 힌트 → 미분류 포함 관찰후보를 저장한다. 산업 사전을 전부 제거해도 같은 사건이 남는 시험이 있다. 모르는 업종/제품/당사자는 해당 필드만 미분류/미확보로 남기며, 회사이름으로 업종을 추정하지 않는다. 원문·발행시각/PIT·미확인·무수혜인증은 보존한다.
+최신 기능·운영 SHA **7610f2357a4b02d98b7d360953106ba08093173c**: 최근100개 제한 뒤에 오래된 승인 저장제목이 계속 남던 입력 공백을 해결. 기존100개 보고서 단위를 유지하고 같은 관측시각으로 후속 페이지를 처리한다. 원문/수집원장·승인범위·API호출한도 변경 없이 저장분을 끝까지 분석. 페이지 실패는 해당 source만 미처리로 남기고 다른source 계속.
 
-## 위치·보호
-개발 /Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project (codex/real-data-path). 운영코드 /Users/shmoon/Library/Application Support/NewsCatalystOS/releases/168ea012ddcade5555964f1f849edae4200fb261 그대로, 운영 http://127.0.0.1:8766/ . 이번 선택형 기능은 **개발본에만**, 배포·예약 활성화 없음. 운영 source /Users/shmoon/Library/Application Support/NewsCatalystOS/research_workspaces, 과거 dev output/*_live_dev는 보관본(수집 실행금지). 사용자 dirty AGENTS/DECISIONS/비전3 보존.
-V1.1 근거 output/v11_power_equipment_20261018/saved_source_replay.json·feature_commit.json, 범위/사용법 docs/V1_1_POWER_EQUIPMENT_PROFILE_20261018.md. 운영 SSD/Era 원본·비밀/권리·PIT/SHA·예산/무주문 유지, Public GitHub push 없음.
-다음: 실제 전력기기 경제 행동이 포함된 이용허용 공식 뉴스 입력을 기존 경로에 연결한다. 추가 관리·반복검수로 대체하지 않는다.
+## 실제 근거
+2026-10-18 13:13 운영 확인: 기존 승인 제공자8개/현재 저장 제목 **378개**, 경제행동 **26건**, 관찰주제 **21개**, 산업 미분류 **15개**, 출처명시 회사명 **15개**. 원문 단어 힌트는 반도체/핵심광물이며 나머지는 미분류 관찰이다. 21개를 21산업 검증 완료라고 계산하지 않는다. 기존340제목/25사건에서 누락됐던38제목과 관찰사건1을 추가한 것이며, 과거 뉴스를 오늘 발생한 호재로 바꾸지 않음.
+관련 고유181개 시험 성공(180개 기존 성공+누락 test import1건 수정/재검증), 직전178개 공통발견 성공은 별도 이전근거. 실제 launchd research-approved 자동시작exit0/기존수집5성공·추가수집0/AI0, discovery8provider 성공·남은페이지0. 현재 HTTP200·JS고정배포 bytes·표준관찰출력21테마 검증. 원본/설정20파일 replay 전후SHA동일, 사용자dirty3·Era코드/DB/Git/예약 쓰기0.
+
+## 운영·경계
+개발 /Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project (codex/real-data-path). dashboard/research-approved 고정코드 /Users/shmoon/Library/Application Support/NewsCatalystOS/releases/7610f2357a4b02d98b7d360953106ba08093173c; core/MOTIR 기존정상서비스 그대로. 공통관찰 파생자료 /Users/shmoon/Library/Application Support/NewsCatalystOS/document_analysis/economic_discovery, 기존 운영뉴스원장 /Users/shmoon/Library/Application Support/NewsCatalystOS/research_workspaces. dev output/*_live_dev는 보관본이므로 재수집하지 않는다. 사용화면 http://127.0.0.1:8766/ 의 **뉴스에서 발견한 경제 변화·관찰 분야**, API /api/economic-discovery, 표준 선택출력 ?export=1.
+새 발견후보를 기존 반도체 검증공급망·Era 점수에 자동 가산하지 않는다. Era 기존 재료선정 연결은 완료된 별도기능으로 유지, 새 광역후보 관찰은 심층검증/전체시장·기사본문 분석/자동추가출처 사용허가와 다르다. 다음은 NEXT_TASK.md. Public GitHub push 없음, 기존36/36은 V1기록으로만 유지.

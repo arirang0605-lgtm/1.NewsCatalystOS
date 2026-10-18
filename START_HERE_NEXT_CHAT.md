@@ -1,14 +1,14 @@
-# START HERE — News 재료 판단 → Era 후보 판단 → 독립 전략
+# START HERE — V1 운영 보존 / V1.1 선택형 전력기기 개발
 
-기준 2026-10-18T00:07:53+09:00. 사용자 목적은 docs/ROLE_ALIGNMENT_20261017.md. 기존 정상 코드 CONTINUE, 뉴스 신규/반복/변경과 기업별 조건부 영향 → Era의 독립 전시장 후보 판단 → 개별 전략의 매수·매도·손절 순서. 역방향 재무표·뉴스 소스 수/관리도구 확대가 본 경로를 대신하지 않도록 한다. 이 문서→AGENTS.md→PROJECT_STATE.md→DECISIONS.md→NEXT_TASK.md 최신 부분과 Git 상태만 확인한다.
+기준 2026-10-18T10:59:16+09:00. Chat + Remote Desktop Commander로 계속한다. 기존 재개 순서: 이 문서 → AGENTS.md → PROJECT_STATE.md → DECISIONS.md → NEXT_TASK.md의 최신 내용과 Git 상태. 기본 V1은 반도체 한 산업·기존36/36 구현/독립 운영 유지, 후속 V1.1과 구별한다. 완료한 V1이나 Era 연결을 미완료로 되돌리지 않는다.
 
-## 최신 작동 — 기존 정기 뉴스처리에서 고정 재료판본 자동 발행
-기능/배포 SHA **168ea012ddcade5555964f1f849edae4200fb261**. 기존 research-approved 시간당 실행의 수집·분석 뒤, 원 ThemeStore/재료 비교/공식 기업식별/표준 v1·v2 bundle을 재사용해 **News 소유 material_outbox**에 불변 발행. 이전 성공 판본이 비교 기준이고, 같은 입력은 ALREADY_PUBLISHED(파일·SHA·게시시각 동일). 자정/조회시간/재무표 가격 갱신만으로 새 재료를 생성하지 않는다. 한 영역이 실패하면 그 영역의 마지막 정상 판본·비교기준을 남기고 정상 영역은 계속 발행한다. 실패·복구/철회·진전·반복/PIT/동시발행 정상·음성 경로 포함.
-**기존 /api/themes 기본 URL은 게시 완료판본이 있으면 그 bytes를 그대로 제공한다.** /api/themes?publication=latest 는 같은 불변판본, as_of 과거조회는 당시 게시분만. since/as_of 등 명시 분석조회는 원 경로 유지. 읽기는 출처 워터마크나 게시기준을 변경하지 않음. 발행은 소비자 수신·Era 선정완료가 아니다.
-실제 2026-10-18 00:03 KST launchd 자동실행 exit0/뉴스5출처 성공(모두 NOT_DUE, 재수집0), 4저장영역17테마 고정판본 PUBLISHED. API 기본/명시/파일 bytes 일치; 기존 Era reader 실제 읽기17 통과. SK 투자계획은 NO_NEW_MATERIAL/NO_NEW_CATALYST, CAPEX·SUPPLY 조건부경로/반증과 DART00164779 연결 유지. 과거 게시이전 조회404, 실제수혜/시장신규성 미확인.
-관련 시험94 PASS/0 FAIL 후 최종 기본API 변경범위48 PASS/0 FAIL(중복 포함, 합산해 진행률로 세지 않음). 개발 실자료 반복발행은 동일SHA ALREADY_PUBLISHED. 새 개발용 원본수집/유료AI0. Era 소스/DB/Git/예약 쓰기0, 그쪽 별도 담당자의 정상 HEAD 갱신을 보존한다.
+## 현재 단계
+- News 재료→Era 기존 후보 강화/약화/유지 연결은 Era의 docs/313_NEWS_MATERIAL_EXISTING_PRIORITY_20261018.md에 완료. 해당 실제 기록은 SK 유지 판정이며 억지 순위 상승 아님. 상대 프로젝트 코드·DB·Git·설정 변경 금지.
+- 이번 대화에서 제안한 **전력기기(변압기·차단기·배전설비)**를 V1.1의 선택형 개발 옵션으로 시작했다. 신규 기능 SHA **c2393d4379d996142425c1ee90593eb1b55a33bc**. 기본 SEMICONDUCTOR 규칙·운영 예약을 바꾸지 않는다. 별도 유료AI·다른 산업/발전·원전·배터리까지 확대하지 않는다.
+- 기존 run_feed_analysis.py --industry POWER_EQUIPMENT에 **분리된 analysis-root/theme-root**를 지정해 기존 승인된 RSS 저장자료를 읽고 계약·투자결정/집행·증설·생산/납품 개시를 처리. 기존 ThemeStore·원문 근거 조회·search_themes.py --materials --material-industry POWER_EQUIPMENT 표준 내보내기 재사용. 한 제목의 실제 기업/설비/행동만 인정, 수혜기업·주가상승/매출 확정 없음.
+- 관련 **157 PASS/0 FAIL**, 합성 양성7개 입력→저장→테마→기업 원문→전달 성공. 실제 기존 승인216기사(6제공자) 재분석은 power제목/사건0이었다. 이것은 실제 전력기기 사건 양성 검증이 아니며, 새 산업 모니터링·운영완료로 주장하지 않음. 원본/설정 등18파일 replay 전후SHA동일, 새수집/유료AI0.
 
-## 운영 위치
-개발 /Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project (codex/real-data-path), 사용자 dirty AGENTS/DECISIONS/비전3 보존. dashboard/research-approved 고정코드 /Users/shmoon/Library/Application Support/NewsCatalystOS/releases/168ea012ddcade5555964f1f849edae4200fb261; core/MOTIR 기존 정상코드·설정 그대로. 운영 뉴스 원장 /Users/shmoon/Library/Application Support/NewsCatalystOS/research_workspaces, dev output/*_live_dev는 보관본(재수집금지). 전달 폴더 /Users/shmoon/Library/Application Support/NewsCatalystOS/document_analysis/material_outbox; 원 ThemeStore/키/비용/원문 보존. HTTP http://127.0.0.1:8766/.
-증거/롤백: ignored output/material_delivery_continuation_20261017/{activation.json,operating_material_publication_proof.json,rollback/}. 실제 게시SHA 4b7cd2adc53cc3a5aaa65aad80e251dd90d6a07e971c58596dea034fbccf35bc. Public GitHub push0. 과거 코드작업36/36은 Era실제선정·독립전략인수 완료가 아니다.
-다음은 NEXT_TASK.md.
+## 위치·보호
+개발 /Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project (codex/real-data-path). 운영코드 /Users/shmoon/Library/Application Support/NewsCatalystOS/releases/168ea012ddcade5555964f1f849edae4200fb261 그대로, 운영 http://127.0.0.1:8766/ . 이번 선택형 기능은 **개발본에만**, 배포·예약 활성화 없음. 운영 source /Users/shmoon/Library/Application Support/NewsCatalystOS/research_workspaces, 과거 dev output/*_live_dev는 보관본(수집 실행금지). 사용자 dirty AGENTS/DECISIONS/비전3 보존.
+V1.1 근거 output/v11_power_equipment_20261018/saved_source_replay.json·feature_commit.json, 범위/사용법 docs/V1_1_POWER_EQUIPMENT_PROFILE_20261018.md. 운영 SSD/Era 원본·비밀/권리·PIT/SHA·예산/무주문 유지, Public GitHub push 없음.
+다음: 실제 전력기기 경제 행동이 포함된 이용허용 공식 뉴스 입력을 기존 경로에 연결한다. 추가 관리·반복검수로 대체하지 않는다.

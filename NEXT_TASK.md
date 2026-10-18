@@ -1,16 +1,13 @@
-# NEXT_TASK — Era 후보선정 내부의 News 재료 소비 연결
+# NEXT_TASK — 전력기기 실제 뉴스 입력 연결
 
-기준 2026-10-18T01:04:19+09:00. 이번 확인은 읽기 전용이며 신규 제품 기능/시험/배포를 완료했다고 세지 않는다.
+## 현재 완료와 재개 기준
+개발 SHA **c2393d4379d996142425c1ee90593eb1b55a33bc**, 관련157PASS. V1.1 선택형 POWER_EQUIPMENT 분석(변압기·차단기·배전설비)은 기존 source/ACK·경제판정·ThemeStore·회사 원문/표준전달을 재사용하며 별도 analysis/theme root에서만 작동한다. 합성7사건 정상, 승인 기존216기사 실자료 재분석은 대상0/사건0. 기존 반도체 운영release168ea012·4예약/원본/비용·사용자dirty3 유지, 새로운 산업 운영 활성화는 하지 않았다.
+Era 기존 후보선정 연결은 docs/313_NEWS_MATERIAL_EXISTING_PRIORITY_20261018.md에 구현/실자료 완료. 이를 다시 미완료라고 보고하거나 재구현하지 않는다.
 
-## News에서 끝낸 범위
-운영 SHA 168ea012ddcade5555964f1f849edae4200fb261: 기존 정기 수집·분석 뒤 고정 재료판본 자동 발행, 이전 성공 판본 대비 비교, 동일 입력 동일 SHA, 개별 오류 시 이전 정상판본/미확인 상태 보존. 기존 /api/themes 기본 주소와 material_outbox에서 완성된 v1/v2 판본을 읽는다. 기존 Era reader 호환과 실제 SK 공식기업 연결·NO_NEW_CATALYST/조건부 영향근거는 이미 확인됨. 같은 게시/검수/호환확인 도구를 더 만들어 다음 선정작업을 대신하지 않는다.
+## 다음 단일 핵심 작업
+**전력기기 회사가 명시된 실제 계약·증설·생산/납품 발표를 제공하는 사용권 확보 공식 뉴스원**을 찾고, 기존 허용 source 계약/호출한도·ACK를 통해 하나의 실제 입력→전력기기 사건→같은기업 근거/표준 재료전달을 완주한다. 새 기사 수집기는 만들지 않는다. 사용권 불명확·비상업 제한 원문은 활성화하지 않고 대체 공식 경로를 찾는다. Era DART/SEC/KRX 재수집은 금지, 검증 완료 스냅샷만 읽는다.
+새 실제 제목 표현이 현재 좁은 규칙에서 누락되면 그 구체적 표현만 보완하고 관련시험한다. 기존 default semiconductor는 byte/내용 보존, power profile만 선택하며 파생 저장소를 혼용하지 않는다. 실제 거래/매출·수혜 인증은 아님. 원문/자료에 없는 기업·액수·납기·관계를 추가하지 않음.
+양성 실자료 근거를 확보한 뒤 이 추가 산업을 기존 정기처리·산업별조회·고정발행에 연결할 범위를 명시한다. 여러산업 동시추가, 신규점수모델/관리도구, 불필요한 반복전체회귀로 대체하지 않는다. 현재 단계의 새 산업 실사용 완료를 미리 선언하지 않는다.
 
-## 실제 소비자 측 미완료 확인
-Era 현재 HEAD cefc73f91b346e04f826983bf63a7f102dfd4e7a. src/scripts 전체에 catalyst_material, news_input_for_era, material_publication_source, NO_NEW_CATALYST 또는 REASSESS_REPORTED_PROGRESS 소비 구현이 없음. news_catalyst_adapter.py는 테마 수신·기업 연결을 하며 kr_candidate_priority.py는 가용 가격·거래대금·재무/기존 요인 비교만 수행한다. 현 완료 일일 후보50/부분근거 우선후보18 판본 a3674b6f1e40490067d653efaf5d388d4396e26310af24265853e4f5802d0e10 (파일SHA d576d6937ca57d42d94cc3644f738f1d10dc3c3caa8c5c9127133a1c57817f84)은 News 재료를 실제 후보선정에 반영한 증거가 아니다.
-
-## Era 개발에서 이어야 할 단일 핵심 작업
-기존 수신기가 보관한 정확 기업/사건·출처·시각에 News 재료 상태를 연결하고, 기존 후보평가/우선선정/변화 설명에 사용한다. 반복·유지·식별보완은 신규 가산 없음; 단계진전·상충·철회는 해당 후보의 재평가 이유; 로컬첫관측·시장신규 미확인은 맥락으로 유지. 기존 100점/정식상태·독립 전시장 발굴과 전략 중립 전달을 보존하고 News에 대체 순위모델을 만들지 않는다. 정상·변경·철회 및 중복 SHA가 실제 후보 결과/이유에 어떻게 반영되는지 해당 코드에서 시험한다. 결측은 해당항목만 N/A, 자료전부확보/인적검수·장기대기는 추가 조건 아님.
-
-이 News 작업범위에서 Era 코드·DB·Git·설정을 변경하지 않는다. 실제 후속 구현은 Era 프로젝트 담당 경로에서 진행한다. 이 경계를 회피하려고 News 내부에 별도 선정기·추가 게시기·감독도구를 만들지 않는다. 이 항목 외 News의 새 실제 결함이 확인되면 그 핵심 입력→출력 경로만 수정할 수 있다.
-
-현재 기능코드36/36 기록과 Era 선정/전략 전체인수는 별개. 이번 코드변경/신규시험/외부수집/AI/운영설정 변경0. News 원본과 사용자 dirty3, Era 원본, 비용·PIT/SHA·출처권리/무주문 보호. 공개 GitHub push 없음.
+## 경로/제약
+개발 /Users/shmoon/Documents/ChatGPT/1.NewsCatalystOS/project. 선택형 이전 실자료근거 output/v11_power_equipment_20261018/saved_source_replay.json, 사용법 docs/V1_1_POWER_EQUIPMENT_PROFILE_20261018.md. 운영 원장 /Users/shmoon/Library/Application Support/NewsCatalystOS/research_workspaces, 기존 dev output/*_live_dev는 재수집금지. 운영코드·설정·Era 원본·사용자dirty·키/예산/원문·PIT·SHA·무주문 유지. 기존36/36은 V1 기록, V1.1실자료/운영 진도와 분리한다.

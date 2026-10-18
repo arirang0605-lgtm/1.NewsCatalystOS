@@ -116,8 +116,8 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(503,{'status':'DISCOVERY_NOT_CONFIGURED'});return
                 root=self.server.documents/'economic_discovery'
                 if query.get('export',['0'])==['1']:
-                    self._send(200,export_discovery(root,as_of=at,since=since,now=now,include_common_causes=causes),'application/json; charset=utf-8')
-                else:self._json(200,read_discovery(root,as_of=at,since=since,now=now,include_common_causes=causes))
+                    self._send(200,export_discovery(root,as_of=at,since=since,now=now,include_common_causes=causes,recent_workspaces=self.server.news_search_workspaces),'application/json; charset=utf-8')
+                else:self._json(200,read_discovery(root,as_of=at,since=since,now=now,include_common_causes=causes,recent_workspaces=self.server.news_search_workspaces))
             except (SourceShareError,OSError,ValueError,TypeError,KeyError,sqlite3.Error):
                 self._json(400,{'status':'DISCOVERY_INPUT_UNAVAILABLE'})
             return
@@ -252,9 +252,13 @@ class Handler(BaseHTTPRequestHandler):
                     from newscatalystos.discovery_watch import read_discovery
                     from newscatalystos.public_demand_analysis import article_notes
                     if (article_root / "analysis_notes" / "public_demand").exists():
-                        view=read_discovery(article_root,as_of=at,now=now,include_common_causes=True)
+                        view=read_discovery(article_root,as_of=at,now=now,include_common_causes=True,
+                            recent_workspaces=self.server.news_search_workspaces)
                         notes=article_notes(view["theme_outlook"],*exact)
                         if notes:detail["public_page_demand_analysis"]=notes
+                        from newscatalystos.recent_theme_followups import article_followups
+                        recent=article_followups(view["theme_outlook"],*exact)
+                        if recent:detail["recent_theme_followup_analysis"]=recent
                 if excerpt:
                     from newscatalystos.source_share import _must_sha
                     for key in ("excerpt_theme_id", "excerpt_claim_event_id",

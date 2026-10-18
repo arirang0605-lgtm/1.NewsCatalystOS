@@ -6,7 +6,8 @@ discovery remain the sole downstream path. No body ingestion or scheduler.
 """
 import argparse
 from datetime import datetime, timezone
-import json
+import json,os,tempfile
+from hashlib import sha256
 from pathlib import Path
 import sys
 ROOT=Path(__file__).resolve().parent.parent
@@ -16,6 +17,8 @@ from newscatalystos.official_relation_intake import _private_input
 from newscatalystos.source_share import SourceShareError
 from scripts.run_feed_triage import _registry, parser as triage_parser, evaluate
 from scripts.run_economic_discovery import execute as discover
+from newscatalystos.news_search import read_completed_title_snapshots
+from newscatalystos.text_normalization import canonicalize_url
 
 
 def prepare(workspace, provider_id, official_list_url, at):
@@ -27,16 +30,31 @@ def prepare(workspace, provider_id, official_list_url, at):
     if root.stat().st_mode & 0o077:raise SourceShareError('owner-only workspace required')
     folder=root/'providers';folder.mkdir(mode=0o700,exist_ok=True)
     path=folder/'authorized_sources.json'
-    if not path.exists():
-        config={'schema':SCHEMA,'providers':[{
-            'provider_id':provider_id,'kind':'COMPANY_IR','method':'MANUAL_METADATA',
-            'endpoint':official_list_url,'grant':'OFFICIAL_TERMS_REVIEWED',
-            'rights_reference':official_list_url,'reviewed_at':at.isoformat(),
-            'expires_at':None,'approved':True,'allow_full_text_storage':False,'hourly_limit':1}]}
-        raw=json.dumps(config,ensure_ascii=False,sort_keys=True).encode()
-        parse_provider_registry(raw,now=at)
-        with path.open('xb') as f:f.write(raw)
-        path.chmod(0o600)
+    # An explicitly supplied manual source may share a scope with other
+    # sources. Preserve their grants/endpoints/rate budgets byte-for-value.
+    if folder.resolve()!=folder or folder.stat().st_mode & 0o077:
+        raise SourceShareError('owner-only providers folder required')
+    lock=folder/'.manual-registration.lock'
+    fd=os.open(lock,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
+    try:
+        os.close(fd)
+        config=json.loads(_private_input(path,32768)) if path.exists() else {'schema':SCHEMA,'providers':[]}
+        if config['providers']:parse_provider_registry(json.dumps(config).encode(),now=at)
+        if not any(p['provider_id']==provider_id for p in config['providers']):
+            config['providers'].append({
+                'provider_id':provider_id,'kind':'COMPANY_IR','method':'MANUAL_METADATA',
+                'endpoint':official_list_url,'grant':'OFFICIAL_TERMS_REVIEWED',
+                'rights_reference':official_list_url,'reviewed_at':at.isoformat(),
+                'expires_at':None,'approved':True,'allow_full_text_storage':False,'hourly_limit':1})
+            raw=json.dumps(config,ensure_ascii=False,sort_keys=True).encode()
+            parse_provider_registry(raw,now=at)
+            handle,temp=tempfile.mkstemp(prefix='.registry-',dir=folder)
+            try:
+                with os.fdopen(handle,'wb') as f:f.write(raw);f.flush();os.fsync(f.fileno())
+                os.replace(temp,path)
+            finally:
+                if os.path.exists(temp):os.unlink(temp)
+    finally:lock.unlink()
     p=_registry(path).active(provider_id,at=at)
     if p.method!='MANUAL_METADATA' or p.endpoint!=official_list_url or p.allow_full_text_storage:
         raise SourceShareError('existing manual metadata configuration differs')
@@ -55,11 +73,30 @@ def execute(workspace, discovery_root, *, provider_id, official_list_url, metada
         '--inbox-root',str(root/'inbox/feed_triage'),'--output-root',str(root/'triage')])
     code,receipt=evaluate(opts,manual_metadata=payload)
     if code:return code,{'status':'INPUT_UNAVAILABLE','ingest':receipt,'network_called':False}
-    result=discover(discovery_root,[(scope,registry,opts.state,opts.inbox_root)])
+    result=analyze_submitted(discovery_root,root,registry,payload,scope,provider_id)
     return (0 if result['status']=='READY' else 4),{
         'status':result['status'],'ingest':receipt,'discovery':result,
         'acquisition_method':'MANUAL_METADATA','network_called':False,
         'stored_article_bodies':0,'paid_ai_calls':0,'industry_selected_before_analysis':False}
+
+
+def analyze_submitted(discovery_root,root,registry,payload,scope,provider_id):
+    state=root/'state/incremental_feeds.sqlite3';inbox=root/'inbox/feed_triage'
+    # Analyze only the explicitly submitted saved versions. Reprocessing every
+    # old title would publish new report bindings and invalidate earlier notes
+    # despite unchanged news. Exact checkpoint/SHA checks still apply.
+    desired={(canonicalize_url(i['url']),sha256(i['title'].strip().encode()).hexdigest())
+             for i in json.loads(payload)['items']}
+    selected=set()
+    for ack,document,digest in read_completed_title_snapshots(
+            inbox,state,_registry(registry),now=datetime.now(timezone.utc)):
+        for item in document['items']:
+            if item['provider_id']==provider_id and (item['canonical_url'],item['title_sha256']) in desired:
+                selected.add((item['event_id'],item['title_sha256']))
+    if len(selected)!=len(desired):raise SourceShareError('submitted metadata not fully checkpointed')
+    result=discover(discovery_root,[(scope,registry,state,inbox)],
+                    selected_versions={provider_id:sorted(selected)})
+    return result
 
 
 def main(argv=None):

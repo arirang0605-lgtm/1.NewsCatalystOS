@@ -15,7 +15,7 @@ from .standard_delivery import build_theme_bundle
 from .source_share import SourceShareError,_when
 
 
-def read_discovery(root,*,as_of=None,since=None,now=None,_compare_outlook=True,include_common_causes=False):
+def read_discovery(root,*,as_of=None,since=None,now=None,_compare_outlook=True,include_common_causes=False,recent_workspaces=None):
     present=now or datetime.now(timezone.utc);at=as_of or present
     start=since or default_since(at)
     present=_when(present.isoformat(),'now');at=_when(at.isoformat(),'as of');start=_when(start.isoformat(),'since')
@@ -96,8 +96,13 @@ def read_discovery(root,*,as_of=None,since=None,now=None,_compare_outlook=True,i
         try:attach_comparisons(root,outlook,as_of=at,now=present)
         except (SourceShareError,OSError,ValueError,KeyError,TypeError):
             outlook['public_page_demand_analysis_status']='UNAVAILABLE'
+    if include_common_causes and recent_workspaces:
+        from .recent_theme_followups import attach_followups
+        try:attach_followups(root,outlook,recent_workspaces,as_of=at,now=present)
+        except (SourceShareError,OSError,ValueError,KeyError,TypeError):
+            outlook['recent_news_comparison_status']='UNAVAILABLE'
     if _compare_outlook:
-        previous=read_discovery(root,as_of=start,since=start,now=present,_compare_outlook=False,include_common_causes=include_common_causes)
+        previous=read_discovery(root,as_of=start,since=start,now=present,_compare_outlook=False,include_common_causes=include_common_causes,recent_workspaces=recent_workspaces)
         compare_outlooks(outlook,previous['theme_outlook'])
     causes={}
     if include_common_causes:
@@ -121,11 +126,11 @@ def read_discovery(root,*,as_of=None,since=None,now=None,_compare_outlook=True,i
         'investment_rank':None,'orders_enabled':False}
 
 
-def export_discovery(root,*,as_of=None,since=None,now=None,include_common_causes=False):
+def export_discovery(root,*,as_of=None,since=None,now=None,include_common_causes=False,recent_workspaces=None):
     present=now or datetime.now(timezone.utc);at=as_of or present;start=since or default_since(at)
     store=ThemeStore(Path(root)/'theme_history')
     themes=store.search(as_of=at,now=present)
-    view=read_discovery(root,as_of=at,since=start,now=present,include_common_causes=include_common_causes)
+    view=read_discovery(root,as_of=at,since=start,now=present,include_common_causes=include_common_causes,recent_workspaces=recent_workspaces)
     rows={c['theme_id']:c for c in view['candidates']}
     materials={k:c['material'] for k,c in rows.items() if c['material'] is not None}
     result=attach_material(themes,materials)
@@ -163,7 +168,8 @@ def export_discovery(root,*,as_of=None,since=None,now=None,include_common_causes
                 'source_theme_sha256':sha256(_bytes(original)).hexdigest(),
                 'original_theme_decision_at':original['decision_at'],
                 'basis_available_at':max(max(c['basis_available_at'],
-                    c.get('public_page_demand_analysis',{}).get('basis_available_at',c['basis_available_at'])) for c in outlooks),
+                    c.get('public_page_demand_analysis',{}).get('basis_available_at',c['basis_available_at']),
+                    c.get('recent_news_comparison',{}).get('basis_available_at',c['basis_available_at'])) for c in outlooks),
                 'candidates':outlooks,'original_events_unchanged':True}
             theme['decision_at']=max(theme['decision_at'],theme['discovery_theme_outlook']['basis_available_at'])
     return build_theme_bundle(result,decision_at=at,now=present)

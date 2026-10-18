@@ -14,7 +14,7 @@ from scripts.run_feed_analysis import parser as analysis_parser,evaluate
 from newscatalystos.source_share import SourceShareError
 
 
-def execute(root,sources,*,now=None,dry_run=False):
+def execute(root,sources,*,now=None,dry_run=False,selected_versions=None):
     root=Path(root);at=now or datetime.now(timezone.utc)
     if not root.is_absolute() or root.resolve()!=root or any('eraleader' in p.casefold() for p in root.parts):
         raise SourceShareError('separate News discovery root required')
@@ -26,12 +26,31 @@ def execute(root,sources,*,now=None,dry_run=False):
         except (SourceShareError,OSError,ValueError,KeyError,TypeError) as e:
             outcomes.append({'scope':scope,'status':'SOURCE_UNAVAILABLE','error_type':type(e).__name__});continue
         for provider in providers:
+            if selected_versions is not None and provider not in selected_versions:continue
             if dry_run:
                 outcomes.append({'scope':scope,'provider_id':provider,'status':'DRY_RUN'});continue
             folder='d_'+sha256((scope+':'+provider).encode()).hexdigest()[:16]
             # Keep the existing 100-title report bound, but finish the same
             # approved source snapshot. Older stored news used to remain forever
             # behind the newest 100 even when it contained an unmapped industry.
+            if selected_versions is not None and not dry_run:
+                selected_outcome={'scope':scope,'provider_id':provider,'titles':0,'events':0,
+                    'theme_versions_created':0,'unclassified_events':0,'analysis_batches':0,
+                    'has_more_older_titles':False,'source_fetch_calls':0,'paid_ai_calls':0,'exit_code':0,'status':'READY'}
+                for event,title in sorted(set(selected_versions[provider])):
+                    opts=analysis_parser().parse_args(['--registry',str(registry_path),'--state',str(state_path),
+                        '--inbox-root',str(inbox_path),'--provider-id',provider,'--discover-economy','--limit','1',
+                        '--event-id',event,'--title-sha256',title,
+                        '--analysis-root',str(root/'feed_analysis'/folder/'core'),'--theme-root',str(root/'theme_history')])
+                    code,data=evaluate(opts,now=at)
+                    selected_outcome['titles']+=len(data.get('results',[]))
+                    selected_outcome['events']+=data.get('economic_changes_count',0)
+                    selected_outcome['unclassified_events']+=sum(not c['industry_tags'] for r in data.get('results',[]) for c in r.get('economic_changes',[]))
+                    selected_outcome['theme_versions_created']+=data.get('theme_versions_created',0)
+                    selected_outcome['analysis_batches']+=1
+                    if code:selected_outcome.update(exit_code=code,status=data.get('status','UNAVAILABLE'))
+                outcomes.append(selected_outcome)
+                continue
             offset=0;expected=None
             outcome={'scope':scope,'provider_id':provider,'titles':0,'events':0,
                 'theme_versions_created':0,'unclassified_events':0,'analysis_batches':0,

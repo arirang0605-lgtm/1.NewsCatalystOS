@@ -1028,7 +1028,7 @@ function renderRecentThemeComparison(place,data,withButton=false,query={}){
     for(const company of period.company_results)
       box.append(node("p","finding-detail",company.source_company+" → "+company.status_label+
         " · "+({SOURCE_REPORTED_PROGRESS:"같은 계약의 이행 진전",SOURCE_REPORTED_SETBACK:"같은 계약의 이행 차질",
-          MIXED_EXECUTION_EVIDENCE:"진전·차질 혼재",NO_NEW_EXECUTION_PROOF:"같은 계약의 새 이행 근거 미확보"}[company.execution_status])));
+          MIXED_EXECUTION_EVIDENCE:"진전·차질 혼재",SOURCE_REPORTED_PROJECT_PROGRESS:"관련 프로젝트 출하 진전 · 기업별 납품 미확인",NO_NEW_EXECUTION_PROOF:"같은 계약의 새 이행 근거 미확보"}[company.execution_status])));
   }
   const assessments=data.company_assessment_comparison;
   if(assessments){
@@ -1075,7 +1075,7 @@ function renderRecentThemeComparison(place,data,withButton=false,query={}){
   const kinds={REPORTED_CONTRACT:"신규 계약 보도",REPORTED_CAPACITY_OPERATION:"생산 능력 가동 보도",
     CONDITIONAL_FRAMEWORK:"후속 발주가 필요한 기본 공급계약",PLAN_ONLY:"계획·완료 미확인",
     DEMAND_REDUCTION:"수요 감소 보도",CANCELLATION:"취소 보도",CONTEXT_ONLY:"배경·누적 실적 설명",REPORTED_ORDER_PERFORMANCE:"수주·매출 실적 보도",
-    REPORTED_DELIVERY:"납품 완료 보도",REPORTED_DELAY:"납품 지연 보도",RISK_ONLY:"위험·반론 설명"};
+    REPORTED_SHIPMENT:"출하·출항 보도 · 최종 납품과 구분",REPORTED_DELIVERY:"납품 완료 보도",REPORTED_DELAY:"납품 지연 보도",RISK_ONLY:"위험·반론 설명"};
   for(const row of data.notes){
     const n=row.note,r=n.recent_source,card=node("article","finding");
     card.append(node("h4","",row.source_company+" · "+(kinds[n.evidence_kind]||n.evidence_kind)),
@@ -1093,8 +1093,9 @@ function renderRecentThemeComparison(place,data,withButton=false,query={}){
       card.append(node("p","finding-detail","비교 기준 기사: "+context.anchor_headline+" · "+context.anchor_reported_date),
         node("p","fineprint","시간 관계: "+timing[context.chronology]+(x.period_end?" · 실적 기간 말 "+x.period_end:"")),
         node("p","fineprint","프로젝트 관계: "+(x.project_relation==="SAME_PROJECT_EXPLICIT"?"원문상 같은 프로젝트로 분류(분석)":"관련 사업·별도 프로젝트")+" · "+x.matching_basis),
-        node("p","finding-detail",context.reported_execution_progress?"원문상 개별 발주·납품 진전 근거":
-          context.reported_execution_setback?"원문상 이행 차질 근거":"이 자료만으로 기준 계약의 개별 발주·납품 진전을 확인할 수 없습니다."));
+        node("p","finding-detail",context.reported_execution_progress?(n.evidence_kind==="REPORTED_SHIPMENT"?"원문상 개별 출하·출항 진전 · 최종 납품 미확인":"원문상 개별 발주·납품 진전 근거"):
+          context.reported_execution_setback?"원문상 이행 차질 근거":
+          context.reported_project_execution_progress?"관련 프로젝트의 출하·출항 진전입니다. 해당 기업의 개별 장비 납품·최종 인수·계통 가동은 미확인입니다.":"이 자료만으로 기준 계약의 개별 발주·납품 진전을 확인할 수 없습니다."));
       const anchorLink=node("a","source-link","비교 기준 기사 원문 ↗");anchorLink.href=context.anchor_source_url;
       anchorLink.target="_blank";anchorLink.rel="noopener noreferrer";card.append(anchorLink);
       if(x.counter_reference){
@@ -1128,7 +1129,7 @@ function renderPublicDemandNotes(place,notes,withCompany=false){
   if(!notes?.length)return;
   const detail=node("details","finding-detail");
   detail.append(node("summary","","공개 원문을 읽은 기업별 수요 분석"));
-  const markets={US:"미국",KR:"한국",GLOBAL:"글로벌"};
+  const markets={US:"미국",KR:"한국",GLOBAL:"글로벌",EU:"유럽"};
   const relation={MARKET_BACKGROUND:"시장 배경",PROJECT_PURPOSE:"사업 목적",ACTION_REASON:"행동 이유"};
   const factors={GRID_REPLACEMENT:"노후 전력망 교체",RENEWABLE_INTEGRATION:"신재생 발전의 전력망 연계",
     AI_LOAD:"AI·데이터센터 관련 전력 수요",TRANSMISSION_CONSTRAINTS:"송전 제약 해소",LOAD_GROWTH:"전력 수요 증가"};

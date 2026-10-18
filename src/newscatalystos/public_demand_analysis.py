@@ -19,7 +19,7 @@ FIELDS=set(BIND)|{'source_url','source_company','market_codes','factors','analys
 FACTOR_LABELS={'GRID_REPLACEMENT':'노후 전력망 교체','RENEWABLE_INTEGRATION':'신재생 발전의 전력망 연계',
 'AI_LOAD':'AI·데이터센터 관련 전력 수요','TRANSMISSION_CONSTRAINTS':'송전 제약 해소',
 'LOAD_GROWTH':'전력 수요 증가'}
-MARKET_LABELS={'US':'미국','KR':'한국','GLOBAL':'글로벌'}
+MARKET_LABELS={'US':'미국','KR':'한국','GLOBAL':'글로벌','EU':'유럽'}
 RELATIONS={'MARKET_BACKGROUND','PROJECT_PURPOSE','ACTION_REASON'}
 ENTRY_FIELDS={'schema','note','available_at','source_basis_available_at','content_scope',
               'source_truth_verified','source_text_stored'}

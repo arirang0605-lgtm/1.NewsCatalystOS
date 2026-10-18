@@ -17,6 +17,7 @@ from .federated_news_search import search_completed_workspaces
 SCHEMA='newscatalyst.recent_theme_followup.v1'
 SCHEMA_V2='newscatalyst.recent_theme_followup.v2'
 SCHEMA_V3='newscatalyst.recent_theme_followup.v3'
+SCHEMA_V4='newscatalyst.recent_theme_followup.v4'
 from .execution_evidence import validate_execution,bind_anchor,attach_anchor,summarize_execution
 RECENT_FIELDS={'search_scope','provider_id','event_id','title_sha256','headline','source_url','triage_evidence_sha256'}
 FIELDS={'baseline_note_id','recent_source','reported_date','evidence_kind','factor_codes',
@@ -29,21 +30,24 @@ KINDS={
  'DEMAND_REDUCTION':'수요 감소 보도',
  'CANCELLATION':'취소 보도',
  'CONTEXT_ONLY':'배경·누적 실적 설명','REPORTED_ORDER_PERFORMANCE':'수주·매출 실적 보도',
- 'REPORTED_DELIVERY':'납품 완료 보도','REPORTED_DELAY':'납품 지연 보도','RISK_ONLY':'위험·반론 설명'}
+ 'REPORTED_SHIPMENT':'출하·출항 보도 · 최종 납품과 구분','REPORTED_DELIVERY':'납품 완료 보도','REPORTED_DELAY':'납품 지연 보도','RISK_ONLY':'위험·반론 설명'}
 STATUS_LABELS={'SUPPORT_ADDED':'강화 근거 추가','CONDITIONAL_SUPPORT_ONLY':'조건부 강화 근거만 추가',
  'WEAKENING_EVIDENCE':'약화 근거 추가','MIXED_EVIDENCE':'강화·약화 근거 혼재',
  'NO_SUBSTANTIVE_CHANGE':'실질 변화 근거 미확보'}
-POSITIVE={'REPORTED_CONTRACT','REPORTED_CAPACITY_OPERATION','REPORTED_ORDER_PERFORMANCE','REPORTED_DELIVERY'}
+POSITIVE={'REPORTED_CONTRACT','REPORTED_CAPACITY_OPERATION','REPORTED_ORDER_PERFORMANCE','REPORTED_DELIVERY','REPORTED_SHIPMENT'}
 NEGATIVE={'DEMAND_REDUCTION','CANCELLATION'}
 ENTRY_FIELDS={'schema','note','available_at','baseline_available_at','recent_available_at',
               'source_text_stored','source_truth_verified'}
 
-def _validate(note,*,allow_undated=False):
+def _validate(note,*,allow_undated=False,allow_scoped=False):
     if not isinstance(note,dict) or set(note) not in (FIELDS,FIELDS|{'execution'}):
         raise SourceShareError('exact bounded follow-up fields required; no source text')
     if not re.fullmatch('[0-9a-f]{64}',str(note['baseline_note_id'])):
         raise SourceShareError('exact baseline note required')
-    if 'execution' in note:validate_execution(note)
+    if 'execution' in note:
+        validate_execution(note)
+        if (('execution_scope' in note['execution'] or note['evidence_kind']=='REPORTED_SHIPMENT') and not allow_scoped):
+            raise SourceShareError('scoped shipment evidence requires v4')
     elif note['evidence_kind'] not in {'REPORTED_CONTRACT','REPORTED_CAPACITY_OPERATION','CONDITIONAL_FRAMEWORK','PLAN_ONLY','DEMAND_REDUCTION','CANCELLATION','CONTEXT_ONLY'}:
         raise SourceShareError('new execution kind requires versioned comparison')
     r=note['recent_source']
@@ -121,11 +125,11 @@ def read_followups(root,baselines,resolve,*,as_of,now):
         raw=_private_input(path,8192)
         if path.stem!=sha256(raw).hexdigest():raise SourceShareError('follow-up digest mismatch')
         entry=_json(raw,'recent follow-up');note=entry.get('note')
-        if (set(entry)!=ENTRY_FIELDS or entry['schema'] not in {SCHEMA,SCHEMA_V2,SCHEMA_V3}
+        if (set(entry)!=ENTRY_FIELDS or entry['schema'] not in {SCHEMA,SCHEMA_V2,SCHEMA_V3,SCHEMA_V4}
                 or entry['source_text_stored'] is not False or entry['source_truth_verified'] is not False):
             raise SourceShareError('invalid follow-up envelope')
-        _validate(note,allow_undated=entry['schema']==SCHEMA_V3)
-        if (entry['schema'] in {SCHEMA_V2,SCHEMA_V3})!=('execution' in note):raise SourceShareError('follow-up version mismatch')
+        _validate(note,allow_undated=entry['schema'] in {SCHEMA_V3,SCHEMA_V4},allow_scoped=entry['schema']==SCHEMA_V4)
+        if (entry['schema'] in {SCHEMA_V2,SCHEMA_V3,SCHEMA_V4})!=('execution' in note):raise SourceShareError('follow-up version mismatch')
         available=_when(entry['available_at'],'follow-up availability')
         if available<max(_when(entry[k],k) for k in ('baseline_available_at','recent_available_at')):
             raise SourceShareError('follow-up predates evidence')
@@ -161,12 +165,12 @@ def read_followups(root,baselines,resolve,*,as_of,now):
 
 def publish_followups(root,document,baselines,resolve,*,now=None):
     at=now or datetime.now(timezone.utc)
-    if (not isinstance(document,dict) or set(document)!={'schema','notes'} or document['schema'] not in {SCHEMA,SCHEMA_V2,SCHEMA_V3}
+    if (not isinstance(document,dict) or set(document)!={'schema','notes'} or document['schema'] not in {SCHEMA,SCHEMA_V2,SCHEMA_V3,SCHEMA_V4}
             or not isinstance(document['notes'],list) or not 1<=len(document['notes'])<=20):
         raise SourceShareError('bounded follow-up notes required')
     for note in document['notes']:
-        _validate(note,allow_undated=document['schema']==SCHEMA_V3);_bound(note,baselines,resolve,at)
-        if (document['schema'] in {SCHEMA_V2,SCHEMA_V3})!=('execution' in note):raise SourceShareError('input comparison version mismatch')
+        _validate(note,allow_undated=document['schema'] in {SCHEMA_V3,SCHEMA_V4},allow_scoped=document['schema']==SCHEMA_V4);_bound(note,baselines,resolve,at)
+        if (document['schema'] in {SCHEMA_V2,SCHEMA_V3,SCHEMA_V4})!=('execution' in note):raise SourceShareError('input comparison version mismatch')
     current=read_followups(root,baselines,resolve,as_of=at,now=at)
     anchors={r['note_id']:r for r in current if 'execution' not in r['note']}
     for note in document['notes']:
@@ -253,8 +257,9 @@ def compare_followup_periods(current,previous,since):
             changed=added+revised
             progress=any(r.get('execution_context',{}).get('reported_execution_progress') for r in changed)
             setback=any(r.get('execution_context',{}).get('reported_execution_setback') for r in changed)
-            direction=('MIXED_EXECUTION_EVIDENCE' if progress and setback else
-                'SOURCE_REPORTED_PROGRESS' if progress else 'SOURCE_REPORTED_SETBACK' if setback else 'NO_NEW_EXECUTION_PROOF')
+            project_progress=any(r.get('execution_context',{}).get('reported_project_execution_progress') for r in changed)
+            direction=('MIXED_EXECUTION_EVIDENCE' if (progress or project_progress) and setback else
+                'SOURCE_REPORTED_PROGRESS' if progress else 'SOURCE_REPORTED_SETBACK' if setback else 'SOURCE_REPORTED_PROJECT_PROGRESS' if project_progress else 'NO_NEW_EXECUTION_PROOF')
             # Without a publisher timezone, UTC+14 is the earliest possible day start.
             dated=[r for r in added if r['note']['reported_date'] and
                    datetime.fromisoformat(r['note']['reported_date']).replace(tzinfo=timezone.utc)-timedelta(hours=14)>since]

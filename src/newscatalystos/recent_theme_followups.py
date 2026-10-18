@@ -16,6 +16,7 @@ from .federated_news_search import search_completed_workspaces
 
 SCHEMA='newscatalyst.recent_theme_followup.v1'
 SCHEMA_V2='newscatalyst.recent_theme_followup.v2'
+SCHEMA_V3='newscatalyst.recent_theme_followup.v3'
 from .execution_evidence import validate_execution,bind_anchor,attach_anchor,summarize_execution
 RECENT_FIELDS={'search_scope','provider_id','event_id','title_sha256','headline','source_url','triage_evidence_sha256'}
 FIELDS={'baseline_note_id','recent_source','reported_date','evidence_kind','factor_codes',
@@ -37,7 +38,7 @@ NEGATIVE={'DEMAND_REDUCTION','CANCELLATION'}
 ENTRY_FIELDS={'schema','note','available_at','baseline_available_at','recent_available_at',
               'source_text_stored','source_truth_verified'}
 
-def _validate(note):
+def _validate(note,*,allow_undated=False):
     if not isinstance(note,dict) or set(note) not in (FIELDS,FIELDS|{'execution'}):
         raise SourceShareError('exact bounded follow-up fields required; no source text')
     if not re.fullmatch('[0-9a-f]{64}',str(note['baseline_note_id'])):
@@ -56,9 +57,12 @@ def _validate(note):
     if note['evidence_kind'] not in KINDS:raise SourceShareError('invalid evidence kind')
     for k,limit in [('analysis_text',300),('limitation',240),('source_location',100),('product_scope',100)]:
         if not _text(note[k],limit):raise SourceShareError('bounded follow-up paraphrase required')
-    if not isinstance(note['reported_date'],str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}',note['reported_date']):
-        raise SourceShareError('reported page date required')
-    date.fromisoformat(note['reported_date'])
+    if note['reported_date'] is None and allow_undated and 'execution' in note:
+        pass  # Collection time must never be substituted for an absent page date.
+    else:
+        if not isinstance(note['reported_date'],str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}',note['reported_date']):
+            raise SourceShareError('reported page date required')
+        date.fromisoformat(note['reported_date'])
     for k,allowed in [('factor_codes',FACTOR_LABELS),('market_codes',MARKET_LABELS)]:
         values=note[k]
         if (not isinstance(values,list) or not 1<=len(values)<=len(allowed)
@@ -90,7 +94,7 @@ def _bound(note,baselines,resolve,at):
     if (_when(row['source_available_at'],'recent availability')>at
             or _when(baseline['available_at'],'baseline availability')>at):
         raise SourceShareError('follow-up source not yet available')
-    if date.fromisoformat(note['reported_date'])>at.date():
+    if note['reported_date'] is not None and date.fromisoformat(note['reported_date'])>at.date():
         raise SourceShareError('future reported page date')
     old=baseline['note']
     if (old['provider_id'],old['source_event_sha256'],old['source_title_sha256'])==(
@@ -116,11 +120,11 @@ def read_followups(root,baselines,resolve,*,as_of,now):
         raw=_private_input(path,8192)
         if path.stem!=sha256(raw).hexdigest():raise SourceShareError('follow-up digest mismatch')
         entry=_json(raw,'recent follow-up');note=entry.get('note')
-        if (set(entry)!=ENTRY_FIELDS or entry['schema'] not in {SCHEMA,SCHEMA_V2}
+        if (set(entry)!=ENTRY_FIELDS or entry['schema'] not in {SCHEMA,SCHEMA_V2,SCHEMA_V3}
                 or entry['source_text_stored'] is not False or entry['source_truth_verified'] is not False):
             raise SourceShareError('invalid follow-up envelope')
-        _validate(note)
-        if (entry['schema']==SCHEMA_V2)!=('execution' in note):raise SourceShareError('follow-up version mismatch')
+        _validate(note,allow_undated=entry['schema']==SCHEMA_V3)
+        if (entry['schema'] in {SCHEMA_V2,SCHEMA_V3})!=('execution' in note):raise SourceShareError('follow-up version mismatch')
         available=_when(entry['available_at'],'follow-up availability')
         if available<max(_when(entry[k],k) for k in ('baseline_available_at','recent_available_at')):
             raise SourceShareError('follow-up predates evidence')
@@ -152,16 +156,16 @@ def read_followups(root,baselines,resolve,*,as_of,now):
             except (SourceShareError,ValueError):continue
         if key not in latest or (value['available_at'],value['note_id'])>(latest[key]['available_at'],latest[key]['note_id']):
             latest[key]=value
-    return sorted(latest.values(),key=lambda r:(r['note']['reported_date'],r['source_company']))
+    return sorted(latest.values(),key=lambda r:(r['note']['reported_date'] or '',r['source_company']))
 
 def publish_followups(root,document,baselines,resolve,*,now=None):
     at=now or datetime.now(timezone.utc)
-    if (not isinstance(document,dict) or set(document)!={'schema','notes'} or document['schema'] not in {SCHEMA,SCHEMA_V2}
+    if (not isinstance(document,dict) or set(document)!={'schema','notes'} or document['schema'] not in {SCHEMA,SCHEMA_V2,SCHEMA_V3}
             or not isinstance(document['notes'],list) or not 1<=len(document['notes'])<=20):
         raise SourceShareError('bounded follow-up notes required')
     for note in document['notes']:
-        _validate(note);_bound(note,baselines,resolve,at)
-        if (document['schema']==SCHEMA_V2)!=('execution' in note):raise SourceShareError('input comparison version mismatch')
+        _validate(note,allow_undated=document['schema']==SCHEMA_V3);_bound(note,baselines,resolve,at)
+        if (document['schema'] in {SCHEMA_V2,SCHEMA_V3})!=('execution' in note):raise SourceShareError('input comparison version mismatch')
     current=read_followups(root,baselines,resolve,as_of=at,now=at)
     anchors={r['note_id']:r for r in current if 'execution' not in r['note']}
     for note in document['notes']:
@@ -174,7 +178,7 @@ def publish_followups(root,document,baselines,resolve,*,now=None):
         fingerprint=sha256(_bytes(note)).hexdigest()
         if fingerprint in fingerprints:continue
         base,row=_bound(note,baselines,resolve,at)
-        entry={'schema':SCHEMA_V2 if 'execution' in note else SCHEMA,'note':note,'available_at':at.isoformat(),
+        entry={'schema':document['schema'],'note':note,'available_at':at.isoformat(),
                'baseline_available_at':base['available_at'],'recent_available_at':row['source_available_at'],
                'source_text_stored':False,'source_truth_verified':False}
         raw=_bytes(entry);digest=sha256(raw).hexdigest()

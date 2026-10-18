@@ -1017,7 +1017,7 @@ function renderRecentThemeComparison(place,data,withButton=false){
   for(const row of data.notes){
     const n=row.note,r=n.recent_source,card=node("article","finding");
     card.append(node("h4","",row.source_company+" · "+(kinds[n.evidence_kind]||n.evidence_kind)),
-      node("p","",r.headline),node("p","fineprint","원문 표시일 "+n.reported_date+" · 제목 확보 "+row.recent_available_at+" · 비교 분석 확보 "+row.available_at),
+      node("p","",r.headline),node("p","fineprint","원문 표시일 "+(n.reported_date||"미확인")+" · 제목 확보 "+row.recent_available_at+" · 비교 분석 확보 "+row.available_at),
       node("p","finding-detail","기존 근거: "+row.baseline_headline),
       node("p","finding-detail",row.baseline_analysis),
       node("p","",n.analysis_text),node("p","finding-detail","제품·사업 범위: "+n.product_scope),
@@ -1026,7 +1026,8 @@ function renderRecentThemeComparison(place,data,withButton=false){
     const x=n.execution,context=row.execution_context;
     if(x&&context){
       const timing={EARLIER_PUBLICATION:"기준 기사보다 앞선 발표",LATER_PUBLICATION_PRIOR_PERIOD:"발표는 뒤지만 실적 대상 기간은 앞섬",
-        ON_OR_AFTER_ANCHOR:"기준 기사 이후 또는 같은 날의 자료"};
+        ON_OR_AFTER_ANCHOR:"기준 기사 이후 또는 같은 날의 자료",
+        PUBLICATION_DATE_UNAVAILABLE:"원문 날짜 미확인 · 후속 이행 시점 판단 제외"};
       card.append(node("p","finding-detail","비교 기준 기사: "+context.anchor_headline+" · "+context.anchor_reported_date),
         node("p","fineprint","시간 관계: "+timing[context.chronology]+(x.period_end?" · 실적 기간 말 "+x.period_end:"")),
         node("p","fineprint","프로젝트 관계: "+(x.project_relation==="SAME_PROJECT_EXPLICIT"?"원문상 같은 프로젝트로 분류(분석)":"관련 사업·별도 프로젝트")+" · "+x.matching_basis),
@@ -1038,7 +1039,7 @@ function renderRecentThemeComparison(place,data,withButton=false){
         const ref=x.counter_reference,refBox=node("details","finding-detail");
         refBox.append(node("summary","","반증 후보·위험 참고 기사"),node("p","",ref.title+" · "+ref.reported_date),
           node("p","",ref.analysis_text),
-          node("p","fineprint","공개 검색 결과를 읽은 별도 분석 · 수집 원장 미등록 외부 참고 링크 · 실제 취소·수요 감소를 확인한 자료 아님"));
+          node("p","fineprint",(ref.access_basis==="PUBLIC_PAGE_READING"?"공개 기사 본문을":"공개 검색 결과를")+" 읽은 별도 분석 · 수집 원장 미등록 외부 참고 링크 · 실제 취소·수요 감소를 확인한 자료 아님"));
         const refLink=node("a","source-link","반론 기사 원문 ↗");refLink.href=ref.source_url;
         refLink.target="_blank";refLink.rel="noopener noreferrer";refBox.append(refLink);card.append(refBox);
       }

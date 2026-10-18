@@ -169,3 +169,50 @@ assert(all(p).some(n=>n.href==='https://press.example.org/story/1'));
 """
     subprocess.run(['node','-e',script],input=json.dumps(data),text=True,capture_output=True,check=True,
                    cwd=Path(__file__).resolve().parent.parent)
+
+@pytest.mark.parametrize('stage,kind',[('DELIVERY_COMPLETED','REPORTED_DELIVERY'),('CANCELLATION','CANCELLATION')])
+def test_undated_reference_keeps_pit_and_never_becomes_followup_execution(tmp_path,monkeypatch,stage,kind):
+    from newscatalystos.recent_theme_followups import SCHEMA_V3
+    root,_,_,ws,bases,_,doc,_=fixture(tmp_path,monkeypatch)
+    before=datetime.now(timezone.utc)
+    original=export_discovery(root,as_of=before,now=before,include_common_causes=True,recent_workspaces=(ws,))
+    doc['schema']=SCHEMA_V3;doc['notes']=doc['notes'][:1];n=doc['notes'][0]
+    n.update(reported_date=None,evidence_kind=kind)
+    n['execution'].update(project_relation='SAME_PROJECT_EXPLICIT',evidence_stage=stage,period_end=None,
+        counter_reference={'title':'합성: 납기와 환율 위험 전망','source_url':'https://press.example.org/full',
+            'reported_date':before.date().isoformat(),'analysis_text':'공개 본문에 실린 전망이며 실제 취소 확인은 아니다.',
+            'access_basis':'PUBLIC_PAGE_READING'})
+    p=private_json(tmp_path/'undated.json',doc)
+    assert execute(root,p,(ws,))['created']==1
+    assert execute(root,p,(ws,))['created']==0
+    now=datetime.now(timezone.utc)
+    rows=read_followups(root,bases,metadata_resolver((ws,),now=now),as_of=now,now=now)
+    selected=[r for r in rows if r['note']['reported_date'] is None];row,=selected
+    assert row['schema']==SCHEMA_V3 and row['recent_available_at']<=row['available_at']
+    context=row['execution_context']
+    assert context['chronology']=='PUBLICATION_DATE_UNAVAILABLE'
+    assert not context['reported_execution_progress'] and not context['reported_execution_setback']
+    assert export_discovery(root,as_of=before,now=now,include_common_causes=True,recent_workspaces=(ws,))==original
+    script=r"""const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
+const s=fs.readFileSync('scripts/dashboard_assets/app.js','utf8'),data=JSON.parse(fs.readFileSync(0,'utf8'));
+function node(t,c,text){return {textContent:text||'',children:[],append(...x){this.children.push(...x)},addEventListener(){}}}
+const p=node('div'),ctx={node};vm.runInNewContext(s.slice(s.indexOf('function renderRecentThemeComparison('),s.indexOf('function renderPublicDemandNotes(')),ctx);
+ctx.renderRecentThemeComparison(p,data);function all(n){return [n,...n.children.flatMap(all)]}
+const text=all(p).map(n=>n.textContent).join(' ');
+for(const x of ['원문 표시일 미확인','후속 이행 시점 판단 제외','공개 기사 본문을 읽은 별도 분석'])assert(text.includes(x),x);
+assert(!text.includes('null')&&!text.includes('undefined'));
+"""
+    from newscatalystos.recent_theme_followups import assess
+    subprocess.run(['node','-e',script],input=json.dumps(assess(selected,[row['source_company']])),
+                   text=True,capture_output=True,check=True,cwd=Path(__file__).resolve().parent.parent)
+
+@pytest.mark.parametrize('version,period',[
+    ('newscatalyst.recent_theme_followup.v2',None),
+    ('newscatalyst.recent_theme_followup.v3','2026-01-01')])
+def test_undated_reference_requires_new_version_and_no_invented_period(tmp_path,monkeypatch,version,period):
+    root,_,_,ws,bases,_,doc,_=fixture(tmp_path,monkeypatch)
+    doc['schema']=version;doc['notes']=doc['notes'][:1];doc['notes'][0]['reported_date']=None
+    doc['notes'][0]['execution']['period_end']=period;pins=fingerprint(tmp_path)
+    with pytest.raises(SourceShareError):
+        publish_followups(root,doc,bases,metadata_resolver((ws,),now=datetime.now(timezone.utc)))
+    assert fingerprint(tmp_path)==pins

@@ -25,14 +25,14 @@ def validate_execution(note):
     if x['evidence_stage'] not in STAGES or note['evidence_kind']!=STAGES[x['evidence_stage']]:
         raise SourceShareError('execution stage must match source claim kind')
     period=x['period_end']
-    if period is not None and (not isinstance(period,str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}',period)
+    if period is not None and (note['reported_date'] is None or not isinstance(period,str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}',period)
                               or date.fromisoformat(period)>date.fromisoformat(note['reported_date'])):
         raise SourceShareError('reported period must end by the page date')
     counter=x['counter_reference']
     if counter is not None:
         if (not isinstance(counter,dict) or set(counter)!=COUNTER_FIELDS
                 or not _text(counter['title'],256) or not _text(counter['analysis_text'],200)
-                or counter['access_basis']!='PUBLIC_SEARCH_RESULT_READING'):
+                or counter['access_basis'] not in {'PUBLIC_SEARCH_RESULT_READING','PUBLIC_PAGE_READING'}):
             raise SourceShareError('bounded separate external risk reference required')
         _safe_https_endpoint(counter['source_url'])
         if not re.fullmatch(r'\d{4}-\d{2}-\d{2}',str(counter['reported_date'])):
@@ -55,7 +55,8 @@ def attach_anchor(row,anchor):
     x=row['note']['execution'];n=row['note'];old=anchor['note']
     # Publication after an announcement cannot turn a prior accounting period
     # into performance of that announcement. Dates are claims, not PIT clocks.
-    if n['reported_date']<old['reported_date']:timing='EARLIER_PUBLICATION'
+    if n['reported_date'] is None:timing='PUBLICATION_DATE_UNAVAILABLE'
+    elif n['reported_date']<old['reported_date']:timing='EARLIER_PUBLICATION'
     elif x['period_end'] is not None and x['period_end']<old['reported_date']:
         timing='LATER_PUBLICATION_PRIOR_PERIOD'
     else:timing='ON_OR_AFTER_ANCHOR'

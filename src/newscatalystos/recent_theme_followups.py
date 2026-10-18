@@ -65,7 +65,8 @@ def _validate(note,*,allow_undated=False):
         date.fromisoformat(note['reported_date'])
     for k,allowed in [('factor_codes',FACTOR_LABELS),('market_codes',MARKET_LABELS)]:
         values=note[k]
-        if (not isinstance(values,list) or not 1<=len(values)<=len(allowed)
+        minimum=0 if allow_undated and k=='factor_codes' else 1
+        if (not isinstance(values,list) or not minimum<=len(values)<=len(allowed)
                 or any(v not in allowed for v in values) or len(set(values))!=len(values)):
             raise SourceShareError('invalid follow-up classification')
 

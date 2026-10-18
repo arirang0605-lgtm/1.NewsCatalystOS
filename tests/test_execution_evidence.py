@@ -178,6 +178,7 @@ def test_undated_reference_keeps_pit_and_never_becomes_followup_execution(tmp_pa
     original=export_discovery(root,as_of=before,now=before,include_common_causes=True,recent_workspaces=(ws,))
     doc['schema']=SCHEMA_V3;doc['notes']=doc['notes'][:1];n=doc['notes'][0]
     n.update(reported_date=None,evidence_kind=kind)
+    n['factor_codes']=[]  # A delivery does not prove its economic demand cause.
     n['execution'].update(project_relation='SAME_PROJECT_EXPLICIT',evidence_stage=stage,period_end=None,
         counter_reference={'title':'합성: 납기와 환율 위험 전망','source_url':'https://press.example.org/full',
             'reported_date':before.date().isoformat(),'analysis_text':'공개 본문에 실린 전망이며 실제 취소 확인은 아니다.',
@@ -240,3 +241,11 @@ def test_reference_only_notes_stay_queryable_without_entering_legacy_evaluation_
     assert exported and doc['notes'][1] in exported
     assert first not in exported and last not in exported
     assert all(n['reported_date'] is not None for n in exported)
+
+
+def test_new_reference_version_allows_unknown_cause_without_relaxing_old_format(tmp_path,monkeypatch):
+    from newscatalystos.recent_theme_followups import _validate
+    _,_,_,_,_,_,doc,_=fixture(tmp_path,monkeypatch)
+    n=doc['notes'][0];n['factor_codes']=[]
+    with pytest.raises(SourceShareError):_validate(n)
+    _validate(n,allow_undated=True)

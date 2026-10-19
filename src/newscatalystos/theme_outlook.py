@@ -40,6 +40,7 @@ ROLES = {
     'CONTRACT': ('CONTRACT', '공급·구매 계약'),
     'DELIVERY_START': ('DELIVERY', '납품 개시'),
     'PRODUCT_LAUNCH': ('OFFERING', '제품·솔루션 출시'),
+    'PRODUCT_PRESENTATION': ('PRESENTATION', '제품·솔루션 공개·시연'),
     'BUSINESS_START': ('OFFERING', '서비스·사업 개시'),
     'CUSTOMER_ACQUISITION': ('CUSTOMER', '고객 확보'),
     'MARKET_ENTRY': ('MARKET', '시장 진입'),
@@ -127,7 +128,7 @@ def _observations(themes, titles, candidates, at):
                 continue
             text = row['headline']
             description = discovery['object_expression']
-            expression = change['topic'] if change['action'] == 'PRODUCT_LAUNCH' else description
+            expression = change['topic'] if change['action'] in {'PRODUCT_LAUNCH','PRODUCT_PRESENTATION'} else description
             evidence = _literal(text, expression)
             if evidence is None or discovery.get('topic_label_truncated'):
                 continue
@@ -159,7 +160,7 @@ def _observations(themes, titles, candidates, at):
                      'source_available_at': ref['source_available_at'],
                      'basis_available_at': available.isoformat(),
                      'reported_published_at': None,
-                     'objects': _objects(expression, exact_product=change['action'] == 'PRODUCT_LAUNCH')}
+                     'objects': _objects(expression, exact_product=change['action'] in {'PRODUCT_LAUNCH','PRODUCT_PRESENTATION'})}
             seen[identity] = value
     # A revised title of the same provider document is still one research input.
     # Different economic actions in that document remain visible separately.

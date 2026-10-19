@@ -12,8 +12,8 @@ from .economic_changes import ACTIONS,business_start_phase,market_entry,normaliz
 from .power_equipment import PRODUCTS
 
 MODE='ECONOMIC_DISCOVERY'
-RULE_VERSION='rss-event-first-v5'
-SUPPORTED_RULE_VERSIONS=('rss-event-first-v1','rss-event-first-v2','rss-event-first-v3','rss-event-first-v4',RULE_VERSION)
+RULE_VERSION='rss-event-first-v6'
+SUPPORTED_RULE_VERSIONS=('rss-event-first-v1','rss-event-first-v2','rss-event-first-v3','rss-event-first-v4','rss-event-first-v5',RULE_VERSION)
 # Action grammar is sector-independent. Specializations of the existing
 # action vocabulary only bound the verb span; they do not require a product.
 KOREAN=tuple((kind,re.compile(
@@ -408,13 +408,68 @@ def _product_launch(text):
     return [{'change':change,'discovery':observation}]
 
 
+# A named product demonstration/public presentation does not establish launch,
+# general availability, customer adoption or a sale. Require an explicit object
+# noun so public reports, personal-data disclosures and IPOs are not products.
+_PRESENTATION_KO=re.compile(r'(공개|시연|선보여)(?:\s*(?:했다|한다|했음|하였다|예정|계획))?[.!…]?\s*$')
+_PRESENTATION_NOUN=re.compile(r'\s*(?:제품|솔루션|플랫폼|시스템|앱|애플리케이션|장치|모듈|서비스)\s*(?:을|를)?\s*$')
+
+
+def _product_presentation(text):
+    from .feed_analysis import QUOTED_PRODUCT
+    if NEGATIVE.search(text):return []
+    verb=_PRESENTATION_KO.search(text)
+    if verb is None:return []
+    subject=SUBJECT.match(text);issuer=subject['actor'] if subject else None
+    if issuer and AUTHORITY.search(issuer):return []
+    left=subject.end() if subject else 0
+    quoted=[m for m in QUOTED_PRODUCT.finditer(text) if left<=m.start()<verb.start()]
+    objects=[m for m in quoted if _PRESENTATION_NOUN.fullmatch(text[m.end():verb.start()])]
+    if len(objects)!=1:return []
+    obj=objects[0];prefix=text[left:obj.start()]
+    prior=[m for m in quoted if m.end()<=obj.start()]
+    if prior and re.fullmatch(r'\s*(?:와|과|및|·|[,，])\s*',text[prior[-1].end():obj.start()]):return []
+    # Another stated actor cannot be attributed to the headline's first company.
+    second=SUBJECT.match(prefix.lstrip())
+    if second and _companies(second['actor']):return []
+    if re.search(r'(?:^|\s)[^\s,，]+(?:은|는)\s*$',prefix):return []
+    name=next(x for x in obj.groups() if x is not None).strip()
+    if not 1<len(name)<=80:return []
+    expression=text[obj.start():verb.start()].strip()
+    links=[]
+    for tag,label,pattern in HINTS:
+        found=re.search(pattern,expression,re.I)
+        if found:links.append({'industry':tag,'label':label,'source_phrase':found.group(),
+            'evidence_sha256':sha256(found.group().encode()).hexdigest(),
+            'status':'SOURCE_WORD_HINT_NOT_SUPPLY_CHAIN_VALIDATION'})
+    names=_companies(issuer) if issuer else []
+    phase='PLANNED' if _LAUNCH_REPORTED_PLAN.search(text) else 'SOURCE_REPORTED'
+    change={'topic':name,'action':'PRODUCT_PRESENTATION','phase':phase,'economic_driver':'UNKNOWN',
+        'entity_ids':names,'industry_tags':[x['industry'] for x in links],
+        'source_paragraph_sha256':sha256(text.encode()).hexdigest(),
+        'evidence_level':'REPORTED','verified_economic_effect':False}
+    observation={'mode':MODE,'event_first':True,'industry_required_for_detection':False,
+        'action_evidence':_span(text,verb.start(1),verb.end(1)),
+        'object_expression':expression,'object_evidence':_span(text,obj.start(),obj.start()+len(expression)),
+        'normalized_headline_sha256':sha256(text.encode()).hexdigest(),
+        'topic_label_truncated':False,'object_status':'SOURCE_STATED',
+        'source_named_issuer':issuer,'company_status':'SOURCE_NAME_ONLY' if names else 'COMPANY_UNSPECIFIED',
+        'source_company_role':'SOURCE_STATED_PRESENTER_NOT_ATTESTED_MANUFACTURER',
+        'industry_status':'LINKED_BY_SOURCE_WORDS' if links else 'UNCLASSIFIED_OBSERVATION',
+        'industry_links':links,'watch_topic':name,'source_reports_historical_context':bool(HISTORICAL.search(text)),
+        'market_newness':'UNKNOWN','deep_industry_validation':False,'new_provider_permission_granted':False,
+        'commercial_success_verified':False,'commercial_availability_verified':False}
+    return [{'change':change,'discovery':observation}]
+
+
 def discover_economic_events(text,*,rule_version=RULE_VERSION):
     if rule_version not in SUPPORTED_RULE_VERSIONS:raise ValueError('unsupported discovery rule version')
     existing=_discover_economic_events_v1(text)
     if existing or rule_version=='rss-event-first-v1':return existing
-    if rule_version in {'rss-event-first-v3','rss-event-first-v4','rss-event-first-v5'}:
+    if rule_version in {'rss-event-first-v3','rss-event-first-v4','rss-event-first-v5','rss-event-first-v6'}:
         contextual=_discover_economic_events_v1(text,include_policy_actions=True,
-                                              include_order_awards=rule_version in {'rss-event-first-v4','rss-event-first-v5'},
-                                              include_facility_expansion=rule_version=='rss-event-first-v5')
+                                              include_order_awards=rule_version in {'rss-event-first-v4','rss-event-first-v5','rss-event-first-v6'},
+                                              include_facility_expansion=rule_version in {'rss-event-first-v5','rss-event-first-v6'})
         if contextual:return contextual
-    return _product_launch(text)
+    launched=_product_launch(text)
+    return launched or (_product_presentation(text) if rule_version=='rss-event-first-v6' else [])

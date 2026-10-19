@@ -41,6 +41,8 @@ HINTS = {
     'NO_NEW_MATERIAL': 'NO_NEW_CATALYST',
 }
 PATHS = {
+    'PRODUCT_PRESENTATION': [('EARNINGS','UNKNOWN','출처의 제품·솔루션 공개·시연은 후속 출시·고객 채택을 확인할 사업 관찰 단서',
+         '공개·시연을 판매 개시나 출시 완료로 보지 않음. 제조사·제품 가용성·계약·매출·사용자 채택 미확인')],
     'PRODUCT_LAUNCH': [('EARNINGS','UNKNOWN','출처의 제품·솔루션 출시 발표는 고객 채택·유료 판매로 이어질 경우 사업 기회가 될 수 있음',
          '출시 주체와 제조사·유통사를 구분. 실제 판매량·매출·수익성·사용자 채택·인허가·반복수요 미확인')],
     'INVESTMENT': [

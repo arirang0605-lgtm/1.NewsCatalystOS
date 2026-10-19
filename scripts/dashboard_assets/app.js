@@ -1078,7 +1078,7 @@ function renderRecentThemeComparison(place,data,withButton=false,query={}){
     REPORTED_SHIPMENT:"출하·출항 보도 · 최종 납품과 구분",REPORTED_DELIVERY:"납품 완료 보도",REPORTED_DELAY:"납품 지연 보도",RISK_ONLY:"위험·반론 설명"};
   for(const row of data.notes){
     const n=row.note,r=n.recent_source,card=node("article","finding");
-    card.append(node("h4","",row.source_company+" · "+(kinds[n.evidence_kind]||n.evidence_kind)),
+    card.append(node("h4","",row.source_company+" · "+(row.schema==="newscatalyst.recent_theme_followup.v5"?"사업·기술 배경 · 수요·이행 미확인":(kinds[n.evidence_kind]||n.evidence_kind))),
       node("p","",r.headline),node("p","fineprint","원문 표시일 "+(n.reported_date||"미확인")+" · 제목 확보 "+row.recent_available_at+" · 비교 분석 확보 "+row.available_at),
       node("p","finding-detail","기존 근거: "+row.baseline_headline),
       node("p","finding-detail",row.baseline_analysis),

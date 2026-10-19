@@ -18,6 +18,7 @@ SCHEMA='newscatalyst.recent_theme_followup.v1'
 SCHEMA_V2='newscatalyst.recent_theme_followup.v2'
 SCHEMA_V3='newscatalyst.recent_theme_followup.v3'
 SCHEMA_V4='newscatalyst.recent_theme_followup.v4'
+SCHEMA_V5='newscatalyst.recent_theme_followup.v5'
 from .execution_evidence import validate_execution,bind_anchor,attach_anchor,summarize_execution
 RECENT_FIELDS={'search_scope','provider_id','event_id','title_sha256','headline','source_url','triage_evidence_sha256'}
 FIELDS={'baseline_note_id','recent_source','reported_date','evidence_kind','factor_codes',
@@ -39,9 +40,12 @@ NEGATIVE={'DEMAND_REDUCTION','CANCELLATION'}
 ENTRY_FIELDS={'schema','note','available_at','baseline_available_at','recent_available_at',
               'source_text_stored','source_truth_verified'}
 
-def _validate(note,*,allow_undated=False,allow_scoped=False):
+def _validate(note,*,allow_undated=False,allow_scoped=False,allow_context=False):
     if not isinstance(note,dict) or set(note) not in (FIELDS,FIELDS|{'execution'}):
         raise SourceShareError('exact bounded follow-up fields required; no source text')
+    # V5 is a background reading only, not an alternative execution or demand claim.
+    if allow_context and (note.get('evidence_kind')!='CONTEXT_ONLY' or 'execution' in note):
+        raise SourceShareError('context version requires background evidence without execution')
     if not re.fullmatch('[0-9a-f]{64}',str(note['baseline_note_id'])):
         raise SourceShareError('exact baseline note required')
     if 'execution' in note:
@@ -69,7 +73,7 @@ def _validate(note,*,allow_undated=False,allow_scoped=False):
         date.fromisoformat(note['reported_date'])
     for k,allowed in [('factor_codes',FACTOR_LABELS),('market_codes',MARKET_LABELS)]:
         values=note[k]
-        minimum=0 if allow_undated and k=='factor_codes' else 1
+        minimum=0 if k=='factor_codes' and (allow_undated or allow_context) else 1
         if (not isinstance(values,list) or not minimum<=len(values)<=len(allowed)
                 or any(v not in allowed for v in values) or len(set(values))!=len(values)):
             raise SourceShareError('invalid follow-up classification')
@@ -125,10 +129,10 @@ def read_followups(root,baselines,resolve,*,as_of,now):
         raw=_private_input(path,8192)
         if path.stem!=sha256(raw).hexdigest():raise SourceShareError('follow-up digest mismatch')
         entry=_json(raw,'recent follow-up');note=entry.get('note')
-        if (set(entry)!=ENTRY_FIELDS or entry['schema'] not in {SCHEMA,SCHEMA_V2,SCHEMA_V3,SCHEMA_V4}
+        if (set(entry)!=ENTRY_FIELDS or entry['schema'] not in {SCHEMA,SCHEMA_V2,SCHEMA_V3,SCHEMA_V4,SCHEMA_V5}
                 or entry['source_text_stored'] is not False or entry['source_truth_verified'] is not False):
             raise SourceShareError('invalid follow-up envelope')
-        _validate(note,allow_undated=entry['schema'] in {SCHEMA_V3,SCHEMA_V4},allow_scoped=entry['schema']==SCHEMA_V4)
+        _validate(note,allow_undated=entry['schema'] in {SCHEMA_V3,SCHEMA_V4},allow_scoped=entry['schema']==SCHEMA_V4,allow_context=entry['schema']==SCHEMA_V5)
         if (entry['schema'] in {SCHEMA_V2,SCHEMA_V3,SCHEMA_V4})!=('execution' in note):raise SourceShareError('follow-up version mismatch')
         available=_when(entry['available_at'],'follow-up availability')
         if available<max(_when(entry[k],k) for k in ('baseline_available_at','recent_available_at')):
@@ -165,11 +169,11 @@ def read_followups(root,baselines,resolve,*,as_of,now):
 
 def publish_followups(root,document,baselines,resolve,*,now=None):
     at=now or datetime.now(timezone.utc)
-    if (not isinstance(document,dict) or set(document)!={'schema','notes'} or document['schema'] not in {SCHEMA,SCHEMA_V2,SCHEMA_V3,SCHEMA_V4}
+    if (not isinstance(document,dict) or set(document)!={'schema','notes'} or document['schema'] not in {SCHEMA,SCHEMA_V2,SCHEMA_V3,SCHEMA_V4,SCHEMA_V5}
             or not isinstance(document['notes'],list) or not 1<=len(document['notes'])<=20):
         raise SourceShareError('bounded follow-up notes required')
     for note in document['notes']:
-        _validate(note,allow_undated=document['schema'] in {SCHEMA_V3,SCHEMA_V4},allow_scoped=document['schema']==SCHEMA_V4);_bound(note,baselines,resolve,at)
+        _validate(note,allow_undated=document['schema'] in {SCHEMA_V3,SCHEMA_V4},allow_scoped=document['schema']==SCHEMA_V4,allow_context=document['schema']==SCHEMA_V5);_bound(note,baselines,resolve,at)
         if (document['schema'] in {SCHEMA_V2,SCHEMA_V3,SCHEMA_V4})!=('execution' in note):raise SourceShareError('input comparison version mismatch')
     current=read_followups(root,baselines,resolve,as_of=at,now=at)
     anchors={r['note_id']:r for r in current if 'execution' not in r['note']}

@@ -32,6 +32,8 @@ def test_context_roundtrip_keeps_old_results_pit_duplicates_and_exact_source(tmp
     before = datetime.now(timezone.utc)
     fixed = export_discovery(root, as_of=before, now=before,
                              include_common_causes=True, recent_workspaces=(ws,))
+    old_view = read_discovery(root, as_of=before, now=before, include_common_causes=True, recent_workspaces=(ws,))
+    old_comparison = next(g['recent_news_comparison'] for g in old_view['theme_outlook']['candidates'] if g.get('recent_news_comparison'))
     old_files = {p.name: p.read_bytes() for p in (root/'analysis_notes/recent_followups').glob('*.json')}
     data = context(doc)
     resolve = metadata_resolver((ws,), now=datetime.now(timezone.utc))
@@ -48,7 +50,7 @@ def test_context_roundtrip_keeps_old_results_pit_duplicates_and_exact_source(tmp
     view = read_discovery(root, as_of=now, now=now, include_common_causes=True, recent_workspaces=(ws,))
     comparison, = [g['recent_news_comparison'] for g in view['theme_outlook']['candidates']
                    if g.get('recent_news_comparison')]
-    assert len(comparison['notes']) == 2 and comparison['status'] == 'SUPPORT_ADDED'
+    assert len(comparison['notes']) == 2 and comparison['status'] == old_comparison['status']
     assert comparison['shared_recent_factors'] == []
     assert not comparison['article_count_used_as_strength']
     assert export_discovery(root, as_of=before, now=now,

@@ -956,7 +956,7 @@ function renderSavedArticleCompanyContext(place,context,articleContext){
         "과거/정정·철회 가능 사건 당사자 · 활성 기업 확정 아님"));
       if(company.inclusion_status==="READY"){
         for(const reason of company.inclusion_reasons)
-          party.append(node("p","finding-detail","테마 포함 이유: "+reason));
+          party.append(node("p","finding-detail","테마 포함 이유: "+reason.replace(/\b[A-Z][A-Z_]+\b/g,key=>economicActionLabels[key]||key)));
       }else party.append(node("p","empty-small","N/A · 이 기사 판본의 활성 기업 포함 근거 없음"));
       party.append(node("p","finding-detail","출처 가용: "+company.source_available_at+" · 근거 기록: "+company.recorded_at));
       if(company.catalyst_materials?.length)
